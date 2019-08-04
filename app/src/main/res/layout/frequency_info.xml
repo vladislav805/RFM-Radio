@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		android:orientation="vertical"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content">
+
+	<com.vlad805.fmradio.view.TextViewWithSupportReflection
+			style="@style/Frequency"
+			android:id="@+id/frequency_mhz"
+			android:layout_width="match_parent"
+			android:layout_height="@dimen/frequency_mhz_height" />
+
+	<ImageView
+			android:id="@+id/frequency_mhz_reflection"
+			android:scaleType="centerCrop"
+			android:layout_width="match_parent"
+			android:layout_height="@dimen/frequency_mhz_reflection_height"
+			android:contentDescription="@string/nil"/>
+
+	<TextView
+			style="@style/RDS_PS"
+			android:id="@+id/frequency_ps"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content" />
+
+	<HorizontalScrollView
+			android:layout_width="match_parent"
+			android:layout_height="@dimen/seek_frequency_height">
+		<FrameLayout
+				android:layout_width="wrap_content"
+				android:layout_height="@dimen/seek_frequency_height">
+			<com.vlad805.fmradio.view.FrequencySeekView
+					style="@style/FrequencySeekBar"
+					android:id="@+id/frequency_seek"
+					android:thumbTint="@android:color/transparent"
+					android:paddingStart="@dimen/seek_frequency_horizontal_padding"
+					android:paddingEnd="@dimen/seek_frequency_horizontal_padding"
+					android:layout_width="@dimen/seek_frequency_width"
+					android:layout_height="match_parent" />
+
+		</FrameLayout>
+	</HorizontalScrollView>
+</LinearLayout>

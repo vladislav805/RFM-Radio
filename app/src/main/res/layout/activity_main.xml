@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:tools="http://schemas.android.com/tools"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:background="?android:selectableItemBackgroundBorderless"
+		tools:context=".MainActivity"
+		android:orientation="vertical">
+
+	<com.vlad805.fmradio.view.FrequencyView
+			android:id="@+id/frequency_info"
+			android:layout_marginTop="@dimen/frequency_info_margin_top"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content" />
+
+	<include layout="@layout/fragment_controls" />
+
+	<View
+			android:layout_width="match_parent"
+			android:layout_height="0dp"
+			android:layout_weight="1" />
+
+	<HorizontalScrollView
+			android:layout_width="wrap_content"
+			android:layout_height="80dp">
+		<com.vlad805.fmradio.view.PresetListView
+				android:id="@+id/preset_list"
+				android:layout_width="wrap_content"
+				android:layout_height="match_parent" />
+	</HorizontalScrollView>
+
+</LinearLayout>

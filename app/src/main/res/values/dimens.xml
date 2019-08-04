@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<dimen name="frequency_mhz_height">80dp</dimen>
+	<dimen name="frequency_mhz_reflection_height">64dp</dimen>
+	<dimen name="frequency_info_margin_top">15dp</dimen>
+
+	<dimen name="preset_width">110dp</dimen>
+	<dimen name="preset_height">55dp</dimen>
+	<dimen name="preset_mhz_size">26sp</dimen>
+	<dimen name="preset_title_size">14sp</dimen>
+</resources>

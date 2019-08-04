@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<color name="colorPrimary">@color/primary_blue</color>
+	<color name="colorPrimaryDark">@color/primary_blue_shadow</color>
+	<color name="colorAccent">#00FFD8</color>
+
+	<color name="primary_blue">#ff32b5e5</color>
+	<color name="primary_blue_shadow">#00ccff</color>
+	<color name="frequency_seek_background">#4f4f4f</color>
+	<color name="main_background">#202020</color>
+	<color name="frequency_digit_background">#2f2f2f</color>
+	<color name="red">#ff0000</color>
+</resources>

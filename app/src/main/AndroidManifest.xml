@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:tools="http://schemas.android.com/tools"
+		package="com.vlad805.fmradio">
+
+	<uses-permission android:name="android.permission.INTERNET"/>
+	<uses-permission android:name="android.permission.RECORD_AUDIO"/>
+	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
+	<application
+			android:allowBackup="true"
+			android:icon="@drawable/ic_launcher"
+			android:supportsRtl="false"
+			android:label="@string/app_name"
+			android:launchMode="singleInstance"
+			android:theme="@style/AppTheme"
+			tools:ignore="GoogleAppIndexingWarning">
+		<activity
+				android:name=".MainActivity"
+				android:label="@string/title_activity_design">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN"/>
+				<category android:name="android.intent.category.LAUNCHER"/>
+			</intent-filter>
+		</activity>
+		<activity
+				android:name=".DebugActivity"
+				android:launchMode="singleInstance"
+				android:screenOrientation="portrait" />
+		<service
+				android:name=".FMService"
+				android:enabled="true"
+				android:exported="true"
+				android:label="RFM Main Service"
+				tools:ignore="ExportedService"/>
+		<!-- android:process=":service" -->
+	</application>
+
+</manifest>
