@@ -8,7 +8,9 @@ import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.fm.*;
 
 import java.io.*;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -148,6 +150,8 @@ public class FM {
 				}
 
 				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
+
+				Log.d("sendCmd <<<", res);
 
 				if (callback != null) {
 					callback.onResult(res);

@@ -1,11 +1,14 @@
 package com.vlad805.fmradio.activity;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Parcelable;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,18 +16,21 @@ import android.widget.ImageButton;
 import android.widget.Toast;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.db.FavoriteStation;
+import com.vlad805.fmradio.db.IStation;
 import com.vlad805.fmradio.enums.JumpDirection;
 import com.vlad805.fmradio.enums.SeekDirection;
 import com.vlad805.fmradio.service.FM;
-import com.vlad805.fmradio.view.FrequencyView;
+import com.vlad805.fmradio.view.RadioUIView;
 
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
-public class MainActivity extends Activity implements View.OnClickListener, FrequencyView.OnFrequencyChanged {
+public class MainActivity extends Activity implements View.OnClickListener, RadioUIView.OnFrequencyChanged {
 
 	private View mViewLoading;
 	private View mViewPlayer;
-	private FrequencyView mFrequencyInfo;
+	private RadioUIView mFrequencyInfo;
 
 	private RadioReceiver mRadioReceiver;
 
@@ -52,19 +58,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 		initButtons();
 
 		FM.send(this, C.Command.INIT);
-	}
-
-	@Override
-	protected void onStart() {
-		super.onStart();
-
-		//doBindService();
-	}
-
-	@Override
-	protected void onDestroy() {
-		//doUnbindService();
-		super.onDestroy();
 	}
 
 	@Override
@@ -165,9 +158,19 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 		return super.onOptionsItemSelected(item);
 	}
 
+	private Toast mToast;
+
+	@SuppressLint("ShowToast")
+	private void showToast(String str) {
+		if (mToast == null) {
+			mToast = Toast.makeText(this, str, Toast.LENGTH_LONG);
+		}
+		mToast.setText(str);
+		mToast.show();
+	}
+
 	@Override
 	public void onChanged(int kHz) {
-		//Toast.makeText(this, String.format(Locale.ENGLISH, "%5.1f", kHz / 1000d), Toast.LENGTH_LONG).show();
 		FM.send(this, C.Command.SET_FREQUENCY, C.Key.FREQUENCY, String.valueOf(kHz));
 	}
 
@@ -192,6 +195,18 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 						mFrequencyInfo.setFrequency(frequency);
 					}
 
+					if (intent.hasExtra(C.Key.FAVORITE_STATION_LIST)) {
+						List<FavoriteStation> fs = convert(intent.getParcelableArrayExtra(C.Key.FAVORITE_STATION_LIST));
+						Log.i("MA", "FavStationList = " + fs.size());
+					}
+
+					if (intent.hasExtra(C.Key.STATION_LIST)) {
+						List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
+						Log.i("MA", "StationList = " + s.size());
+
+						mFrequencyInfo.notifyStationsLists(s);
+					}
+
 					mViewLoading.setVisibility(View.GONE);
 					mViewPlayer.setVisibility(View.VISIBLE);
 
@@ -202,16 +217,29 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 
 				case C.Event.FREQUENCY_SET:
 					final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					runOnUiThread(() -> mFrequencyInfo.setFrequency(kHz));
+					runOnUiThread(() -> {
+						mFrequencyInfo.setFrequency(kHz);
+
+						String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
+						showToast(str);
+					});
 					break;
 
 				case C.Event.UPDATE_PS:
-					String ps = intent.getStringExtra(C.KEY_PS);
+					String ps = intent.getStringExtra(C.Key.PS);
 
 					runOnUiThread(() -> mFrequencyInfo.setRdsPs(ps));
 					break;
 
 			}
 		}
+	}
+
+	private <T> List<T> convert(Parcelable[] a) {
+		List<T> s = new ArrayList<>();
+		for (Parcelable i : a) {
+			s.add((T) i);
+		}
+		return s;
 	}
 }

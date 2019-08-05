@@ -4,19 +4,20 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.*;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
+import androidx.room.Room;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.db.AppDatabase;
+import com.vlad805.fmradio.db.FavoriteStation;
+import com.vlad805.fmradio.db.Station;
 import com.vlad805.fmradio.fm.Configuration;
 import com.vlad805.fmradio.fm.MuteState;
 import com.vlad805.fmradio.fm.OnResponseReceived;
 import com.vlad805.fmradio.fm.QualComm;
 
+import java.util.List;
 import java.util.Locale;
 
 import static com.vlad805.fmradio.Utils.getStorage;
@@ -33,13 +34,15 @@ public class FMService extends Service {
 
 	private OnResponseReceived<Integer> mOnRssiReceived = rssi -> {
 		Intent i = new Intent(C.Event.UPDATE_RSSI);
-		i.putExtra(C.KEY_RSSI, rssi);
+		i.putExtra(C.Key.RSSI, rssi);
 		sendBroadcast(i);
 	};
 
 	private static Configuration mConfiguration;
 
 	private PlayerReceiver mStatusReceiver;
+
+	private AppDatabase mDatabase;
 
 	public class PlayerReceiver extends BroadcastReceiver {
 
@@ -57,7 +60,7 @@ public class FMService extends Service {
 					break;
 
 				case C.Event.UPDATE_PS:
-					mConfiguration.setPs(intent.getStringExtra(C.KEY_PS));
+					mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
 					break;
 			}
 
@@ -68,6 +71,8 @@ public class FMService extends Service {
 	@Override
 	public void onCreate() {
 		super.onCreate();
+
+		mDatabase = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, C.DATABASE_NAME).enableMultiInstanceInvalidation().build();
 
 		mStatusReceiver = new PlayerReceiver();
 
@@ -148,34 +153,35 @@ public class FMService extends Service {
 				break;
 
 			case C.Command.SEARCH:
-				mFM.search(data -> {
-					StringBuilder sb = new StringBuilder();
-					for (Integer kHz : data) {
-						sb.append(kHz).append("\n");
-					}
-					final String s = sb.toString();
-					new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(FMService.this, s, Toast.LENGTH_LONG).show());
-				});
+				mFM.search(null);
 				break;
 
-			case C.FM_KILL:
+			case C.Command.KILL:
+				kill();
 		}
 
 		return START_STICKY;
 	}
 
-	@Override
-	public void onDestroy() {
+	private void kill() {
 		mAudioService.stopAudio();
 
 		if (mFM != null) {
 			mFM.kill(null);
 		}
 
+		mNotificationMgr.cancel(NOTIFICATION_ID);
+		stopForeground(true);
+
 		if (mStatusReceiver != null) {
 			unregisterReceiver(mStatusReceiver);
 			mStatusReceiver = null;
 		}
+	}
+
+	@Override
+	public void onDestroy() {
+		kill();
 
 		super.onDestroy();
 	}
@@ -189,7 +195,7 @@ public class FMService extends Service {
 			mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		}
 
-		SharedPreferences sp = getStorage(this);
+		final SharedPreferences sp = getStorage(this);
 
 		if (mFM == null) {
 			mFM = FM.getInstance();
@@ -201,10 +207,24 @@ public class FMService extends Service {
 				intent.putExtra(C.PrefKey.LAST_FREQUENCY, last);
 				intent.putExtra(C.PrefKey.AUTOPLAY, sp.getBoolean(C.PrefKey.AUTOPLAY, C.PrefDefaultValue.AUTOPLAY));
 				intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
+
+				intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
+				intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
+
 				sendBroadcast(intent);
 			});
 		}
 	}
+
+	private List<Station> getStationList() {
+		return mDatabase.stationDao().getAll();
+	}
+
+	private List<FavoriteStation> getFavoriteStationList() {
+		return mDatabase.favoriteStationDao().getAll();
+	}
+
+
 
 	private Notification.Builder mNotification;
 	private static final int NOTIFICATION_ID = 1027;

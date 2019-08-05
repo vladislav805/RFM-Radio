@@ -205,7 +205,7 @@ public class QualComm implements IImplementation {
 
 	@Override
 	public void search(FM srv, final OnResponseReceived<List<Integer>> listener) {
-		srv.sendCommand("search", data -> {  });
+		srv.sendCommand("search", null);
 	}
 
 	/**

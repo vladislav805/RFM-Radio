@@ -8,4 +8,5 @@
 	<dimen name="preset_height">55dp</dimen>
 	<dimen name="preset_mhz_size">26sp</dimen>
 	<dimen name="preset_title_size">14sp</dimen>
+	<dimen name="dialog_horizontal_padding">16dp</dimen>
 </resources>

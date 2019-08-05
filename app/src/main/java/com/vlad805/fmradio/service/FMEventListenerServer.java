@@ -114,7 +114,7 @@ public class FMEventListenerServer extends Thread {
 
 			case EVT_UPDATE_RSSI:
 				intent.setAction(C.Event.UPDATE_RSSI);
-				intent.putExtra(C.KEY_RSSI, Integer.valueOf(lines[1]));
+				intent.putExtra(C.Key.RSSI, Integer.valueOf(lines[1]));
 				break;
 
 			case EVT_UPDATE_PS:
@@ -122,7 +122,7 @@ public class FMEventListenerServer extends Thread {
 					break;
 				}
 				intent.setAction(C.Event.UPDATE_PS);
-				intent.putExtra(C.KEY_PS, lines[1]);
+				intent.putExtra(C.Key.PS, lines[1]);
 				break;
 
 			case EVT_SEARCH_DONE:

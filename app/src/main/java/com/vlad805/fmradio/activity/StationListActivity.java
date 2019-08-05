@@ -2,19 +2,23 @@ package com.vlad805.fmradio.activity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.*;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.*;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.db.AppDatabase;
+import com.vlad805.fmradio.db.Station;
+import com.vlad805.fmradio.helper.RecyclerItemClickListener;
+import com.vlad805.fmradio.helper.RenameDialog;
 import com.vlad805.fmradio.service.FM;
-import org.json.JSONArray;
-import org.json.JSONException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +32,10 @@ public class StationListActivity extends Activity {
 
 	private AlertDialog mAlert;
 
+	private AppDatabase mDatabase;
+
+	private List<Station> mList;
+
 	private interface OnListReady {
 		void onReady(List<Station> stations);
 	}
@@ -40,21 +48,12 @@ public class StationListActivity extends Activity {
 				mAlert.cancel();
 			}
 
+			mList = stations;
+
 			mAdapter = new StationAdapter(stations);
 			mRecycler.setAdapter(mAdapter);
 
-
-			String json;
-
-			JSONArray arr = new JSONArray();
-
-			for (Station station : stations) {
-				arr.put(station.getFrequency());
-			}
-
-			json = arr.toString();
-
-			Storage.getInstance(StationListActivity.this).edit().putString(C.PrefKey.STATIONS_DATA_LIST, json).apply();
+			saveStations(stations);
 		}
 	};
 
@@ -65,34 +64,48 @@ public class StationListActivity extends Activity {
 
 		mRecycler = findViewById(R.id.station_list_recycler);
 
-		fetchStations(mShow);
+		mRecycler.addOnItemTouchListener(new RecyclerItemClickListener(this, mRecycler, new RecyclerItemClickListener.OnItemClickListener() {
+			@Override
+			public void onItemClick(View view, int position) {
+				Station station = mList.get(position);
+
+				FM.send(StationListActivity.this, C.Command.SET_FREQUENCY,
+						C.Key.FREQUENCY, String.valueOf(station.getFrequency())
+				);
+			}
+
+			@Override
+			public void onLongItemClick(View view, int position) {
+				showPopup(view, position);
+			}
+		}));
+
+		mDatabase = AppDatabase.getInstance(this);
+
+		getStations(mShow);
 	}
 
-	public void fetchStations(OnListReady onReady) {
-		SharedPreferences sp = Storage.getInstance(this);
+	/**
+	 * Load list of stations from database
+	 * @param onReady Callback on UI thread
+	 */
+	private void getStations(final OnListReady onReady) {
+		new Thread(() -> {
+			final List<Station> result = mDatabase.stationDao().getAll();
+			runOnUiThread(() -> onReady.onReady(result));
+		}).start();
+	}
 
-		if (!sp.contains(C.PrefKey.STATIONS_DATA_LIST)) {
-			search(onReady);
-		} else {
-			List<Station> list = new ArrayList<>();
+	private void saveStations(final List<Station> list) {
+		new Thread(() -> mDatabase.stationDao().add(list)).start();
+	}
 
-			String json = sp.getString(C.PrefKey.STATIONS_DATA_LIST, C.PrefDefaultValue.STATIONS_DATA_LIST);
-			Log.d("SLA", "fetchStations: " + json);
-			try {
-				JSONArray jsonArray = new JSONArray(json);
+	private void updateStation(final Station station) {
+		new Thread(() -> mDatabase.stationDao().update(station)).start();
+	}
 
-				for (int i = 0, l = jsonArray.length(); i < l; ++i) {
-					int val = jsonArray.optInt(i, -1);
-					if (val != -1) {
-						list.add(new Station(val));
-					}
-				}
-			} catch (JSONException e) {
-				e.printStackTrace();
-			} finally {
-				onReady.onReady(list);
-			}
-		}
+	private void removeStation(final Station station) {
+		new Thread(() -> mDatabase.stationDao().delete(station)).start();
 	}
 
 	static class ResultListener extends BroadcastReceiver {
@@ -137,29 +150,53 @@ public class StationListActivity extends Activity {
 		FM.send(this, C.Command.SEARCH);
 	}
 
-	static class Station {
-		private int frequency;
+	private static final int MENU_RENAME = 1401;
+	private static final int MENU_REMOVE = 1402;
 
-		public Station(int frequency) {
-			this.frequency = frequency;
-		}
+	private void showPopup(final View v, final int position) {
+		final Station station = mList.get(position);
 
-		public int getFrequency() {
-			return frequency;
-		}
+		final PopupMenu popupMenu = new PopupMenu(this, v);
+		final Menu menu = popupMenu.getMenu();
+		menu.add(1, MENU_RENAME, 1, getString(R.string.popup_station_rename));
+		menu.add(1, MENU_REMOVE, 2, getString(R.string.popup_station_remove));
+
+		popupMenu.setOnMenuItemClickListener(item -> {
+			switch (item.getItemId()) {
+				case MENU_REMOVE:
+					removeStation(station);
+					mList.remove(station);
+					mAdapter.notifyItemRemoved(position);
+					break;
+
+				case MENU_RENAME:
+					new RenameDialog(StationListActivity.this, station.getTitle(), title -> {
+						station.setTitle(title);
+						updateStation(station);
+						mAdapter.notifyItemChanged(position);
+					}).setTitle(R.string.popup_station_rename).open();
+					break;
+			}
+			return true;
+		});
+
+		popupMenu.show();
 	}
 
 	static class StationHolder extends RecyclerView.ViewHolder {
 
 		private TextView mFrequency;
+		private TextView mTitle;
 
 		public StationHolder(View v) {
 			super(v);
 			mFrequency = v.findViewById(R.id.station_item_frequency);
+			mTitle = v.findViewById(R.id.station_item_title);
 		}
 
 		public void set(Station s) {
-			mFrequency.setText(String.format(Locale.ENGLISH, "%5.1f MHz", s.getFrequency() / 1000f));
+			mFrequency.setText(String.format(Locale.ENGLISH, "%.1f MHz", s.getFrequency() / 1000f));
+			mTitle.setText(s.getTitle());
 		}
 	}
 
@@ -205,10 +242,8 @@ public class StationListActivity extends Activity {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		switch (item.getItemId()) {
-			case MENU_REFRESH:
-				search(mShow);
-				break;
+		if (item.getItemId() == MENU_REFRESH) {
+			search(mShow);
 		}
 		return super.onOptionsItemSelected(item);
 	}

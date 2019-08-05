@@ -5,8 +5,12 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.Log;
+import android.util.SparseArray;
 import android.widget.SeekBar;
+import com.vlad805.fmradio.db.IStation;
+
+import java.util.List;
+import java.util.Locale;
 
 /**
  * vlad805 (c) 2018
@@ -17,9 +21,11 @@ public class FrequencySeekView extends SeekBar {
 	private Paint mFrequency0;
 	private Paint mFrequency5;
 	private Paint mCurrentLine;
+	private Paint mStationLine;
 
-	private float mValueMin = 0;
-	private float mValueMax = 180;
+	private int mValueMin = 0;
+	private int mValueMax = 100;
+	private int mStep = 10;
 
 	public FrequencySeekView(Context context) {
 		super(context);
@@ -57,26 +63,37 @@ public class FrequencySeekView extends SeekBar {
 		mCurrentLine.setStrokeWidth(dpi * 2f);
 		mCurrentLine.setStyle(Paint.Style.STROKE);
 
+		mStationLine = new Paint();
+		mStationLine.setColor(Color.YELLOW);
+		mStationLine.setStrokeWidth(dpi * 1f);
+		mStationLine.setStyle(Paint.Style.STROKE);
+
 		invalidate();
 	}
 
-	private void setMaxValue(float maxValue) {
+	private void setMaxValue(int maxValue) {
 		mValueMax = maxValue;
 	}
 
-	private void setMinValue(float minValue) {
+	private void setMinValue(int minValue) {
 		mValueMin = minValue;
 	}
 
-	public FrequencySeekView setMinMaxValue(float minValue, float maxValue) {
-		setMinValue(minValue);
-		setMaxValue(maxValue);
-		setMax((int) (mValueMax - mValueMin));
-		return this;
+	public void setStep(int step) {
+		mStep = step;
 	}
 
-	public double getValue() {
-		return mValueMin + getProgress();
+	/**
+	 *
+	 * @param minValue Lower band in kHz
+	 * @param maxValue Higher band in kHz
+	 * @param step Step in kHz
+	 */
+	public void setMinMaxValue(int minValue, int maxValue, int step) {
+		setMinValue(minValue);
+		setMaxValue(maxValue);
+		setStep(step);
+		setMax((mValueMax - mValueMin) / mStep);
 	}
 
 	private int sp2px(float spValue) {
@@ -84,75 +101,113 @@ public class FrequencySeekView extends SeekBar {
 		return (int) (spValue * fontScale + 0.5f);
 	}
 
+	public int fixProgress(int progress) {
+		return progress * mStep + mValueMin;
+	}
+
+	/**
+	 * Set current frequency
+	 * @param progress Frequency in kHz
+	 */
 	@Override
 	public synchronized void setProgress(int progress) {
-		progress -= mValueMin;
-		super.setProgress(progress);
+		if (mStep != 0) {
+			super.setProgress((progress - mValueMin) / mStep);
+		}
 	}
 
-	public int fixProgress(int progress) {
-		progress += mValueMin;
-		return progress;
-	}
-
+	/**
+	 * Return current frequency in kHz
+	 * @return Frequency in kHz
+	 */
 	@Override
 	public synchronized int getProgress() {
-		int val = super.getProgress();
-		val += mValueMin;
-		return val;
+		return fixProgress(super.getProgress());
 	}
 
 	@Override
 	protected void onDraw(Canvas canvas) {
-		float paddingTop = 0; //30;
+		int paddingTop = 0;
 
+		// Width of view
 		int viewWidth = getWidth() - getPaddingLeft() - getPaddingRight();
 
+		// Padding from left side
 		int deltaX = getPaddingLeft();
 
-		float viewInterval = (float) viewWidth / (mValueMax - mValueMin);
+		// Computed width of interval between dashes of frequencies
+		int viewInterval = viewWidth / ((mValueMax - mValueMin) / mStep);
 
-		float baseX;
+		// y-coordinate, end of short stick relative to the top
+		int baseYShort = paddingTop + 25;
 
-		float baseYShort = paddingTop + 25; // конец короткой палочки
-		float baseYLong = paddingTop + 60; // конец длинной палочки
-		float baseYText0 = baseYLong + 5 + mFrequency0.getTextSize(); // MHz .0
-		float baseYText5 = baseYLong + 5 + mFrequency5.getTextSize(); // MHz .5
-		float MHzFloat;
-		double currentValue = getValue() - mValueMin;
-		float now = -1f;
+		// y-coordinate, end of long dash relative to the top
+		int baseYLong = paddingTop + 60;
 
+		// y-coordinate, position of label .0 relative to the top
+		int baseYText0 = baseYLong + 5 + (int) mFrequency0.getTextSize();
+
+		// y-coordinate, position of label .5 relative to the top
+		int baseYText5 = baseYLong + 5 + (int) mFrequency5.getTextSize();
+
+		// Selected kHz
+		int kHzCurrent = getProgress();
+
+		// Draw horizontal line
 		canvas.drawLine(deltaX, paddingTop, getWidth() - getPaddingRight(), paddingTop, mTrait);
 
-		for (int i = 0; i < mValueMax - mValueMin + 1; i++) {
-			baseX = deltaX + viewInterval * i; // ось X для всех
-			MHzFloat = i + mValueMin;
+		// For each 100 kHz ...
+		for (int i = 0; i < (mValueMax - mValueMin) / mStep + 1; ++i) {
 
-			if (MHzFloat == currentValue) {
-				now = baseX;
+			// kHz frequency for current iteration
+			int kHz = mValueMin + i * mStep;
+
+			// X coordinate for current iteration
+			int x = deltaX + viewInterval * i;
+
+			// The presence of the current frequency in the list of stations
+			boolean hasStation = mStations != null && mStations.get(kHz) != null;
+
+			// Choose color for dash in depend of presence of the current frequency in the list of stations
+			Paint colorTrait = hasStation ? mStationLine : mTrait;
+
+			// If .0 MHz or .5 MHz
+			if (kHz % 500 == 0) {
+				// Label
+				String MHz = String.format(Locale.ENGLISH, "%5.1f", kHz / 1000f);
+
+				// Draw long dash
+				canvas.drawLine(x, paddingTop, x, baseYLong, colorTrait);
+
+				boolean isRoundMHz = kHz % 1000 == 0;
+
+				canvas.drawText(MHz, x,
+					isRoundMHz ? baseYText0 : baseYText5,
+					isRoundMHz ? mFrequency0 : mFrequency5
+				);
+			} else {
+				// Others dashes are short
+				canvas.drawLine(x, paddingTop, x, baseYShort, colorTrait);
 			}
 
-			// Если .0 или .5
-			if (i % 5 == 0) {
-				String MHz = String.valueOf(MHzFloat / 10);
-
-				// Длинная палочка
-				canvas.drawLine(baseX, paddingTop, baseX, baseYLong, mTrait);
-
-				if ((MHzFloat % 10) > 0) { // Если .5, мелкий текст
-					canvas.drawText(MHz, baseX, baseYText5, mFrequency5);
-				} else { // Если .0, крупный текст
-					canvas.drawText(MHz, baseX, baseYText0, mFrequency0);
-				}
-			} else { // Остальное с мелкой палочкой
-				canvas.drawLine(baseX, paddingTop, baseX, baseYShort, mTrait);
+			// If selected frequency equals current iterate, draw red line
+			if (kHzCurrent == kHz) {
+				canvas.drawLine(x, 0, x, getHeight(), mCurrentLine);
 			}
-		}
-
-		if (now != -1f) {
-			canvas.drawLine(now, 0, now, getHeight(), mCurrentLine);
 		}
 
 		super.onDraw(canvas);
+	}
+
+	private SparseArray<IStation> mStations;
+
+	public void notifyStationList(List<IStation> stations) {
+		mStations = new SparseArray<>();
+
+		for (IStation station : stations) {
+			mStations.put(station.getFrequency(), station);
+		}
+
+		invalidate();
 	}
 }

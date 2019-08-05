@@ -11,10 +11,10 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.enums.SeekDirection;
-import com.vlad805.fmradio.service.FM;
-import com.vlad805.fmradio.fm.MuteState;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.enums.SeekDirection;
+import com.vlad805.fmradio.fm.MuteState;
+import com.vlad805.fmradio.service.FM;
 
 public class DebugActivity extends Activity implements View.OnClickListener {
 
@@ -107,7 +107,7 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 	}
 
 	private void kill() {
-		FM.send(this, C.FM_KILL);
+		FM.send(this, C.Command.KILL);
 	}
 
 	private void seek(SeekDirection dir) {
@@ -134,7 +134,7 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 
 			switch (intent.getAction()) {
 				case C.Event.UPDATE_RSSI:
-					setText(R.id.text_rssi, String.valueOf(intent.getIntExtra(C.KEY_RSSI, -2)));
+					setText(R.id.text_rssi, String.valueOf(intent.getIntExtra(C.Key.RSSI, -2)));
 					break;
 
 				case C.Event.FREQUENCY_SET:
@@ -142,12 +142,12 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 					break;
 
 				case C.Event.UPDATE_PS:
-					runOnUiThread(() -> setText(R.id.text_ps, intent.getStringExtra(C.KEY_PS)));
+					runOnUiThread(() -> setText(R.id.text_ps, intent.getStringExtra(C.Key.PS)));
 
 					ActionBar ab = getActionBar();
 
 					if (ab != null) {
-						ab.setSubtitle(intent.getStringExtra(C.KEY_PS));
+						ab.setSubtitle(intent.getStringExtra(C.Key.PS));
 					}
 					break;
 
