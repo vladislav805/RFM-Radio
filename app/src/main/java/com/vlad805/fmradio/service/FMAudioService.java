@@ -1,4 +1,4 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.service;
 
 import android.content.Context;
 import android.media.*;

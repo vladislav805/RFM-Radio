@@ -1,22 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-	<item
-		android:id="@+id/menu_stop"
-		android:title="@string/menu_stop"
-		android:icon="@drawable/ic_stop"
-		android:showAsAction="always" />
+	<group
+			android:id="@+id/menu_main">
+		<item
+				android:id="@+id/menu_stop"
+				android:title="@string/menu_stop"
+				android:icon="@drawable/ic_stop"
+				android:showAsAction="always" />
 
-	<item
-		android:id="@+id/menu_settings"
-		android:title="@string/menu_settings"
-		android:icon="@drawable/ic_settings"
-		android:showAsAction="ifRoom" />
+		<item
+				android:id="@+id/menu_record"
+				android:title="@string/menu_record"
+				android:icon="@drawable/ic_cassette"
+				android:showAsAction="ifRoom" />
 
-	<item
-		android:id="@+id/menu_about"
-		android:title="@string/menu_about" />
+		<item
+				android:id="@+id/menu_favourites"
+				android:title="@string/menu_open_list_favorites"
+				android:icon="@drawable/ic_favorites"
+				android:showAsAction="ifRoom" />
 
-	<item
-		android:id="@+id/menu_open_debug"
-		android:title="@string/menu_open_debug" />
+		<item
+				android:id="@+id/menu_list"
+				android:title="@string/menu_open_list"
+				android:icon="@drawable/ic_list" />
+
+		<item
+				android:id="@+id/menu_settings"
+				android:title="@string/menu_settings"
+				android:icon="@drawable/ic_settings"
+				android:showAsAction="ifRoom" />
+
+		<item
+				android:id="@+id/menu_about"
+				android:title="@string/menu_about" />
+
+		<item
+				android:id="@+id/menu_open_debug"
+				android:title="@string/menu_open_debug" />
+	</group>
 </menu>

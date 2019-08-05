@@ -1,33 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<FrameLayout
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:tools="http://schemas.android.com/tools"
+		android:animateLayoutChanges="true"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		android:background="?android:selectableItemBackgroundBorderless"
-		tools:context=".MainActivity"
+		tools:context=".activity.MainActivity"
 		android:orientation="vertical">
 
-	<com.vlad805.fmradio.view.FrequencyView
-			android:id="@+id/frequency_info"
-			android:layout_marginTop="@dimen/frequency_info_margin_top"
+	<FrameLayout
+			android:id="@+id/main_loading"
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content" />
-
-	<include layout="@layout/fragment_controls" />
-
-	<View
-			android:layout_width="match_parent"
-			android:layout_height="0dp"
-			android:layout_weight="1" />
-
-	<HorizontalScrollView
+			android:layout_height="match_parent">
+<LinearLayout
+		android:orientation="vertical"
+		android:layout_gravity="center"
+		android:gravity="center"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content">
+	<ProgressBar
+			style="?android:attr/progressBarStyleLarge"
 			android:layout_width="wrap_content"
-			android:layout_height="80dp">
-		<com.vlad805.fmradio.view.PresetListView
-				android:id="@+id/preset_list"
-				android:layout_width="wrap_content"
-				android:layout_height="match_parent" />
-	</HorizontalScrollView>
-
+			android:layout_height="wrap_content" />
+	<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/app_name"
+			style="@android:style/TextAppearance.Material.Large" />
 </LinearLayout>
+	</FrameLayout>
+	<LinearLayout
+			android:id="@+id/main_player"
+			android:visibility="invisible"
+			android:orientation="vertical"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent">
+		<com.vlad805.fmradio.view.FrequencyView
+				android:id="@+id/frequency_info"
+				android:layout_marginTop="@dimen/frequency_info_margin_top"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content" />
+
+		<include layout="@layout/fragment_controls" />
+
+		<View
+				android:layout_width="match_parent"
+				android:layout_height="0dp"
+				android:layout_weight="1" />
+
+		<HorizontalScrollView
+				android:layout_width="wrap_content"
+				android:layout_height="80dp">
+			<com.vlad805.fmradio.view.PresetListView
+					android:id="@+id/preset_list"
+					android:layout_width="wrap_content"
+					android:layout_height="match_parent" />
+		</HorizontalScrollView>
+	</LinearLayout>
+</FrameLayout>

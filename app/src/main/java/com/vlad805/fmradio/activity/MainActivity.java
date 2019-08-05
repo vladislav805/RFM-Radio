@@ -1,59 +1,70 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.activity;
 
 import android.app.Activity;
-import android.content.*;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.Toast;
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.enums.JumpDirection;
+import com.vlad805.fmradio.enums.SeekDirection;
+import com.vlad805.fmradio.service.FM;
 import com.vlad805.fmradio.view.FrequencyView;
 
 import java.util.Locale;
 
 public class MainActivity extends Activity implements View.OnClickListener, FrequencyView.OnFrequencyChanged {
 
-	private boolean mServiceConnected = false;
-	private FMService mService;
-
+	private View mViewLoading;
+	private View mViewPlayer;
 	private FrequencyView mFrequencyInfo;
 
 	private RadioReceiver mRadioReceiver;
 
 	private ImageButton mCtlToggle;
 
+	private Menu mMenu;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
+		if (getActionBar() != null) {
+			getActionBar().hide();
+		}
+
+		mViewLoading = findViewById(R.id.main_loading);
+		mViewPlayer = findViewById(R.id.main_player);
+
 		mFrequencyInfo = findViewById(R.id.frequency_info);
 		mFrequencyInfo.setOnFrequencyChangedListener(this);
-		mFrequencyInfo.setFrequency(102400);
 
 		mRadioReceiver = new RadioReceiver();
 
-
-
 		initButtons();
 
+		FM.send(this, C.Command.INIT);
 	}
 
 	@Override
 	protected void onStart() {
 		super.onStart();
 
-		Intent intent = new Intent(this, FMService.class);
-		bindService(intent, connection, Context.BIND_AUTO_CREATE);
+		//doBindService();
 	}
 
 	@Override
-	protected void onStop() {
-		super.onStop();
-		unbindService(connection);
-		mServiceConnected = false;
+	protected void onDestroy() {
+		//doUnbindService();
+		super.onDestroy();
 	}
 
 	@Override
@@ -61,9 +72,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 		super.onResume();
 
 		IntentFilter filter = new IntentFilter();
+		filter.addAction(C.Event.READY);
 		filter.addAction(C.Event.FREQUENCY_SET);
 		filter.addAction(C.Event.UPDATE_PS);
-		//filter.addAction(C.Event.UPDATE_RSSI);
+		filter.addAction(C.Event.UPDATE_RSSI);
 		filter.addAction(C.Event.SEARCH_DONE);
 		registerReceiver(mRadioReceiver, filter);
 
@@ -94,41 +106,41 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 		}
 	}
 
-	private void fetchInfo() {
-		mFrequencyInfo.setFrequency(mService.getStation().getFrequency());
-	}
-
 	@Override
 	public void onClick(View view) {
 		switch (view.getId()) {
 			case R.id.ctl_toggle:
 				if (FM.getState() == FM.State.TURN_OFF) {
-					FM.send(this, C.FM_ENABLE);
+					FM.send(this, C.Command.ENABLE);
 				} else {
-					FM.send(this, C.FM_DISABLE);
+					FM.send(this, C.Command.DISABLE);
 				}
 				__updateToggleButton();
 				break;
 
-			/*case R.id.ctl_go_down:
-				FM.send(this, C.FM_SET_FREQUENCY);
-				break;*/
+			case R.id.ctl_go_down:
+				FM.send(this, C.Command.JUMP, C.Key.JUMP_DIRECTION, JumpDirection.DOWN.getValue());
+				break;
+
+			case R.id.ctl_go_up:
+				FM.send(this, C.Command.JUMP, C.Key.JUMP_DIRECTION, JumpDirection.UP.getValue());
+				break;
 
 			case R.id.ctl_seek_down:
-				FM.send(this, C.FM_HW_SEEK, C.FM_KEY_SEEK_HW_DIRECTION, "0");
+				FM.send(this, C.Command.HW_SEEK, C.Key.SEEK_HW_DIRECTION, SeekDirection.DOWN.getValue());
 				break;
 
 			case R.id.ctl_seek_up:
-				FM.send(this, C.FM_HW_SEEK, C.FM_KEY_SEEK_HW_DIRECTION, "1");
+				FM.send(this, C.Command.HW_SEEK, C.Key.SEEK_HW_DIRECTION, SeekDirection.UP.getValue());
 				break;
-
 
 		}
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.main, menu);;
+		getMenuInflater().inflate(R.menu.main, menu);
+		mMenu = menu;
 		return super.onCreateOptionsMenu(menu);
 	}
 
@@ -137,8 +149,17 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
-				FM.send(this, C.FM_DISABLE);
+				FM.send(this, C.Command.DISABLE);
 				break;
+
+			case R.id.menu_open_debug:
+				startActivity(new Intent(this, DebugActivity.class));
+				break;
+
+			case R.id.menu_list:
+				startActivity(new Intent(this, StationListActivity.class));
+				break;
+
 		}
 
 		return super.onOptionsItemSelected(item);
@@ -146,8 +167,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 
 	@Override
 	public void onChanged(int kHz) {
-		Toast.makeText(this, String.format(Locale.ENGLISH, "%5.1f", kHz / 1000d), Toast.LENGTH_LONG).show();
-		FM.send(this, C.FM_SET_FREQUENCY, C.KEY_FREQUENCY, String.valueOf(kHz));
+		//Toast.makeText(this, String.format(Locale.ENGLISH, "%5.1f", kHz / 1000d), Toast.LENGTH_LONG).show();
+		FM.send(this, C.Command.SET_FREQUENCY, C.Key.FREQUENCY, String.valueOf(kHz));
 	}
 
 	private void __updateToggleButton() {
@@ -163,12 +184,24 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 			}
 
 			switch (intent.getAction()) {
-				/*case C.Event.UPDATE_RSSI:
-					setText(R.id.text_rssi, String.valueOf(intent.getIntExtra(C.KEY_RSSI, -2)));
-					break;*/
+
+				case C.Event.READY:
+					if (intent.hasExtra(C.PrefKey.LAST_FREQUENCY)) {
+						int frequency = intent.getIntExtra(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+
+						mFrequencyInfo.setFrequency(frequency);
+					}
+
+					mViewLoading.setVisibility(View.GONE);
+					mViewPlayer.setVisibility(View.VISIBLE);
+
+					if (getActionBar() != null) {
+						getActionBar().show();
+					}
+					break;
 
 				case C.Event.FREQUENCY_SET:
-					final int kHz = intent.getIntExtra(C.KEY_FREQUENCY, -1);
+					final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
 					runOnUiThread(() -> mFrequencyInfo.setFrequency(kHz));
 					break;
 
@@ -181,22 +214,4 @@ public class MainActivity extends Activity implements View.OnClickListener, Freq
 			}
 		}
 	}
-
-	private ServiceConnection connection = new ServiceConnection() {
-
-		@Override
-		public void onServiceConnected(ComponentName className, IBinder service) {
-			FMService.LocalBinder binder = (FMService.LocalBinder) service;
-			mService = binder.getService();
-			mServiceConnected = true;
-
-			fetchInfo();
-		}
-
-		@Override
-		public void onServiceDisconnected(ComponentName arg0) {
-			mServiceConnected = false;
-		}
-	};
-
 }

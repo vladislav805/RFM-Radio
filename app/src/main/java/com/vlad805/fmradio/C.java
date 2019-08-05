@@ -7,9 +7,10 @@ final public class C {
 
 	public static final String DEFAULT_PREFERENCES = "default_cfg";
 
-	public class Event {
+	public static final class Event {
 		private static final String BASE = "com.vlad805.fmradio.action.EVT_";
 
+		public static final String READY = BASE + "READY";
 		public static final String ENABLED = BASE + "ENABLED";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
@@ -19,30 +20,56 @@ final public class C {
 		public static final String SEARCH_DONE = BASE + "SEARCH_DONE";
 	}
 
-	public static final String FETCHED_RSSI = Event.BASE + "FETCHED_RSSI";
+	public static final class Command {
+		public static final String INIT = "init";
+		public static final String ENABLE = "enable";
+		public static final String DISABLE = "disable";
+		public static final String HW_SEEK = "hw_seek";
+		public static final String SET_FREQUENCY = "set_frequency";
+		public static final String JUMP = "jump";
+		public static final String SEARCH = "search";
+	}
 
-	public static final String FM_HW_SEEK = "fm_hw_seek";
-	public static final String FM_KEY_SEEK_HW_DIRECTION = "fm_seek_hw_direction";
+	public static final class Key {
+		public static final String FREQUENCY = "frequency";
+		public static final String SEEK_HW_DIRECTION = "seek_hw_direction";
+		public static final String JUMP_DIRECTION = "jump_direction";
+
+		public static final String STATION_LIST = "station_list";
+	}
+
+	public static final class PrefKey {
+		public static final String LAST_FREQUENCY = "frequency_last";
+		public static final String STATIONS_DATA_FAVOURIES = "stations_data_favourites";
+		public static final String STATIONS_DATA_LIST = "stations_data_list";
+		public static final String RDS_ENABLE = "rds_enable";
+		public static final String AUTOPLAY = "autoplay";
+	}
+
+	public static final class PrefDefaultValue {
+		public static final int LAST_FREQUENCY = 87500;
+		public static final String STATIONS_DATA_FAVOURIES = "[]";
+		public static final String STATIONS_DATA_LIST = "[]";
+		public static final boolean RDS_ENABLE = true;
+		public static final boolean AUTOPLAY = false;
+	}
 
 	private C() {}
 
-	public static final String FM_INIT = "fm_init";
-	public static final String FM_ENABLE = "fm_enable";
-	public static final String FM_DISABLE = "fm_disable";
-	public static final String FM_SET_FREQUENCY = "fm_set_frequency";
+
+
+
 	public static final String FM_GET_STATUS = "fm_get_status";
 	public static final String FM_SET_STEREO = "fm_setstereo";
 	public static final String FM_SET_MUTE = "fm_setmute";
-	public static final String FM_SEARCH = "fm_search";
 	public static final String FM_KILL = "fm_kill";
 
-	public static final String KEY_FREQUENCY = "fm_frequency";
+
 	public static final String KEY_PS = "fm_ps";
 	public static final String KEY_RT = "fm_rt";
 	public static final String KEY_RSSI = "fm_rssi";
 	public static final String KEY_STATUS = "intent_fm_status";
 	public static final String KEY_MUTE = "fm_mute";
 	public static final String KEY_EVENT = "intent_fm_event";
-	public static final String KEY_STATION_LIST = "fm_station_list";
 
 }

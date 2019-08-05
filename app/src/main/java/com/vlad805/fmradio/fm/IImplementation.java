@@ -1,6 +1,8 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.fm;
 
 import android.annotation.SuppressLint;
+import com.vlad805.fmradio.BuildConfig;
+import com.vlad805.fmradio.service.FM;
 
 import java.util.List;
 
@@ -51,6 +53,13 @@ public interface IImplementation {
 	 * @return 0 в случае успеха
 	 */
 	public int setFrequency(FM srv, int kHz, OnResponseReceived<Void> listener);
+
+	/**
+	 * Переход на предыдущую/следующую частоту
+	 * @param srv Контроллер
+	 * @param direction Направление перехода: 1 - наверх, -1 - вниз
+	 */
+	public void jump(FM srv, int direction, OnResponseReceived<Void> listener);
 
 	/**
 	 * Получение информации о качестве сигнала

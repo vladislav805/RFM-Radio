@@ -1,4 +1,4 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.fm;
 
 /**
  * vlad805 (c) 2019

@@ -41,6 +41,12 @@ fm_cmd_status_type ConfigureReceiver(fm_config_data* radiocfgptr);
 fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq);
 
 /**
+ * JumpToFrequencyReceiver
+ * @return
+ */
+fm_cmd_status_type JumpToFrequencyReceiver(uint32 delta);
+
+/**
  * SetMuteModeReceiver
  * PFAL specific routine to configure the FM receiver's mute status
  * @return FM command status

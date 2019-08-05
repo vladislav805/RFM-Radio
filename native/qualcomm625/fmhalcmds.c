@@ -146,6 +146,8 @@ fm_station_params_available fm_global_params;
 
 volatile poweron_status poweron;
 
+
+
 /**
  * set_v4l2_ctrl
  * Sets the V4L2 control sent as argument with the requested value and returns the status
@@ -347,9 +349,9 @@ boolean process_radio_event(uint8 event_buf) {
 				return FALSE;
 			}
 			fm_global_params.current_station_freq = ((freq.frequency * MULTIPLE_1000) / TUNE_MULT);
-			/*strcpy(fm_global_params.pgm_services, "");
+			strcpy(fm_global_params.pgm_services, "");
 			strcpy(fm_global_params.radio_text, "");
-			fm_global_params.rssi = 0;*/
+			fm_global_params.rssi = 0;
 			printf("Event tuned success, frequency: %d\n", fm_global_params.current_station_freq);
 			send_interruption_info(EVT_FREQUENCY_SET, itoa(fm_global_params.current_station_freq));
 			send_interruption_info(EVT_UPDATE_PS, "");
@@ -820,7 +822,6 @@ out :
  */
 fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq) {
 	int err;
-	double tune;
 	struct v4l2_frequency freq_struct;
 
 #ifdef FM_DEBUG
@@ -844,6 +845,12 @@ fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq) {
 #endif
 
 	return FM_CMD_SUCCESS;
+}
+
+fm_cmd_status_type JumpToFrequencyReceiver(uint32 delta) {
+	uint32 frequency = fm_global_params.current_station_freq + delta;
+
+	return SetFrequencyReceiver(frequency);
 }
 
 /**
@@ -933,11 +940,11 @@ fm_cmd_status_type GetStationParametersReceiver(fm_station_params_available* con
 	configparams->rssi = tuner.signal;
 	configparams->stype = fm_global_params.stype;
 	configparams->rds_sync_status = fm_global_params.rds_sync_status;
-	//configparams->pgm_type = fm_global_params.pgm_type;
-	//configparams->audmode = tuner.audmode;
+	configparams->pgm_type = fm_global_params.pgm_type;
+	configparams->audmode = tuner.audmode;
 
-	//strcpy(configparams->pgm_services, fm_global_params.pgm_services);
-	//strcpy(configparams->radio_text, fm_global_params.radio_text);
+	strcpy(configparams->pgm_services, fm_global_params.pgm_services);
+	strcpy(configparams->radio_text, fm_global_params.radio_text);
 
 	struct v4l2_control control;
 	control.id = V4L2_CID_AUDIO_MUTE;

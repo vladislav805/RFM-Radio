@@ -70,12 +70,7 @@ public class FrequencyView extends LinearLayout {
 
 		mSeek.setProgress(kHz / 100);
 
-		post(new Runnable() {
-			@Override
-			public void run() {
-				mShadow.setImageBitmap(mFrequency.getReflection(.9f));
-			}
-		});
+		post(() -> mShadow.setImageBitmap(mFrequency.getReflection(.9f)));
 	}
 
 	public final void setRdsPs(String ps) {

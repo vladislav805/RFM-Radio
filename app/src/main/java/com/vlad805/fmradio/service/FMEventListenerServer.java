@@ -1,12 +1,14 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.service;
 
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
+import com.vlad805.fmradio.C;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.util.Arrays;
 
 /**
  * vlad805 (c) 2019
@@ -107,7 +109,7 @@ public class FMEventListenerServer extends Thread {
 					break;
 				}
 				intent.setAction(C.Event.FREQUENCY_SET);
-				intent.putExtra(C.KEY_FREQUENCY, Integer.valueOf(lines[1]));
+				intent.putExtra(C.Key.FREQUENCY, Integer.valueOf(lines[1]));
 				break;
 
 			case EVT_UPDATE_RSSI:
@@ -135,11 +137,13 @@ public class FMEventListenerServer extends Thread {
 
 				for (int i = 0; i < count; ++i) {
 					int start = i * lengthKHz;
-					res[i] = Integer.valueOf(stations.substring(start, start + lengthKHz));
+					res[i] = Integer.valueOf(stations.substring(start, start + lengthKHz)) * 100;
 				}
 
+				Arrays.sort(res);
+
 				intent.setAction(C.Event.SEARCH_DONE);
-				intent.putExtra(C.KEY_STATION_LIST, res);
+				intent.putExtra(C.Key.STATION_LIST, res);
 				break;
 
 			default:
