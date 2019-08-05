@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "fmsrv.h"
+#include "fmcommon.h"
 
 int init_server(fm_srv_callback callback) {
 	printf("starting server...");
@@ -31,7 +32,7 @@ int init_server(fm_srv_callback callback) {
 		return -2;
 	}
 
-	int8_t working = 1;
+	boolean working = TRUE;
 
 	ssize_t cmd_len;
 	ssize_t rcv_len;
@@ -39,6 +40,8 @@ int init_server(fm_srv_callback callback) {
 	char buf[CS_BUF];
 
 	printf("server started\n");
+
+	const char* exit = "exit";
 
 	while (working) {
 		memset((char*) &cli_addr, 0, sizeof(cli_addr));
@@ -55,8 +58,8 @@ int init_server(fm_srv_callback callback) {
 
 		printf("client received data [%s]\n", buf);
 
-		if (strncmp(buf, "exit", 4) == 0) {
-			working = 0;
+		if (strcmp(buf, exit) == 0) {
+			working = FALSE;
 			break;
 		}
 
@@ -71,6 +74,7 @@ int init_server(fm_srv_callback callback) {
 
 		//free(&res.data);
 	}
+
 	close(sockfd);
 	printf("exited\n");
 	return 0;
