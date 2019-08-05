@@ -16,10 +16,16 @@ public interface StationDao {
 	@Insert(onConflict = OnConflictStrategy.REPLACE)
 	void add(List<Station> stations);
 
-	@Update(onConflict = OnConflictStrategy.REPLACE)
+	@Update(onConflict = OnConflictStrategy.IGNORE)
 	void update(Station station);
 
 	@Delete
 	void delete(Station station);
+
+	@Query("UPDATE `station` SET `old` = 1")
+	void markAllAsOld();
+
+	@Query("DELETE FROM `station` WHERE `old` = 1")
+	void removeOld();
 
 }

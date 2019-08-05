@@ -1,35 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<androidx.constraintlayout.widget.ConstraintLayout
 		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:app="http://schemas.android.com/apk/res-auto"
 		android:orientation="vertical"
 		android:layout_width="match_parent"
-		android:layout_height="wrap_content">
+		android:layout_height="match_parent"
+		android:id="@+id/linearLayout">
 
 	<com.vlad805.fmradio.view.TextViewWithSupportReflection
 			style="@style/Frequency"
 			android:id="@+id/frequency_mhz"
 			android:layout_width="match_parent"
-			android:layout_height="@dimen/frequency_mhz_height" />
+			android:layout_height="@dimen/frequency_mhz_height"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			app:layout_constraintEnd_toEndOf="parent" />
 
 	<ImageView
 			android:id="@+id/frequency_mhz_reflection"
 			android:scaleType="centerCrop"
 			android:layout_width="match_parent"
 			android:layout_height="@dimen/frequency_mhz_reflection_height"
-			android:contentDescription="@string/nil"/>
+			android:contentDescription="@string/nil"
+			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"/>
+
+
+	<ImageView
+			style="@style/ControlIcon"
+			android:id="@+id/rssi_icon"
+			android:src="@drawable/ic_signal_off"
+			android:layout_width="@dimen/control_icon_size"
+			android:layout_height="@dimen/control_icon_size"
+			app:layout_constraintStart_toStartOf="parent"
+			android:layout_marginStart="8dp"
+			app:layout_constraintTop_toTopOf="@+id/frequency_ps"
+			app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"/>
+
+	<TextView
+			android:id="@+id/rssi_value"
+			android:text="70"
+			android:gravity="center_vertical"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:layout_constraintStart_toEndOf="@+id/rssi_icon"
+			android:layout_marginStart="8dp"
+			app:layout_constraintTop_toTopOf="@+id/rssi_icon"
+			app:layout_constraintBottom_toBottomOf="@+id/rssi_icon"/>
 
 	<TextView
 			style="@style/RDS_PS"
 			android:id="@+id/frequency_ps"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content" />
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:layout_constraintEnd_toEndOf="parent"
+			android:layout_marginTop="16dp"
+			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz_reflection"
+			app:layout_constraintStart_toStartOf="parent"
+			/>
+
+	<ImageView
+			style="@style/ControlIcon"
+			android:id="@+id/stereo_mono"
+			android:src="@drawable/ic_mono"
+			android:layout_width="@dimen/control_icon_size"
+			android:layout_height="@dimen/control_icon_size"
+			app:layout_constraintEnd_toEndOf="parent"
+			android:layout_marginEnd="8dp"
+			app:layout_constraintTop_toTopOf="@+id/frequency_ps"
+			app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"/>
+
 
 	<HorizontalScrollView
 			android:layout_width="match_parent"
-			android:layout_height="@dimen/seek_frequency_height">
+			android:layout_height="@dimen/seek_frequency_height"
+			android:layout_marginTop="8dp"
+			app:layout_constraintTop_toBottomOf="@+id/frequency_ps"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			>
+
 		<FrameLayout
 				android:layout_width="wrap_content"
 				android:layout_height="@dimen/seek_frequency_height">
+
 			<com.vlad805.fmradio.view.FrequencySeekView
 					style="@style/FrequencySeekBar"
 					android:id="@+id/frequency_seek"
@@ -37,8 +92,10 @@
 					android:paddingStart="@dimen/seek_frequency_horizontal_padding"
 					android:paddingEnd="@dimen/seek_frequency_horizontal_padding"
 					android:layout_width="@dimen/seek_frequency_width"
-					android:layout_height="match_parent" />
+					android:layout_height="match_parent"/>
 
 		</FrameLayout>
 	</HorizontalScrollView>
-</LinearLayout>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -13,6 +13,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -35,6 +37,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 	private RadioReceiver mRadioReceiver;
 
 	private ImageButton mCtlToggle;
+
+	private TextView mViewRssi;
+	private ImageView mViewStereoMode;
 
 	private Menu mMenu;
 
@@ -70,6 +75,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		filter.addAction(C.Event.UPDATE_PS);
 		filter.addAction(C.Event.UPDATE_RSSI);
 		filter.addAction(C.Event.SEARCH_DONE);
+		filter.addAction(C.Event.UPDATE_STEREO);
 		registerReceiver(mRadioReceiver, filter);
 
 		__updateToggleButton();
@@ -85,6 +91,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 	private void initButtons() {
 
 		mCtlToggle = findViewById(R.id.ctl_toggle);
+		mViewRssi = findViewById(R.id.rssi_value);
+		mViewStereoMode = findViewById(R.id.stereo_mono);
 
 		int[] ids = {
 				R.id.ctl_toggle,
@@ -230,6 +238,16 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 					runOnUiThread(() -> mFrequencyInfo.setRdsPs(ps));
 					break;
+
+				case C.Event.UPDATE_RSSI:
+					runOnUiThread(() -> mViewRssi.setText(String.valueOf(intent.getIntExtra(C.Key.RSSI, -1))));
+					break;
+
+				case C.Event.UPDATE_STEREO:
+					runOnUiThread(() -> {
+						boolean isStereo = intent.getBooleanExtra(C.Key.STEREO_MODE, false);
+						mViewStereoMode.setImageResource(isStereo ? R.drawable.ic_stereo : R.drawable.ic_mono);
+					});
 
 			}
 		}

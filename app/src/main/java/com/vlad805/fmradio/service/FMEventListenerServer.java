@@ -114,7 +114,7 @@ public class FMEventListenerServer extends Thread {
 
 			case EVT_UPDATE_RSSI:
 				intent.setAction(C.Event.UPDATE_RSSI);
-				intent.putExtra(C.Key.RSSI, Integer.valueOf(lines[1]));
+				intent.putExtra(C.Key.RSSI, Integer.valueOf(lines[1]) - 172);
 				break;
 
 			case EVT_UPDATE_PS:
@@ -144,6 +144,13 @@ public class FMEventListenerServer extends Thread {
 
 				intent.setAction(C.Event.SEARCH_DONE);
 				intent.putExtra(C.Key.STATION_LIST, res);
+				break;
+
+			case EVT_STEREO:
+				String mode = lines[1].trim();
+
+				intent.setAction(C.Event.UPDATE_STEREO);
+				intent.putExtra(C.Key.STEREO_MODE, mode.equals("1"));
 				break;
 
 			default:

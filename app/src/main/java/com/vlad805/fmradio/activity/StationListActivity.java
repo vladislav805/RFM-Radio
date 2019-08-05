@@ -16,6 +16,7 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.db.AppDatabase;
 import com.vlad805.fmradio.db.Station;
+import com.vlad805.fmradio.db.StationDao;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.RenameDialog;
 import com.vlad805.fmradio.service.FM;
@@ -97,7 +98,12 @@ public class StationListActivity extends Activity {
 	}
 
 	private void saveStations(final List<Station> list) {
-		new Thread(() -> mDatabase.stationDao().add(list)).start();
+		new Thread(() -> {
+			StationDao dao = mDatabase.stationDao();
+			dao.markAllAsOld();
+			dao.add(list);
+			dao.removeOld();
+		}).start();
 	}
 
 	private void updateStation(final Station station) {

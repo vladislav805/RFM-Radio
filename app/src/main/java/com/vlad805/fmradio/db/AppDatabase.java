@@ -32,6 +32,7 @@ public abstract class AppDatabase extends RoomDatabase {
 
 	private static AppDatabase buildDatabase(final Context appContext) {
 		return Room.databaseBuilder(appContext, AppDatabase.class, C.DATABASE_NAME)
+				.enableMultiInstanceInvalidation()
 				.build();
 	}
 

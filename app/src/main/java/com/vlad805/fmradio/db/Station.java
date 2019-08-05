@@ -19,6 +19,9 @@ public class Station implements Parcelable, IStation {
 	@ColumnInfo(name = "title")
 	private String title;
 
+	@ColumnInfo(name = "old")
+	private boolean old = false;
+
 
 	@Override
 	public int describeContents() {
@@ -56,6 +59,14 @@ public class Station implements Parcelable, IStation {
 	@Override
 	public String getTitle() {
 		return title;
+	}
+
+	public boolean isOld() {
+		return old;
+	}
+
+	public void setOld(boolean old) {
+		this.old = old;
 	}
 
 	public void setFrequency(int frequency) {

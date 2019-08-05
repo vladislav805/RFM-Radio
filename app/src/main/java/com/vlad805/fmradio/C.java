@@ -18,6 +18,7 @@ final public class C {
 		public static final String UPDATE_RSSI = BASE + "UPDATE_RSSI";
 		public static final String UPDATE_PS = BASE + "UPDATE_PS";
 		public static final String UPDATE_RT = BASE + "UPDATE_RT";
+		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
 		public static final String SEARCH_DONE = BASE + "SEARCH_DONE";
 	}
 
@@ -36,6 +37,7 @@ final public class C {
 		public static final String FREQUENCY = "frequency";
 		public static final String RSSI = "rssi";
 		public static final String PS = "ps";
+		public static final String STEREO_MODE = "stereo_mode";
 
 		public static final String SEEK_HW_DIRECTION = "seek_hw_direction";
 		public static final String JUMP_DIRECTION = "jump_direction";

@@ -34,6 +34,9 @@
 		<item name="android:gravity">center_horizontal</item>
 		<item name="android:padding">10dp</item>
 	</style>
+	<style name="ControlIcon">
+		<!--item name="android:gravity">center</item-->
+	</style>
 
 
 </resources>
