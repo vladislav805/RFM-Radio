@@ -37,6 +37,7 @@ final public class C {
 		public static final String FREQUENCY = "frequency";
 		public static final String RSSI = "rssi";
 		public static final String PS = "ps";
+		public static final String RT = "rt";
 		public static final String STEREO_MODE = "stereo_mode";
 
 		public static final String SEEK_HW_DIRECTION = "seek_hw_direction";

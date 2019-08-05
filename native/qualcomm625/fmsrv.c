@@ -89,7 +89,9 @@ void send_interruption_info(int evt, char* message) {
 		message = "";
 	}
 
-	sprintf(buf, "%d\n%s", evt, message);
+	const char splitter = 0x0c;
+
+	sprintf(buf, "%d%c%s", evt, splitter, message);
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(CS_PORT_SRV); // порт

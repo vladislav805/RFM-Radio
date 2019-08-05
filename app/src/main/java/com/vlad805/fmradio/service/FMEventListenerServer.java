@@ -10,6 +10,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.Arrays;
 
+import static com.vlad805.fmradio.Utils.parseInt;
+
 /**
  * vlad805 (c) 2019
  */
@@ -30,7 +32,7 @@ public class FMEventListenerServer extends Thread {
 	private static final int EVT_UPDATE_PS = 6;
 	private static final int EVT_UPDATE_RT = 7;
 	private static final int EVT_SEEK_COMPLETE = 8;
-	private static final int EVT_STEREO = 9; // РАБОТАЕТ 0 и 1
+	private static final int EVT_STEREO = 9;
 	private static final int EVT_SEARCH_DONE = 10;
 
 
@@ -69,29 +71,25 @@ public class FMEventListenerServer extends Thread {
 		}
 	}
 
+	private String mLastRT = "";
+	private int mNextAction = 0;
+
+	private static final int RT_ACTION_NONE = 0;
+	private static final int RT_ACTION_CLEAR = 1;
+
+	private final char FF = 0x0c; // split for messages
+	private final char LF = 0x0a; // continue
+	private final char CR = 0x0d; // clear
+
 	private String handle(String data) throws StopServer {
-		String[] lines = data.split("\n");
-
-		if (lines.length == 0) {
-			return null;
-		}
-
-		int evt;
-		try {
-			evt = Integer.valueOf(lines[0]);
-		} catch (NumberFormatException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-		StringBuilder sb = new StringBuilder();
-
-		for (String line : lines) {
-			sb.append(line).append(" / ");
-		}
+		int splitOn = data.indexOf(FF);
+		String code = data.substring(0, splitOn);
+		data = data.substring(splitOn + 1);
 
 
-		Log.i("FMELS", "received new event = [" + sb.toString() + "]");
+		int evt = parseInt(code);
+
+		Log.i("FMELS", "received new event " + code + " = [" + data + "]");
 
 		Intent intent = new Intent();
 
@@ -105,31 +103,43 @@ public class FMEventListenerServer extends Thread {
 				throw new StopServer();
 
 			case EVT_FREQUENCY_SET:
-				if (lines.length < 2) {
-					break;
-				}
 				intent.setAction(C.Event.FREQUENCY_SET);
-				intent.putExtra(C.Key.FREQUENCY, Integer.valueOf(lines[1]));
+				intent.putExtra(C.Key.FREQUENCY, Integer.valueOf(data));
 				break;
 
 			case EVT_UPDATE_RSSI:
 				intent.setAction(C.Event.UPDATE_RSSI);
-				intent.putExtra(C.Key.RSSI, Integer.valueOf(lines[1]) - 172);
+				intent.putExtra(C.Key.RSSI, Integer.valueOf(data));
 				break;
 
 			case EVT_UPDATE_PS:
-				if (lines.length < 2) {
-					break;
-				}
 				intent.setAction(C.Event.UPDATE_PS);
-				intent.putExtra(C.Key.PS, lines[1]);
+				intent.putExtra(C.Key.PS, data);
+				break;
+
+			case EVT_UPDATE_RT:
+				if (mNextAction == RT_ACTION_CLEAR) {
+					mLastRT = "";
+				}
+
+				mNextAction = data.indexOf(CR) >= 0 || mLastRT.length() > 32 ? RT_ACTION_CLEAR : RT_ACTION_NONE;
+
+				if (data.indexOf(CR) >= 0) {
+					Log.e("FMELS", "CR is here!!!!!");
+				}
+
+				if (data.indexOf(LF) >= 0) {
+					Log.e("FMELS", "LF is here!!!!!");
+				}
+
+				//mLastRT += data.replace("" + CR, "");
+
+				intent.setAction(C.Event.UPDATE_RT);
+				intent.putExtra(C.Key.RT, mLastRT);
 				break;
 
 			case EVT_SEARCH_DONE:
-				if (lines.length < 2) {
-					break;
-				}
-				String stations = lines[1].trim();
+				String stations = data.trim();
 				int lengthKHz = 4;
 				int count = stations.length() / lengthKHz;
 
@@ -147,7 +157,7 @@ public class FMEventListenerServer extends Thread {
 				break;
 
 			case EVT_STEREO:
-				String mode = lines[1].trim();
+				String mode = data.trim();
 
 				intent.setAction(C.Event.UPDATE_STEREO);
 				intent.putExtra(C.Key.STEREO_MODE, mode.equals("1"));

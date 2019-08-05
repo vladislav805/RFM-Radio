@@ -22,6 +22,7 @@ public class RadioUIView extends LinearLayout {
 	private TextViewWithSupportReflection mFrequency;
 	private ImageView mShadow;
 	private TextView mRdsPs;
+	private TextView mRdsRt;
 	private FrequencySeekView mSeek;
 
 	private OnFrequencyChanged mListener;
@@ -56,6 +57,7 @@ public class RadioUIView extends LinearLayout {
 		mFrequency = findViewById(R.id.frequency_mhz);
 		mShadow = findViewById(R.id.frequency_mhz_reflection);
 		mRdsPs = findViewById(R.id.frequency_ps);
+		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeek = findViewById(R.id.frequency_seek);
 
 		mFrequency.setTypeface(font);
@@ -79,6 +81,10 @@ public class RadioUIView extends LinearLayout {
 
 	public final void setRdsPs(String ps) {
 		mRdsPs.setText(ps);
+	}
+
+	public void setRdsRt(String rt) {
+		mRdsRt.setText(rt);
 	}
 
 	private String getMHz(int kHz) {

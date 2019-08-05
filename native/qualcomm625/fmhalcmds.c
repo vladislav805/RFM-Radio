@@ -23,6 +23,8 @@
 //#include <cutils/properties.h>
 #ifdef __ANDROID_API__
 	#include <sys/system_properties.h>
+#include <sys/stat.h>
+
 #else
 	#define __system_property_get(x, y)
 	#define __system_property_get(x, y)
@@ -59,6 +61,7 @@ int SLAVE_ADDR = 0x2A;
 	#define print3(x,y,z)
 #endif
 
+#define TAVARUA_BUF_RT_RDS 2
 #define TAVARUA_BUF_PS_RDS 3
 #define V4L2_CID_PRIVATE_TAVARUA_STATE         0x08000004
 #define V4L2_CID_PRIVATE_TAVARUA_EMPHASIS      0x0800000C
@@ -167,8 +170,6 @@ boolean set_v4l2_ctrl(int fd, uint32 id, int32 value) {
 	return TRUE;
 }
 
-boolean isBusy = false;
-
 /**
  * read_data_from_v4l2
  * Reads the fm_radio handle and updates the FM global configuration based on
@@ -176,23 +177,18 @@ boolean isBusy = false;
  * @return FALSE in failure, TRUE in success
  */
 int read_data_from_v4l2(int fd, const uint8* buf, int index) {
-	if (isBusy) {
-		return 0;
-	}
-
-	struct v4l2_requestbuffers reqbuf;
-	struct v4l2_buffer v4l2_buf;
 	int err;
-	memset(&reqbuf, 0, sizeof(reqbuf));
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_PRIVATE;
 
-	reqbuf.type = V4L2_BUF_TYPE_PRIVATE;
-	reqbuf.memory = V4L2_MEMORY_USERPTR;
+	struct v4l2_buffer v4l2_buf;
 	memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+
+	//reqbuf.type = V4L2_BUF_TYPE_PRIVATE;
+	//reqbuf;
 	v4l2_buf.index = index;
-	v4l2_buf.type = type;
-	v4l2_buf.length = 128;
+	v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
+	v4l2_buf.memory = V4L2_MEMORY_USERPTR;
 	v4l2_buf.m.userptr = (unsigned long) buf;
+	v4l2_buf.length = 128;
 	err = ioctl(fd, VIDIOC_DQBUF, &v4l2_buf);
 	if (err < 0) {
 		printf("ioctl failed with error = %d\n", err);
@@ -241,9 +237,9 @@ boolean extract_program_service() {
  */
 
 boolean extract_radio_text() {
-	uint8 buf[120] = {0};
+	uint8 buf[128] = {0};
 
-	int bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_PS_RDS);
+	int bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_RT_RDS);
 	if (bytesread < 0) {
 		return TRUE;
 	}
@@ -483,6 +479,10 @@ void* interrupt_thread(void *ptr) {
 	return NULL;
 }
 
+int file_exists(const char* file) { // Return 1 if file, or directory, or device node etc. exists
+	struct stat sb;
+	return stat(file, &sb) == 0;
+}
 
 /**
  * EnableReceiver
@@ -506,7 +506,7 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 	print("\nEnable Receiver entry\n");
 #endif
 
-	fd_radio = open("/dev/radio0", O_RDONLY, O_NONBLOCK);
+	fd_radio = open("/dev/radio0", O_RDWR, O_NONBLOCK);
 
 	if (fd_radio < 0) {
 		print2("EnableReceiver Failed to open = %d\n", fd_radio);
@@ -534,6 +534,10 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 		}
 	} else {
 		return FM_CMD_FAILURE;
+	}
+
+	if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
+		system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
 	}
 
 	print("\nOpened Receiver\n");
@@ -573,7 +577,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 				sleep(1);
 			}
 		}
-		print3("init_success:%d after %d seconds \n", init_success, i);
+		print3("init_success: %d after %d seconds \n", init_success, i);
 		if (!init_success) {
 			__system_property_set("ctl.stop", "fm_dl");
 			// close the fd(power down)
@@ -670,11 +674,11 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 	int psAllVal = rdsMask & (1 << 4);
 
 	print2("RdsOptions: %x\n", rdsMask);
-	rds_group_mask &= 0xC7;
+	rds_group_mask &= 0xC7; // 199
 
-	rds_group_mask |= ((rdsMask & 0x07) << 3);
+	rds_group_mask |= ((rdsMask & 0x07) << 3); // 255
 
-	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, rds_group_mask);
+	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, rds_group_mask); // 255
 	if (ret == FALSE) {
 		print2("EnableReceiver Failed to set RDS on = %d\n", ret);
 		return FM_CMD_FAILURE;

@@ -73,6 +73,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		filter.addAction(C.Event.READY);
 		filter.addAction(C.Event.FREQUENCY_SET);
 		filter.addAction(C.Event.UPDATE_PS);
+		filter.addAction(C.Event.UPDATE_RT);
 		filter.addAction(C.Event.UPDATE_RSSI);
 		filter.addAction(C.Event.SEARCH_DONE);
 		filter.addAction(C.Event.UPDATE_STEREO);
@@ -235,8 +236,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 				case C.Event.UPDATE_PS:
 					String ps = intent.getStringExtra(C.Key.PS);
-
 					runOnUiThread(() -> mFrequencyInfo.setRdsPs(ps));
+					break;
+
+				case C.Event.UPDATE_RT:
+					String rt = intent.getStringExtra(C.Key.RT);
+					runOnUiThread(() -> mFrequencyInfo.setRdsRt(rt));
 					break;
 
 				case C.Event.UPDATE_RSSI:
@@ -256,6 +261,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 	private <T> List<T> convert(Parcelable[] a) {
 		List<T> s = new ArrayList<>();
 		for (Parcelable i : a) {
+			//noinspection unchecked
 			s.add((T) i);
 		}
 		return s;

@@ -59,9 +59,21 @@
 			android:layout_height="wrap_content"
 			app:layout_constraintEnd_toEndOf="parent"
 			android:layout_marginTop="16dp"
+			tools:text="PS"
 			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz_reflection"
+			app:layout_constraintStart_toStartOf="parent" />
+
+	<TextView
+			tools:text="RT"
+			android:layout_width="0dp"
+			android:layout_height="21dp"
+			android:id="@+id/frequency_rt"
+			android:layout_marginStart="8dp"
+			android:layout_marginEnd="8dp"
+			android:gravity="center_horizontal"
+			app:layout_constraintTop_toBottomOf="@id/frequency_ps"
 			app:layout_constraintStart_toStartOf="parent"
-			/>
+			app:layout_constraintEnd_toEndOf="parent" />
 
 	<ImageView
 			style="@style/ControlIcon"
@@ -79,11 +91,10 @@
 	<HorizontalScrollView
 			android:layout_width="match_parent"
 			android:layout_height="@dimen/seek_frequency_height"
-			android:layout_marginTop="8dp"
-			app:layout_constraintTop_toBottomOf="@+id/frequency_ps"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
-			>
+			android:layout_marginTop="8dp"
+			app:layout_constraintTop_toBottomOf="@+id/frequency_rt">
 
 		<FrameLayout
 				android:layout_width="wrap_content"
