@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:app="http://schemas.android.com/apk/res-auto"
+		xmlns:tools="http://schemas.android.com/tools"
 		android:orientation="vertical"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
@@ -12,6 +13,7 @@
 			android:id="@+id/frequency_mhz"
 			android:layout_width="match_parent"
 			android:layout_height="@dimen/frequency_mhz_height"
+			tools:text="88.0"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintTop_toTopOf="parent"
 			app:layout_constraintEnd_toEndOf="parent" />
@@ -36,11 +38,12 @@
 			app:layout_constraintStart_toStartOf="parent"
 			android:layout_marginStart="8dp"
 			app:layout_constraintTop_toTopOf="@+id/frequency_ps"
-			app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"/>
+			app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"
+			android:contentDescription="@string/nil" />
 
 	<TextView
 			android:id="@+id/rssi_value"
-			android:text="70"
+			tools:text="70"
 			android:gravity="center_vertical"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
@@ -69,7 +72,8 @@
 			app:layout_constraintEnd_toEndOf="parent"
 			android:layout_marginEnd="8dp"
 			app:layout_constraintTop_toTopOf="@+id/frequency_ps"
-			app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"/>
+			app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"
+			android:contentDescription="@string/nil" />
 
 
 	<HorizontalScrollView
