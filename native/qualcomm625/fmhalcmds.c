@@ -23,6 +23,8 @@
 //#include <cutils/properties.h>
 #ifdef __ANDROID_API__
 	#include <sys/system_properties.h>
+#include <sys/stat.h>
+
 #else
 	#define __system_property_get(x, y)
 	#define __system_property_get(x, y)
@@ -59,6 +61,7 @@ int SLAVE_ADDR = 0x2A;
 	#define print3(x,y,z)
 #endif
 
+#define TAVARUA_BUF_RT_RDS 2
 #define TAVARUA_BUF_PS_RDS 3
 #define V4L2_CID_PRIVATE_TAVARUA_STATE         0x08000004
 #define V4L2_CID_PRIVATE_TAVARUA_EMPHASIS      0x0800000C
@@ -146,6 +149,8 @@ fm_station_params_available fm_global_params;
 
 volatile poweron_status poweron;
 
+
+
 /**
  * set_v4l2_ctrl
  * Sets the V4L2 control sent as argument with the requested value and returns the status
@@ -165,8 +170,6 @@ boolean set_v4l2_ctrl(int fd, uint32 id, int32 value) {
 	return TRUE;
 }
 
-boolean isBusy = false;
-
 /**
  * read_data_from_v4l2
  * Reads the fm_radio handle and updates the FM global configuration based on
@@ -174,23 +177,18 @@ boolean isBusy = false;
  * @return FALSE in failure, TRUE in success
  */
 int read_data_from_v4l2(int fd, const uint8* buf, int index) {
-	if (isBusy) {
-		return 0;
-	}
-
-	struct v4l2_requestbuffers reqbuf;
-	struct v4l2_buffer v4l2_buf;
 	int err;
-	memset(&reqbuf, 0, sizeof(reqbuf));
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_PRIVATE;
 
-	reqbuf.type = V4L2_BUF_TYPE_PRIVATE;
-	reqbuf.memory = V4L2_MEMORY_USERPTR;
+	struct v4l2_buffer v4l2_buf;
 	memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+
+	//reqbuf.type = V4L2_BUF_TYPE_PRIVATE;
+	//reqbuf;
 	v4l2_buf.index = index;
-	v4l2_buf.type = type;
-	v4l2_buf.length = 128;
+	v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
+	v4l2_buf.memory = V4L2_MEMORY_USERPTR;
 	v4l2_buf.m.userptr = (unsigned long) buf;
+	v4l2_buf.length = 128;
 	err = ioctl(fd, VIDIOC_DQBUF, &v4l2_buf);
 	if (err < 0) {
 		printf("ioctl failed with error = %d\n", err);
@@ -239,18 +237,18 @@ boolean extract_program_service() {
  */
 
 boolean extract_radio_text() {
-	uint8 buf[120] = {0};
+	uint8 buf[128];
 
-	int bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_PS_RDS);
+	int bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_RT_RDS);
 	if (bytesread < 0) {
 		return TRUE;
 	}
-	int radiotext_size = (int) (buf[0] & 0x0F);
+	int radiotext_size = (int) (buf[0] & 0xFF);
 	fm_global_params.pgm_id = (((buf[2] & 0xFF) << 8) | (buf[3] & 0xFF));
 	fm_global_params.pgm_type = (int) (buf[1] & 0x1F);
 	memset(fm_global_params.radio_text, 0x0, 64);
 	memcpy(fm_global_params.radio_text, &buf[5], radiotext_size);
-	fm_global_params.radio_text[radiotext_size] = '\0';
+	//fm_global_params.radio_text[radiotext_size] = '\0';
 	printf("RadioText: %s\n", fm_global_params.radio_text);
 	return TRUE;
 }
@@ -347,9 +345,9 @@ boolean process_radio_event(uint8 event_buf) {
 				return FALSE;
 			}
 			fm_global_params.current_station_freq = ((freq.frequency * MULTIPLE_1000) / TUNE_MULT);
-			/*strcpy(fm_global_params.pgm_services, "");
+			strcpy(fm_global_params.pgm_services, "");
 			strcpy(fm_global_params.radio_text, "");
-			fm_global_params.rssi = 0;*/
+			fm_global_params.rssi = 0;
 			printf("Event tuned success, frequency: %d\n", fm_global_params.current_station_freq);
 			send_interruption_info(EVT_FREQUENCY_SET, itoa(fm_global_params.current_station_freq));
 			send_interruption_info(EVT_UPDATE_PS, "");
@@ -481,6 +479,10 @@ void* interrupt_thread(void *ptr) {
 	return NULL;
 }
 
+int file_exists(const char* file) { // Return 1 if file, or directory, or device node etc. exists
+	struct stat sb;
+	return stat(file, &sb) == 0;
+}
 
 /**
  * EnableReceiver
@@ -504,7 +506,7 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 	print("\nEnable Receiver entry\n");
 #endif
 
-	fd_radio = open("/dev/radio0", O_RDONLY, O_NONBLOCK);
+	fd_radio = open("/dev/radio0", O_RDWR, O_NONBLOCK);
 
 	if (fd_radio < 0) {
 		print2("EnableReceiver Failed to open = %d\n", fd_radio);
@@ -532,6 +534,10 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 		}
 	} else {
 		return FM_CMD_FAILURE;
+	}
+
+	if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
+		system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
 	}
 
 	print("\nOpened Receiver\n");
@@ -571,7 +577,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 				sleep(1);
 			}
 		}
-		print3("init_success:%d after %d seconds \n", init_success, i);
+		print3("init_success: %d after %d seconds \n", init_success, i);
 		if (!init_success) {
 			__system_property_set("ctl.stop", "fm_dl");
 			// close the fd(power down)
@@ -668,11 +674,11 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 	int psAllVal = rdsMask & (1 << 4);
 
 	print2("RdsOptions: %x\n", rdsMask);
-	rds_group_mask &= 0xC7;
+	rds_group_mask &= 0xC7; // 199
 
-	rds_group_mask |= ((rdsMask & 0x07) << 3);
+	rds_group_mask |= ((rdsMask & 0x07) << 3); // 255
 
-	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, rds_group_mask);
+	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, rds_group_mask); // 255
 	if (ret == FALSE) {
 		print2("EnableReceiver Failed to set RDS on = %d\n", ret);
 		return FM_CMD_FAILURE;
@@ -820,7 +826,6 @@ out :
  */
 fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq) {
 	int err;
-	double tune;
 	struct v4l2_frequency freq_struct;
 
 #ifdef FM_DEBUG
@@ -844,6 +849,12 @@ fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq) {
 #endif
 
 	return FM_CMD_SUCCESS;
+}
+
+fm_cmd_status_type JumpToFrequencyReceiver(uint32 delta) {
+	uint32 frequency = fm_global_params.current_station_freq + delta;
+
+	return SetFrequencyReceiver(frequency);
 }
 
 /**
@@ -933,11 +944,11 @@ fm_cmd_status_type GetStationParametersReceiver(fm_station_params_available* con
 	configparams->rssi = tuner.signal;
 	configparams->stype = fm_global_params.stype;
 	configparams->rds_sync_status = fm_global_params.rds_sync_status;
-	//configparams->pgm_type = fm_global_params.pgm_type;
-	//configparams->audmode = tuner.audmode;
+	configparams->pgm_type = fm_global_params.pgm_type;
+	configparams->audmode = tuner.audmode;
 
-	//strcpy(configparams->pgm_services, fm_global_params.pgm_services);
-	//strcpy(configparams->radio_text, fm_global_params.radio_text);
+	strcpy(configparams->pgm_services, fm_global_params.pgm_services);
+	strcpy(configparams->radio_text, fm_global_params.radio_text);
 
 	struct v4l2_control control;
 	control.id = V4L2_CID_AUDIO_MUTE;

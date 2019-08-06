@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		android:orientation="vertical"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent">
+
+	<EditText
+			android:maxLines="1"
+			android:layout_marginStart="@dimen/dialog_horizontal_padding"
+			android:layout_marginEnd="@dimen/dialog_horizontal_padding"
+			android:contentDescription="@string/nil"
+			android:textSize="24sp"
+			android:textAppearance="?android:attr/textAppearanceMedium"
+			android:saveEnabled="false"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:id="@+id/dialog_rename_title"/>
+
+</LinearLayout>

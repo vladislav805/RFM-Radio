@@ -1,4 +1,4 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.activity;
 
 import android.app.ActionBar;
 import android.app.Activity;
@@ -10,6 +10,11 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.enums.SeekDirection;
+import com.vlad805.fmradio.fm.MuteState;
+import com.vlad805.fmradio.service.FM;
 
 public class DebugActivity extends Activity implements View.OnClickListener {
 
@@ -37,7 +42,7 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 
 		mStatusReceiver = new PlayerReceiver();
 
-		FM.send(this, C.FM_INIT);
+		FM.send(this, C.Command.INIT);
 	}
 
 	@Override
@@ -69,8 +74,8 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 			case R.id.btn_set_stereo: setStereo(); break;
 			case R.id.btn_kill: kill(); break;
 			case R.id.btn_search: search(); break;
-			case R.id.btn_seek_up: seek(1); break;
-			case R.id.btn_seek_down: seek(0); break;
+			case R.id.btn_seek_up: seek(SeekDirection.UP); break;
+			case R.id.btn_seek_down: seek(SeekDirection.DOWN); break;
 			case R.id.btn_mute_none: mute(MuteState.NONE); break;
 			case R.id.btn_mute_left: mute(MuteState.LEFT); break;
 			case R.id.btn_mute_right: mute(MuteState.RIGHT); break;
@@ -80,16 +85,16 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 	}
 
 	private void start() {
-		FM.send(this, C.FM_ENABLE);
+		FM.send(this, C.Command.ENABLE);
 	}
 
 	private void stop() {
-		FM.send(this, C.FM_DISABLE);
+		FM.send(this, C.Command.DISABLE);
 	}
 
 	private void setFrequency() {
-		FM.send(this, C.FM_SET_FREQUENCY,
-				C.KEY_FREQUENCY, ((EditText) findViewById(R.id.freq)).getText().toString()
+		FM.send(this, C.Command.SET_FREQUENCY,
+				C.Key.FREQUENCY, ((EditText) findViewById(R.id.freq)).getText().toString()
 		);
 	}
 
@@ -98,16 +103,16 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 	}
 
 	private void search() {
-		FM.send(this, C.FM_SEARCH);
+		FM.send(this, C.Command.SEARCH);
 	}
 
 	private void kill() {
-		FM.send(this, C.FM_KILL);
+		FM.send(this, C.Command.KILL);
 	}
 
-	private void seek(int dir) {
-		FM.send(this, C.FM_HW_SEEK,
-				C.FM_KEY_SEEK_HW_DIRECTION, String.valueOf(dir)
+	private void seek(SeekDirection dir) {
+		FM.send(this, C.Command.HW_SEEK,
+				C.Key.SEEK_HW_DIRECTION, dir.getValue()
 		);
 	}
 
@@ -129,30 +134,20 @@ public class DebugActivity extends Activity implements View.OnClickListener {
 
 			switch (intent.getAction()) {
 				case C.Event.UPDATE_RSSI:
-					setText(R.id.text_rssi, String.valueOf(intent.getIntExtra(C.KEY_RSSI, -2)));
+					setText(R.id.text_rssi, String.valueOf(intent.getIntExtra(C.Key.RSSI, -2)));
 					break;
 
 				case C.Event.FREQUENCY_SET:
-					runOnUiThread(new Runnable() {
-						@Override
-						public void run() {
-							setText(R.id.freq, String.valueOf(intent.getIntExtra(C.KEY_FREQUENCY, -1)));
-						}
-					});
+					runOnUiThread(() -> setText(R.id.freq, String.valueOf(intent.getIntExtra(C.Key.FREQUENCY, -1))));
 					break;
 
 				case C.Event.UPDATE_PS:
-					runOnUiThread(new Runnable() {
-						@Override
-						public void run() {
-							setText(R.id.text_ps, intent.getStringExtra(C.KEY_PS));
-						}
-					});
+					runOnUiThread(() -> setText(R.id.text_ps, intent.getStringExtra(C.Key.PS)));
 
 					ActionBar ab = getActionBar();
 
 					if (ab != null) {
-						ab.setSubtitle(intent.getStringExtra(C.KEY_PS));
+						ab.setSubtitle(intent.getStringExtra(C.Key.PS));
 					}
 					break;
 

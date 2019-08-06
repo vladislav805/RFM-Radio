@@ -6,7 +6,7 @@
  * @author rakeshk
  */
 
-#define VERSION "1.1.8"
+#define VERSION "0.3"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,8 +25,10 @@ srv_response api_fetch(char* request);
 #define MK_HW_SEEK       "seekhw"
 #define MK_SET_MUTE      "setmute"
 #define MK_SEARCH        "search"
+#define MK_JUMP          "jump"
 #define MK_HW_SCAN       "scan"
 #define MK_TEST          "test"
+#define MK_EXIT          "exit"
 
 #define CD_OK 0
 #define CD_ERR -1
@@ -97,8 +99,6 @@ srv_response api_fetch(char* request) {
 		res->code = ret;
 		res->data = response;
 	} else if (str_equals(cmd, MK_ENABLE)) {
-		//qcv_digital_input_on();
-
 		fm_config_data cfg_data = {
 			.band = FM_RX_US_EUROPE,
 			.emphasis = FM_RX_EMP75,
@@ -112,10 +112,11 @@ srv_response api_fetch(char* request) {
 
 		res->code = EnableReceiver(&cfg_data);
 		res->data = RSP_OK;
+
+		SetMuteModeReceiver(FM_RX_NO_MUTE);
 	} else if (str_equals(cmd, MK_DISABLE)) {
 		res->code = DisableReceiver();
 		res->data = RSP_OK;
-		//qcv_digital_input_off();
 	} else if (str_equals(ar[0], MK_SET_FREQUENCY)) {
 		if (ar[1] == NULL) {
 			res->code = 1;
@@ -137,6 +138,11 @@ srv_response api_fetch(char* request) {
 
 		res->code = SearchStationsReceiver(cfg_data);
 
+		res->data = RSP_OK;
+	} else if (str_equals(ar[0], MK_JUMP)) {
+		uint32 direction = str_equals(ar[1], "1") ? 100 : -100;
+
+		res->code = JumpToFrequencyReceiver(direction);
 		res->data = RSP_OK;
 	} else if (str_equals(cmd, MK_SET_STEREO)) {
 		res->code = SetStereoModeReceiver(FM_RX_STEREO);
@@ -177,7 +183,7 @@ srv_response api_fetch(char* request) {
 
 		liststationparams.search_mode = 0x02;
 		liststationparams.search_dir = 0x00;
-		liststationparams.srch_list_max = 10;
+		liststationparams.srch_list_max = 20;
 		liststationparams.program_type = 0x00;
 		fm_cmd_status_type ret = SearchStationListReceiver(liststationparams);
 
@@ -188,6 +194,9 @@ srv_response api_fetch(char* request) {
 		char str[20] = {0};
 		sprintf(str, "Version %s", VERSION);
 		res->data = str;
+	} else if (str_equals(cmd, MK_EXIT)) {
+		res->code = CD_OK;
+		res->data = RSP_OK;
 	}
 
 __ret:

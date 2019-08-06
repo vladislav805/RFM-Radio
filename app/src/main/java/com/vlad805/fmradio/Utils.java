@@ -1,5 +1,7 @@
 package com.vlad805.fmradio;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
 
@@ -61,6 +63,10 @@ public class Utils {
 		} catch (NumberFormatException e) {
 			return 0;
 		}
+	}
+
+	public static SharedPreferences getStorage(Context ctx) {
+		return Storage.getInstance(ctx);
 	}
 
 }

@@ -1,12 +1,16 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.service;
 
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.util.Log;
+import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.fm.*;
 
 import java.io.*;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -56,13 +60,13 @@ public class FM {
 		mImpl = implementation;
 	}
 
-	public void setup(Context context) {
+	public void setup(final Context context, final OnResponseReceived<Void> onReady) {
 		Log.i("FM", "Setup...");
 		mContext = context;
 
 		startServerListener();
 
-		new Thread(() -> mImpl.init(FM.this, (Void) -> mImpl.setup(null))).start();
+		new Thread(() -> mImpl.init(FM.this, (Void) -> mImpl.setup(onReady))).start();
 	}
 
 	public boolean copyBinary(String from, String to) {
@@ -74,8 +78,18 @@ public class FM {
 		OutputStream out;
 		try {
 			in = assetManager.open(fromAssetPath);
-			new File(toPath).createNewFile();
-			out = new FileOutputStream(toPath);
+			try {
+				new File(toPath).createNewFile();
+				out = new FileOutputStream(toPath);
+			} catch (FileNotFoundException e) {
+				String cmd = "killall " + fromAssetPath;
+				Log.e("FM", "cmd = " + cmd);
+				Utils.shell(cmd, true);
+
+				new File(toPath).createNewFile();
+				out = new FileOutputStream(toPath);
+			}
+
 			copyFile(in, out);
 			in.close();
 			out.flush();
@@ -137,6 +151,8 @@ public class FM {
 
 				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
 
+				Log.d("sendCmd <<<", res);
+
 				if (callback != null) {
 					callback.onResult(res);
 				}
@@ -194,6 +210,10 @@ public class FM {
 		}
 
 		mImpl.hardwareSeek(this, direction, listener);
+	}
+
+	public void jump(int direction, OnResponseReceived<Void> listener) {
+		mImpl.jump(this, direction, listener);
 	}
 
 	public void setMute(MuteState state, OnResponseReceived<Void> listener) {

@@ -1,9 +1,10 @@
-package com.vlad805.fmradio;
+package com.vlad805.fmradio.fm;
 
 import android.util.Log;
+import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.service.FM;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -74,7 +75,7 @@ public class QualComm implements IImplementation {
 		Log.i("QC", "setup");
 
 		if (!DEBUG) {
-			String cmd = String.format("killall %1$s 1>/dev/null 2>/dev/null; %2$s%1$s 1>/dev/null 2>/dev/null", getBinaryName(), APP_FILES_PATH);
+			String cmd = String.format("killall %1$s 1>/dev/null 2>/dev/null; %2$s%1$s 1>/dev/null 2>/dev/null &", getBinaryName(), APP_FILES_PATH);
 
 			Utils.shell(cmd, true);
 
@@ -84,6 +85,9 @@ public class QualComm implements IImplementation {
 
 			return 0;
 		} else {
+			if (listener != null) {
+				listener.onResponse(null);
+			}
 			Log.e("PATH", APP_FILES_PATH.concat(getBinaryName()));
 		}
 
@@ -132,6 +136,16 @@ public class QualComm implements IImplementation {
 	public int setFrequency(FM srv, int kHz, OnResponseReceived<Void> listener) {
 		srv.sendCommand("setfreq " + kHz, createCallback(listener));
 		return 0;
+	}
+
+	/**
+	 *
+	 * @param srv Контроллер
+	 * @param direction Направление перехода: 1 - наверх, -1 - вниз
+	 */
+	@Override
+	public void jump(FM srv, int direction, OnResponseReceived<Void> listener) {
+		srv.sendCommand("jump " + direction, createCallback(listener));
 	}
 
 	/**
@@ -191,7 +205,7 @@ public class QualComm implements IImplementation {
 
 	@Override
 	public void search(FM srv, final OnResponseReceived<List<Integer>> listener) {
-		srv.sendCommand("search", data -> {  });
+		srv.sendCommand("search", null);
 	}
 
 	/**

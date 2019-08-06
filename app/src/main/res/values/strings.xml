@@ -10,5 +10,16 @@
 	<string name="popup_preset_replace">Replace</string>
 	<string name="popup_preset_remove">Remove</string>
 	<string name="menu_open_debug">Debug activity</string>
+	<string name="menu_open_list">Station list</string>
+	<string name="menu_record">Record</string>
+	<string name="menu_open_list_favorites">Favories</string>
+	<string name="title_activity_station_list">Stations</string>
+	<string name="station_list_search">Search…</string>
+	<string name="station_list_search_message">Please, wait…</string>
+	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
+	<string name="popup_station_rename">Rename</string>
+	<string name="popup_station_remove">Remove</string>
+	<string name="about_version">v%s</string>
+	<string name="about_author">Vladislav Veluga © 2019</string>
 
 </resources>
