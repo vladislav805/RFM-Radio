@@ -231,6 +231,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 						String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
 						showToast(str);
+
+						mFrequencyInfo.setRdsPs("");
+						mFrequencyInfo.setRdsRt("");
+						mViewRssi.setText("0");
 					});
 					break;
 
