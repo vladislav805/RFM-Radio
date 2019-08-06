@@ -6,7 +6,7 @@
  * @author rakeshk
  */
 
-#define VERSION "0.2.1"
+#define VERSION "0.3"
 
 #include <stdio.h>
 #include <string.h>
