@@ -57,23 +57,24 @@
 			android:id="@+id/frequency_ps"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			app:layout_constraintEnd_toEndOf="parent"
 			android:layout_marginTop="16dp"
-			tools:text="PS"
 			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz_reflection"
-			app:layout_constraintStart_toStartOf="parent" />
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			tools:text="PS" />
 
 	<TextView
-			tools:text="RT"
-			android:layout_width="0dp"
-			android:layout_height="21dp"
+			style="@style/RDS_RT"
 			android:id="@+id/frequency_rt"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
 			android:layout_marginStart="8dp"
 			android:layout_marginEnd="8dp"
-			android:gravity="center_horizontal"
+			android:lines="2"
 			app:layout_constraintTop_toBottomOf="@id/frequency_ps"
 			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintEnd_toEndOf="parent" />
+			app:layout_constraintEnd_toEndOf="parent"
+			tools:text="RT" />
 
 	<ImageView
 			style="@style/ControlIcon"

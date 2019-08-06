@@ -237,18 +237,18 @@ boolean extract_program_service() {
  */
 
 boolean extract_radio_text() {
-	uint8 buf[128] = {0};
+	uint8 buf[128];
 
 	int bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_RT_RDS);
 	if (bytesread < 0) {
 		return TRUE;
 	}
-	int radiotext_size = (int) (buf[0] & 0x0F);
+	int radiotext_size = (int) (buf[0] & 0xFF);
 	fm_global_params.pgm_id = (((buf[2] & 0xFF) << 8) | (buf[3] & 0xFF));
 	fm_global_params.pgm_type = (int) (buf[1] & 0x1F);
 	memset(fm_global_params.radio_text, 0x0, 64);
 	memcpy(fm_global_params.radio_text, &buf[5], radiotext_size);
-	fm_global_params.radio_text[radiotext_size] = '\0';
+	//fm_global_params.radio_text[radiotext_size] = '\0';
 	printf("RadioText: %s\n", fm_global_params.radio_text);
 	return TRUE;
 }

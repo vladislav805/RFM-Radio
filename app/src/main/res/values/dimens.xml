@@ -2,7 +2,7 @@
 <resources>
 	<dimen name="frequency_mhz_height">80dp</dimen>
 	<dimen name="frequency_mhz_reflection_height">64dp</dimen>
-	<dimen name="frequency_info_margin_top">15dp</dimen>
+	<dimen name="frequency_info_margin_top">10dp</dimen>
 
 	<dimen name="preset_width">110dp</dimen>
 	<dimen name="preset_height">55dp</dimen>

@@ -118,11 +118,13 @@ public class FMEventListenerServer extends Thread {
 				break;
 
 			case EVT_UPDATE_RT:
-				if (mNextAction == RT_ACTION_CLEAR) {
+				/*if (mNextAction == RT_ACTION_CLEAR) {
 					mLastRT = "";
 				}
 
-				mNextAction = data.indexOf(CR) >= 0 || mLastRT.length() > 32 ? RT_ACTION_CLEAR : RT_ACTION_NONE;
+				mNextAction = data.indexOf(CR) >= 0 ? RT_ACTION_CLEAR : RT_ACTION_NONE;
+
+				Log.e("RT", str2Hex(data));
 
 				if (data.indexOf(CR) >= 0) {
 					Log.e("FMELS", "CR is here!!!!!");
@@ -132,7 +134,9 @@ public class FMEventListenerServer extends Thread {
 					Log.e("FMELS", "LF is here!!!!!");
 				}
 
-				//mLastRT += data.replace("" + CR, "");
+				mLastRT += data.replace("" + CR, "");*/
+
+				mLastRT = data;
 
 				intent.setAction(C.Event.UPDATE_RT);
 				intent.putExtra(C.Key.RT, mLastRT);
@@ -174,4 +178,21 @@ public class FMEventListenerServer extends Thread {
 	}
 
 	private class StopServer extends Throwable { }
+
+
+
+
+	public static String str2Hex(String bin) {
+		char[] digital = "0123456789ABCDEF".toCharArray();
+		StringBuffer sb = new StringBuffer("");
+		byte[] bs = bin.getBytes();
+		int bit;
+		for (byte b : bs) {
+			bit = (b & 0x0f0) >> 4;
+			sb.append(digital[bit]);
+			bit = b & 0x0f;
+			sb.append(digital[bit]);
+		}
+		return sb.toString();
+	}
 }
