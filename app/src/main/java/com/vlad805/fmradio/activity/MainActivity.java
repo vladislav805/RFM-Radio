@@ -158,6 +158,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 				startActivity(new Intent(this, DebugActivity.class));
 				break;
 
+			case R.id.menu_about:
+				startActivity(new Intent(this, AboutActivity.class));
+				break;
+
 			case R.id.menu_list:
 				startActivity(new Intent(this, StationListActivity.class));
 				break;

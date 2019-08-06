@@ -19,5 +19,7 @@
 	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
 	<string name="popup_station_rename">Rename</string>
 	<string name="popup_station_remove">Remove</string>
+	<string name="about_version">v%s</string>
+	<string name="about_author">Vladislav Veluga © 2019</string>
 
 </resources>
