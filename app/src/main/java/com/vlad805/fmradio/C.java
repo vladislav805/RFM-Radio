@@ -45,22 +45,21 @@ final public class C {
 
 		public static final String STATION_LIST = "station_list";
 		public static final String FAVORITE_STATION_LIST = "favorite_station_list";
+		public static final String AUDIO_SERVICE = "audio_service";
 	}
 
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
-		@Deprecated public static final String STATIONS_DATA_FAVORITES = "stations_data_favorites";
-		@Deprecated public static final String STATIONS_DATA_LIST = "stations_data_list";
 		public static final String RDS_ENABLE = "rds_enable";
 		public static final String AUTOPLAY = "autoplay";
 	}
 
 	public static final class PrefDefaultValue {
 		public static final int LAST_FREQUENCY = 87500;
-		@Deprecated public static final String STATIONS_DATA_FAVORITES = "[]";
-		@Deprecated public static final String STATIONS_DATA_LIST = "[]";
 		public static final boolean RDS_ENABLE = true;
 		public static final boolean AUTOPLAY = false;
+
+		public static final int AUDIO_SERVICE = 0;
 	}
 
 	private C() {}

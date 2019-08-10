@@ -62,6 +62,10 @@ public class FMService extends Service {
 				case C.Event.UPDATE_PS:
 					mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
 					break;
+
+				case C.Event.UPDATE_RT:
+					mConfiguration.setRt(intent.getStringExtra(C.Key.RT));
+					break;
 			}
 
 			showNotification();
@@ -81,6 +85,7 @@ public class FMService extends Service {
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(C.Event.FREQUENCY_SET);
 		filter.addAction(C.Event.UPDATE_PS);
+		filter.addAction(C.Event.UPDATE_RT);
 		filter.addAction(C.Event.UPDATE_RSSI);
 		registerReceiver(mStatusReceiver, filter);
 	}
@@ -188,32 +193,36 @@ public class FMService extends Service {
 
 	private void init() {
 		if (mAudioService == null) {
-			mAudioService = new FMAudioService(this);
+			mAudioService = createAudioService();
 		}
 
 		if (mNotificationMgr == null) {
 			mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		}
 
-		final SharedPreferences sp = getStorage(this);
-
 		if (mFM == null) {
 			mFM = FM.getInstance();
 			mFM.setImpl(new QualComm());
-			mFM.setup(this, data -> {
-				Intent intent = new Intent(C.Event.READY);
-				int last = sp.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-				mConfiguration.setFrequency(last);
-				intent.putExtra(C.PrefKey.LAST_FREQUENCY, last);
-				intent.putExtra(C.PrefKey.AUTOPLAY, sp.getBoolean(C.PrefKey.AUTOPLAY, C.PrefDefaultValue.AUTOPLAY));
-				intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
-
-				intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
-				intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
-
-				sendBroadcast(intent);
-			});
+			mFM.setup(this, data -> onReadyIntent());
+		} else {
+			new Thread(this::onReadyIntent);
 		}
+	}
+
+	private void onReadyIntent() {
+		final SharedPreferences sp = getStorage(this);
+		Intent intent = new Intent(C.Event.READY);
+		int last = sp.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+		mConfiguration.setFrequency(last);
+
+		intent.putExtra(C.PrefKey.LAST_FREQUENCY, last);
+		intent.putExtra(C.PrefKey.AUTOPLAY, sp.getBoolean(C.PrefKey.AUTOPLAY, C.PrefDefaultValue.AUTOPLAY));
+		intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
+
+		intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
+		intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
+
+		sendBroadcast(intent);
 	}
 
 	private List<Station> getStationList() {
@@ -224,6 +233,18 @@ public class FMService extends Service {
 		return mDatabase.favoriteStationDao().getAll();
 	}
 
+	private FMAudioService createAudioService() {
+		final int id = getStorage(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
+
+		switch (id) {
+			case FMAudioService.SERVICE_LIGHT:
+				return new LightAudioService(this);
+
+			case FMAudioService.SERVICE_LEGACY:
+			default:
+				return new LegacyAudioService(this);
+		}
+	}
 
 
 	private Notification.Builder mNotification;
