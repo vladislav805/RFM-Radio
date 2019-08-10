@@ -11,6 +11,7 @@ public class Configuration implements Parcelable {
 	private int frequency;
 
 	private String ps;
+	private String rt;
 
 	public Configuration() { }
 
@@ -30,6 +31,14 @@ public class Configuration implements Parcelable {
 		this.ps = ps;
 	}
 
+	public String getRt() {
+		return rt;
+	}
+
+	public void setRt(String rt) {
+		this.rt = rt;
+	}
+
 	@Override
 	public int describeContents() {
 		return 0;
@@ -39,11 +48,13 @@ public class Configuration implements Parcelable {
 	public void writeToParcel(Parcel dest, int flags) {
 		dest.writeInt(this.frequency);
 		dest.writeString(this.ps);
+		dest.writeString(this.rt);
 	}
 
 	protected Configuration(Parcel in) {
 		this.frequency = in.readInt();
 		this.ps = in.readString();
+		this.rt = in.readString();
 	}
 
 	public static final Creator<Configuration> CREATOR = new Creator<Configuration>() {
