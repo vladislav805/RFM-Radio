@@ -14,6 +14,7 @@ import java.util.Locale;
 
 /**
  * vlad805 (c) 2018
+ * Кастомный SeekBar, отрисовываемый вручную для полосы частот
  */
 public class FrequencySeekView extends SeekBar {
 
@@ -84,10 +85,10 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	/**
-	 *
-	 * @param minValue Lower band in kHz
-	 * @param maxValue Higher band in kHz
-	 * @param step Step in kHz
+	 * Изменение границ
+	 * @param minValue Lower-частота в kHz
+	 * @param maxValue Higher-частота в kHz
+	 * @param step Шаг в kHz
 	 */
 	public void setMinMaxValue(int minValue, int maxValue, int step) {
 		setMinValue(minValue);
@@ -101,24 +102,29 @@ public class FrequencySeekView extends SeekBar {
 		return (int) (spValue * fontScale + 0.5f);
 	}
 
+	/**
+	 * Получение текущей частоты
+	 * @param progress Значение по seek-bar
+	 * @return Частота в kHz
+	 */
 	public int fixProgress(int progress) {
 		return progress * mStep + mValueMin;
 	}
 
 	/**
-	 * Set current frequency
-	 * @param progress Frequency in kHz
+	 * Изменение текущей частоты
+	 * @param kHz Частота в kHz
 	 */
 	@Override
-	public synchronized void setProgress(int progress) {
+	public synchronized void setProgress(int kHz) {
 		if (mStep != 0) {
-			super.setProgress((progress - mValueMin) / mStep);
+			super.setProgress((kHz - mValueMin) / mStep);
 		}
 	}
 
 	/**
-	 * Return current frequency in kHz
-	 * @return Frequency in kHz
+	 * Получение текущей частоты в kHz
+	 * @return Частота в kHz
 	 */
 	@Override
 	public synchronized int getProgress() {
@@ -127,46 +133,46 @@ public class FrequencySeekView extends SeekBar {
 
 	@Override
 	protected void onDraw(Canvas canvas) {
-		int paddingTop = 0;
+		final int paddingTop = 0;
 
 		// Width of view
-		int viewWidth = getWidth() - getPaddingLeft() - getPaddingRight();
+		final int viewWidth = getWidth() - getPaddingRight() - getPaddingLeft();
 
 		// Padding from left side
-		int deltaX = getPaddingLeft();
+		final int deltaX = getPaddingLeft();
 
 		// Computed width of interval between dashes of frequencies
-		int viewInterval = viewWidth / ((mValueMax - mValueMin) / mStep);
+		final float viewInterval = viewWidth / ((mValueMax - mValueMin) * 1f / mStep);
 
 		// y-coordinate, end of short stick relative to the top
-		int baseYShort = paddingTop + 25;
+		final int baseYShort = paddingTop + 25;
 
 		// y-coordinate, end of long dash relative to the top
-		int baseYLong = paddingTop + 60;
+		final int baseYLong = paddingTop + 60;
 
 		// y-coordinate, position of label .0 relative to the top
-		int baseYText0 = baseYLong + 5 + (int) mFrequency0.getTextSize();
+		final int baseYText0 = baseYLong + 5 + (int) mFrequency0.getTextSize();
 
 		// y-coordinate, position of label .5 relative to the top
-		int baseYText5 = baseYLong + 5 + (int) mFrequency5.getTextSize();
+		final int baseYText5 = baseYLong + 5 + (int) mFrequency5.getTextSize();
 
 		// Selected kHz
-		int kHzCurrent = getProgress();
+		final int kHzCurrent = getProgress();
 
 		// Draw horizontal line
 		canvas.drawLine(deltaX, paddingTop, getWidth() - getPaddingRight(), paddingTop, mTrait);
 
 		// For each 100 kHz ...
-		for (int i = 0; i < (mValueMax - mValueMin) / mStep + 1; ++i) {
+		for (int i = 0; i <= (mValueMax - mValueMin) / mStep; ++i) {
 
 			// kHz frequency for current iteration
-			int kHz = mValueMin + i * mStep;
+			final int kHz = mValueMin + i * mStep;
 
 			// X coordinate for current iteration
-			int x = deltaX + viewInterval * i;
+			final float x = deltaX + viewInterval * i;
 
 			// The presence of the current frequency in the list of stations
-			boolean hasStation = mStations != null && mStations.get(kHz) != null;
+			final boolean hasStation = mStations != null && mStations.get(kHz) != null;
 
 			// Choose color for dash in depend of presence of the current frequency in the list of stations
 			Paint colorTrait = hasStation ? mStationLine : mTrait;
@@ -199,8 +205,15 @@ public class FrequencySeekView extends SeekBar {
 		super.onDraw(canvas);
 	}
 
+	/**
+	 * Список станций, найденных автоматическим поиском, для отрисовки желтых линий
+	 */
 	private SparseArray<IStation> mStations;
 
+	/**
+	 * Обновление списка станций (автоматический поиск) для рисования желтых линий
+	 * @param stations Список станций
+	 */
 	public void notifyStationList(List<IStation> stations) {
 		mStations = new SparseArray<>();
 

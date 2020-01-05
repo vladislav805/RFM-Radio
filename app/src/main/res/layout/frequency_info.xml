@@ -105,13 +105,11 @@
 					style="@style/FrequencySeekBar"
 					android:id="@+id/frequency_seek"
 					android:thumbTint="@android:color/transparent"
-					android:paddingStart="@dimen/seek_frequency_horizontal_padding"
-					android:paddingEnd="@dimen/seek_frequency_horizontal_padding"
+					android:paddingStart="@dimen/seek_frequency_padding_start"
+					android:paddingEnd="@dimen/seek_frequency_padding_end"
 					android:layout_width="@dimen/seek_frequency_width"
 					android:layout_height="match_parent"/>
 
 		</FrameLayout>
 	</HorizontalScrollView>
-
-
 </androidx.constraintlayout.widget.ConstraintLayout>
