@@ -68,15 +68,21 @@ android {
 
 }
 
+configurations.all {
+	resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+		def requested = details.requested
+		if (requested.group == "com.android.support") {
+			if (!requested.name.startsWith("multidex")) {
+				details.useVersion "26.+"
+			}
+		}
+	}
+}
+
 dependencies {
-	def room_version = "2.2.0-alpha01" // 2.1.0 for latest stable version
-
 	implementation fileTree(include: ['*.jar'], dir: 'libs')
-	implementation "androidx.core:core:1.2.0-alpha02"
+	implementation "androidx.core:core:1.2.0-rc01"
 	implementation "androidx.constraintlayout:constraintlayout:1.1.3"
-	implementation "androidx.recyclerview:recyclerview:1.1.0-beta01"
+	implementation "androidx.recyclerview:recyclerview:1.2.0-alpha01"
 	implementation "androidx.annotation:annotation:1.1.0"
-
-	implementation "androidx.room:room-runtime:$room_version"
-	annotationProcessor "androidx.room:room-compiler:$room_version"
 }

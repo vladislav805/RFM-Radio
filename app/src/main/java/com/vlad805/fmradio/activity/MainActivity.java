@@ -24,9 +24,6 @@ import com.vlad805.fmradio.service.FM;
 import com.vlad805.fmradio.view.FavoritesListView;
 import com.vlad805.fmradio.view.RadioUIView;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class MainActivity extends Activity implements View.OnClickListener, RadioUIView.OnUserFrequencyChange, FavoritesListView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
@@ -63,19 +60,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 		mFavoriteList = findViewById(R.id.favorite_list);
 		mFavoriteList.setOnFavoriteClick(this);
-
-		List<FavoriteStation> flv = new ArrayList<>();
-
-		flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
-		flv.add(new FavoriteStation(90600, "ваня"));
-
-		mFavoriteList.setList(flv);
 
 		initClickableButtons();
 	}

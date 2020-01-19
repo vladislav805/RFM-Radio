@@ -2,20 +2,18 @@ package com.vlad805.fmradio.view;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.PopupMenu;
-import android.widget.TextView;
-import androidx.annotation.NonNull;
+import android.widget.Toast;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.models.FavoriteStation;
+import com.vlad805.fmradio.view.adapter.FavoritesListAdapter;
 
 import java.util.List;
 
@@ -23,20 +21,25 @@ import java.util.List;
  * vlad805 (c) 2019
  */
 public class FavoritesListView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
-	private static final int MAX_COUNT = 20;
 
+	public static final String TAG = "FLV";
 	public static final int MENU_REMOVE = 100;
 	public static final int MENU_RENAME = 101;
 	public static final int MENU_CREATE = 102;
 	public static final int MENU_REPLACE = 103;
 
 	protected List<FavoriteStation> mList;
-	private StationAdapter adapter;
+	private FavoritesListAdapter adapter;
 	private OnFavoriteClick listener;
+	private FavoriteController controller;
 
 	public interface OnFavoriteClick {
 		void onFavoriteClick(FavoriteStation station);
 		int getCurrentFrequencyForAddFavorite();
+	}
+
+	public interface OnFavoriteListUpdated {
+		void onFavoriteListUpdated();
 	}
 
 	public FavoritesListView(Context context) {
@@ -55,10 +58,14 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
 		setLayoutManager(horizontalLayoutManager);
 
-		adapter = new StationAdapter(getContext());
+		adapter = new FavoritesListAdapter(getContext());
 		setAdapter(adapter);
 
 		addOnItemTouchListener(new RecyclerItemClickListener(getContext(), this, this));
+
+		controller = new FavoriteController(getContext());
+		mList = controller.getList();
+		setList(mList);
 	}
 
 	@Override
@@ -76,6 +83,7 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 					FavoriteStation station = new FavoriteStation(listener.getCurrentFrequencyForAddFavorite(), title);
 					mList.add(station);
 					adapter.notifyItemInserted(position);
+					onFavoriteListUpdated();
 				}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
 			}
 		}
@@ -83,6 +91,10 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 
 	@Override
 	public void onLongItemClick(View view, int position) {
+		if (position >= mList.size()) {
+			return;
+		}
+
 		final FavoriteStation station = mList.get(position);
 
 		final PopupMenu popupMenu = new PopupMenu(getContext(), view);
@@ -95,12 +107,14 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 				case MENU_REMOVE:
 					mList.remove(station);
 					adapter.notifyItemRemoved(position);
+					onFavoriteListUpdated();
 					break;
 
 				case MENU_RENAME:
 					new EditTextDialog(getContext(), station.getTitle(), title -> {
 						station.setTitle(title);
 						adapter.notifyItemChanged(position);
+						onFavoriteListUpdated();
 					}).setTitle(R.string.popup_station_create).open();
 					break;
 			}
@@ -110,6 +124,11 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		popupMenu.show();
 	}
 
+	public void onFavoriteListUpdated() {
+		Toast.makeText(getContext(), "saved", Toast.LENGTH_LONG).show();
+		controller.save();
+	}
+
 	/**
 	 * Set list
 	 * @param list List of stations
@@ -117,80 +136,9 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 	public void setList(List<FavoriteStation> list) {
 		mList = list;
 		adapter.setList(list);
-		adapter.notifyDataSetChanged();
 	}
 
 	public void setOnFavoriteClick(OnFavoriteClick listener) {
 		this.listener = listener;
-	}
-
-	public static class StationAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-		private LayoutInflater mInflater;
-		protected List<FavoriteStation> mList;
-
-		private static final int STATION = 0;
-		private static final int ADD = 1;
-
-		private StationAdapter(Context context) {
-			mInflater = LayoutInflater.from(context);
-		}
-
-		public void setList(List<FavoriteStation> stations) {
-			mList = stations;
-		}
-
-		@Override
-		@NonNull
-		public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-			switch (viewType) {
-				case STATION:
-					return new ViewHolder(mInflater.inflate(R.layout.favorite_station_item, parent, false));
-
-				case ADD:
-				default:
-					return new ViewHolderAdd(mInflater.inflate(R.layout.favorite_station_add, parent, false));
-			}
-		}
-
-		@Override
-		public void onBindViewHolder(final @NonNull RecyclerView.ViewHolder holder, int position) {
-			if (holder.getItemViewType() == STATION) {
-				FavoriteStation station = mList.get(position);
-				((ViewHolder) holder).populate(station);
-			}
-		}
-
-		@Override
-		public int getItemViewType(int position) {
-			return position >= mList.size() ? ADD : STATION;
-		}
-
-		@Override
-		public int getItemCount() {
-			return Math.min(mList.size() + 1, MAX_COUNT);
-		}
-
-		public static class ViewHolder extends RecyclerView.ViewHolder {
-			private TextView frequency;
-			private TextView title;
-
-			private ViewHolder(View root) {
-				super(root);
-
-				frequency = root.findViewById(R.id.favorite_station_item_frequency);
-				title = root.findViewById(R.id.favorite_station_item_title);
-			}
-
-			public void populate(FavoriteStation station) {
-				frequency.setText(Utils.getMHz(station.getFrequency()));
-				title.setText(station.getTitle());
-			}
-		}
-
-		public static class ViewHolderAdd extends RecyclerView.ViewHolder {
-			private ViewHolderAdd(View root) {
-				super(root);
-			}
-		}
 	}
 }
