@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -56,7 +55,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 	 */
 	private void initUserInterface() {
 		mFrequencyInfo = findViewById(R.id.frequency_info);
-		//mFrequencyInfo.setOnFrequencyChangedListener(this);
+		mFrequencyInfo.setOnFrequencyChangedListener(this);
 
 		mFavoriteList = findViewById(R.id.favorite_list);
 		mFavoriteList.setOnFavoriteClick(this);
@@ -93,6 +92,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 		Intent i = new Intent(C.Event.READY).putExtra(C.PrefKey.LAST_FREQUENCY, 88100);
 		sendBroadcast(i);
+
+		mFavoriteList.reload(true);
 	}
 
 	/**
@@ -196,7 +197,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 	// TODO: realization
 	@Override
 	public void onUserChangeFrequency(int kHz) {
-		Log.d("oUCF", "User clicked on seek bar kHz = " + kHz);
+		Intent i = new Intent(C.Event.FREQUENCY_SET).putExtra(C.Key.FREQUENCY, kHz);
+		sendBroadcast(i);
 	}
 
 	private int __DEV_currentFrequency = -1;

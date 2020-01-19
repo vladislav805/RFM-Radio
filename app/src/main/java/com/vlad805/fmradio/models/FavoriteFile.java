@@ -23,7 +23,7 @@ public class FavoriteFile implements IJsonable {
 	@Override
 	public JSONObject toJson() {
 		try {
-			return new JSONObject().put("items", items);
+			return new JSONObject().putOpt("items", items);
 		} catch (JSONException e) {
 			return null;
 		}

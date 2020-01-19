@@ -18,6 +18,7 @@ import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
 
+import java.io.FileNotFoundException;
 import java.util.List;
 
 public class FavoritesListsActivity extends Activity implements AdapterView.OnItemSelectedListener {
@@ -50,7 +51,6 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		mSpinner = findViewById(R.id.favorite_list_lists);
 
 		mFavoriteListNames = mController.getFavoriteLists();
-		mSpinner.setOnItemSelectedListener(this);
 
 		mRecycler = findViewById(R.id.favorite_list_content);
 		mRecycler.addOnItemTouchListener(new RecyclerItemClickListener(this, mRecycler, new RecyclerItemClickListener.OnItemClickListener() {
@@ -71,6 +71,9 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 
 		reloadLists();
 		reloadContent();
+
+		// Listen this only after setSelection
+		mSpinner.setOnItemSelectedListener(this);
 	}
 
 	private void reloadLists() {
@@ -83,8 +86,8 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 
 		ArrayAdapter<?> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, mFavoriteListNames.toArray(new String[0]));
 
-		mSpinner.setSelection(position);
 		mSpinner.setAdapter(adapter);
+		mSpinner.setSelection(position);
 	}
 
 	private void reloadContent() {
@@ -92,7 +95,7 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 			mStationsList.clear();
 		}
 
-		mStationsList = mController.getList();
+		mStationsList = mController.getStationsInCurrentList();
 		mAdapter.setDataset(mStationsList);
 		mAdapter.notifyDataSetChanged();
 	}
@@ -101,9 +104,12 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 	public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
 		String item = (String) parent.getItemAtPosition(position);
 
-		mToast.text("SET to " + item).show();
-		mController.setCurrentFavoriteList(item);
-		reloadContent();
+		try {
+			mController.setCurrentFavoriteList(item);
+			reloadContent();
+		} catch (FileNotFoundException e) {
+			mToast.text("Not found this list").show();
+		}
 	}
 
 	@Override

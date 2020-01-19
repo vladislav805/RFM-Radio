@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.helper.json;
 
 import android.os.Environment;
+import android.util.Log;
 
 import java.io.*;
 
@@ -9,70 +10,96 @@ import java.io.*;
  */
 public abstract class JSONFile<T extends IJsonable> {
 
-	protected String getBaseApplicationDirectory() throws FileNotFoundException {
+	/**
+	 * Returns (and create recursively, if it not exists) path to application directory
+	 * @return Path to application directory
+	 */
+	protected final String getBaseApplicationDirectory() {
 		File dir = new File(Environment.getExternalStorageDirectory() + getDirectory());
 
 		if (!dir.exists()) {
 			if (!dir.mkdirs()) {
-				throw new FileNotFoundException();
+				Log.e("JSONFile<>", "Can not create application directory");
 			}
 		}
 
 		return dir.getAbsolutePath();
 	}
 
+	/**
+	 * Returns directory, relative from home directory
+	 * @return Path
+	 */
 	protected String getDirectory() {
 		return "/RFM/";
 	}
 
+	/**
+	 * Returns name of JSON file
+	 * @return Name file with extension
+	 */
 	public abstract String getFilename();
 
-	protected String getFullPath() throws FileNotFoundException {
+	/**
+	 * Returns full path to file
+	 * @return Path
+	 */
+	protected String getFullPath() {
 		return getBaseApplicationDirectory() + getFilename();
 	}
 
+	/**
+	 * Reading file to string
+	 * @return Content of file in string
+	 */
 	protected String readFile() {
-		try {
-			String path = getFullPath();
-			File file = new File(path);
+		String path = getFullPath();
+		File file = new File(path);
 
-			if (!file.exists()) {
-				writeFile("{}");
+		if (!file.exists()) {
+			String empty = "{}";
+			writeFile(empty);
+			return empty;
+		}
+
+		StringBuilder text = new StringBuilder();
+
+		try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+			String line;
+
+			while ((line = br.readLine()) != null) {
+				text.append(line);
+				text.append('\n');
 			}
 
-			StringBuilder text = new StringBuilder();
-
-			try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-				String line;
-
-				while ((line = br.readLine()) != null) {
-					text.append(line);
-					text.append('\n');
-				}
-
-				return text.toString();
-			} catch (IOException e) {
-				return "";
-			}
-		} catch (FileNotFoundException e) {
-			return "{}";
+			return text.toString();
+		} catch (IOException e) {
+			return "";
 		}
 	}
 
+	/**
+	 * Save file with data content
+	 * @param data Content of file
+	 */
 	protected void writeFile(String data) {
-		try {
-			File file = new File(getFullPath());
-			try (FileOutputStream stream = new FileOutputStream(file)) {
-				stream.write(data.getBytes());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		} catch (FileNotFoundException e) {
+		File file = new File(getFullPath());
+		try (FileOutputStream stream = new FileOutputStream(file)) {
+			stream.write(data.getBytes());
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
+	/**
+	 * Parsing contents to models
+	 * @return Model
+	 */
 	public abstract T read();
-	public abstract void write(T data);
 
+	/**
+	 * Serialize model to string and write it to file
+	 * @param data Model
+	 */
+	public abstract void write(T data);
 }

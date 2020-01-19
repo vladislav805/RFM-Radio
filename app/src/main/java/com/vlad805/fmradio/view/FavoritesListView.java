@@ -56,6 +56,18 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		init();
 	}
 
+	public void reload() {
+		reload(false);
+	}
+
+	public void reload(boolean force) {
+		if (force) {
+			controller.reload();
+		}
+		mList = controller.getStationsInCurrentList();
+		setList(mList);
+	}
+
 	private void init() {
 		LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
 		setLayoutManager(horizontalLayoutManager);
@@ -66,8 +78,7 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		addOnItemTouchListener(new RecyclerItemClickListener(getContext(), this, this));
 
 		controller = new FavoriteController(getContext());
-		mList = controller.getList();
-		setList(mList);
+		reload();
 	}
 
 	@Override
