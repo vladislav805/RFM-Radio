@@ -38,6 +38,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 	private Menu mMenu;
 
+	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -92,8 +94,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 		Intent i = new Intent(C.Event.READY).putExtra(C.PrefKey.LAST_FREQUENCY, 88100);
 		sendBroadcast(i);
-
-		mFavoriteList.reload(true);
 	}
 
 	/**
@@ -105,6 +105,19 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		unregisterReceiver(mRadioReceiver);
 
 		super.onPause();
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		//noinspection SwitchStatementWithTooFewBranches
+		switch (requestCode) {
+			case REQUEST_CODE_FAVORITES_OPENED: {
+				if (resultCode == Activity.RESULT_OK && data.getBooleanExtra("changed", false)) {
+					mFavoriteList.reload(true);
+				}
+				break;
+			}
+		}
 	}
 
 	/**
@@ -120,7 +133,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 				R.id.ctl_go_down,
 				R.id.ctl_go_up,
 				R.id.ctl_seek_down,
-				R.id.ctl_seek_up
+				R.id.ctl_seek_up,
+				R.id.favorite_button
 		};
 
 		for (int id : ids) {
@@ -154,6 +168,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 			case R.id.ctl_seek_up:
 				FM.send(this, C.Command.HW_SEEK, C.Key.SEEK_HW_DIRECTION, SeekDirection.UP.getValue());
 				break;
+
+			case R.id.favorite_button:
+				startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
 
 		}
 	}

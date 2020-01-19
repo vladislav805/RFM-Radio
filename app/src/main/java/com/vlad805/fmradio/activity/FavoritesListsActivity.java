@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.activity;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -107,6 +108,9 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		try {
 			mController.setCurrentFavoriteList(item);
 			reloadContent();
+
+			Intent intent = new Intent().putExtra("changed", true);
+			setResult(Activity.RESULT_OK, intent);
 		} catch (FileNotFoundException e) {
 			mToast.text("Not found this list").show();
 		}
