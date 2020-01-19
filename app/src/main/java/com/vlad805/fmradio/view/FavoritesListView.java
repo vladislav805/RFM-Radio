@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.view;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.AttributeSet;
 import android.view.Menu;
 import android.view.View;
@@ -9,6 +10,7 @@ import android.widget.Toast;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.activity.FavoritesListsActivity;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
@@ -70,22 +72,31 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 
 	@Override
 	public void onItemClick(View view, int position) {
-		boolean isExists = position < mList.size();
+		final int size = mList.size();
+		boolean isExists = position < size;
+
+		if (listener == null) {
+			return;
+		}
 
 		if (isExists) {
-			if (listener != null) {
-				FavoriteStation station = mList.get(position);
-				listener.onFavoriteClick(station);
-			}
-		} else {
-			if (listener != null) {
-				new EditTextDialog(getContext(), "", title -> {
-					FavoriteStation station = new FavoriteStation(listener.getCurrentFrequencyForAddFavorite(), title);
-					mList.add(station);
-					adapter.notifyItemInserted(position);
-					onFavoriteListUpdated();
-				}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
-			}
+			FavoriteStation station = mList.get(position);
+			listener.onFavoriteClick(station);
+			return;
+		}
+
+		// +
+		if (position == size) {
+			new EditTextDialog(getContext(), "", title -> {
+				FavoriteStation station = new FavoriteStation(listener.getCurrentFrequencyForAddFavorite(), title);
+				mList.add(station);
+				adapter.notifyItemInserted(position);
+				onFavoriteListUpdated();
+			}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
+		}
+
+		if (position == size + 1) {
+			getContext().startActivity(new Intent(getContext(), FavoritesListsActivity.class));
 		}
 	}
 

@@ -24,6 +24,8 @@
 			android:id="@+id/favorite_list"
 			android:layout_width="match_parent"
 			android:layout_height="@dimen/favorite_list_height"
+			android:clickable="true"
+			android:focusable="true"
 			app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
 			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintStart_toStartOf="parent"

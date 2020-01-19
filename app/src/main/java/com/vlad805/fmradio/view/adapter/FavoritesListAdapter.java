@@ -23,7 +23,12 @@ public class FavoritesListAdapter extends RecyclerView.Adapter<RecyclerView.View
 	protected List<FavoriteStation> mList;
 
 	private static final int TYPE_STATION = 0;
-	private static final int TYPE_ADD = 1;
+	private static final int TYPE_BUTTON = 1;
+
+	private static final String[] BUTTONS = {
+			"+",
+			"set"
+	};
 
 	public FavoritesListAdapter(Context context) {
 		mInflater = LayoutInflater.from(context);
@@ -41,28 +46,40 @@ public class FavoritesListAdapter extends RecyclerView.Adapter<RecyclerView.View
 			case TYPE_STATION:
 				return new ViewHolder(mInflater.inflate(R.layout.favorite_station_item, parent, false));
 
-			case TYPE_ADD:
+			case TYPE_BUTTON:
 			default:
-				return new ViewHolderAdd(mInflater.inflate(R.layout.favorite_station_add, parent, false));
+				return new ViewHolderButton(mInflater.inflate(R.layout.favorite_station_button, parent, false));
 		}
 	}
 
 	@Override
-	public void onBindViewHolder(final @NonNull RecyclerView.ViewHolder holder, int position) {
-		if (holder.getItemViewType() == TYPE_STATION) {
-			FavoriteStation station = mList.get(position);
-			((ViewHolder) holder).populate(station);
+	public void onBindViewHolder(final @NonNull RecyclerView.ViewHolder holder, final int position) {
+		switch (holder.getItemViewType()) {
+			case TYPE_STATION: {
+				final FavoriteStation station = mList.get(position);
+				((ViewHolder) holder).populate(station);
+				break;
+			}
+
+			case TYPE_BUTTON: {
+				final int fromLast = position - mList.size();
+				((ViewHolderButton) holder).setContent(BUTTONS[fromLast]);
+				break;
+			}
+
 		}
 	}
 
 	@Override
-	public int getItemViewType(int position) {
-		return position >= mList.size() ? TYPE_ADD : TYPE_STATION;
+	public int getItemViewType(final int position) {
+		return position < mList.size()
+				? TYPE_STATION
+				: TYPE_BUTTON;
 	}
 
 	@Override
 	public int getItemCount() {
-		return Math.min(mList.size() + 1, MAX_COUNT);
+		return Math.min(mList.size(), MAX_COUNT) + BUTTONS.length;
 	}
 
 	public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -77,14 +94,22 @@ public class FavoritesListAdapter extends RecyclerView.Adapter<RecyclerView.View
 		}
 
 		public void populate(FavoriteStation station) {
-			frequency.setText(Utils.getMHz(station.getFrequency()));
+			frequency.setText(Utils.getMHz(station.getFrequency()).trim());
 			title.setText(station.getTitle());
 		}
 	}
 
-	public static class ViewHolderAdd extends RecyclerView.ViewHolder {
-		private ViewHolderAdd(View root) {
+	public static class ViewHolderButton extends RecyclerView.ViewHolder {
+		private TextView content;
+
+		private ViewHolderButton(View root) {
 			super(root);
+
+			content = root.findViewById(R.id.favorite_station_item_button);
+		}
+
+		public void setContent(String text) {
+			content.setText(text);
 		}
 	}
 }

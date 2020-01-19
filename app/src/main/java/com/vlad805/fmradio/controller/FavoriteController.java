@@ -37,7 +37,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * Returns name of file of current favorite list
 	 * @return filename without extension
 	 */
-	private String getCurrentFavoriteList() {
+	public String getCurrentFavoriteList() {
 		return mStorage.getString(KEY_CURRENT_LIST, DEFAULT_NAME);
 	}
 
@@ -59,8 +59,13 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	public List<String> getFavoriteLists() {
 		try {
 			File dir = new File(getBaseApplicationDirectory());
-			String[] lll = dir.list();
-			return Arrays.asList(lll);
+			String[] files = dir.list();
+
+			for (int i = 0; i < files.length; ++i) {
+				files[i] = files[i].replace(".json", "");
+			}
+
+			return Arrays.asList(files);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}

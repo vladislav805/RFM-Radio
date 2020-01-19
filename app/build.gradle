@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 def versionMajor = 0
-def versionMinor = 3
+def versionMinor = 4
 def versionPatch = 0
 
 android {
@@ -17,16 +17,6 @@ android {
 		versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
 		//noinspection GroovyAssignabilityCheck
 		versionName "${versionMajor}.${versionMinor}.${versionPatch}"
-
-		javaCompileOptions {
-			annotationProcessorOptions {
-				arguments = [
-						"room.schemaLocation": "$projectDir/schemas".toString(),
-						"room.incremental": "true"
-				]
-			}
-		}
-
 	}
 
 	buildTypes {
