@@ -1,16 +1,13 @@
 package com.vlad805.fmradio.view;
 
 import android.content.Context;
-import android.content.Intent;
 import android.util.AttributeSet;
 import android.view.Menu;
 import android.view.View;
 import android.widget.PopupMenu;
-import android.widget.Toast;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.activity.FavoritesListsActivity;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
@@ -38,10 +35,6 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 	public interface OnFavoriteClick {
 		void onFavoriteClick(FavoriteStation station);
 		int getCurrentFrequencyForAddFavorite();
-	}
-
-	public interface OnFavoriteListUpdated {
-		void onFavoriteListUpdated();
 	}
 
 	public FavoritesListView(Context context) {
@@ -96,7 +89,6 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 			return;
 		}
 
-		// +
 		if (position == size) {
 			new EditTextDialog(getContext(), "", title -> {
 				FavoriteStation station = new FavoriteStation(listener.getCurrentFrequencyForAddFavorite(), title);
@@ -104,10 +96,6 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 				adapter.notifyItemInserted(position);
 				onFavoriteListUpdated();
 			}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
-		}
-
-		if (position == size + 1) {
-			getContext().startActivity(new Intent(getContext(), FavoritesListsActivity.class));
 		}
 	}
 
@@ -147,7 +135,6 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 	}
 
 	public void onFavoriteListUpdated() {
-		Toast.makeText(getContext(), "saved", Toast.LENGTH_LONG).show();
 		controller.save();
 	}
 

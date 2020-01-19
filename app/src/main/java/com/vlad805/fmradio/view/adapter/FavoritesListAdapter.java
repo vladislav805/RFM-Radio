@@ -26,8 +26,7 @@ public class FavoritesListAdapter extends RecyclerView.Adapter<RecyclerView.View
 	private static final int TYPE_BUTTON = 1;
 
 	private static final String[] BUTTONS = {
-			"+",
-			"set"
+			"+"
 	};
 
 	public FavoritesListAdapter(Context context) {
