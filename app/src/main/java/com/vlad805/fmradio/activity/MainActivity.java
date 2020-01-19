@@ -1,13 +1,11 @@
 package com.vlad805.fmradio.activity;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,24 +13,25 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.db.FavoriteStation;
-import com.vlad805.fmradio.db.IStation;
 import com.vlad805.fmradio.enums.JumpDirection;
 import com.vlad805.fmradio.enums.SeekDirection;
+import com.vlad805.fmradio.helper.ProgressDialog;
+import com.vlad805.fmradio.helper.Toast;
+import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.FM;
+import com.vlad805.fmradio.view.FavoritesListView;
 import com.vlad805.fmradio.view.RadioUIView;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity implements View.OnClickListener, RadioUIView.OnFrequencyChanged {
-
-	private View mViewLoading;
-	private View mViewPlayer;
+public class MainActivity extends Activity implements View.OnClickListener, RadioUIView.OnUserFrequencyChange, FavoritesListView.OnFavoriteClick {
+	private ProgressDialog mProgress;
+	private Toast mToast;
 	private RadioUIView mFrequencyInfo;
+	private FavoritesListView mFavoriteList;
 
 	private RadioReceiver mRadioReceiver;
 
@@ -48,23 +47,52 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		if (getActionBar() != null) {
-			getActionBar().hide();
-		}
+		mProgress = ProgressDialog.create(this).text(R.string.progress_init).show();
+		mToast = Toast.create(this);
 
-		mViewLoading = findViewById(R.id.main_loading);
-		mViewPlayer = findViewById(R.id.main_player);
-
-		mFrequencyInfo = findViewById(R.id.frequency_info);
-		mFrequencyInfo.setOnFrequencyChangedListener(this);
-
-		mRadioReceiver = new RadioReceiver();
-
-		initButtons();
-
-		FM.send(this, C.Command.INIT);
+		initUserInterface();
+		initLogic();
 	}
 
+	/**
+	 * Activity handle, UI setup
+	 */
+	private void initUserInterface() {
+		mFrequencyInfo = findViewById(R.id.frequency_info);
+		//mFrequencyInfo.setOnFrequencyChangedListener(this);
+
+		mFavoriteList = findViewById(R.id.favorite_list);
+		mFavoriteList.setOnFavoriteClick(this);
+
+		List<FavoriteStation> flv = new ArrayList<>();
+
+		flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));flv.add(new FavoriteStation(88000, "retro fm"));
+		flv.add(new FavoriteStation(90600, "ваня"));
+
+		mFavoriteList.setList(flv);
+
+		initClickableButtons();
+	}
+
+	/**
+	 * Initialize connection and service
+	 */
+	private void initLogic() {
+		mRadioReceiver = new RadioReceiver();
+
+		//FM.send(this, C.Command.INIT);
+	}
+
+	/**
+	 * Lifecycle: application is now active
+	 * When application will be showed, we need update info on activity
+	 */
 	@Override
 	protected void onResume() {
 		super.onResume();
@@ -79,9 +107,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		filter.addAction(C.Event.UPDATE_STEREO);
 		registerReceiver(mRadioReceiver, filter);
 
-		__updateToggleButton();
+		Intent i = new Intent(C.Event.READY).putExtra(C.PrefKey.LAST_FREQUENCY, 88100);
+		sendBroadcast(i);
 	}
 
+	/**
+	 * Lifecycle: application is now not active
+	 * When application hide or close, we not need update info - unsubscribe
+	 */
 	@Override
 	protected void onPause() {
 		unregisterReceiver(mRadioReceiver);
@@ -89,8 +122,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		super.onPause();
 	}
 
-	private void initButtons() {
-
+	/**
+	 * Setup clickable buttons
+	 */
+	private void initClickableButtons() {
 		mCtlToggle = findViewById(R.id.ctl_toggle);
 		mViewRssi = findViewById(R.id.rssi_value);
 		mViewStereoMode = findViewById(R.id.stereo_mono);
@@ -117,7 +152,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 				} else {
 					FM.send(this, C.Command.DISABLE);
 				}
-				__updateToggleButton();
 				break;
 
 			case R.id.ctl_go_down:
@@ -140,6 +174,20 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 	}
 
 	@Override
+	public void onFavoriteClick(FavoriteStation station) {
+		Intent i = new Intent(C.Event.FREQUENCY_SET).putExtra(C.Key.FREQUENCY, station.getFrequency());
+		sendBroadcast(i);
+	}
+
+	@Override
+	public int getCurrentFrequencyForAddFavorite() {
+		return __DEV_currentFrequency;
+	}
+
+	/**
+	 * Menu
+	 */
+	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.main, menu);
 		mMenu = menu;
@@ -148,53 +196,33 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
 				FM.send(this, C.Command.DISABLE);
 				break;
 
-			case R.id.menu_open_debug:
-				startActivity(new Intent(this, DebugActivity.class));
-				break;
-
 			case R.id.menu_about:
-				startActivity(new Intent(this, AboutActivity.class));
+				mToast.text("Authors").show();
 				break;
-
-			case R.id.menu_list:
-				startActivity(new Intent(this, StationListActivity.class));
-				break;
-
 		}
 
 		return super.onOptionsItemSelected(item);
 	}
 
-	private Toast mToast;
-
-	@SuppressLint("ShowToast")
-	private void showToast(String str) {
-		if (mToast == null) {
-			mToast = Toast.makeText(this, str, Toast.LENGTH_LONG);
-		}
-		mToast.setText(str);
-		mToast.show();
-	}
-
+	// TODO: realization
 	@Override
-	public void onChanged(int kHz) {
-		FM.send(this, C.Command.SET_FREQUENCY, C.Key.FREQUENCY, String.valueOf(kHz));
+	public void onUserChangeFrequency(int kHz) {
+		Log.d("oUCF", "User clicked on seek bar kHz = " + kHz);
 	}
 
-	private void __updateToggleButton() {
-		mCtlToggle.setImageResource(FM.getState() == FM.State.TURN_ON ? R.drawable.ic_pause : R.drawable.ic_play);
-	}
+	private int __DEV_currentFrequency = -1;
 
+	/**
+	 * Event listener
+	 */
 	public class RadioReceiver extends BroadcastReceiver {
-
 		@Override
-		public void onReceive(Context context, final Intent intent) {
+		public void onReceive(final Context context, final Intent intent) {
 			if (intent == null || intent.getAction() == null) {
 				return;
 			}
@@ -202,13 +230,15 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 			switch (intent.getAction()) {
 
 				case C.Event.READY:
+					mProgress.close();
+
 					if (intent.hasExtra(C.PrefKey.LAST_FREQUENCY)) {
 						int frequency = intent.getIntExtra(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-
+__DEV_currentFrequency = frequency;
 						mFrequencyInfo.setFrequency(frequency);
 					}
 
-					if (intent.hasExtra(C.Key.FAVORITE_STATION_LIST)) {
+					/*if (intent.hasExtra(C.Key.FAVORITE_STATION_LIST)) {
 						List<FavoriteStation> fs = convert(intent.getParcelableArrayExtra(C.Key.FAVORITE_STATION_LIST));
 						Log.i("MA", "FavStationList = " + fs.size());
 					}
@@ -218,10 +248,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 						Log.i("MA", "StationList = " + s.size());
 
 						mFrequencyInfo.notifyStationsLists(s);
-					}
-
-					mViewLoading.setVisibility(View.GONE);
-					mViewPlayer.setVisibility(View.VISIBLE);
+					}*/
 
 					if (getActionBar() != null) {
 						getActionBar().show();
@@ -232,13 +259,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 					final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
 					runOnUiThread(() -> {
 						mFrequencyInfo.setFrequency(kHz);
-
+__DEV_currentFrequency = kHz;
 						String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
-						showToast(str);
+						mToast.text(str).show();
 
 						mFrequencyInfo.setRdsPs("");
 						mFrequencyInfo.setRdsRt("");
-						mViewRssi.setText("0");
+						mViewRssi.setText("…");
 					});
 					break;
 
@@ -264,14 +291,5 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 			}
 		}
-	}
-
-	private <T> List<T> convert(Parcelable[] a) {
-		List<T> s = new ArrayList<>();
-		for (Parcelable i : a) {
-			//noinspection unchecked
-			s.add((T) i);
-		}
-		return s;
 	}
 }

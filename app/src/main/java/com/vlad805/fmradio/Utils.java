@@ -3,18 +3,20 @@ package com.vlad805.fmradio;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.util.Log;
 
 import java.io.DataOutputStream;
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * vlad805 (c) 2019
  */
 public class Utils {
 
-
-	// https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxInstaller.java#L179
+	/**
+	 *
+	 * https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxInstaller.java#L179
+	 */
 	public static String determineArch() {
 		for (String androidArch : Build.SUPPORTED_ABIS) {
 			switch (androidArch) {
@@ -59,14 +61,17 @@ public class Utils {
 
 	public static int parseInt(String s) {
 		try {
-			return Integer.valueOf(s);
+			return Integer.parseInt(s);
 		} catch (NumberFormatException e) {
 			return 0;
 		}
 	}
 
+	public static String getMHz(int kHz) {
+		return String.format(Locale.ENGLISH, "%5.1f", kHz / 1000.);
+	}
+
 	public static SharedPreferences getStorage(Context ctx) {
 		return Storage.getInstance(ctx);
 	}
-
 }

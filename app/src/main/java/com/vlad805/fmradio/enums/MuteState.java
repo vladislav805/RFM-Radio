@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.fm;
+package com.vlad805.fmradio.enums;
 
 /**
  * vlad805 (c) 2019

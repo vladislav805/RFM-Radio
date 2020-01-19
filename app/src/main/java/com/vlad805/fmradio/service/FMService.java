@@ -6,18 +6,13 @@ import android.app.Service;
 import android.content.*;
 import android.os.IBinder;
 import android.util.Log;
-import androidx.room.Room;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.db.AppDatabase;
-import com.vlad805.fmradio.db.FavoriteStation;
-import com.vlad805.fmradio.db.Station;
+import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.fm.Configuration;
-import com.vlad805.fmradio.fm.MuteState;
 import com.vlad805.fmradio.fm.OnResponseReceived;
 import com.vlad805.fmradio.fm.QualComm;
 
-import java.util.List;
 import java.util.Locale;
 
 import static com.vlad805.fmradio.Utils.getStorage;
@@ -41,8 +36,6 @@ public class FMService extends Service {
 	private static Configuration mConfiguration;
 
 	private PlayerReceiver mStatusReceiver;
-
-	private AppDatabase mDatabase;
 
 	public class PlayerReceiver extends BroadcastReceiver {
 
@@ -76,7 +69,7 @@ public class FMService extends Service {
 	public void onCreate() {
 		super.onCreate();
 
-		mDatabase = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, C.DATABASE_NAME).enableMultiInstanceInvalidation().build();
+		//mDatabase = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, C.DATABASE_NAME).enableMultiInstanceInvalidation().build();
 
 		mStatusReceiver = new PlayerReceiver();
 
@@ -219,19 +212,19 @@ public class FMService extends Service {
 		intent.putExtra(C.PrefKey.AUTOPLAY, sp.getBoolean(C.PrefKey.AUTOPLAY, C.PrefDefaultValue.AUTOPLAY));
 		intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
 
-		intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
-		intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
+		//intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
+		//intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
 
 		sendBroadcast(intent);
 	}
 
-	private List<Station> getStationList() {
+	/*private List<Station> getStationList() {
 		return mDatabase.stationDao().getAll();
 	}
 
 	private List<FavoriteStation> getFavoriteStationList() {
 		return mDatabase.favoriteStationDao().getAll();
-	}
+	}*/
 
 	private FMAudioService createAudioService() {
 		final int id = getStorage(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);

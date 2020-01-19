@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
  * vlad805 (c) 2019
  */
 public final class Storage {
-
 	private static SharedPreferences mPrefs;
 
 	public static SharedPreferences getInstance(Context ctx) {
@@ -17,8 +16,7 @@ public final class Storage {
 		return mPrefs;
 	}
 
-	private Storage(Context ctx) {
+	private Storage() {
 
 	}
-
 }

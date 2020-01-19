@@ -5,16 +5,16 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.SparseArray;
 import android.widget.SeekBar;
-import com.vlad805.fmradio.db.IStation;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * vlad805 (c) 2018
- * Кастомный SeekBar, отрисовываемый вручную для полосы частот
+ * Custom SeekBar
  */
 public class FrequencySeekView extends SeekBar {
 
@@ -85,10 +85,10 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	/**
-	 * Изменение границ
-	 * @param minValue Lower-частота в kHz
-	 * @param maxValue Higher-частота в kHz
-	 * @param step Шаг в kHz
+	 * Change edges
+	 * @param minValue Lower frequency in kHz
+	 * @param maxValue Higher frequency in kHz
+	 * @param step Step in kHz
 	 */
 	public void setMinMaxValue(int minValue, int maxValue, int step) {
 		setMinValue(minValue);
@@ -103,17 +103,17 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	/**
-	 * Получение текущей частоты
-	 * @param progress Значение по seek-bar
-	 * @return Частота в kHz
+	 * Returns current frequency
+	 * @param progress Value by SeekBar
+	 * @return Frequency in kHz
 	 */
 	public int fixProgress(int progress) {
 		return progress * mStep + mValueMin;
 	}
 
 	/**
-	 * Изменение текущей частоты
-	 * @param kHz Частота в kHz
+	 * Change current frequency
+	 * @param kHz Frequency in kHz
 	 */
 	@Override
 	public synchronized void setProgress(int kHz) {
@@ -123,7 +123,7 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	/**
-	 * Получение текущей частоты в kHz
+	 * Returns current frequency in kHz
 	 * @return Частота в kHz
 	 */
 	@Override
@@ -172,7 +172,7 @@ public class FrequencySeekView extends SeekBar {
 			final float x = deltaX + viewInterval * i;
 
 			// The presence of the current frequency in the list of stations
-			final boolean hasStation = mStations != null && mStations.get(kHz) != null;
+			final boolean hasStation = mStations != null && mStations.contains(kHz);
 
 			// Choose color for dash in depend of presence of the current frequency in the list of stations
 			Paint colorTrait = hasStation ? mStationLine : mTrait;
@@ -206,21 +206,16 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	/**
-	 * Список станций, найденных автоматическим поиском, для отрисовки желтых линий
+	 * List of stations, that will be draw
 	 */
-	private SparseArray<IStation> mStations;
+	private Set<Integer> mStations;
 
 	/**
-	 * Обновление списка станций (автоматический поиск) для рисования желтых линий
-	 * @param stations Список станций
+	 * Update list of stations for draw lines on seek bar
+	 * @param stations List of frequencies
 	 */
-	public void notifyStationList(List<IStation> stations) {
-		mStations = new SparseArray<>();
-
-		for (IStation station : stations) {
-			mStations.put(station.getFrequency(), station);
-		}
-
+	public void notifyStationList(List<Integer> stations) {
+		mStations = new HashSet<>(stations);
 		invalidate();
 	}
 }

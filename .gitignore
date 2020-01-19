@@ -53,3 +53,4 @@ fastlane/test_output
 fastlane/readme.md
 
 cmake-build-*
+/fonts/

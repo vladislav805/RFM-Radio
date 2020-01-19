@@ -4,10 +4,10 @@
 	<dimen name="frequency_mhz_reflection_height">64dp</dimen>
 	<dimen name="frequency_info_margin_top">10dp</dimen>
 
-	<dimen name="preset_width">110dp</dimen>
-	<dimen name="preset_height">55dp</dimen>
-	<dimen name="preset_mhz_size">26sp</dimen>
-	<dimen name="preset_title_size">14sp</dimen>
+	<dimen name="favorite_list_width">110dp</dimen>
+	<dimen name="favorite_list_height">55dp</dimen>
+	<dimen name="favorite_list_mhz_size">26sp</dimen>
+	<dimen name="favorite_list_title_size">14sp</dimen>
 	<dimen name="dialog_horizontal_padding">16dp</dimen>
 	<dimen name="control_icon_size">30dp</dimen>
 </resources>

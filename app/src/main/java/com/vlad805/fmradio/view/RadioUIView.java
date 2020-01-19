@@ -9,32 +9,38 @@ import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.db.IStation;
-
-import java.util.List;
-import java.util.Locale;
+import com.vlad805.fmradio.Utils;
 
 /**
  * vlad805 (c) 2019
  */
 public class RadioUIView extends LinearLayout {
-
-	private TextViewWithSupportReflection mFrequency;
+	private TextViewWithSupportReflection mFrequencyView;
 	private ImageView mShadow;
 	private TextView mRdsPs;
 	private TextView mRdsRt;
 	private FrequencySeekView mSeek;
 
-	private OnFrequencyChanged mListener;
+	private OnUserFrequencyChange mListener;
 
+	/**
+	 * Current frequency
+	 */
 	private int mkHz = 87500;
 
+	/**
+	 * Settings
+	 */
 	private static final int BAND_LOW = 87500;
 	private static final int BAND_HIGH = 108000;
 	private static final int BAND_STEP = 100;
 
-	public interface OnFrequencyChanged {
-		void onChanged(int kHz);
+	/**
+	 * Callback for external code
+	 * Calls when user select frequency by click on seek bar
+	 */
+	public interface OnUserFrequencyChange {
+		void onUserChangeFrequency(int kHz);
 	}
 
 	public RadioUIView(Context context) {
@@ -52,59 +58,51 @@ public class RadioUIView extends LinearLayout {
 	private void init() {
 		LayoutInflater.from(getContext()).inflate(R.layout.frequency_info, this, true);
 
-		Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
-
-		mFrequency = findViewById(R.id.frequency_mhz);
+		mFrequencyView = findViewById(R.id.frequency_mhz);
 		mShadow = findViewById(R.id.frequency_mhz_reflection);
 		mRdsPs = findViewById(R.id.frequency_ps);
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeek = findViewById(R.id.frequency_seek);
 
-		mFrequency.setTypeface(font);
+		Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
+		mFrequencyView.setTypeface(font);
 
 		mSeek.setMinMaxValue(BAND_LOW, BAND_HIGH, BAND_STEP);
 		mSeek.setOnSeekBarChangeListener(mOnSeekFrequencyChanged);
 	}
 
-	public void setOnFrequencyChangedListener(OnFrequencyChanged listener) {
+
+	public void setOnFrequencyChangedListener(OnUserFrequencyChange listener) {
 		mListener = listener;
 	}
 
 	public final void setFrequency(int kHz) {
 		mkHz = kHz;
-		mFrequency.setText(getMHz(kHz));
+		mFrequencyView.setText(Utils.getMHz(kHz));
 
 		mSeek.setProgress(kHz);
 
-		post(() -> mShadow.setImageBitmap(mFrequency.getReflection(.9f)));
+		post(() -> mShadow.setImageBitmap(mFrequencyView.getReflection(.9f)));
 	}
 
 	public final void setRdsPs(String ps) {
 		mRdsPs.setText(ps);
 	}
 
-	public void setRdsRt(String rt) {
+	public final void setRdsRt(String rt) {
 		mRdsRt.setText(rt);
 	}
 
-	private String getMHz(int kHz) {
-		return String.format(Locale.ENGLISH, "%5.1f", kHz / 1000.);
-	}
-
-	private void notifyUpdate(int kHz) {
+	private void onUserClickOnFrequency(int kHz) {
 		if (mkHz == kHz) {
 			return;
 		}
 
 		if (mListener != null) {
-			mListener.onChanged(kHz);
+			mListener.onUserChangeFrequency(kHz);
 		}
 
 		setFrequency(kHz);
-	}
-
-	public void notifyStationsLists(List<IStation> list) {
-		mSeek.notifyStationList(list);
 	}
 
 	private SeekBar.OnSeekBarChangeListener mOnSeekFrequencyChanged = new SeekBar.OnSeekBarChangeListener() {
@@ -119,7 +117,7 @@ public class RadioUIView extends LinearLayout {
 
 			current = mSeek.fixProgress(progress);
 
-			notifyUpdate(current);
+			onUserClickOnFrequency(current);
 		}
 
 		@Override
@@ -127,9 +125,7 @@ public class RadioUIView extends LinearLayout {
 
 		@Override
 		public void onStopTrackingTouch(SeekBar seekBar) {
-			int d = current;
-
-			notifyUpdate(d);
+			onUserClickOnFrequency(current);
 		}
 	};
 }

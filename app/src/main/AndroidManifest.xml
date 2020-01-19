@@ -28,16 +28,6 @@
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>
-		<activity
-				android:name=".activity.StationListActivity"
-				android:label="@string/title_activity_station_list"/>
-		<activity
-				android:name=".activity.DebugActivity"
-				android:launchMode="singleInstance"
-				android:screenOrientation="portrait" />
-		<activity
-				android:name=".activity.AboutActivity"
-				android:theme="@android:style/Theme.Material.Dialog"/>
 		<service
 				android:name=".service.FMService"
 				android:enabled="true"
