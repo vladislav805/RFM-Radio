@@ -20,17 +20,14 @@ import java.util.List;
  * vlad805 (c) 2019
  */
 public class FavoritesListView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
-
-	public static final String TAG = "FLV";
 	public static final int MENU_REMOVE = 100;
 	public static final int MENU_RENAME = 101;
-	public static final int MENU_CREATE = 102;
 	public static final int MENU_REPLACE = 103;
 
-	protected List<FavoriteStation> mList;
-	private FavoritesListAdapter adapter;
-	private OnFavoriteClick listener;
-	private FavoriteController controller;
+	protected List<FavoriteStation> mStations;
+	private FavoritesListAdapter mAdapter;
+	private OnFavoriteClick mClickListener;
+	private FavoriteController mController;
 
 	public interface OnFavoriteClick {
 		void onFavoriteClick(FavoriteStation station);
@@ -49,63 +46,80 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		init();
 	}
 
-	public void reload() {
+	/**
+	 * Set stations in view
+	 */
+	public void load() {
 		reload(false);
 	}
 
+	/**
+	 * Set stations in view. If force is true - will be reloaded data from file.
+	 * @param force If true, data will be fetched from file
+	 */
 	public void reload(boolean force) {
 		if (force) {
-			controller.reload();
+			mController.reload();
 		}
-		mList = controller.getStationsInCurrentList();
-		setList(mList);
+		mStations = mController.getStationsInCurrentList();
+		mAdapter.setList(mStations);
 	}
 
 	private void init() {
 		LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
 		setLayoutManager(horizontalLayoutManager);
 
-		adapter = new FavoritesListAdapter(getContext());
-		setAdapter(adapter);
+		mAdapter = new FavoritesListAdapter(getContext());
+		setAdapter(mAdapter);
 
 		addOnItemTouchListener(new RecyclerItemClickListener(getContext(), this, this));
 
-		controller = new FavoriteController(getContext());
-		reload();
+		mController = new FavoriteController(getContext());
+		load();
 	}
 
+	/**
+	 * On click by item
+	 * @param view View
+	 * @param position Position
+	 */
 	@Override
 	public void onItemClick(View view, int position) {
-		final int size = mList.size();
+		final int size = mStations.size();
 		boolean isExists = position < size;
 
-		if (listener == null) {
+		if (mClickListener == null) {
 			return;
 		}
 
 		if (isExists) {
-			FavoriteStation station = mList.get(position);
-			listener.onFavoriteClick(station);
+			FavoriteStation station = mStations.get(position);
+			mClickListener.onFavoriteClick(station);
 			return;
 		}
 
 		if (position == size) {
 			new EditTextDialog(getContext(), "", title -> {
-				FavoriteStation station = new FavoriteStation(listener.getCurrentFrequencyForAddFavorite(), title);
-				mList.add(station);
-				adapter.notifyItemInserted(position);
+				FavoriteStation station = new FavoriteStation(mClickListener.getCurrentFrequencyForAddFavorite(), title);
+				mStations.add(station);
+				mAdapter.notifyItemInserted(position);
 				onFavoriteListUpdated();
 			}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
 		}
 	}
 
+	/**
+	 * On long click will be opened popup menu
+	 * @param view View
+	 * @param position Position
+	 */
 	@Override
 	public void onLongItemClick(View view, int position) {
-		if (position >= mList.size()) {
+		if (position >= mStations.size()) {
 			return;
 		}
 
-		final FavoriteStation station = mList.get(position);
+		final FavoriteStation station = mStations.get(position);
 
 		final PopupMenu popupMenu = new PopupMenu(getContext(), view);
 		final Menu menu = popupMenu.getMenu();
@@ -115,15 +129,15 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		popupMenu.setOnMenuItemClickListener(item -> {
 			switch (item.getItemId()) {
 				case MENU_REMOVE:
-					mList.remove(station);
-					adapter.notifyItemRemoved(position);
+					mStations.remove(station);
+					mAdapter.notifyItemRemoved(position);
 					onFavoriteListUpdated();
 					break;
 
 				case MENU_RENAME:
 					new EditTextDialog(getContext(), station.getTitle(), title -> {
 						station.setTitle(title);
-						adapter.notifyItemChanged(position);
+						mAdapter.notifyItemChanged(position);
 						onFavoriteListUpdated();
 					}).setTitle(R.string.popup_station_create).open();
 					break;
@@ -134,20 +148,18 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		popupMenu.show();
 	}
 
+	/**
+	 * Calls when user updated info station
+	 */
 	public void onFavoriteListUpdated() {
-		controller.save();
+		mController.save();
 	}
 
 	/**
-	 * Set list
-	 * @param list List of stations
+	 * Set callback for click by favorite item
+	 * @param listener Listener
 	 */
-	public void setList(List<FavoriteStation> list) {
-		mList = list;
-		adapter.setList(list);
-	}
-
 	public void setOnFavoriteClick(OnFavoriteClick listener) {
-		this.listener = listener;
+		this.mClickListener = listener;
 	}
 }
