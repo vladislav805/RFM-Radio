@@ -84,6 +84,19 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		//FM.send(this, C.Command.INIT);
 	}
 
+	private final String[] SUPPORTED_EVENTS = {
+			C.Event.READY,
+			C.Event.FREQUENCY_SET,
+			C.Event.UPDATE_PS,
+			C.Event.UPDATE_RT,
+			C.Event.UPDATE_RSSI,
+			C.Event.SEARCH_DONE,
+			C.Event.UPDATE_STEREO,
+			C.Event.RECORD_STARTED,
+			C.Event.RECORD_TIME_UPDATE,
+			C.Event.RECORD_ENDED
+	};
+
 	/**
 	 * Lifecycle: application is now active
 	 * When application will be showed, we need update info on activity
@@ -93,17 +106,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 		super.onResume();
 
 		IntentFilter filter = new IntentFilter();
-		filter.addAction(C.Event.READY);
-		filter.addAction(C.Event.FREQUENCY_SET);
-		filter.addAction(C.Event.UPDATE_PS);
-		filter.addAction(C.Event.UPDATE_RT);
-		filter.addAction(C.Event.UPDATE_RSSI);
-		filter.addAction(C.Event.SEARCH_DONE);
-		filter.addAction(C.Event.UPDATE_STEREO);
-		registerReceiver(mRadioReceiver, filter);
 
-		Intent i = new Intent(C.Event.READY).putExtra(C.PrefKey.LAST_FREQUENCY, 88100);
-		sendBroadcast(i);
+		for (String event : SUPPORTED_EVENTS) {
+			filter.addAction(event);
+		}
+
+		registerReceiver(mRadioReceiver, filter);
 	}
 
 	/**
