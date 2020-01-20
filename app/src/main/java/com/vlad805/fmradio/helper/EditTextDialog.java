@@ -2,6 +2,7 @@ package com.vlad805.fmradio.helper;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -69,6 +70,14 @@ public class EditTextDialog extends AlertDialog.Builder {
 		return this;
 	}
 
+	public final EditTextDialog setOnKeyListener(final TextWatcher listener) {
+		mEditText.addTextChangedListener(listener);
+		return this;
+	}
+
+	public EditText getView() {
+		return mEditText;
+	}
 
 	public final void open() {
 		create().show();

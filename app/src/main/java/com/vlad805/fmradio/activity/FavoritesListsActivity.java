@@ -1,20 +1,19 @@
 package com.vlad805.fmradio.activity;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
-import android.widget.TextView;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.*;
+import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
+import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -23,6 +22,9 @@ import java.io.FileNotFoundException;
 import java.util.List;
 
 public class FavoritesListsActivity extends Activity implements AdapterView.OnItemSelectedListener {
+	private Menu mMenu;
+	private String mCurrentNameList;
+
 	private FavoriteController mController;
 	private Spinner mSpinner;
 	private List<String> mFavoriteListNames;
@@ -33,21 +35,32 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 
 	private Toast mToast;
 
+	private void setTitle(String title) {
+		if (getActionBar() != null) {
+			getActionBar().setTitle(title);
+		}
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_favorites_lists);
-
 
 		mToast = Toast.create(this);
 		initLogic();
 		initUI();
 	}
 
+	/**
+	 * Create controller for get features controller
+	 */
 	private void initLogic() {
 		mController = new FavoriteController(this);
 	}
 
+	/**
+	 * Initialize UI
+	 */
 	private void initUI() {
 		mSpinner = findViewById(R.id.favorite_list_lists);
 
@@ -69,7 +82,6 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		mAdapter = new FavoriteAdapter(mStationsList);
 		mRecycler.setAdapter(mAdapter);
 
-
 		reloadLists();
 		reloadContent();
 
@@ -77,13 +89,14 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		mSpinner.setOnItemSelectedListener(this);
 	}
 
+	/**
+	 * Update list of favorite lists in spinner
+	 */
 	private void reloadLists() {
 		mFavoriteListNames = mController.getFavoriteLists();
 
-		String current = mController.getCurrentFavoriteList();
-		int position = mFavoriteListNames.indexOf(current);
-
-		mToast.text("current " + current + ", position " + position).show();
+		mCurrentNameList = mController.getCurrentFavoriteList();
+		int position = mFavoriteListNames.indexOf(mCurrentNameList);
 
 		ArrayAdapter<?> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, mFavoriteListNames.toArray(new String[0]));
 
@@ -91,22 +104,34 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		mSpinner.setSelection(position);
 	}
 
+	/**
+	 * Update list of stations when favorite list selected
+	 */
 	private void reloadContent() {
 		if (mStationsList != null) {
 			mStationsList.clear();
 		}
 
 		mStationsList = mController.getStationsInCurrentList();
+		setTitle(mCurrentNameList);
 		mAdapter.setDataset(mStationsList);
 		mAdapter.notifyDataSetChanged();
+
+		if (mMenu != null) {
+			mMenu.findItem(R.id.menu_favorite_remove).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
+		}
 	}
 
+	/**
+	 * Listener for selected item in spinner (favorite list)
+	 */
 	@Override
 	public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
 		String item = (String) parent.getItemAtPosition(position);
 
 		try {
 			mController.setCurrentFavoriteList(item);
+			mCurrentNameList = item;
 			reloadContent();
 
 			Intent intent = new Intent().putExtra("changed", true);
@@ -117,7 +142,89 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 	}
 
 	@Override
-	public void onNothingSelected(AdapterView<?> parent) {}
+	public boolean onCreateOptionsMenu(Menu menu) {
+		super.onCreateOptionsMenu(menu);
+		mMenu = menu;
+		getMenuInflater().inflate(R.menu.favorite, menu);
+		return true;
+	}
+
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		menu.findItem(R.id.menu_favorite_remove).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
+		return super.onPrepareOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case R.id.menu_favorite_add: {
+				addDialog();
+				break;
+			}
+
+			case R.id.menu_favorite_remove: {
+				removeDialog();
+				break;
+			}
+		}
+		return super.onOptionsItemSelected(item);
+	}
+
+	private void addDialog() {
+		final EditTextDialog dialog = new EditTextDialog(this, "", title -> {
+			try {
+				mController.addList(title);
+				mToast.text("Created list '" + title + "'");
+				reloadLists();
+			} catch (Error e) {
+				mToast.text(e.getMessage()).show();
+			}
+		});
+		final EditText et = dialog.getView();
+		dialog.setTitle(R.string.popup_favorite_list_create).setOnKeyListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				String value = et.getText().toString();
+
+				if (mController.isAlreadyExists(value)) {
+					et.setError(getString(R.string.favorite_list_create_error_already_exists));
+					return;
+				}
+
+				if (mController.isInvalidName(value)) {
+					et.setError(getString(R.string.favorite_list_create_error_invalid_name));
+					return;
+				}
+
+				et.setError(null);
+			}
+
+			@Override
+			public void afterTextChanged(Editable s) {}
+		});
+
+		dialog.open();
+	}
+
+	private void removeDialog() {
+		AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+				.setTitle(R.string.favorite_list_remove_title)
+				.setMessage(getString(R.string.favorite_list_remove_message, mCurrentNameList))
+				.setCancelable(false)
+				.setPositiveButton(android.R.string.yes, (dlg, buttonId) -> {
+					mController.removeList(mCurrentNameList);
+					mController.reload();
+					reloadLists();
+					reloadContent();
+				})
+				.setNegativeButton(android.R.string.no, (dlg, buttonId) -> {})
+				.setIcon(android.R.drawable.ic_dialog_alert);
+		dialog.create().show();
+	}
 
 	static class FavoriteHolder extends RecyclerView.ViewHolder {
 
@@ -166,4 +273,7 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 			return mDataset.size();
 		}
 	}
+
+	@Override
+	public void onNothingSelected(AdapterView<?> parent) {}
 }

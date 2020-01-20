@@ -22,7 +22,7 @@
 	<string name="popup_station_rename">Rename</string>
 	<string name="popup_station_remove">Remove</string>
 	<string name="about_version">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2019</string>
+	<string name="about_author">Vladislav Veluga © 2020</string>
 	<string name="progress_init">Please, wait…\nInitializing…</string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
@@ -30,5 +30,12 @@
 	<string name="jump_down">Jump down</string>
 	<string name="seek_down">Seek down</string>
 	<string name="favorite_list_item_add">+</string>
+	<string name="menu_favorite_list_create">Create list</string>
+	<string name="menu_favorite_list_remove">Remove this list</string>
+	<string name="popup_favorite_list_create">Create favorite list</string>
+	<string name="favorite_list_create_error_already_exists">List with this name already exists</string>
+	<string name="favorite_list_create_error_invalid_name">Invalid name. It can be used only A-Z, a-z, \'-\', \'_\' and 0-9</string>
+	<string name="favorite_list_remove_title">Confirmation</string>
+	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
 
 </resources>

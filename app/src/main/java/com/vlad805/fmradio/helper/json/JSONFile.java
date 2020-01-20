@@ -45,7 +45,7 @@ public abstract class JSONFile<T extends IJsonable> {
 	 * @return Path
 	 */
 	protected String getFullPath() {
-		return getBaseApplicationDirectory() + getFilename();
+		return getBaseApplicationDirectory() + File.separator + getFilename();
 	}
 
 	/**

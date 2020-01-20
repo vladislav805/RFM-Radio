@@ -2,6 +2,7 @@ package com.vlad805.fmradio.controller;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
@@ -27,7 +28,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 
 	private static final String KEY_CURRENT_LIST = "favorites_list_current";
 	private static final String KEY_JSON_ITEMS = "items";
-	private static final String DEFAULT_NAME = "default";
+	public static final String DEFAULT_NAME = "default";
 
 	public FavoriteController(Context context) {
 		this.mStorage = Utils.getStorage(context);
@@ -87,10 +88,10 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	/**
 	 * Check name for validity
 	 * @param name Name of list
-	 * @return True if valid
+	 * @return True if invalid
 	 */
-	private boolean isValidName(String name) {
-		return name.matches("[A-Za-z0-9_-]+");
+	public boolean isInvalidName(String name) {
+		return !name.matches("[A-Za-z0-9_-]+");
 	}
 
 	/**
@@ -98,7 +99,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @param name Name of list
 	 * @return True, if already exists
 	 */
-	private boolean isAlreadyExists(String name) {
+	public boolean isAlreadyExists(String name) {
 		return new File(getDirectory(), name + ".json").exists();
 	}
 
@@ -109,7 +110,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @throws Error if name is invalid or list with same name already exists
 	 */
 	public boolean addList(String name) {
-		if (!isValidName(name)) {
+		if (isInvalidName(name)) {
 			throw new Error("Invalid name");
 		}
 
@@ -117,7 +118,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new Error("List with this name already exists");
 		}
 
-		File file = new File(getDirectory(), name + ".json");
+		File file = new File(getBaseApplicationDirectory(), name + ".json");
 
 		try (FileOutputStream stream = new FileOutputStream(file)) {
 			stream.write("{\"items\":[]}".getBytes());
@@ -139,7 +140,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		}
 
 		String path = getFullPath();
-
+		Log.d("remove", "removeList: " + path);
 		if (getCurrentFavoriteList().equals(name)) {
 			try {
 				setCurrentFavoriteList(DEFAULT_NAME);
