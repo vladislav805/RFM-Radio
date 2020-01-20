@@ -115,7 +115,17 @@ public class RadioUIView extends LinearLayout {
 				return;
 			}
 
-			current = mSeek.fixProgress(progress);
+			int curr = seekBar.getProgress();
+
+			/*
+			 * Android 5.1 (Sony Xperia L at least) progress contains value from
+			 * seekBar.getProgress(), that was already fixed
+			 */
+			if (curr > BAND_HIGH) {
+				curr /= 1000;
+			}
+
+			current = curr;
 
 			onUserClickOnFrequency(current);
 		}
