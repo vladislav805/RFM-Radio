@@ -9,5 +9,5 @@
 	<color name="frequency_seek_background">#4f4f4f</color>
 	<color name="main_background">#202020</color>
 	<color name="frequency_digit_background">#2f2f2f</color>
-	<color name="red">#ff0000</color>
+	<color name="red">#FF0000</color>
 </resources>

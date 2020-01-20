@@ -17,7 +17,8 @@
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
 			app:layout_constraintBottom_toTopOf="@+id/favorite_list"
-			android:layout_marginBottom="24dp"/>
+			android:layout_marginBottom="24dp"
+			android:layout_marginTop="16dp"/>
 
 	<com.vlad805.fmradio.view.FavoritesListView
 			android:orientation="horizontal"
