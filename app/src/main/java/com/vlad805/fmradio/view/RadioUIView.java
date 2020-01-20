@@ -16,7 +16,7 @@ import com.vlad805.fmradio.Utils;
  */
 public class RadioUIView extends LinearLayout {
 	private TextViewWithSupportReflection mFrequencyView;
-	private ImageView mShadow;
+	private ImageView mReflection;
 	private TextView mRdsPs;
 	private TextView mRdsRt;
 	private FrequencySeekView mSeek;
@@ -59,7 +59,7 @@ public class RadioUIView extends LinearLayout {
 		LayoutInflater.from(getContext()).inflate(R.layout.frequency_info, this, true);
 
 		mFrequencyView = findViewById(R.id.frequency_mhz);
-		mShadow = findViewById(R.id.frequency_mhz_reflection);
+		mReflection = findViewById(R.id.frequency_mhz_reflection);
 		mRdsPs = findViewById(R.id.frequency_ps);
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeek = findViewById(R.id.frequency_seek);
@@ -71,6 +71,9 @@ public class RadioUIView extends LinearLayout {
 		mSeek.setOnSeekBarChangeListener(mOnSeekFrequencyChanged);
 	}
 
+	public void hideReflection() {
+		mReflection.setVisibility(GONE);
+	}
 
 	public void setOnFrequencyChangedListener(OnUserFrequencyChange listener) {
 		mListener = listener;
@@ -82,7 +85,7 @@ public class RadioUIView extends LinearLayout {
 
 		mSeek.setProgress(kHz);
 
-		post(() -> mShadow.setImageBitmap(mFrequencyView.getReflection(.9f)));
+		post(() -> mReflection.setImageBitmap(mFrequencyView.getReflection(.9f)));
 	}
 
 	public final void setRdsPs(String ps) {

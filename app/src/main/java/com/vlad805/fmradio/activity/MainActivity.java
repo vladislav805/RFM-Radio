@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -61,6 +62,15 @@ public class MainActivity extends Activity implements View.OnClickListener, Radi
 
 		mFavoriteList = findViewById(R.id.favorite_list);
 		mFavoriteList.setOnFavoriteClick(this);
+
+		// On small screens, the elements overlap each other
+		// By removing reflection, you can give room for elements
+		DisplayMetrics dm = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(dm);
+
+		if (dm.heightPixels < 800) {
+			mFrequencyInfo.hideReflection();
+		}
 
 		initClickableButtons();
 	}

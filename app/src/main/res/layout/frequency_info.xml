@@ -73,10 +73,9 @@
 			android:background="?android:selectableItemBackgroundBorderless"
 			android:contentDescription="@string/toggle_play_pause"
 			app:layout_constraintTop_toBottomOf="@+id/frequency_rt"
-			app:layout_constraintBottom_toTopOf="@+id/horizontalScrollView"
 			app:layout_constraintEnd_toEndOf="parent"
 			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintVertical_bias="0.04000002"/>
+			android:layout_marginTop="8dp"/>
 
 	<ImageButton
 			android:src="@drawable/ic_go_up"
