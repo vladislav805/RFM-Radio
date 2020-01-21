@@ -112,6 +112,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		}
 
 		registerReceiver(mRadioEventReceiver, filter);
+
+		sendBroadcast(new Intent(C.Event.READY));
 	}
 
 	/**
@@ -222,7 +224,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				break;
 
 			case R.id.menu_about:
-				mToast.text("Authors").show();
+				startActivity(new Intent(this, AboutActivity.class));
 				break;
 		}
 
@@ -241,11 +243,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			case C.Event.READY:
 				mProgress.close();
 
-				if (intent.hasExtra(C.PrefKey.LAST_FREQUENCY)) {
-					int frequency = intent.getIntExtra(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-					__DEV_currentFrequency = frequency;
-					mFrequencyInfo.setFrequency(frequency);
-				}
+				int frequency = intent.getIntExtra(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+				__DEV_currentFrequency = frequency;
+				mFrequencyInfo.setFrequency(frequency);
 
 				/*if (intent.hasExtra(C.Key.STATION_LIST)) {
 					List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
@@ -253,10 +253,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 					mFrequencyInfo.notifyStationsLists(s);
 				}*/
-
-				if (getActionBar() != null) {
-					getActionBar().show();
-				}
 				break;
 
 			case C.Event.FREQUENCY_SET:
