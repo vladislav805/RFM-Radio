@@ -23,7 +23,7 @@
 	<string name="popup_station_remove">Remove</string>
 	<string name="about_version">v%s</string>
 	<string name="about_author">Vladislav Veluga © 2020</string>
-	<string name="progress_init">Please, wait…\nInitializing…</string>
+	<string name="progress_init">Please, wait…\nInitializing…\nVersion %s</string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
 	<string name="seek_up">Seek up</string>

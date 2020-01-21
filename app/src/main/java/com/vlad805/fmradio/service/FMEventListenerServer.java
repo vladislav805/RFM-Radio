@@ -37,15 +37,12 @@ public class FMEventListenerServer extends Thread {
 
 
 	public FMEventListenerServer(Context context, int port) throws IOException {
-		Log.i("FMELS", "init FMELS");
 		mDatagramSocketServer = new DatagramSocket(port);
-
 		mContext = context;
 	}
 
 	@Override
 	public void run() {
-		Log.i("FMELS", "run FMELS");
 		mEnabled = true;
 
 		byte[] buffer = new byte[BUFFER_SIZE];
@@ -71,15 +68,7 @@ public class FMEventListenerServer extends Thread {
 		}
 	}
 
-	private String mLastRT = "";
-	private int mNextAction = 0;
-
-	private static final int RT_ACTION_NONE = 0;
-	private static final int RT_ACTION_CLEAR = 1;
-
-	private final char FF = 0x0c; // split for messages
-	private final char LF = 0x0a; // continue
-	private final char CR = 0x0d; // clear
+	private static final char FF = 0x0c; // split for messages
 
 	private String handle(String data) throws StopServer {
 		int splitOn = data.indexOf(FF);
@@ -118,28 +107,8 @@ public class FMEventListenerServer extends Thread {
 				break;
 
 			case EVT_UPDATE_RT:
-				/*if (mNextAction == RT_ACTION_CLEAR) {
-					mLastRT = "";
-				}
-
-				mNextAction = data.indexOf(CR) >= 0 ? RT_ACTION_CLEAR : RT_ACTION_NONE;
-
-				Log.e("RT", str2Hex(data));
-
-				if (data.indexOf(CR) >= 0) {
-					Log.e("FMELS", "CR is here!!!!!");
-				}
-
-				if (data.indexOf(LF) >= 0) {
-					Log.e("FMELS", "LF is here!!!!!");
-				}
-
-				mLastRT += data.replace("" + CR, "");*/
-
-				mLastRT = data;
-
 				intent.setAction(C.Event.UPDATE_RT);
-				intent.putExtra(C.Key.RT, mLastRT);
+				intent.putExtra(C.Key.RT, data);
 				break;
 
 			case EVT_SEARCH_DONE:
@@ -151,7 +120,7 @@ public class FMEventListenerServer extends Thread {
 
 				for (int i = 0; i < count; ++i) {
 					int start = i * lengthKHz;
-					res[i] = Integer.valueOf(stations.substring(start, start + lengthKHz)) * 100;
+					res[i] = Integer.parseInt(stations.substring(start, start + lengthKHz)) * 100;
 				}
 
 				Arrays.sort(res);
@@ -168,7 +137,7 @@ public class FMEventListenerServer extends Thread {
 				break;
 
 			default:
-				Log.e("FMELS", "unknown event = " + evt);
+				Log.w("FMELS", "unknown event = " + evt);
 				return null;
 		}
 

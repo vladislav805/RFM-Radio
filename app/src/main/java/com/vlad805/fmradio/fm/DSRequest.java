@@ -4,11 +4,8 @@ package com.vlad805.fmradio.fm;
  * vlad805 (c) 2019
  */
 public class DSRequest {
-
 	private static final int TIMEOUT_DEFAULT = 100;
-
 	private byte[] mData;
-
 	private int mTimeout;
 
 	public DSRequest(byte[] data) {

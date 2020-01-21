@@ -50,7 +50,7 @@ public abstract class FMAudioService {
 	 */
 	protected AudioRecord getAudioRecorder() {
 
-		int audioSource = 1998; //1998;
+		int audioSource = 1998;
 		// AUDIO_CHANNEL_IN_FRONT_BACK?
 
 		try {

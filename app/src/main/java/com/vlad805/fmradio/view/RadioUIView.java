@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.view;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -8,6 +9,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 
@@ -21,8 +23,6 @@ public class RadioUIView extends LinearLayout {
 	private TextView mRdsRt;
 	private FrequencySeekView mSeek;
 
-	private OnUserFrequencyChange mListener;
-
 	/**
 	 * Current frequency
 	 */
@@ -34,14 +34,6 @@ public class RadioUIView extends LinearLayout {
 	private static final int BAND_LOW = 87500;
 	private static final int BAND_HIGH = 108000;
 	private static final int BAND_STEP = 100;
-
-	/**
-	 * Callback for external code
-	 * Calls when user select frequency by click on seek bar
-	 */
-	public interface OnUserFrequencyChange {
-		void onUserChangeFrequency(int kHz);
-	}
 
 	public RadioUIView(Context context) {
 		super(context);
@@ -75,10 +67,6 @@ public class RadioUIView extends LinearLayout {
 		mReflection.setVisibility(GONE);
 	}
 
-	public void setOnFrequencyChangedListener(OnUserFrequencyChange listener) {
-		mListener = listener;
-	}
-
 	public final void setFrequency(int kHz) {
 		mkHz = kHz;
 		mFrequencyView.setText(Utils.getMHz(kHz));
@@ -101,9 +89,8 @@ public class RadioUIView extends LinearLayout {
 			return;
 		}
 
-		if (mListener != null) {
-			mListener.onUserChangeFrequency(kHz);
-		}
+		Intent i = new Intent(C.Event.FREQUENCY_SET).putExtra(C.Key.FREQUENCY, kHz);
+		getContext().sendBroadcast(i);
 
 		setFrequency(kHz);
 	}

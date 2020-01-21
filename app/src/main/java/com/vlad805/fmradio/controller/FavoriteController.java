@@ -30,6 +30,8 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	private static final String KEY_JSON_ITEMS = "items";
 	public static final String DEFAULT_NAME = "default";
 
+	private static final String JSON_EXT = ".json";
+
 	public FavoriteController(Context context) {
 		this.mStorage = Utils.getStorage(context);
 	}
@@ -43,7 +45,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		String[] files = dir.list();
 
 		for (int i = 0; i < files.length; ++i) {
-			files[i] = files[i].replace(".json", "");
+			files[i] = files[i].replace(JSON_EXT, "");
 		}
 
 		return Arrays.asList(files);
@@ -64,7 +66,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	public void setCurrentFavoriteList(String name) throws FileNotFoundException {
 		// app                     stat     name]  .json
 		// /storage/emulated/0/RFM/stations/default.json
-		File file = new File(getBaseApplicationDirectory(), name + ".json");
+		File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
 		if (!file.exists()) {
 			throw new FileNotFoundException("setCurrentFavoriteList: not found list with name '" + name + "'; full path = " + file.getAbsolutePath());
 		}
@@ -100,7 +102,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @return True, if already exists
 	 */
 	public boolean isAlreadyExists(String name) {
-		return new File(getDirectory(), name + ".json").exists();
+		return new File(getDirectory(), name + JSON_EXT).exists();
 	}
 
 	/**
@@ -118,7 +120,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new Error("List with this name already exists");
 		}
 
-		File file = new File(getBaseApplicationDirectory(), name + ".json");
+		File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
 
 		try (FileOutputStream stream = new FileOutputStream(file)) {
 			stream.write("{\"items\":[]}".getBytes());
@@ -182,7 +184,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 */
 	@Override
 	public String getFilename() {
-		return getCurrentFavoriteList() + ".json";
+		return getCurrentFavoriteList() + JSON_EXT;
 	}
 
 	/**

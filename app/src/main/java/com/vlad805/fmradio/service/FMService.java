@@ -2,12 +2,14 @@ package com.vlad805.fmradio.service;
 
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.*;
 import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.fm.Configuration;
 import com.vlad805.fmradio.fm.OnResponseReceived;
@@ -69,8 +71,6 @@ public class FMService extends Service {
 	public void onCreate() {
 		super.onCreate();
 
-		//mDatabase = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, C.DATABASE_NAME).enableMultiInstanceInvalidation().build();
-
 		mStatusReceiver = new PlayerReceiver();
 
 		mConfiguration = new Configuration();
@@ -85,7 +85,6 @@ public class FMService extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-
 		if (intent == null || intent.getAction() == null) {
 			return START_STICKY;
 		}
@@ -147,7 +146,7 @@ public class FMService extends Service {
 				break;
 
 			case C.FM_SET_MUTE:
-				mFM.setMute(MuteState.valueOf(intent.getStringExtra(C.KEY_MUTE)), null);
+				mFM.setMute(MuteState.valueOf(intent.getStringExtra(C.Key.MUTE)), null);
 				break;
 
 			case C.Command.SEARCH:
@@ -204,8 +203,8 @@ public class FMService extends Service {
 
 	private void onReadyIntent() {
 		final SharedPreferences sp = getStorage(this);
-		Intent intent = new Intent(C.Event.READY);
-		int last = sp.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+		final Intent intent = new Intent(C.Event.READY);
+		final int last = sp.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 		mConfiguration.setFrequency(last);
 
 		intent.putExtra(C.PrefKey.LAST_FREQUENCY, last);
@@ -213,17 +212,12 @@ public class FMService extends Service {
 		intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
 
 		//intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
-		//intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
 
 		sendBroadcast(intent);
 	}
 
 	/*private List<Station> getStationList() {
 		return mDatabase.stationDao().getAll();
-	}
-
-	private List<FavoriteStation> getFavoriteStationList() {
-		return mDatabase.favoriteStationDao().getAll();
 	}*/
 
 	private FMAudioService createAudioService() {
@@ -239,17 +233,21 @@ public class FMService extends Service {
 		}
 	}
 
-
 	private Notification.Builder mNotification;
 	private static final int NOTIFICATION_ID = 1027;
 
 	private Notification.Builder createNotificationBuilder() {
+		Intent mainIntent = new Intent(this, MainActivity.class);
+		mainIntent.setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+
+		PendingIntent pendingMain = PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
 		return new Notification.Builder(this)
 				.setColor(getResources().getColor(R.color.primary_blue))
 				.setAutoCancel(false)
 				.setSmallIcon(R.drawable.ic_radio)
 				.setOnlyAlertOnce(true)
-				//.setContentIntent(pendingMain)
+				.setContentIntent(pendingMain)
 				.setPriority(Notification.PRIORITY_HIGH)
 				.setOngoing(true)
 				.setShowWhen(false);
@@ -263,11 +261,9 @@ public class FMService extends Service {
 		mNotification
 				.setContentTitle(getString(R.string.app_name))
 				.setContentText(mConfiguration.getPs() == null || mConfiguration.getPs().length() == 0 ? "< no rds >" : mConfiguration.getPs())
-				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", mConfiguration.getFrequency() / 1000d))
-				;
+				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", mConfiguration.getFrequency() / 1000d));
 
 		Notification ntf = mNotification.build();
-		//startForeground(NOTIFICATION_ID, ntf);
 		mNotificationMgr.notify(NOTIFICATION_ID, ntf);
 	}
 

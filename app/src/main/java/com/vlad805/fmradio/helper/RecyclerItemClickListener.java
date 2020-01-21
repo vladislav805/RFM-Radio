@@ -15,22 +15,21 @@ public class RecyclerItemClickListener implements RecyclerView.OnItemTouchListen
 
 	public interface OnItemClickListener {
 		public void onItemClick(View view, int position);
-
 		public void onLongItemClick(View view, int position);
 	}
 
-	GestureDetector mGestureDetector;
+	private GestureDetector mGestureDetector;
 
-	public RecyclerItemClickListener(Context context, final RecyclerView recyclerView, OnItemClickListener listener) {
+	public RecyclerItemClickListener(final Context context, final RecyclerView recyclerView, final OnItemClickListener listener) {
 		mListener = listener;
 		mGestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
 			@Override
-			public boolean onSingleTapUp(MotionEvent e) {
+			public boolean onSingleTapUp(final MotionEvent e) {
 				return true;
 			}
 
 			@Override
-			public void onLongPress(MotionEvent e) {
+			public void onLongPress(final MotionEvent e) {
 				View child = recyclerView.findChildViewUnder(e.getX(), e.getY());
 				if (child != null && mListener != null) {
 					mListener.onLongItemClick(child, recyclerView.getChildAdapterPosition(child));
@@ -39,7 +38,8 @@ public class RecyclerItemClickListener implements RecyclerView.OnItemTouchListen
 		});
 	}
 
-	@Override public boolean onInterceptTouchEvent(RecyclerView view, MotionEvent e) {
+	@Override
+	public boolean onInterceptTouchEvent(final RecyclerView view, final MotionEvent e) {
 		View childView = view.findChildViewUnder(e.getX(), e.getY());
 		if (childView != null && mListener != null && mGestureDetector.onTouchEvent(e)) {
 			mListener.onItemClick(childView, view.getChildAdapterPosition(childView));
@@ -48,8 +48,9 @@ public class RecyclerItemClickListener implements RecyclerView.OnItemTouchListen
 		return false;
 	}
 
-	@Override public void onTouchEvent(@NonNull RecyclerView view, @NonNull MotionEvent motionEvent) { }
+	@Override
+	public void onTouchEvent(@NonNull final  RecyclerView view, @NonNull final MotionEvent motionEvent) {}
 
 	@Override
-	public void onRequestDisallowInterceptTouchEvent (boolean disallowIntercept){}
+	public void onRequestDisallowInterceptTouchEvent(final boolean disallowIntercept) {}
 }

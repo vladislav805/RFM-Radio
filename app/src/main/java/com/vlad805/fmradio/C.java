@@ -6,10 +6,9 @@ package com.vlad805.fmradio;
 final public class C {
 
 	public static final String DEFAULT_PREFERENCES = "default_cfg";
-	public static final String DATABASE_NAME = "db";
 
 	public static final class Event {
-		private static final String BASE = "com.vlad805.fmradio.action.EVT_";
+		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
 		public static final String READY = BASE + "READY";
 		public static final String ENABLED = BASE + "ENABLED";
@@ -43,12 +42,12 @@ final public class C {
 		public static final String PS = "ps";
 		public static final String RT = "rt";
 		public static final String STEREO_MODE = "stereo_mode";
+		public static final String MUTE = "mute";
 
 		public static final String SEEK_HW_DIRECTION = "seek_hw_direction";
 		public static final String JUMP_DIRECTION = "jump_direction";
 
 		public static final String STATION_LIST = "station_list";
-		public static final String FAVORITE_STATION_LIST = "favorite_station_list";
 		public static final String AUDIO_SERVICE = "audio_service";
 	}
 
@@ -68,13 +67,8 @@ final public class C {
 
 	private C() {}
 
-	public static final String FM_GET_STATUS = "fm_get_status";
-	public static final String FM_SET_STEREO = "fm_setstereo";
-	public static final String FM_SET_MUTE = "fm_setmute";
-
-	public static final String KEY_RT = "fm_rt";
-	public static final String KEY_STATUS = "intent_fm_status";
-	public static final String KEY_MUTE = "fm_mute";
-	public static final String KEY_EVENT = "intent_fm_event";
+	/** @deprecated */ public static final String FM_GET_STATUS = "fm_get_status";
+	/** @deprecated */ public static final String FM_SET_STEREO = "fm_setstereo";
+	/** @deprecated */ public static final String FM_SET_MUTE = "fm_setmute";
 
 }
