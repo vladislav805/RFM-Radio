@@ -81,7 +81,9 @@ public class LightAudioService extends FMAudioService {
 
 		while (mIsActive) {
 			bytes = mAudioRecorder.read(buffer, 0, bufferSizeInBytes);
-			mAudioTrack.write(buffer, 0, bytes);
+			if (mIsActive) {
+				mAudioTrack.write(buffer, 0, bytes);
+			}
 		}
 
 		closeAll();

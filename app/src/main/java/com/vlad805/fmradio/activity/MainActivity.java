@@ -99,7 +99,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			C.Event.SEARCH_DONE,
 			C.Event.RECORD_STARTED,
 			C.Event.RECORD_TIME_UPDATE,
-			C.Event.RECORD_ENDED
+			C.Event.RECORD_ENDED,
+			C.Event.KILL
 	};
 
 	/**

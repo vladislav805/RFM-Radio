@@ -96,6 +96,7 @@ public class FMService extends Service {
 		filter.addAction(C.Event.UPDATE_PS);
 		filter.addAction(C.Event.UPDATE_RT);
 		filter.addAction(C.Event.UPDATE_RSSI);
+		filter.addAction(C.Event.KILL);
 		registerReceiver(mStatusReceiver, filter);
 	}
 
@@ -178,6 +179,7 @@ public class FMService extends Service {
 
 			case C.Command.KILL: {
 				kill();
+				sendBroadcast(new Intent(C.Event.KILL));
 				break;
 			}
 		}
