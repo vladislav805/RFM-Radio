@@ -22,7 +22,6 @@ import com.vlad805.fmradio.fm.FMState;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
-import com.vlad805.fmradio.service.FM;
 import com.vlad805.fmradio.view.FavoritesListView;
 import com.vlad805.fmradio.view.RadioUIView;
 
@@ -224,7 +223,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
-				FM.send(this, C.Command.DISABLE);
+				mRadioController.kill();
 				break;
 
 			case R.id.menu_about:

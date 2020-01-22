@@ -52,6 +52,10 @@ public class RadioController {
 		send(C.Command.LAUNCH);
 	}
 
+	public void kill() {
+		send(C.Command.KILL);
+	}
+
 	public void enable() {
 		send(C.Command.ENABLE);
 	}

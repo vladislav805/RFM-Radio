@@ -56,7 +56,7 @@ int SLAVE_ADDR = 0x2A;
 	#define print2(x,y) printf(x,y)
 	#define print3(x,y,z) printf(x,y,z)
 #else
-#define print(x)
+  #define print(x)
 	#define print2(x,y)
 	#define print3(x,y,z)
 #endif
@@ -484,6 +484,10 @@ int file_exists(const char* file) { // Return 1 if file, or directory, or device
 	return stat(file, &sb) == 0;
 }
 
+void wait(int ms) {
+  usleep(ms * 1000);
+}
+
 /**
  * EnableReceiver
  * PFAL specific routine to enable the FM receiver with the Radio Cfg
@@ -502,16 +506,48 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 	char versionStr[40] = {'\0'};
 	struct v4l2_capability cap;
 
-#ifdef FM_DEBUG
-	print("\nEnable Receiver entry\n");
-#endif
+	system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
 
-	fd_radio = open("/dev/radio0", O_RDWR, O_NONBLOCK);
+  if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
+    system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
+  }
+
+  char value[4] = {0x41, 0x42, 0x43, 0x44};
+
+  int i = 0;
+  int init_success = 0;
+
+  for (i = 0; i < 600; i ++) {
+    __system_property_get("hw.fm.init", value);
+    if (value[0] == '1') {
+      init_success = 1;
+      break;
+    } else {
+      wait(10);
+    }
+  }
+
+  if (init_success) {
+    print2("[ OK ] Init success after %d attempts\n", i);
+  } else {
+    print2("[FAIL] Init failed after %d attempts\n", i);
+    return FM_CMD_FAILURE;
+  }
+
+  wait(500);
+
+
+
+	print("\nEnable Receiver entry\n");
+
+	fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
 
 	if (fd_radio < 0) {
 		print2("EnableReceiver Failed to open = %d\n", fd_radio);
 		return FM_CMD_FAILURE;
 	}
+
+	wait(700);
 
 	// Read the driver versions
 	err = ioctl(fd_radio, VIDIOC_QUERYCAP, &cap);
@@ -536,9 +572,7 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 		return FM_CMD_FAILURE;
 	}
 
-	if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
-		system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
-	}
+
 
 	print("\nOpened Receiver\n");
 	return ftm_on_long_thread(radiocfgptr);

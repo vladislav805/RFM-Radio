@@ -125,8 +125,8 @@ public class FMService extends Service {
 			}
 
 			case C.Command.ENABLE: {
-				mAudioService.startAudio();
 				mFmController.enable();
+				mAudioService.startAudio();
 				sendBroadcast(new Intent(C.Event.FM_READY));
 				break;
 			}
@@ -189,6 +189,8 @@ public class FMService extends Service {
 
 	private void kill() {
 		mAudioService.stopAudio();
+		mFmController.disable();
+		mFmController.kill();
 
 		mNotificationMgr.cancel(NOTIFICATION_ID);
 		stopForeground(true);
