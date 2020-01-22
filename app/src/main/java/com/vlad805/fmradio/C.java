@@ -10,7 +10,10 @@ final public class C {
 	public static final class Event {
 		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
+		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
+		public static final String BINARY_READY = BASE + "BINARY_READY";
 		public static final String READY = BASE + "READY";
+		public static final String FM_READY = BASE + "FM_READY";
 		public static final String ENABLED = BASE + "ENABLED";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
@@ -23,6 +26,8 @@ final public class C {
 		public static final String RECORD_STARTED = BASE + "RECORD_STARTED";
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
 		public static final String RECORD_ENDED = BASE + "RECORD_ENDED";
+
+		public static final String KILL = BASE + "KILL";
 	}
 
 	public static final class Command {
@@ -34,6 +39,7 @@ final public class C {
 		public static final String JUMP = "jump";
 		public static final String SEARCH = "search";
 		public static final String KILL = "kill";
+		public static final String LAUNCH = "launch";
 	}
 
 	public static final class Key {
@@ -49,6 +55,7 @@ final public class C {
 
 		public static final String STATION_LIST = "station_list";
 		public static final String AUDIO_SERVICE = "audio_service";
+		public static final String MESSAGE = "message";
 	}
 
 	public static final class PrefKey {

@@ -16,8 +16,9 @@ import android.widget.TextView;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.enums.JumpDirection;
-import com.vlad805.fmradio.enums.SeekDirection;
+import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.enums.Direction;
+import com.vlad805.fmradio.fm.FMState;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -31,6 +32,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	private RadioUIView mFrequencyInfo;
 	private FavoritesListView mFavoriteList;
 
+	private RadioController mRadioController;
 	private RadioEventReceiver mRadioEventReceiver;
 
 	private ImageButton mCtlToggle;
@@ -79,13 +81,16 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	 * Initialize connection and service
 	 */
 	private void initLogic() {
+		mRadioController = RadioController.getInstance(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
-		//FM.send(this, C.Command.INIT);
+		mRadioController.setup();
+
+		mFrequencyInfo.setRadioController(mRadioController);
 	}
 
 	private final String[] SUPPORTED_EVENTS = {
-			C.Event.READY,
+			C.Event.FM_READY,
 			C.Event.FREQUENCY_SET,
 			C.Event.UPDATE_PS,
 			C.Event.UPDATE_RT,
@@ -112,8 +117,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		}
 
 		registerReceiver(mRadioEventReceiver, filter);
-
-		sendBroadcast(new Intent(C.Event.READY));
 	}
 
 	/**
@@ -166,27 +169,28 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public void onClick(View view) {
 		switch (view.getId()) {
 			case R.id.ctl_toggle:
-				if (FM.getState() == FM.State.TURN_OFF) {
-					FM.send(this, C.Command.ENABLE);
+				int state = mRadioController.getState().getState();
+				if (state == FMState.STATE_ON) {
+					mRadioController.disable();
 				} else {
-					FM.send(this, C.Command.DISABLE);
+					mRadioController.enable();
 				}
 				break;
 
 			case R.id.ctl_go_down:
-				FM.send(this, C.Command.JUMP, C.Key.JUMP_DIRECTION, JumpDirection.DOWN.getValue());
+				mRadioController.jump(Direction.DOWN);
 				break;
 
 			case R.id.ctl_go_up:
-				FM.send(this, C.Command.JUMP, C.Key.JUMP_DIRECTION, JumpDirection.UP.getValue());
+				mRadioController.jump(Direction.UP);
 				break;
 
 			case R.id.ctl_seek_down:
-				FM.send(this, C.Command.HW_SEEK, C.Key.SEEK_HW_DIRECTION, SeekDirection.DOWN.getValue());
+				mRadioController.hwSeek(Direction.DOWN);
 				break;
 
 			case R.id.ctl_seek_up:
-				FM.send(this, C.Command.HW_SEEK, C.Key.SEEK_HW_DIRECTION, SeekDirection.UP.getValue());
+				mRadioController.hwSeek(Direction.UP);
 				break;
 
 			case R.id.favorite_button:
@@ -197,13 +201,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 	@Override
 	public void onFavoriteClick(FavoriteStation station) {
-		Intent intent = new Intent(C.Event.FREQUENCY_SET).putExtra(C.Key.FREQUENCY, station.getFrequency());
-		sendBroadcast(intent);
+		mRadioController.setFrequency(station.getFrequency());
 	}
 
 	@Override
 	public int getCurrentFrequencyForAddFavorite() {
-		return __DEV_currentFrequency;
+		return mRadioController.getState().getFrequency();
 	}
 
 	/**
@@ -231,22 +234,17 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		return super.onOptionsItemSelected(item);
 	}
 
-	private int __DEV_currentFrequency = -1;
-
 	private void handleEvent(final Intent intent) {
 		if (intent == null || intent.getAction() == null) {
 			return;
 		}
 
+		boolean enabled = mRadioController.getState().getState() == FMState.STATE_ON;
+		mCtlToggle.setImageResource(enabled ? R.drawable.ic_stop : R.drawable.ic_play);
+
 		switch (intent.getAction()) {
-
-			case C.Event.READY:
+			case C.Event.FM_READY:
 				mProgress.close();
-
-				int frequency = intent.getIntExtra(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-				__DEV_currentFrequency = frequency;
-				mFrequencyInfo.setFrequency(frequency);
-
 				/*if (intent.hasExtra(C.Key.STATION_LIST)) {
 					List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
 					Log.i("MA", "StationList = " + s.size());
@@ -257,14 +255,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 			case C.Event.FREQUENCY_SET:
 				final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					mFrequencyInfo.setFrequency(kHz);
-					__DEV_currentFrequency = kHz;
-					String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
-					mToast.text(str).show();
+				mFrequencyInfo.setFrequency(kHz);
+				String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
+				mToast.text(str).show();
 
-					mFrequencyInfo.setRdsPs("");
-					mFrequencyInfo.setRdsRt("");
-					mViewRssi.setText("…");
+				mFrequencyInfo.setRdsPs("");
+				mFrequencyInfo.setRdsRt("");
+				mViewRssi.setText("…");
 				break;
 
 			case C.Event.UPDATE_PS:
@@ -299,6 +296,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				return;
 			}
 
+			mRadioController.onEvent(intent);
 			runOnUiThread(() -> handleEvent(intent));
 		}
 	}

@@ -4,39 +4,31 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.*;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
-import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.Configuration;
-import com.vlad805.fmradio.fm.OnResponseReceived;
-import com.vlad805.fmradio.fm.QualComm;
+import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.fm.IFMController;
+import com.vlad805.fmradio.fm.impl.QualCommLegacy;
 
 import java.util.Locale;
 
 import static com.vlad805.fmradio.Utils.getStorage;
-import static com.vlad805.fmradio.Utils.parseInt;
 
 @SuppressWarnings("deprecation")
 public class FMService extends Service {
 
-	private FM mFM;
-
+	private RadioController mRadioController;
+	private IFMController mFmController;
 	private FMAudioService mAudioService;
-
 	private NotificationManager mNotificationMgr;
-
-	private OnResponseReceived<Integer> mOnRssiReceived = rssi -> {
-		Intent i = new Intent(C.Event.UPDATE_RSSI);
-		i.putExtra(C.Key.RSSI, rssi);
-		sendBroadcast(i);
-	};
-
-	private static Configuration mConfiguration;
-
 	private PlayerReceiver mStatusReceiver;
 
 	public class PlayerReceiver extends BroadcastReceiver {
@@ -47,23 +39,42 @@ public class FMService extends Service {
 				return;
 			}
 
+			Log.d("FMService", "onReceive(" + intent.getAction());
+
 			switch (intent.getAction()) {
+				case C.Event.BINARY_READY: {
+					mRadioController.launch();
+					break;
+				}
+
+				case C.Event.READY: {
+					//mRadioController.enable();
+					break;
+				}
+
+				case C.Event.FM_READY: {
+					int frequency = Utils.getStorage(getApplicationContext()).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+					mRadioController.setFrequency(frequency);
+					break;
+				}
+
 				case C.Event.FREQUENCY_SET:
 					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					mConfiguration.setFrequency(frequency);
+					//mConfiguration.setFrequency(frequency);
 					getStorage(FMService.this).edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
 					break;
 
 				case C.Event.UPDATE_PS:
-					mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
+					//mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
 					break;
 
 				case C.Event.UPDATE_RT:
-					mConfiguration.setRt(intent.getStringExtra(C.Key.RT));
+					//mConfiguration.setRt(intent.getStringExtra(C.Key.RT));
 					break;
 			}
 
-			showNotification();
+			updateNotification(intent);
+			mRadioController.onEvent(intent);
 		}
 	}
 
@@ -71,11 +82,16 @@ public class FMService extends Service {
 	public void onCreate() {
 		super.onCreate();
 
+		mRadioController = RadioController.getInstance(this);
 		mStatusReceiver = new PlayerReceiver();
-
-		mConfiguration = new Configuration();
+		mAudioService = new LightAudioService(this); // TODO createAudioService();
+		mFmController = new QualCommLegacy(); // TODO dynamic
+		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
 		IntentFilter filter = new IntentFilter();
+		filter.addAction(C.Event.BINARY_READY);
+		filter.addAction(C.Event.READY);
+		filter.addAction(C.Event.FM_READY);
 		filter.addAction(C.Event.FREQUENCY_SET);
 		filter.addAction(C.Event.UPDATE_PS);
 		filter.addAction(C.Event.UPDATE_RT);
@@ -92,54 +108,61 @@ public class FMService extends Service {
 		String tmp;
 
 		switch (intent.getAction()) {
-			case C.Command.INIT:
-				init();
+			case C.Command.INIT: {
+				try {
+					mFmController.init(this);
+					sendBroadcast(new Intent(C.Event.BINARY_READY));
+				} catch (Exception e) {
+					sendBroadcast(new Intent(C.Event.ERROR_OCCURRED).putExtra(C.Key.MESSAGE, "Failed to init"));
+				}
 				break;
+			}
 
-			case C.Command.ENABLE:
-				init();
+			case C.Command.LAUNCH: {
+				mFmController.launch(null);
+				sendBroadcast(new Intent(C.Event.READY));
+			}
+
+			case C.Command.ENABLE: {
 				mAudioService.startAudio();
-				mFM.enable((Void) -> mFM.setFrequency(mConfiguration.getFrequency(), null));
+				mFmController.enable();
+				sendBroadcast(new Intent(C.Event.FM_READY));
 				break;
+			}
 
-			case C.Command.DISABLE:
-				mFM.disable(null);
+			case C.Command.DISABLE: {
+				mAudioService.stopAudio();
+				mFmController.disable();
 				stopSelf();
 				break;
+			}
 
-			case C.Command.SET_FREQUENCY:
+			case C.Command.SET_FREQUENCY: {
 				if (!intent.hasExtra(C.Key.FREQUENCY)) {
+					Log.e("FMS", "Command SET_FREQUENCY: not specified frequency");
 					break;
 				}
-				int frequency = parseInt(intent.getStringExtra(C.Key.FREQUENCY));
 
-				mFM.setFrequency(frequency, null);
+				int frequency = intent.getIntExtra(C.Key.FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+				Log.d("FMS", "Set frequency to " + frequency + " kHz");
+				mFmController.setFrequency(frequency);
+				sendBroadcast(new Intent(C.Event.FREQUENCY_SET).putExtras(intent));
 				break;
-
-			case C.FM_GET_STATUS:
-				mFM.getRssi(mOnRssiReceived);
-				break;
-
-			case C.Command.HW_SEEK:
-				tmp = intent.getStringExtra(C.Key.SEEK_HW_DIRECTION);
-
-				if (tmp == null) {
-					tmp = "-1";
-				}
-
-				int direction = parseInt(tmp);
-				mFM.hardwareSeek(direction, null);
-				break;
+			}
 
 			case C.Command.JUMP: {
-				tmp = intent.getStringExtra(C.Key.JUMP_DIRECTION);
+				mFmController.jump(intent.getIntExtra(C.Key.JUMP_DIRECTION, 1));
+				break;
+			}
 
-				if (tmp == null) {
-					tmp = "-1";
-				}
+			case C.Command.HW_SEEK: {
+				mFmController.hwSeek(intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1));
+				break;
+			}
 
-				mFM.jump(parseInt(tmp), null);
-			break; }
+			/*case C.FM_GET_STATUS:
+				mFM.getRssi(mOnRssiReceived);
+				break;
 
 			case C.FM_SET_STEREO:
 				mFM.sendCommand("setstereo", data -> Log.i("SET_STEREO", data));
@@ -151,10 +174,12 @@ public class FMService extends Service {
 
 			case C.Command.SEARCH:
 				mFM.search(null);
-				break;
+				break;*/
 
-			case C.Command.KILL:
+			case C.Command.KILL: {
 				kill();
+				break;
+			}
 		}
 
 		return START_STICKY;
@@ -162,10 +187,6 @@ public class FMService extends Service {
 
 	private void kill() {
 		mAudioService.stopAudio();
-
-		if (mFM != null) {
-			mFM.kill(null);
-		}
 
 		mNotificationMgr.cancel(NOTIFICATION_ID);
 		stopForeground(true);
@@ -181,39 +202,6 @@ public class FMService extends Service {
 		kill();
 
 		super.onDestroy();
-	}
-
-	private void init() {
-		if (mAudioService == null) {
-			mAudioService = createAudioService();
-		}
-
-		if (mNotificationMgr == null) {
-			mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		}
-
-		if (mFM == null) {
-			mFM = FM.getInstance();
-			mFM.setImpl(new QualComm());
-			mFM.setup(this, data -> onReadyIntent());
-		} else {
-			new Thread(this::onReadyIntent);
-		}
-	}
-
-	private void onReadyIntent() {
-		final SharedPreferences sp = getStorage(this);
-		final Intent intent = new Intent(C.Event.READY);
-		final int last = sp.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-		mConfiguration.setFrequency(last);
-
-		intent.putExtra(C.PrefKey.LAST_FREQUENCY, last);
-		intent.putExtra(C.PrefKey.AUTOPLAY, sp.getBoolean(C.PrefKey.AUTOPLAY, C.PrefDefaultValue.AUTOPLAY));
-		intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
-
-		//intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
-
-		sendBroadcast(intent);
 	}
 
 	/*private List<Station> getStationList() {
@@ -253,15 +241,15 @@ public class FMService extends Service {
 				.setShowWhen(false);
 	}
 
-	private void showNotification() {
+	private void updateNotification(Intent intent) {
 		if (mNotification == null) {
 			mNotification = createNotificationBuilder();
 		}
 
 		mNotification
 				.setContentTitle(getString(R.string.app_name))
-				.setContentText(mConfiguration.getPs() == null || mConfiguration.getPs().length() == 0 ? "< no rds >" : mConfiguration.getPs())
-				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", mConfiguration.getFrequency() / 1000d));
+				//.setContentText(mConfiguration.getPs() == null || mConfiguration.getPs().length() == 0 ? "< no rds >" : mConfiguration.getPs())
+				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", intent.getIntExtra(C.Key.FREQUENCY, 0) / 1000d));
 
 		Notification ntf = mNotification.build();
 		mNotificationMgr.notify(NOTIFICATION_ID, ntf);

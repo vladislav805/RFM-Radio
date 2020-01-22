@@ -1,7 +1,6 @@
 package com.vlad805.fmradio.view;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -9,9 +8,9 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.RadioController;
 
 /**
  * vlad805 (c) 2019
@@ -22,6 +21,7 @@ public class RadioUIView extends LinearLayout {
 	private TextView mRdsPs;
 	private TextView mRdsRt;
 	private FrequencySeekView mSeek;
+	private RadioController mRadioController;
 
 	/**
 	 * Current frequency
@@ -89,8 +89,7 @@ public class RadioUIView extends LinearLayout {
 			return;
 		}
 
-		Intent i = new Intent(C.Event.FREQUENCY_SET).putExtra(C.Key.FREQUENCY, kHz);
-		getContext().sendBroadcast(i);
+		mRadioController.setFrequency(kHz);
 
 		setFrequency(kHz);
 	}
@@ -128,4 +127,8 @@ public class RadioUIView extends LinearLayout {
 			onUserClickOnFrequency(current);
 		}
 	};
+
+	public void setRadioController(RadioController controller) {
+		mRadioController = controller;
+	}
 }

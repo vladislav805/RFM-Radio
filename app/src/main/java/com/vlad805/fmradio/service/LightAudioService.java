@@ -40,6 +40,7 @@ public class LightAudioService extends FMAudioService {
 	}
 
 	private void closeAll() {
+		mIsActive = false;
 		if (mAudioTrack != null) {
 			mAudioTrack.release();
 			mAudioTrack = null;

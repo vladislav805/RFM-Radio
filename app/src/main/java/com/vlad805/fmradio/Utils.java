@@ -3,6 +3,7 @@ package com.vlad805.fmradio;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.util.Log;
 
 import java.io.DataOutputStream;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ public class Utils {
 	 */
 	public static int shell(String cmd, boolean su) {
 		try {
+			Log.d("Shell", cmd);
 			String prefix = su ? "su" : "sh";
 			Process p = Runtime.getRuntime().exec(prefix);
 			DataOutputStream os = new DataOutputStream(p.getOutputStream());
