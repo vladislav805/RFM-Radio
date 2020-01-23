@@ -5,11 +5,18 @@ import android.content.Context;
 import android.content.Intent;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.enums.MuteState;
+import com.vlad805.fmradio.service.FMService;
 
 /**
  * vlad805 (c) 2020
  */
 public abstract class IFMController {
+
+	protected final LaunchConfig config;
+
+	public IFMController(LaunchConfig config) {
+		this.config = config;
+	}
 
 	/**
 	 * Returns path to application files
@@ -109,8 +116,10 @@ public abstract class IFMController {
 	 */
 	public abstract IRdsStruct getRds();
 
-	public void fireEvent(String event, Intent intent) {
+	public abstract Intent poll();
 
+	public void fireEvent(Context context, String event, Intent intent) {
+		context.startService(intent.setAction(event).setClass(context, FMService.class));
 	}
 
 }

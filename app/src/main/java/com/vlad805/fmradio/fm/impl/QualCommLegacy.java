@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.fm.impl;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
@@ -22,7 +23,8 @@ import java.util.Queue;
  */
 public class QualCommLegacy extends IFMController {
 
-	public QualCommLegacy() {
+	public QualCommLegacy(LaunchConfig config) {
+		super(config);
 		mQueueCommands = new LinkedList<>();
 	}
 
@@ -142,8 +144,54 @@ public class QualCommLegacy extends IFMController {
 	}
 
 	@Override
+	public Intent poll() {
+
+		return null;
+	}
+
+	@Override
 	public IRdsStruct getRds() {
 		return null;
+	}
+
+	interface OnReceivedResponse {
+		void onResponse(String data);
+	}
+
+	static class Request {
+		private final String command;
+		private int timeout = 1000;
+		private OnReceivedResponse listener;
+
+		public Request(String cmd) {
+			command = cmd;
+		}
+
+		public void setTimeout(int timeout) {
+			this.timeout = timeout;
+		}
+
+		public void setListener(OnReceivedResponse listener) {
+			this.listener = listener;
+		}
+
+		public byte[] bytes() {
+			return command.getBytes();
+		}
+
+		public int size() {
+			return command.length();
+		}
+
+		public int getTimeout() {
+			return timeout;
+		}
+
+		public void fire(String result) {
+			if (listener != null) {
+				listener.onResponse(result);
+			}
+		}
 	}
 
 	/**
@@ -153,6 +201,7 @@ public class QualCommLegacy extends IFMController {
 	 * @param toPath Destination path
 	 * @return True on success
 	 */
+	@SuppressWarnings("ResultOfMethodCallIgnored")
 	private boolean copyAsset(Context context, String fromAssetPath, String toPath) throws FileNotFoundException {
 		InputStream in;
 		OutputStream out;
@@ -188,20 +237,22 @@ public class QualCommLegacy extends IFMController {
 
 	}
 
-	private Queue<String> mQueueCommands;
+	private Queue<Request> mQueueCommands;
 
 	private void sendCommand(String command) {
+		sendCommand(new Request(command));
+	}
+
+	private void sendCommand(Request command) {
 		mQueueCommands.offer(command);
 
 		if (mQueueCommands.size() == 1) {
 			sendCommandReal();
 		}
-
-		//sendCommand(command, 1000);
 	}
 
-	private void sendCommandReal() { // (final String command, final int timeout) {
-		String command = mQueueCommands.peek();
+	private void sendCommandReal() {
+		Request command = mQueueCommands.peek();
 
 		if (command == null) {
 			return;
@@ -218,7 +269,7 @@ public class QualCommLegacy extends IFMController {
 
 				Log.d("QCL", "Sent command: " + command);
 
-				DatagramPacket dps = new DatagramPacket(command.getBytes(), command.length(), InetAddress.getByName("127.0.0.1"), 2112); // todo hardcode
+				DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), InetAddress.getByName("127.0.0.1"), config.getClientPort());
 
 				mDatagramSocketClient.send(dps);
 

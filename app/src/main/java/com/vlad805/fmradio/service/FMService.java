@@ -16,6 +16,7 @@ import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.fm.IFMController;
+import com.vlad805.fmradio.fm.LaunchConfig;
 import com.vlad805.fmradio.fm.impl.QualCommLegacy;
 
 import java.util.Locale;
@@ -78,6 +79,13 @@ public class FMService extends Service {
 		}
 	}
 
+	static class Config extends LaunchConfig {
+		@Override
+		public int getClientPort() {
+			return 2112;
+		}
+	}
+
 	@Override
 	public void onCreate() {
 		super.onCreate();
@@ -85,7 +93,7 @@ public class FMService extends Service {
 		mRadioController = RadioController.getInstance(this);
 		mStatusReceiver = new PlayerReceiver();
 		mAudioService = new LightAudioService(this); // TODO createAudioService();
-		mFmController = new QualCommLegacy(); // TODO dynamic
+		mFmController = new QualCommLegacy(new Config());
 		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
 		IntentFilter filter = new IntentFilter();
