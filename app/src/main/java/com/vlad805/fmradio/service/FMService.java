@@ -84,6 +84,11 @@ public class FMService extends Service {
 		public int getClientPort() {
 			return 2112;
 		}
+
+		@Override
+		public int getServerPort() {
+			return 2113;
+		}
 	}
 
 	@Override
@@ -126,7 +131,7 @@ public class FMService extends Service {
 			}
 
 			case C.Command.LAUNCH: {
-				mFmController.launch(null);
+				mFmController.launch(this);
 				sendBroadcast(new Intent(C.Event.READY));
 			}
 

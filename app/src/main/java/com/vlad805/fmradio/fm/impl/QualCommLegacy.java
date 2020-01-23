@@ -9,6 +9,7 @@ import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.fm.IFMController;
 import com.vlad805.fmradio.fm.IRdsStruct;
 import com.vlad805.fmradio.fm.LaunchConfig;
+import com.vlad805.fmradio.service.FMEventListenerServer;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -22,6 +23,8 @@ import java.util.Queue;
  * vlad805 (c) 2020
  */
 public class QualCommLegacy extends IFMController {
+
+	private FMEventListenerServer mServer;
 
 	public QualCommLegacy(LaunchConfig config) {
 		super(config);
@@ -91,9 +94,10 @@ public class QualCommLegacy extends IFMController {
 	}
 
 	@Override
-	public void launch(LaunchConfig config) {
+	public void launch(Context context) {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
+		startServerListener(context);
 	}
 
 	@Override
@@ -295,5 +299,14 @@ public class QualCommLegacy extends IFMController {
 				Log.i("QCL", "FAILED: attempt for request [" + command + "]");
 			}
 		}).start();
+	}
+
+	private void startServerListener(Context context) {
+		try {
+			mServer = new FMEventListenerServer(context, config.getServerPort());
+			mServer.start();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

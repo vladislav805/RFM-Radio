@@ -51,7 +51,7 @@ public abstract class IFMController {
 	/**
 	 * Launch binary
 	 */
-	public abstract void launch(LaunchConfig config);
+	public abstract void launch(Context context);
 
 	public void init(Context context) {
 		if (!isInstalled() || isObsolete()) {

@@ -35,7 +35,6 @@ public class FMEventListenerServer extends Thread {
 	private static final int EVT_STEREO = 9;
 	private static final int EVT_SEARCH_DONE = 10;
 
-
 	public FMEventListenerServer(Context context, int port) throws IOException {
 		mDatagramSocketServer = new DatagramSocket(port);
 		mContext = context;
@@ -48,6 +47,7 @@ public class FMEventListenerServer extends Thread {
 		byte[] buffer = new byte[BUFFER_SIZE];
 		while (mEnabled) {
 			DatagramPacket dp = new DatagramPacket(buffer, 0, BUFFER_SIZE);
+
 			try {
 				mDatagramSocketServer.receive(dp);
 
@@ -59,7 +59,6 @@ public class FMEventListenerServer extends Thread {
 					dp.setData(result.getBytes());
 					mDatagramSocketServer.send(dp);
 				}
-
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (StopServer e) {
@@ -146,14 +145,11 @@ public class FMEventListenerServer extends Thread {
 		return "ok";
 	}
 
-	private class StopServer extends Throwable { }
-
-
-
+	private static class StopServer extends Throwable { }
 
 	public static String str2Hex(String bin) {
 		char[] digital = "0123456789ABCDEF".toCharArray();
-		StringBuffer sb = new StringBuffer("");
+		StringBuilder sb = new StringBuilder();
 		byte[] bs = bin.getBytes();
 		int bit;
 		for (byte b : bs) {
@@ -163,5 +159,13 @@ public class FMEventListenerServer extends Thread {
 			sb.append(digital[bit]);
 		}
 		return sb.toString();
+	}
+
+	public void closeServer() {
+		if (mDatagramSocketServer != null) {
+			if (mDatagramSocketServer.isConnected()) {
+				mDatagramSocketServer.close();
+			}
+		}
 	}
 }
