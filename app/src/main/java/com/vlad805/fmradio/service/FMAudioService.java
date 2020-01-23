@@ -58,7 +58,8 @@ public abstract class FMAudioService {
 					audioSource,
 					mSampleRate,
 					AudioFormat.CHANNEL_IN_STEREO,
-					AudioFormat.ENCODING_PCM_16BIT, mBufferSize
+					AudioFormat.ENCODING_PCM_16BIT,
+					mBufferSize
 			);
 
 			if (recorder.getState() == AudioRecord.STATE_INITIALIZED) { // If works, then done

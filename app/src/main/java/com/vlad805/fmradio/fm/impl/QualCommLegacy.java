@@ -102,6 +102,7 @@ public class QualCommLegacy extends IFMController {
 
 	@Override
 	public void enable() {
+		sendCommand("init");
 		sendCommand("enable"); // 5000
 	}
 
@@ -200,7 +201,7 @@ public class QualCommLegacy extends IFMController {
 	}
 
 	private void sendCommandReal() { // (final String command, final int timeout) {
-		String command = mQueueCommands.poll();
+		String command = mQueueCommands.peek();
 
 		if (command == null) {
 			return;
@@ -236,10 +237,11 @@ public class QualCommLegacy extends IFMController {
 
 				Log.d("QCL", "Received response: " + res);
 
+				mQueueCommands.remove();
 				sendCommandReal();
 			} catch (Throwable e) {
 				e.printStackTrace();
-				Log.i("FM.send", "attempt for request [" + command + "]");
+				Log.i("QCL", "FAILED: attempt for request [" + command + "]");
 			}
 		}).start();
 	}

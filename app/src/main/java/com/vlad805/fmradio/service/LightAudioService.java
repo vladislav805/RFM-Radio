@@ -56,7 +56,6 @@ public class LightAudioService extends FMAudioService {
 	}
 
 	private Runnable mReadWrite = () -> {
-
 		int bufferSizeInBytes = AudioTrack.getMinBufferSize(
 				mSampleRate,
 				AudioFormat.CHANNEL_IN_STEREO,

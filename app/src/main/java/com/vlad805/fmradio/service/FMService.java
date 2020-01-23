@@ -39,7 +39,7 @@ public class FMService extends Service {
 				return;
 			}
 
-			Log.d("FMService", "onReceive(" + intent.getAction());
+			// Log.d("FMService", "onReceive(" + intent.getAction() + ")");
 
 			switch (intent.getAction()) {
 				case C.Event.BINARY_READY: {
@@ -60,8 +60,8 @@ public class FMService extends Service {
 
 				case C.Event.FREQUENCY_SET:
 					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					//mConfiguration.setFrequency(frequency);
 					getStorage(FMService.this).edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
+
 					break;
 
 				case C.Event.UPDATE_PS:
@@ -105,8 +105,6 @@ public class FMService extends Service {
 		if (intent == null || intent.getAction() == null) {
 			return START_STICKY;
 		}
-
-		String tmp;
 
 		switch (intent.getAction()) {
 			case C.Command.INIT: {

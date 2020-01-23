@@ -91,6 +91,6 @@ public class RadioController {
 			case C.Event.KILL: mState.setState(FMState.STATE_OFF); break;
 		}
 
-		Log.d("RCS", "state = " + mState);
+		//Log.d("RCS", "state = " + mState);
 	}
 }

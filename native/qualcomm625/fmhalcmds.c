@@ -142,7 +142,7 @@ pthread_t fm_interrupt_thread;
 pthread_t fm_on_thread;
 
 // Prototype of FM ON thread
-fm_cmd_status_type (ftm_on_long_thread)(void *ptr);
+fm_cmd_status_type (fm_long_thread)(void *ptr);
 
 // Global state of the FM task
 fm_station_params_available fm_global_params;
@@ -479,36 +479,58 @@ void* interrupt_thread(void *ptr) {
 	return NULL;
 }
 
-int file_exists(const char* file) { // Return 1 if file, or directory, or device node etc. exists
+/**
+ * Return 1 if file, or directory, or device node etc. exists
+ * @param file Path to file/directory
+ * @return True if exists
+ */
+int file_exists(const char* file) {
 	struct stat sb;
 	return stat(file, &sb) == 0;
 }
 
+/**
+ * Delay
+ * @param ms Time
+ */
 void wait(int ms) {
   usleep(ms * 1000);
 }
 
-/**
- * EnableReceiver
- * PFAL specific routine to enable the FM receiver with the Radio Cfg
- * parameters passed.
- * PLATFORM SPECIFIC DESCRIPTION
- *   Opens the handle to /dev/radio0 V4L2 device and initates a Soc Patch
- *   download, configurs the Init parameters like Band Limit, RDS type,
- *   Frequency Band, and Radio State.
- * DEPENDENCIES
- *   NIL
- * @return FM command status
- */
-fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
-	int err;
-	int retval;
-	char versionStr[40] = {'\0'};
-	struct v4l2_capability cap;
+const char* log_types[] = { "[ OK ]", "[FAIL]", "[INFO]" };
+#define LOG_OK 0
+#define LOG_ERR 1
+#define LOG_INFO 2
 
-	system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
+void _log(int type, char* message, int val) {
+  printf("%s %s %d\n", log_types[type], message, val);
+}
+
+#ifdef FM_DEBUG
+  #define logk(x) _log(LOG_OK, x, 0)
+  #define logk2(x, y) _log(LOG_OK, x, y)
+  #define loge(x) _log(LOG_ERR, x, 0)
+  #define loge2(x, y) _log(LOG_ERR, x, y)
+  #define logi(x) _log(LOG_INFO, x, 0)
+  #define logi2(x, y) _log(LOG_INFO, x, y)
+#else
+  #define logk(x, y)
+  #define logk(x, y)
+  #define loge(x)
+  #define loge2(x, y)
+  #define logi(x)
+  #define logi2(x, y)
+#endif
+
+
+fm_cmd_status_type fm_receiver_open() {
+  logi("fm_receiver_open: call");
+  int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
+
+  logi2("fm_receiver_open: setprop exit code", exit_code);
 
   if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
+    logi("fm_receiver_open: found radio-iris-transport.ko, insmod it");
     system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
   }
 
@@ -516,6 +538,8 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
 
   int i = 0;
   int init_success = 0;
+
+  logi("fm_receiver_open: loop hw.fm.init");
 
   for (i = 0; i < 600; i ++) {
     __system_property_get("hw.fm.init", value);
@@ -528,63 +552,96 @@ fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr) {
   }
 
   if (init_success) {
-    print2("[ OK ] Init success after %d attempts\n", i);
+    logk2("fm_receiver_open: init success after %d attempts", i);
   } else {
-    print2("[FAIL] Init failed after %d attempts\n", i);
+    loge2("fm_receiver_open: init failed after %d attempts, exiting...", i);
     return FM_CMD_FAILURE;
   }
 
   wait(500);
 
+  logi("fm_receiver_open: open /dev/radio0...");
+
+  fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
+
+  logi2("fm_receiver_open: fd_radio = ", fd_radio);
+
+  if (fd_radio < 0) {
+    loge2("fm_receiver_open: failed to open fd_radio, exit code = ", fd_radio);
+    return FM_CMD_FAILURE;
+  }
+
+  wait(700);
+
+  return FM_CMD_SUCCESS;
+}
 
 
-	print("\nEnable Receiver entry\n");
 
-	fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
+/**
+ * fm_receiver_enable
+ * PFAL specific routine to enable the FM receiver with the Radio Cfg
+ * parameters passed.
+ * PLATFORM SPECIFIC DESCRIPTION
+ *   Opens the handle to /dev/radio0 V4L2 device and initates a Soc Patch
+ *   download, configurs the Init parameters like Band Limit, RDS type,
+ *   Frequency Band, and Radio State.
+ * DEPENDENCIES
+ *   NIL
+ * @return FM command status
+ */
+fm_cmd_status_type fm_receiver_enable(fm_config_data* radiocfgptr) {
+  logi("fm_receiver_enable: call");
 
-	if (fd_radio < 0) {
-		print2("EnableReceiver Failed to open = %d\n", fd_radio);
-		return FM_CMD_FAILURE;
-	}
+  int err;
+  int retval;
+  char versionStr[40] = {'\0'};
+  struct v4l2_capability cap;
 
-	wait(700);
-
+  logi("fm_receiver_enable: read the driver versions...");
 	// Read the driver versions
 	err = ioctl(fd_radio, VIDIOC_QUERYCAP, &cap);
 
-	printf("VIDIOC_QUERYCAP returns :%d: version: %d\n", err, cap.version);
+	printf("[DEBUG] fm_receiver_enable: VIDIOC_QUERYCAP returns: err=%d; version=%d\n", err, cap.version);
 
 	if (err >= 0) {
-		printf("Driver Version (Same as chip id): %x\n", cap.version);
+		printf("[DEBUG] fm_receiver_enable: driver version (same as chip id): %x\n", cap.version);
+
 		// Convert the integer to string
 		retval = snprintf(versionStr, sizeof(versionStr), "%d", cap.version);
-		if ((retval >= sizeof(versionStr))) {
+
+		if (retval >= sizeof(versionStr)) {
+		  loge("fm_receiver_enable: version check failed");
 			close(fd_radio);
 			fd_radio = -1;
 			return FM_CMD_FAILURE;
 		}
+
 		__system_property_set("hw.fm.version", versionStr);
+
+		printf("fm_receiver_enable: hw.fm.version = %s\n", versionStr);
+
 		asprintf(&qsoc_poweron_path, "fm_qsoc_patches %d 0", cap.version);
+
 		if (qsoc_poweron_path != NULL) {
 			printf("qsoc_onpath = %s\n", qsoc_poweron_path);
 		}
+
 	} else {
 		return FM_CMD_FAILURE;
 	}
 
-
-
-	print("\nOpened Receiver\n");
-	return ftm_on_long_thread(radiocfgptr);
+	logk("fm_receiver_enable: opened receiver successfully");
+	return fm_long_thread(radiocfgptr);
 }
 
 /**
- * ftm_on_long_thread
+ * fm_long_thread
  * Helper routine to perform the rest of the FM calibration and SoC Patch
  * download and configuration settings following the opening of radio handle
  * @return NIL
  */
-fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
+fm_cmd_status_type (fm_long_thread)(void *ptr) {
 	int ret = 0;
 	struct v4l2_control control;
 	struct v4l2_tuner tuner;
@@ -599,10 +656,10 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 	__system_property_get("qcom.bluetooth.soc", soc_type);
 
 	if (strlen(transport) == 3 && !strncmp("smd", transport, 3)) {
-		__system_property_set("hw.fm.mode", "normal");
+		//__system_property_set("hw.fm.mode", "normal");
 		__system_property_set("ctl.start", "fm_dl");
 		sleep(1);
-		for (i = 0; i < 9; i++) {
+		/*for (i = 0; i < 9; i++) {
 			__system_property_get("hw.fm.init", value);
 			if (strcmp(value, "1") == 0) {
 				init_success = 1;
@@ -618,11 +675,11 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 			close(fd_radio);
 			fd_radio = -1;
 			return FM_CMD_FAILURE;
-		}
+		}*/
 	} else if (strcmp(soc_type, "rome") != 0) {
 		ret = system(qsoc_poweron_path);
 		if (ret != 0) {
-			print2("EnableReceiver Failed to download patches = %d\n", ret);
+			print2("fm_receiver_enable Failed to download patches = %d\n", ret);
 			return FM_CMD_FAILURE;
 		}
 	}
@@ -637,7 +694,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_STATE, FM_RX);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set Radio State = %d\n", ret);
+		print2("fm_receiver_enable Failed to set Radio State = %d\n", ret);
 		close(fd_radio);
 		fd_radio = -1;
 		return FM_CMD_FAILURE;
@@ -650,7 +707,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 #endif
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_EMPHASIS, radiocfgptr->emphasis);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set Emphasis = %d\n", ret);
+		print2("fm_receiver_enable Failed to set Emphasis = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
@@ -659,7 +716,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 #endif
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_SPACING, radiocfgptr->spacing);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set channel spacing = %d\n", ret);
+		print2("fm_receiver_enable Failed to set channel spacing = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
@@ -668,7 +725,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 #endif
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDS_STD, radiocfgptr->rds_system);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set RDS std = %d\n", ret);
+		print2("fm_receiver_enable Failed to set RDS std = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
@@ -678,7 +735,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 	tuner.rangehigh = radiocfgptr->bandlimits.upper_limit * (TUNE_MULT / 1000);
 	ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
 	if (ret < 0) {
-		print2("EnableReceiver Failed to set Band Limits  = %d\n", ret);
+		print2("fm_receiver_enable Failed to set Band Limits  = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 #ifdef FM_DEBUG
@@ -686,20 +743,20 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 #endif
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_REGION, radiocfgptr->band);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set Band = %d\n", ret);
+		print2("fm_receiver_enable Failed to set Band = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSON, 1);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set RDS on = %d\n", ret);
+		print2("fm_receiver_enable Failed to set RDS on = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
 	control.id = V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC;
 	ret = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
 	if (ret < 0) {
-		print2("EnableReceiver Failed to set RDS group  = %d\n", ret);
+		print2("fm_receiver_enable Failed to set RDS group  = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
@@ -714,7 +771,7 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, rds_group_mask); // 255
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set RDS on = %d\n", ret);
+		print2("fm_receiver_enable Failed to set RDS on = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
@@ -732,13 +789,13 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 	} else {
 		ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_PSALL, psAllVal >> 4);
 		if (ret == FALSE) {
-			print2("EnableReceiver Failed to set RDS on = %d\n", ret);
+			print2("fm_receiver_enable Failed to set RDS on = %d\n", ret);
 			return FM_CMD_FAILURE;
 		}
 	}
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_ANTENNA, 0);
 	if (ret == FALSE) {
-		print2("EnableReceiver Failed to set RDS on = %d\n", ret);
+		print2("fm_receiver_enable Failed to set RDS on = %d\n", ret);
 		return FM_CMD_FAILURE;
 	}
 
@@ -754,35 +811,34 @@ fm_cmd_status_type (ftm_on_long_thread)(void *ptr) {
 }
 
 /**
- * DisableReceiver
+ * fm_receiver_disable
  * PFAL specific routine to disable the FM receiver and free the FM resources
  * PLATFORM SPECIFIC DESCRIPTION
  *   Closes the handle to /dev/radio0 V4L2 device
  * @return FM command status
  */
-fm_cmd_status_type DisableReceiver() {
+fm_cmd_status_type fm_receiver_disable() {
+  logi("fm_receiver_disable: call");
 	int ret;
 
 	// Wait till the previous ON sequence has completed
 	if (poweron != COMPLETE) {
-		printf("FM is already disabled\n");
+	  logi("fm_receiver_disable: already disabled");
 		return FM_CMD_FAILURE;
 	}
 
-#ifdef FM_DEBUG
-	print("Disable start\n");
-#endif
+  logi("fm_receiver_disable: starting...");
 
-	printf("Shutting down FM\n");
+  logi("fm_receiver_disable: set state = 0...");
 	ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_STATE, 0);
 	if (ret == FALSE) {
-		print2("DisableReceiver Failed to set FM OFF = %d\n", ret);
+    logi2("fm_receiver_disable: failed to set fm off, exit code = %d", ret);
 		return FM_CMD_FAILURE;
 	}
 
-#ifdef FM_DEBUG
-	print("Disabled Receiver\n");
-#endif
+  __system_property_set("ctl.stop", "fm_dl");
+
+  logi("fm_receiver_disable: successfully");
 
 	return FM_CMD_SUCCESS;
 }
@@ -854,41 +910,40 @@ out :
 }
 
 /**
- * SetFrequencyReceiver
+ * fm_receiver_frequency_set
  * PFAL specific routine to configure the FM receiver's Frequency of reception
  * @return FM command status
  */
-fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq) {
+fm_cmd_status_type fm_receiver_frequency_set(uint32 ulfreq) {
+  logi2("fm_receiver_frequency_set: call with freq = ", ulfreq);
+
 	int err;
 	struct v4l2_frequency freq_struct;
 
-#ifdef FM_DEBUG
-	print2("\nSetFrequency Receiver entry freq = %d\n", (int) ulfreq);
-#endif
-
 	if (fd_radio < 0) {
+	  loge("fm_receiver_frequency_set: fd_radio < 0");
 		return FM_CMD_NO_RESOURCES;
 	}
 
 	freq_struct.type = V4L2_TUNER_RADIO;
-	freq_struct.frequency = (ulfreq * TUNE_MULT / 1000);
+	freq_struct.frequency = (int) (ulfreq * TUNE_MULT / 1000);
 
+  logi("fm_receiver_frequency_set: ioctl...");
 	err = ioctl(fd_radio, VIDIOC_S_FREQUENCY, &freq_struct);
 	if (err < 0) {
+    loge2("fm_receiver_frequency_set: failed, exit code = ", err);
 		return FM_CMD_FAILURE;
 	}
 
-#ifdef FM_DEBUG
-	print("\nSetFrequency Receiver exit\n");
-#endif
+  logi("fm_receiver_frequency_set: successfully");
 
 	return FM_CMD_SUCCESS;
 }
 
-fm_cmd_status_type JumpToFrequencyReceiver(uint32 delta) {
-	uint32 frequency = fm_global_params.current_station_freq + delta;
-
-	return SetFrequencyReceiver(frequency);
+fm_cmd_status_type fm_receiver_jump_by_delta_frequency(uint32 delta) {
+  logi2("fm_receiver_jump_by_delta_frequency: call with ", delta);
+  logi2("fm_receiver_jump_by_delta_frequency: current frequency is ", fm_global_params.current_station_freq);
+	return fm_receiver_frequency_set(fm_global_params.current_station_freq + delta);
 }
 
 /**
