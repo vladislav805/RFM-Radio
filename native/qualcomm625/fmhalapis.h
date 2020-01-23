@@ -18,7 +18,7 @@ fm_cmd_status_type fm_receiver_open();
  * parameters passed.
  * @return FM command status
  */
-fm_cmd_status_type fm_receiver_enable(fm_config_data* radiocfgptr);
+fm_cmd_status_type fm_receiver_enable(fm_config_data* config_ptr);
 
 /**
  * fm_receiver_disable
@@ -64,12 +64,12 @@ fm_cmd_status_type SetMuteModeReceiver(mute_type mutemode);
 fm_cmd_status_type SetStereoModeReceiver(stereo_type stereomode);
 
 /**
- * GetStationParametersReceiver
+ * fm_receiver_current_parameters_get
  * PFAL specific routine to get the station parameters of the Frequency at
  * which the Radio receiver is  tuned
  * @return FM command status
  */
-fm_cmd_status_type GetStationParametersReceiver(fm_station_params_available* configparams);
+fm_cmd_status_type fm_receiver_current_parameters_get(fm_station_params_available* config_ptr);
 
 /**
  * SetRdsOptionsReceiver

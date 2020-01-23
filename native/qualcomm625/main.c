@@ -85,7 +85,7 @@ srv_response api_fetch(char* request) {
 
 	if (str_equals(cmd, MK_GET_RSSI)) {
 		fm_station_params_available config;
-		fm_cmd_status_type ret = GetStationParametersReceiver(&config);
+		fm_cmd_status_type ret = fm_receiver_current_parameters_get(&config);
 
 		if (ret == FM_CMD_FAILURE) {
 			res->code = CD_ERR;
@@ -105,7 +105,7 @@ srv_response api_fetch(char* request) {
 	} else if (str_equals(cmd, MK_ENABLE)) {
 		fm_config_data cfg_data = {
 			.band = FM_RX_US_EUROPE,
-			.emphasis = FM_RX_EMP75,
+			.emphasis = FM_RX_EMP50,
 			.spacing = FM_RX_SPACE_50KHZ,
 			.rds_system = FM_RX_RDS_SYSTEM,
 			.bandlimits = {
@@ -152,7 +152,7 @@ srv_response api_fetch(char* request) {
 		res->code = SetStereoModeReceiver(FM_RX_STEREO);
 
 		fm_station_params_available config;
-		fm_cmd_status_type ret = GetStationParametersReceiver(&config);
+		fm_cmd_status_type ret = fm_receiver_current_parameters_get(&config);
 
 		if (ret == FM_CMD_FAILURE) {
 			res->code = CD_ERR;
