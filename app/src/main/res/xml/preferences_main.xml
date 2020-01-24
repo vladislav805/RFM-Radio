@@ -1,0 +1,60 @@
+<PreferenceScreen
+		xmlns:android="http://schemas.android.com/apk/res/android">
+	<PreferenceScreen
+			android:key="tuner"
+			android:title="@string/pref_header_tuner">
+		<SwitchPreference
+				android:key="tuner_step"
+				android:title="@string/pref_tuner_step"
+				android:summaryOn="@string/pref_tuner_step_100kHz"
+				android:summaryOff="@string/pref_tuner_step_50kHz"/>
+		<SwitchPreference
+				android:key="tuner_rds"
+				android:title="@string/pref_tuner_rds_enable"
+				android:summaryOn="@string/pref_tuner_rds_enabled"
+				android:summaryOff="@string/pref_tuner_rds_disabled"/>
+	</PreferenceScreen>
+	<PreferenceScreen
+			android:key="audio"
+			android:title="@string/pref_header_audio">
+		<EditTextPreference
+				android:key="audio_source"
+				android:title="@string/pref_audio_source"
+				android:summary="0 - default; 1998 - 'new' FM source"
+				android:defaultValue="1998"/>
+	</PreferenceScreen>
+	<PreferenceScreen
+			android:key="app"
+			android:title="@string/pref_header_app">
+		<SwitchPreference
+				android:key="app_auto_startup"
+				android:title="@string/pref_app_auto_startup"
+				android:summaryOn="@string/pref_app_auto_startup_enabled"
+				android:summaryOff="@string/pref_auto_startup_disabled"/>
+	</PreferenceScreen>
+	<PreferenceScreen
+			android:key="info"
+			android:title="@string/pref_header_info">
+		<PreferenceCategory
+				android:key="info_links"
+				android:title="@string/pref_header_info_links">
+			<Preference
+					android:id="@+id/pref_info_link_4pda"
+					android:key="info_links_4pda"
+					android:title="@string/pref_info_link_4pda" />
+			<Preference
+					android:id="@+id/pref_info_link_github"
+					android:key="info_links_github"
+					android:title="@string/pref_info_link_github" />
+		</PreferenceCategory>
+		<PreferenceCategory
+				android:key="info_author"
+				android:title="@string/pref_header_info_authors">
+			<Preference
+					android:id="@+id/pref_info_author_vv"
+					android:key="pref_info_author_vv"
+					android:title="@string/pref_info_author_vv_title"
+					android:summary="@string/pref_info_author_vv_sub"/>
+		</PreferenceCategory>
+	</PreferenceScreen>
+</PreferenceScreen>

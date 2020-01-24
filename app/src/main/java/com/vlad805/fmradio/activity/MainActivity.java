@@ -233,6 +233,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			case R.id.menu_about:
 				startActivity(new Intent(this, AboutActivity.class));
 				break;
+
+			case R.id.menu_settings:
+				startActivity(new Intent(this, SettingsActivity.class));
+				break;
 		}
 
 		return super.onOptionsItemSelected(item);

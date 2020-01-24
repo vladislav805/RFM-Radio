@@ -34,8 +34,31 @@
 	<string name="menu_favorite_list_remove">Remove this list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
 	<string name="favorite_list_create_error_already_exists">List with this name already exists</string>
-	<string name="favorite_list_create_error_invalid_name">Invalid name. It can be used only A-Z, a-z, \'-\', \'_\' and 0-9</string>
+	<string name="favorite_list_create_error_invalid_name">Invalid name. It can be used only A–Z, a–z, \'–\', \'_\' and 0–9</string>
 	<string name="favorite_list_remove_title">Confirmation</string>
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
+	<string name="title_activity_settings">Settings</string>
+
+	<!-- Preference Titles -->
+	<string name="pref_header_tuner">Tuner</string>
+	<string name="pref_header_audio">Audio</string>
+	<string name="pref_header_app">Application</string>
+	<string name="pref_header_info">Info</string>
+	<string name="pref_tuner_step">Step</string>
+	<string name="pref_tuner_step_100kHz">100 kHz</string>
+	<string name="pref_tuner_step_50kHz">50 kHz</string>
+	<string name="pref_tuner_rds_enable">Enable RDS</string>
+	<string name="pref_tuner_rds_enabled">Show RDS data such as Program Service and Radio Text</string>
+	<string name="pref_tuner_rds_disabled">Do not show PS and RT</string>
+	<string name="pref_audio_source">Audio source</string>
+	<string name="pref_app_auto_startup">Auto start</string>
+	<string name="pref_app_auto_startup_enabled">Start audio when app launched</string>
+	<string name="pref_auto_startup_disabled">Audio start only after manual launch</string>
+	<string name="pref_header_info_links">Links</string>
+	<string name="pref_header_info_authors">Authors</string>
+	<string name="pref_info_link_4pda">4pda topic</string>
+	<string name="pref_info_link_github">GitHub repository</string>
+	<string name="pref_info_author_vv_title">@string/about_author</string>
+	<string name="pref_info_author_vv_sub">Developer</string>
 
 </resources>

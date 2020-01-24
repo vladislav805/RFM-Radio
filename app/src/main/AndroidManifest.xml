@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		xmlns:tools="http://schemas.android.com/tools"
-		package="com.vlad805.fmradio">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+		  xmlns:tools="http://schemas.android.com/tools"
+		  package="com.vlad805.fmradio">
 
 	<uses-permission android:name="android.permission.INTERNET"/>
 	<uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -18,7 +17,10 @@
 			android:supportsRtl="false"
 			android:theme="@style/AppTheme"
 			tools:ignore="GoogleAppIndexingWarning">
-
+		<activity
+				android:name=".activity.SettingsActivity"
+				android:label="@string/title_activity_settings">
+		</activity>
 		<activity
 				android:name=".activity.MainActivity"
 				android:label="@string/title_activity_design"
@@ -30,7 +32,8 @@
 			</intent-filter>
 		</activity>
 		<activity android:name=".activity.FavoritesListsActivity"/>
-		<activity android:name=".activity.AboutActivity" />
+		<activity android:name=".activity.AboutActivity"/>
+
 		<service
 				android:name=".service.FMService"
 				android:enabled="true"
