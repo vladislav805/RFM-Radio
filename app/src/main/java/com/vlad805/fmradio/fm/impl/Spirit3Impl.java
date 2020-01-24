@@ -101,8 +101,17 @@ public class Spirit3Impl extends IFMController {
 	}
 
 	@Override
-	public void jump(int direction) {
-		sendCommand("s tuner_freq " + toDirection(direction));
+	public void jump(final int direction) {
+		sendCommand(new Request("g tuner_freq").setListener(data -> {
+			if (data.length() == 4 || data.length() == 5) {
+				int frequency = Integer.parseInt(data) * 10;
+
+				frequency += direction > 0 ? 100 : -100;
+
+				setFrequency(frequency);
+			}
+		}));
+
 	}
 
 	@Override
@@ -149,8 +158,9 @@ public class Spirit3Impl extends IFMController {
 			return this;
 		}
 
-		public void setListener(OnReceivedResponse listener) {
+		public Request setListener(OnReceivedResponse listener) {
 			this.listener = listener;
+			return this;
 		}
 
 		public byte[] bytes() {
@@ -233,6 +243,8 @@ public class Spirit3Impl extends IFMController {
 				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
 
 				Log.d("S3I", "Received response: " + res);
+
+				command.fire(res);
 
 				mQueueCommands.remove();
 				sendCommandReal();
