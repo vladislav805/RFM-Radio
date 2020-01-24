@@ -32,6 +32,7 @@ final public class C {
 
 	public static final class Command {
 		public static final String INIT = "init";
+		public static final String LAUNCH = "launch";
 		public static final String ENABLE = "enable";
 		public static final String DISABLE = "disable";
 		public static final String HW_SEEK = "hw_seek";
@@ -39,7 +40,6 @@ final public class C {
 		public static final String JUMP = "jump";
 		public static final String SEARCH = "search";
 		public static final String KILL = "kill";
-		public static final String LAUNCH = "launch";
 	}
 
 	public static final class Key {

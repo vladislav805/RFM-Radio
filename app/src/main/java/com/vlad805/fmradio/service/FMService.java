@@ -17,7 +17,7 @@ import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.fm.IFMController;
 import com.vlad805.fmradio.fm.LaunchConfig;
-import com.vlad805.fmradio.fm.impl.QualCommLegacy;
+import com.vlad805.fmradio.fm.impl.Spirit3Impl;
 
 import java.util.Locale;
 
@@ -98,7 +98,7 @@ public class FMService extends Service {
 		mRadioController = RadioController.getInstance(this);
 		mStatusReceiver = new PlayerReceiver();
 		mAudioService = new LightAudioService(this); // TODO createAudioService();
-		mFmController = new QualCommLegacy(new Config());
+		mFmController = new Spirit3Impl(new Spirit3Impl.Config());
 		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
 		IntentFilter filter = new IntentFilter();
