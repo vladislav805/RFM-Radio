@@ -9,33 +9,31 @@ import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.db.IStation;
-
-import java.util.List;
-import java.util.Locale;
+import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.RadioController;
 
 /**
  * vlad805 (c) 2019
  */
 public class RadioUIView extends LinearLayout {
-
-	private TextViewWithSupportReflection mFrequency;
-	private ImageView mShadow;
+	private TextViewWithSupportReflection mFrequencyView;
+	private ImageView mReflection;
 	private TextView mRdsPs;
 	private TextView mRdsRt;
 	private FrequencySeekView mSeek;
+	private RadioController mRadioController;
 
-	private OnFrequencyChanged mListener;
-
+	/**
+	 * Current frequency
+	 */
 	private int mkHz = 87500;
 
+	/**
+	 * Settings
+	 */
 	private static final int BAND_LOW = 87500;
 	private static final int BAND_HIGH = 108000;
 	private static final int BAND_STEP = 100;
-
-	public interface OnFrequencyChanged {
-		void onChanged(int kHz);
-	}
 
 	public RadioUIView(Context context) {
 		super(context);
@@ -52,59 +50,48 @@ public class RadioUIView extends LinearLayout {
 	private void init() {
 		LayoutInflater.from(getContext()).inflate(R.layout.frequency_info, this, true);
 
-		Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
-
-		mFrequency = findViewById(R.id.frequency_mhz);
-		mShadow = findViewById(R.id.frequency_mhz_reflection);
+		mFrequencyView = findViewById(R.id.frequency_mhz);
+		mReflection = findViewById(R.id.frequency_mhz_reflection);
 		mRdsPs = findViewById(R.id.frequency_ps);
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeek = findViewById(R.id.frequency_seek);
 
-		mFrequency.setTypeface(font);
+		Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
+		mFrequencyView.setTypeface(font);
 
 		mSeek.setMinMaxValue(BAND_LOW, BAND_HIGH, BAND_STEP);
 		mSeek.setOnSeekBarChangeListener(mOnSeekFrequencyChanged);
 	}
 
-	public void setOnFrequencyChangedListener(OnFrequencyChanged listener) {
-		mListener = listener;
+	public void hideReflection() {
+		mReflection.setVisibility(GONE);
 	}
 
 	public final void setFrequency(int kHz) {
 		mkHz = kHz;
-		mFrequency.setText(getMHz(kHz));
+		mFrequencyView.setText(Utils.getMHz(kHz));
 
 		mSeek.setProgress(kHz);
 
-		post(() -> mShadow.setImageBitmap(mFrequency.getReflection(.9f)));
+		post(() -> mReflection.setImageBitmap(mFrequencyView.getReflection(.9f)));
 	}
 
 	public final void setRdsPs(String ps) {
 		mRdsPs.setText(ps);
 	}
 
-	public void setRdsRt(String rt) {
+	public final void setRdsRt(String rt) {
 		mRdsRt.setText(rt);
 	}
 
-	private String getMHz(int kHz) {
-		return String.format(Locale.ENGLISH, "%5.1f", kHz / 1000.);
-	}
-
-	private void notifyUpdate(int kHz) {
+	private void onUserClickOnFrequency(int kHz) {
 		if (mkHz == kHz) {
 			return;
 		}
 
-		if (mListener != null) {
-			mListener.onChanged(kHz);
-		}
+		mRadioController.setFrequency(kHz);
 
 		setFrequency(kHz);
-	}
-
-	public void notifyStationsLists(List<IStation> list) {
-		mSeek.notifyStationList(list);
 	}
 
 	private SeekBar.OnSeekBarChangeListener mOnSeekFrequencyChanged = new SeekBar.OnSeekBarChangeListener() {
@@ -117,9 +104,19 @@ public class RadioUIView extends LinearLayout {
 				return;
 			}
 
-			current = mSeek.fixProgress(progress);
+			int curr = seekBar.getProgress();
 
-			notifyUpdate(current);
+			/*
+			 * Android 5.1 (Sony Xperia L at least) progress contains value from
+			 * seekBar.getProgress(), that was already fixed
+			 */
+			if (curr > BAND_HIGH) {
+				curr /= 1000;
+			}
+
+			current = curr;
+
+			onUserClickOnFrequency(current);
 		}
 
 		@Override
@@ -127,9 +124,11 @@ public class RadioUIView extends LinearLayout {
 
 		@Override
 		public void onStopTrackingTouch(SeekBar seekBar) {
-			int d = current;
-
-			notifyUpdate(d);
+			onUserClickOnFrequency(current);
 		}
 	};
+
+	public void setRadioController(RadioController controller) {
+		mRadioController = controller;
+	}
 }

@@ -40,6 +40,7 @@ public class LightAudioService extends FMAudioService {
 	}
 
 	private void closeAll() {
+		mIsActive = false;
 		if (mAudioTrack != null) {
 			mAudioTrack.release();
 			mAudioTrack = null;
@@ -55,7 +56,6 @@ public class LightAudioService extends FMAudioService {
 	}
 
 	private Runnable mReadWrite = () -> {
-
 		int bufferSizeInBytes = AudioTrack.getMinBufferSize(
 				mSampleRate,
 				AudioFormat.CHANNEL_IN_STEREO,
@@ -80,7 +80,9 @@ public class LightAudioService extends FMAudioService {
 
 		while (mIsActive) {
 			bytes = mAudioRecorder.read(buffer, 0, bufferSizeInBytes);
-			mAudioTrack.write(buffer, 0, bytes);
+			if (mIsActive) {
+				mAudioTrack.write(buffer, 0, bytes);
+			}
 		}
 
 		closeAll();

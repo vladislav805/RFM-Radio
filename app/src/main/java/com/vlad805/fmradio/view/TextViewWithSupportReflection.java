@@ -9,7 +9,6 @@ import android.widget.TextView;
  * vlad805 (c) 2019
  */
 public class TextViewWithSupportReflection extends TextView {
-
 	private Shader mTextGradient;
 
 	public TextViewWithSupportReflection(Context context, AttributeSet attrs) {

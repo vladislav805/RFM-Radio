@@ -10,20 +10,22 @@
 
 #include "fmcommon.h"
 
+fm_cmd_status_type fm_receiver_open();
+
 /**
- * EnableReceiver
+ * fm_receiver_enable
  * PFAL specific routine to enable the FM receiver with the Radio Cfg
  * parameters passed.
  * @return FM command status
  */
-fm_cmd_status_type EnableReceiver(fm_config_data* radiocfgptr);
+fm_cmd_status_type fm_receiver_enable(fm_config_data* config_ptr);
 
 /**
- * DisableReceiver
+ * fm_receiver_disable
  * PFAL specific routine to disable the FM receiver and free the FM resources
  * @return command status
  */
-fm_cmd_status_type DisableReceiver();
+fm_cmd_status_type fm_receiver_disable();
 
 /**
  * ConfigureReceiver
@@ -34,17 +36,17 @@ fm_cmd_status_type DisableReceiver();
 fm_cmd_status_type ConfigureReceiver(fm_config_data* radiocfgptr);
 
 /**
- * SetFrequencyReceiver
+ * fm_receiver_frequency_set
  * PFAL specific routine to configure the FM receiver's Frequency of reception
  * @return FM command status
  */
-fm_cmd_status_type SetFrequencyReceiver(uint32 ulfreq);
+fm_cmd_status_type fm_receiver_frequency_set(uint32 ulfreq);
 
 /**
- * JumpToFrequencyReceiver
+ * fm_receiver_jump_by_delta_frequency
  * @return
  */
-fm_cmd_status_type JumpToFrequencyReceiver(uint32 delta);
+fm_cmd_status_type fm_receiver_jump_by_delta_frequency(uint32 delta);
 
 /**
  * SetMuteModeReceiver
@@ -62,12 +64,12 @@ fm_cmd_status_type SetMuteModeReceiver(mute_type mutemode);
 fm_cmd_status_type SetStereoModeReceiver(stereo_type stereomode);
 
 /**
- * GetStationParametersReceiver
+ * fm_receiver_current_parameters_get
  * PFAL specific routine to get the station parameters of the Frequency at
  * which the Radio receiver is  tuned
  * @return FM command status
  */
-fm_cmd_status_type GetStationParametersReceiver(fm_station_params_available* configparams);
+fm_cmd_status_type fm_receiver_current_parameters_get(fm_station_params_available* config_ptr);
 
 /**
  * SetRdsOptionsReceiver

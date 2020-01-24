@@ -19,25 +19,19 @@
 			android:supportsRtl="false"
 			android:theme="@style/AppTheme"
 			tools:ignore="GoogleAppIndexingWarning">
+
 		<activity
 				android:name=".activity.MainActivity"
 				android:label="@string/title_activity_design"
 				android:screenOrientation="portrait">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
+
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>
-		<activity
-				android:name=".activity.StationListActivity"
-				android:label="@string/title_activity_station_list"/>
-		<activity
-				android:name=".activity.DebugActivity"
-				android:launchMode="singleInstance"
-				android:screenOrientation="portrait" />
-		<activity
-				android:name=".activity.AboutActivity"
-				android:theme="@android:style/Theme.Material.Dialog"/>
+		<activity android:name=".activity.FavoritesListsActivity"/>
+		<activity android:name=".activity.AboutActivity" />
 		<service
 				android:name=".service.FMService"
 				android:enabled="true"

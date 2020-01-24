@@ -12,14 +12,30 @@
 	<string name="menu_open_debug">Debug activity</string>
 	<string name="menu_open_list">Station list</string>
 	<string name="menu_record">Record</string>
-	<string name="menu_open_list_favorites">Favories</string>
+	<string name="menu_open_list_favorites">Favorites</string>
 	<string name="title_activity_station_list">Stations</string>
 	<string name="station_list_search">Search…</string>
 	<string name="station_list_search_message">Please, wait…</string>
 	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
+	<string name="popup_station_create">Create</string>
+	<string name="popup_station_create_hint">Station name…</string>
 	<string name="popup_station_rename">Rename</string>
 	<string name="popup_station_remove">Remove</string>
 	<string name="about_version">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2019</string>
+	<string name="about_author">Vladislav Veluga © 2020</string>
+	<string name="progress_init">Please, wait…\nInitializing…\nVersion %s</string>
+	<string name="toggle_play_pause">Play</string>
+	<string name="jump_up">Jump up</string>
+	<string name="seek_up">Seek up</string>
+	<string name="jump_down">Jump down</string>
+	<string name="seek_down">Seek down</string>
+	<string name="favorite_list_item_add">+</string>
+	<string name="menu_favorite_list_create">Create list</string>
+	<string name="menu_favorite_list_remove">Remove this list</string>
+	<string name="popup_favorite_list_create">Create favorite list</string>
+	<string name="favorite_list_create_error_already_exists">List with this name already exists</string>
+	<string name="favorite_list_create_error_invalid_name">Invalid name. It can be used only A-Z, a-z, \'-\', \'_\' and 0-9</string>
+	<string name="favorite_list_remove_title">Confirmation</string>
+	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
 
 </resources>

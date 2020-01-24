@@ -17,6 +17,7 @@
 
 srv_response api_fetch(char* request);
 
+#define MK_INIT          "init"
 #define MK_ENABLE        "enable"
 #define MK_DISABLE       "disable"
 #define MK_SET_FREQUENCY "setfreq"
@@ -84,7 +85,7 @@ srv_response api_fetch(char* request) {
 
 	if (str_equals(cmd, MK_GET_RSSI)) {
 		fm_station_params_available config;
-		fm_cmd_status_type ret = GetStationParametersReceiver(&config);
+		fm_cmd_status_type ret = fm_receiver_current_parameters_get(&config);
 
 		if (ret == FM_CMD_FAILURE) {
 			res->code = CD_ERR;
@@ -98,10 +99,13 @@ srv_response api_fetch(char* request) {
 
 		res->code = ret;
 		res->data = response;
+	} else if (str_equals(cmd, MK_INIT)) {
+	  res->code = fm_receiver_open();
+	  res->data = RSP_OK;
 	} else if (str_equals(cmd, MK_ENABLE)) {
 		fm_config_data cfg_data = {
 			.band = FM_RX_US_EUROPE,
-			.emphasis = FM_RX_EMP75,
+			.emphasis = FM_RX_EMP50,
 			.spacing = FM_RX_SPACE_50KHZ,
 			.rds_system = FM_RX_RDS_SYSTEM,
 			.bandlimits = {
@@ -110,12 +114,12 @@ srv_response api_fetch(char* request) {
 			}
 		};
 
-		res->code = EnableReceiver(&cfg_data);
+		res->code = fm_receiver_enable(&cfg_data);
 		res->data = RSP_OK;
 
 		SetMuteModeReceiver(FM_RX_NO_MUTE);
 	} else if (str_equals(cmd, MK_DISABLE)) {
-		res->code = DisableReceiver();
+		res->code = fm_receiver_disable();
 		res->data = RSP_OK;
 	} else if (str_equals(ar[0], MK_SET_FREQUENCY)) {
 		if (ar[1] == NULL) {
@@ -124,7 +128,7 @@ srv_response api_fetch(char* request) {
 			goto __ret;
 		}
 		uint32 freq = atoi(ar[1]); // NOLINT(cert-err34-c)
-		fm_cmd_status_type ret = SetFrequencyReceiver(freq);
+		fm_cmd_status_type ret = fm_receiver_frequency_set(freq);
 		res->code = ret;
 		res->data = RSP_OK;
 	} else if (str_equals(ar[0], MK_HW_SEEK)) {
@@ -142,13 +146,13 @@ srv_response api_fetch(char* request) {
 	} else if (str_equals(ar[0], MK_JUMP)) {
 		uint32 direction = str_equals(ar[1], "1") ? 100 : -100;
 
-		res->code = JumpToFrequencyReceiver(direction);
+		res->code = fm_receiver_jump_by_delta_frequency(direction);
 		res->data = RSP_OK;
 	} else if (str_equals(cmd, MK_SET_STEREO)) {
 		res->code = SetStereoModeReceiver(FM_RX_STEREO);
 
 		fm_station_params_available config;
-		fm_cmd_status_type ret = GetStationParametersReceiver(&config);
+		fm_cmd_status_type ret = fm_receiver_current_parameters_get(&config);
 
 		if (ret == FM_CMD_FAILURE) {
 			res->code = CD_ERR;

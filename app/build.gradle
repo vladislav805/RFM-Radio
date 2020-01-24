@@ -1,82 +1,78 @@
 apply plugin: 'com.android.application'
 
 def versionMajor = 0
-def versionMinor = 3
+def versionMinor = 4
 def versionPatch = 0
 
 android {
-	compileSdkVersion 28
+    compileSdkVersion 28
 
-	defaultConfig {
-		//noinspection GroovyAssignabilityCheck
-		applicationId "com.vlad805.fmradio"
-		minSdkVersion 21
-		//noinspection ExpiredTargetSdkVersion
-		targetSdkVersion 22
-		//noinspection GroovyAssignabilityCheck
-		versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
-		//noinspection GroovyAssignabilityCheck
-		versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+    defaultConfig {
+        //noinspection GroovyAssignabilityCheck
+        applicationId "com.vlad805.fmradio"
+        minSdkVersion 21
+        //noinspection ExpiredTargetSdkVersion
+        targetSdkVersion 22
+        //noinspection GroovyAssignabilityCheck
+        versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
+        //noinspection GroovyAssignabilityCheck
+        versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+    }
 
-		javaCompileOptions {
-			annotationProcessorOptions {
-				arguments = [
-						"room.schemaLocation": "$projectDir/schemas".toString(),
-						"room.incremental": "true"
-				]
-			}
-		}
+    buildTypes {
+        release {
+            //noinspection GroovyAssignabilityCheck
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
 
-	}
+    //noinspection GroovyMissingReturnStatement
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 
-	buildTypes {
-		release {
-			//noinspection GroovyAssignabilityCheck
-			minifyEnabled true
-			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-		}
-	}
+    productFlavors {
+    }
 
-	//noinspection GroovyMissingReturnStatement
-	compileOptions {
-		sourceCompatibility JavaVersion.VERSION_1_8
-		targetCompatibility JavaVersion.VERSION_1_8
-	}
+    //noinspection GroovyMissingReturnStatement
+    lintOptions {
+        checkReleaseBuilds false
+        // Or, if you prefer, you can continue to check for errors in release builds,
+        // but continue the build even when errors are found:
+        abortOnError false
+    }
 
-	productFlavors {
-	}
-
-	//noinspection GroovyMissingReturnStatement
-	lintOptions {
-		checkReleaseBuilds false
-		// Or, if you prefer, you can continue to check for errors in release builds,
-		// but continue the build even when errors are found:
-		abortOnError false
-	}
-
-	// If you use each() to iterate through the variant objects,
+    // If you use each() to iterate through the variant objects,
 // you need to start using all(). That's because each() iterates
 // through only the objects that already exist during configuration time—
 // but those object don't exist at configuration time with the new model.
 // However, all() adapts to the new model by picking up object as they are
 // added during execution.
-	applicationVariants.all { variant ->
-		variant.outputs.all {
-			outputFileName = "${defaultConfig.applicationId}-${variant.versionName}.apk"
-		}
-	}
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "${defaultConfig.applicationId}-${variant.versionName}.apk"
+        }
+    }
 
 }
 
+configurations.all {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+        def requested = details.requested
+        if (requested.group == "com.android.support") {
+            if (!requested.name.startsWith("multidex")) {
+                details.useVersion "26.+"
+            }
+        }
+    }
+}
+
 dependencies {
-	def room_version = "2.2.0-alpha01" // 2.1.0 for latest stable version
-
-	implementation fileTree(include: ['*.jar'], dir: 'libs')
-	implementation "androidx.core:core:1.2.0-alpha02"
-	implementation "androidx.constraintlayout:constraintlayout:1.1.3"
-	implementation "androidx.recyclerview:recyclerview:1.1.0-beta01"
-	implementation "androidx.annotation:annotation:1.1.0"
-
-	implementation "androidx.room:room-runtime:$room_version"
-	annotationProcessor "androidx.room:room-compiler:$room_version"
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.core:core:1.2.0-rc01"
+    implementation "androidx.constraintlayout:constraintlayout:1.1.3"
+    implementation "androidx.recyclerview:recyclerview:1.2.0-alpha01"
+    implementation "androidx.annotation:annotation:1.1.0"
 }
