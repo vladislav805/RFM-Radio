@@ -20,7 +20,7 @@
 			android:layout_marginBottom="24dp"
 			android:layout_marginTop="16dp"/>
 
-	<com.vlad805.fmradio.view.FavoritesListView
+	<com.vlad805.fmradio.view.FavoritesPanelView
 			android:orientation="horizontal"
 			android:id="@+id/favorite_list"
 			android:layout_width="0dp"

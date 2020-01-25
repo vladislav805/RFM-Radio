@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * vlad805 (c) 2020
  */
-public class FavoritesListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int MAX_COUNT = 20;
 
 	private LayoutInflater mInflater;
@@ -29,7 +29,7 @@ public class FavoritesListAdapter extends RecyclerView.Adapter<RecyclerView.View
 			"+"
 	};
 
-	public FavoritesListAdapter(Context context) {
+	public FavoritePanelAdapter(Context context) {
 		mInflater = LayoutInflater.from(context);
 	}
 

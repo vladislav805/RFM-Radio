@@ -22,14 +22,14 @@ import com.vlad805.fmradio.fm.FMState;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
-import com.vlad805.fmradio.view.FavoritesListView;
+import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
 
-public class MainActivity extends Activity implements View.OnClickListener, FavoritesListView.OnFavoriteClick {
+public class MainActivity extends Activity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
 	private RadioUIView mFrequencyInfo;
-	private FavoritesListView mFavoriteList;
+	private FavoritesPanelView mFavoriteList;
 
 	private RadioController mRadioController;
 	private RadioEventReceiver mRadioEventReceiver;
