@@ -48,7 +48,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME)).show();
+		mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
+		mProgress.show();
 		mToast = Toast.create(this);
 
 		initUserInterface();
