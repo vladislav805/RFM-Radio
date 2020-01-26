@@ -59,6 +59,8 @@ final public class C {
 		public static final String STATION_LIST = "station_list";
 		public static final String AUDIO_SERVICE = "audio_service";
 		public static final String TUNER_DRIVER = "tuner_driver";
+		public static final String AUDIO_SOURCE = "audio_source";
+		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String MESSAGE = "message";
 	}
 

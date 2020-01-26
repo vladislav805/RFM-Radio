@@ -12,7 +12,7 @@ import static com.vlad805.fmradio.Utils.sleep;
  * vlad805 (c) 2019
  */
 @SuppressWarnings("deprecation")
-public class LegacyAudioService extends FMAudioService {
+public class Spirit3AudioService extends FMAudioService {
 
 	private static final int mBufferSizeInBytes = 4096;
 
@@ -24,7 +24,7 @@ public class LegacyAudioService extends FMAudioService {
 	private boolean pcm_write_thread_active = false;
 	private boolean pcm_read_thread_active = false;
 
-	public LegacyAudioService(Context context) {
+	public Spirit3AudioService(Context context) {
 		super(context);
 	}
 
@@ -261,7 +261,7 @@ public class LegacyAudioService extends FMAudioService {
 
 		aud_buf_tail++;
 
-		if (aud_buf_tail < 0 || aud_buf_tail > aud_buf_num - 1) {
+		if (aud_buf_tail > aud_buf_num - 1) {
 			aud_buf_tail &= aud_buf_num - 1;
 		}
 

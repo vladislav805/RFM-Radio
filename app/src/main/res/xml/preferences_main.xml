@@ -1,5 +1,5 @@
 <PreferenceScreen
-		xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+		xmlns:android="http://schemas.android.com/apk/res/android">
 	<PreferenceCategory
 			android:key="tuner"
 			android:title="@string/pref_header_tuner">
@@ -31,9 +31,12 @@
 	<PreferenceCategory
 			android:key="audio"
 			android:title="@string/pref_header_audio">
-		<EditTextPreference
+		<ListPreference
+				android:key="audio_service"
+				android:defaultValue="0"
+				android:title="@string/pref_audio_service"/>
+		<ListPreference
 				android:key="audio_source"
-				android:defaultValue="1998"
 				android:title="@string/pref_audio_source"
 				android:icon="@drawable/ic_audio_source"/>
 	</PreferenceCategory>

@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
@@ -94,6 +95,7 @@ public class FMService extends Service implements FMEventCallback {
 		mRadioController = RadioController.getInstance(this);
 		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mStatusReceiver = new PlayerReceiver();
+<<<<<<< HEAD
 		mAudioService = new LightAudioService(this); // TODO createAudioService();
 		mFmController = new QualCommLegacy(new QualCommLegacy.Config()); // TODO createFmService();
 
@@ -105,6 +107,11 @@ public class FMService extends Service implements FMEventCallback {
 		if (mFmController instanceof IFMEventListener) {
 			((IFMEventListener) mFmController).setEventListener(this);
 		}
+=======
+		mAudioService = createAudioService();
+		mFmController = new Spirit3Impl(new Spirit3Impl.Config());
+		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+>>>>>>> Add audio service and audio source to preferences, rename LegacyAudioService to Spirit3AudioService
 
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(C.Event.BINARY_READY);
@@ -233,20 +240,16 @@ public class FMService extends Service implements FMEventCallback {
 		return mDatabase.stationDao().getAll();
 	}*/
 
-	/**
-	 * Returns preferred audio service
-	 * @return Audio service
-	 */
-	private FMAudioService getPreferredAudioService() {
-		final int id = getStorage(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
+	private FMAudioService createAudioService() {
+		final int id = Storage.getPrefs(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
 			case FMAudioService.SERVICE_LIGHT:
 				return new LightAudioService(this);
 
-			case FMAudioService.SERVICE_LEGACY:
+			case FMAudioService.SERVICE_SPIRIT3:
 			default:
-				return new LegacyAudioService(this);
+				return new Spirit3AudioService(this);
 		}
 	}
 

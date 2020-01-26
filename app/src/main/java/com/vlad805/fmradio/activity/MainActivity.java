@@ -1,10 +1,7 @@
 package com.vlad805.fmradio.activity;
 
 import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.*;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.Menu;
@@ -14,9 +11,9 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
-import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.fm.FMState;
@@ -43,6 +40,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 	private Menu mMenu;
 
+	private SharedPreferences mPrefs;
+
 	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
 
 	@Override
@@ -50,8 +49,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
-		mProgress.show();
+		mPrefs = Storage.getPrefs(this);
 		mToast = Toast.create(this);
 
 		initUserInterface();
@@ -86,7 +84,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		mRadioController = RadioController.getInstance(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
-		//mRadioController.setup();
+		/*if (mPrefs.getBoolean(C.Key.APP_AUTO_STARTUP, false)) {
+			mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
+			mProgress.show();
+			mRadioController.setup();
+		}*/
 
 		mFrequencyInfo.setRadioController(mRadioController);
 	}
