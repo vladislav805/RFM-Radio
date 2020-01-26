@@ -60,5 +60,9 @@
 	<string name="pref_info_link_github">GitHub repository</string>
 	<string name="pref_info_author_vv_title">@string/about_author</string>
 	<string name="pref_info_author_vv_sub">Developer</string>
+	<string name="pref_info_link_telegram">Telegram channel</string>
+	<string name="pref_tuner_driver">Tuner driver</string>
+	<string name="pref_tuner_antenna_message">By default it is \'0\'.\nOn some Sony devices it is \'1\'.</string>
+	<string name="pref_tuner_audio_source_message">0 - default\n1998 - \'new\' FM source</string>
 
 </resources>

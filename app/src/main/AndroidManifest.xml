@@ -18,10 +18,6 @@
 			android:theme="@style/AppTheme"
 			tools:ignore="GoogleAppIndexingWarning">
 		<activity
-				android:name=".activity.SettingsActivity"
-				android:label="@string/title_activity_settings">
-		</activity>
-		<activity
 				android:name=".activity.MainActivity"
 				android:label="@string/title_activity_design"
 				android:screenOrientation="portrait">
@@ -31,6 +27,10 @@
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>
+		<activity
+				android:name=".activity.SettingsActivity"
+				android:label="@string/title_activity_settings"
+				android:theme="@style/Theme.AppCompat"/>
 		<activity android:name=".activity.FavoritesListsActivity"/>
 		<activity android:name=".activity.AboutActivity"/>
 

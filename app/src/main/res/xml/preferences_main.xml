@@ -1,60 +1,85 @@
 <PreferenceScreen
-		xmlns:android="http://schemas.android.com/apk/res/android">
-	<PreferenceScreen
+		xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+	<PreferenceCategory
 			android:key="tuner"
 			android:title="@string/pref_header_tuner">
-		<SwitchPreference
+		<SwitchPreferenceCompat
 				android:key="tuner_step"
+				android:defaultValue="false"
 				android:title="@string/pref_tuner_step"
 				android:summaryOn="@string/pref_tuner_step_100kHz"
-				android:summaryOff="@string/pref_tuner_step_50kHz"/>
-		<SwitchPreference
+				android:summaryOff="@string/pref_tuner_step_50kHz"
+				android:icon="@drawable/ic_step_freq"/>
+		<SwitchPreferenceCompat
 				android:key="tuner_rds"
+				android:defaultValue="true"
 				android:title="@string/pref_tuner_rds_enable"
 				android:summaryOn="@string/pref_tuner_rds_enabled"
-				android:summaryOff="@string/pref_tuner_rds_disabled"/>
-	</PreferenceScreen>
-	<PreferenceScreen
+				android:summaryOff="@string/pref_tuner_rds_disabled"
+				android:icon="@drawable/ic_rds"/>
+		<ListPreference
+				android:key="tuner_driver"
+				android:defaultValue="0"
+				android:title="@string/pref_tuner_driver"
+				android:icon="@drawable/ic_tuner_driver"/>
+		<EditTextPreference
+				android:key="tuner_antenna"
+				android:defaultValue="0"
+				android:title="Antenna"
+				android:icon="@drawable/ic_antenna"/>
+	</PreferenceCategory>
+	<PreferenceCategory
 			android:key="audio"
 			android:title="@string/pref_header_audio">
 		<EditTextPreference
 				android:key="audio_source"
+				android:defaultValue="1998"
 				android:title="@string/pref_audio_source"
-				android:summary="0 - default; 1998 - 'new' FM source"
-				android:defaultValue="1998"/>
-	</PreferenceScreen>
-	<PreferenceScreen
+				android:icon="@drawable/ic_audio_source"/>
+	</PreferenceCategory>
+	<PreferenceCategory
 			android:key="app"
 			android:title="@string/pref_header_app">
-		<SwitchPreference
+		<SwitchPreferenceCompat
 				android:key="app_auto_startup"
-				android:title="@string/pref_app_auto_startup"
+				android:defaultValue="true"
 				android:summaryOn="@string/pref_app_auto_startup_enabled"
-				android:summaryOff="@string/pref_auto_startup_disabled"/>
-	</PreferenceScreen>
-	<PreferenceScreen
+				android:summaryOff="@string/pref_auto_startup_disabled"
+				android:title="@string/pref_app_auto_startup"
+				android:icon="@drawable/ic_autostart"/>
+	</PreferenceCategory>
+	<PreferenceCategory
 			android:key="info"
 			android:title="@string/pref_header_info">
-		<PreferenceCategory
-				android:key="info_links"
-				android:title="@string/pref_header_info_links">
-			<Preference
-					android:id="@+id/pref_info_link_4pda"
-					android:key="info_links_4pda"
-					android:title="@string/pref_info_link_4pda" />
-			<Preference
-					android:id="@+id/pref_info_link_github"
-					android:key="info_links_github"
-					android:title="@string/pref_info_link_github" />
-		</PreferenceCategory>
-		<PreferenceCategory
-				android:key="info_author"
-				android:title="@string/pref_header_info_authors">
-			<Preference
-					android:id="@+id/pref_info_author_vv"
-					android:key="pref_info_author_vv"
-					android:title="@string/pref_info_author_vv_title"
-					android:summary="@string/pref_info_author_vv_sub"/>
-		</PreferenceCategory>
-	</PreferenceScreen>
+		<Preference
+				android:id="@+id/pref_info_link_4pda"
+				android:key="info_links_4pda"
+				android:title="@string/pref_info_link_4pda"
+				android:icon="@drawable/ic_4pda_logo">
+			<intent
+					android:action="android.intent.action.VIEW"
+					android:data="http://4pda.ru/forum/index.php?showtopic=543819&amp;st=570#entry76841416" />
+		</Preference>
+		<Preference
+				android:key="info_links_github"
+				android:title="@string/pref_info_link_github"
+				android:icon="@drawable/ic_github">
+			<intent
+					android:action="android.intent.action.VIEW"
+					android:data="https://www.github.com/vladislav805/RFM-Radio" />
+		</Preference>
+		<Preference
+				android:key="info_links_telegram"
+				android:title="@string/pref_info_link_telegram"
+				android:icon="@drawable/ic_telegram">
+			<intent
+					android:action="android.intent.action.VIEW"
+					android:data="https://t.me/RFMRadioApp" />
+		</Preference>
+		<Preference
+				android:id="@+id/pref_info_author_vv"
+				android:key="pref_info_author_vv"
+				android:title="@string/pref_info_author_vv_title"
+				android:summary="@string/pref_info_author_vv_sub"/>
+	</PreferenceCategory>
 </PreferenceScreen>
