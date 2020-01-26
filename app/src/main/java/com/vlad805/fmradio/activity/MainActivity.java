@@ -11,6 +11,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
+import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -84,10 +85,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		mRadioController = RadioController.getInstance(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
+		mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
 		/*if (mPrefs.getBoolean(C.Key.APP_AUTO_STARTUP, false)) {
-			mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
 			mProgress.show();
-			mRadioController.setup();
 		}*/
 
 		mFrequencyInfo.setRadioController(mRadioController);

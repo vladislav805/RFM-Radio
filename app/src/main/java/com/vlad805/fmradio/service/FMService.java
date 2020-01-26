@@ -241,7 +241,7 @@ public class FMService extends Service implements FMEventCallback {
 	}*/
 
 	private FMAudioService createAudioService() {
-		final int id = Storage.getPrefs(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
+		final int id = Integer.parseInt(Storage.getPrefs(this).getString(C.Key.AUDIO_SERVICE, "" + C.PrefDefaultValue.AUDIO_SERVICE));
 
 		switch (id) {
 			case FMAudioService.SERVICE_LIGHT:

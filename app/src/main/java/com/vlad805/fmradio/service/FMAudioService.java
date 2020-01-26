@@ -23,7 +23,7 @@ public abstract class FMAudioService {
 
 	public FMAudioService(Context context) {
 		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-		mAudioSource = Storage.getPrefs(context).getInt(C.Key.AUDIO_SOURCE, mAudioSource);
+		mAudioSource = Integer.parseInt(Storage.getPrefs(context).getString(C.Key.AUDIO_SOURCE, "" + mAudioSource));
 	}
 
 	/**
