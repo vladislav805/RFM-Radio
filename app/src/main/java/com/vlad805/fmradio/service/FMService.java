@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
@@ -16,10 +17,13 @@ import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.fm.IFMController;
-import com.vlad805.fmradio.fm.LaunchConfig;
+import com.vlad805.fmradio.fm.IFMEventPoller;
 import com.vlad805.fmradio.fm.impl.Spirit3Impl;
 
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static com.vlad805.fmradio.Utils.getStorage;
 
@@ -31,6 +35,8 @@ public class FMService extends Service {
 	private FMAudioService mAudioService;
 	private NotificationManager mNotificationMgr;
 	private PlayerReceiver mStatusReceiver;
+
+	private Timer mTimer;
 
 	public class PlayerReceiver extends BroadcastReceiver {
 
@@ -79,27 +85,20 @@ public class FMService extends Service {
 		}
 	}
 
-	static class Config extends LaunchConfig {
-		@Override
-		public int getClientPort() {
-			return 2112;
-		}
-
-		@Override
-		public int getServerPort() {
-			return 2113;
-		}
-	}
-
 	@Override
 	public void onCreate() {
 		super.onCreate();
 
 		mRadioController = RadioController.getInstance(this);
+		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mStatusReceiver = new PlayerReceiver();
 		mAudioService = new LightAudioService(this); // TODO createAudioService();
-		mFmController = new Spirit3Impl(new Spirit3Impl.Config());
-		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+		mFmController = new Spirit3Impl(new Spirit3Impl.Config()); // TODO createFmService();
+
+		if (mFmController instanceof IFMEventPoller) {
+			mTimer = new Timer("Poll", true);
+			mTimer.schedule(new PollTunerHandler(), 2000, 1000);
+		}
 
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(C.Event.BINARY_READY);
@@ -199,6 +198,11 @@ public class FMService extends Service {
 	}
 
 	private void kill() {
+		if (mFmController instanceof IFMEventPoller) {
+			if (mTimer != null) {
+				mTimer.cancel();
+			}
+		}
 		mAudioService.stopAudio();
 		mFmController.disable();
 		mFmController.kill();
@@ -267,6 +271,7 @@ public class FMService extends Service {
 				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", intent.getIntExtra(C.Key.FREQUENCY, 0) / 1000d));
 
 		Notification ntf = mNotification.build();
+		startForeground(NOTIFICATION_ID, ntf);
 		mNotificationMgr.notify(NOTIFICATION_ID, ntf);
 	}
 
@@ -274,6 +279,43 @@ public class FMService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
+	}
+
+	private class PollTunerHandler extends TimerTask {
+		private Bundle last;
+
+		public void run() {
+			if (mFmController instanceof IFMEventPoller) {
+				Bundle bundle = ((IFMEventPoller) mFmController).poll();
+
+				if (last == null) {
+					last = bundle;
+					return;
+				}
+
+				sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
+				sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
+				sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
+
+				last = bundle;
+			}
+		}
+
+		private void sendIntEventIfExistsAndDiff(Bundle now, String key, String action) {
+			if (last.containsKey(key) && now.containsKey(key) && last.getInt(key) != now.getInt(key)) {
+				sendBroadcast(new Intent(action).putExtra(key, now.getInt(key)));
+			}
+		}
+
+		private void sendStringEventIfExistsAndDiff(Bundle now, String key, String action) {
+			if (
+					last.containsKey(key) && now.containsKey(key) &&
+					!Objects.equals(last.getString(key), now.get(key))
+			) {
+				Intent i = new Intent(action).putExtra(key, now.getString(key));
+				sendBroadcast(i);
+			}
+		}
 	}
 
 }

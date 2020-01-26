@@ -1,13 +1,12 @@
 package com.vlad805.fmradio.fm.impl;
 
 import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.fm.IFMController;
-import com.vlad805.fmradio.fm.IRdsStruct;
+import com.vlad805.fmradio.fm.IFMEventListener;
 import com.vlad805.fmradio.fm.LaunchConfig;
 import com.vlad805.fmradio.service.FMEventListenerServer;
 
@@ -22,7 +21,19 @@ import java.util.Queue;
 /**
  * vlad805 (c) 2020
  */
-public class QualCommLegacy extends IFMController {
+public class QualCommLegacy extends IFMController implements IFMEventListener {
+
+	public class Config extends LaunchConfig {
+		@Override
+		public int getClientPort() {
+			return 2112;
+		}
+
+		@Override
+		public int getServerPort() {
+			return 2113;
+		}
+	}
 
 	private FMEventListenerServer mServer;
 
@@ -145,17 +156,6 @@ public class QualCommLegacy extends IFMController {
 	@Override
 	public void search() {
 
-	}
-
-	@Override
-	public Intent poll() {
-
-		return null;
-	}
-
-	@Override
-	public IRdsStruct getRds() {
-		return null;
 	}
 
 	interface OnReceivedResponse {

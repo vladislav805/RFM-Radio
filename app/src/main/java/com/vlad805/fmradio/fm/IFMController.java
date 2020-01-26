@@ -110,13 +110,6 @@ public abstract class IFMController {
 	 */
 	public abstract void search();
 
-	/**
-	 * Returns RDS info
-	 * @return RDS info
-	 */
-	public abstract IRdsStruct getRds();
-
-	public abstract Intent poll();
 
 	public void fireEvent(Context context, String event, Intent intent) {
 		context.startService(intent.setAction(event).setClass(context, FMService.class));
