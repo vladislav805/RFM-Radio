@@ -12,20 +12,20 @@ import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.models.FavoriteStation;
-import com.vlad805.fmradio.view.adapter.FavoritesListAdapter;
+import com.vlad805.fmradio.view.adapter.FavoritePanelAdapter;
 
 import java.util.List;
 
 /**
  * vlad805 (c) 2019
  */
-public class FavoritesListView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
+public class FavoritesPanelView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
 	public static final int MENU_REMOVE = 100;
 	public static final int MENU_RENAME = 101;
 	public static final int MENU_REPLACE = 103;
 
 	protected List<FavoriteStation> mStations;
-	private FavoritesListAdapter mAdapter;
+	private FavoritePanelAdapter mAdapter;
 	private OnFavoriteClick mClickListener;
 	private FavoriteController mController;
 
@@ -34,13 +34,13 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		int getCurrentFrequencyForAddFavorite();
 	}
 
-	public FavoritesListView(Context context) {
+	public FavoritesPanelView(Context context) {
 		super(context);
 
 		init();
 	}
 
-	public FavoritesListView(Context context, AttributeSet attrs) {
+	public FavoritesPanelView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 
 		init();
@@ -69,7 +69,7 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 		LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
 		setLayoutManager(horizontalLayoutManager);
 
-		mAdapter = new FavoritesListAdapter(getContext());
+		mAdapter = new FavoritePanelAdapter(getContext());
 		setAdapter(mAdapter);
 
 		addOnItemTouchListener(new RecyclerItemClickListener(getContext(), this, this));
@@ -160,6 +160,6 @@ public class FavoritesListView extends RecyclerView implements RecyclerItemClick
 	 * @param listener Listener
 	 */
 	public void setOnFavoriteClick(OnFavoriteClick listener) {
-		this.mClickListener = listener;
+		mClickListener = listener;
 	}
 }

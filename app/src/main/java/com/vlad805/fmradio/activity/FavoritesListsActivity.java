@@ -6,22 +6,29 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.view.*;
-import android.widget.*;
-import androidx.annotation.NonNull;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.Spinner;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
+import com.vlad805.fmradio.view.OnDragListener;
+import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
+import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
 
 import java.io.FileNotFoundException;
 import java.util.List;
 
-public class FavoritesListsActivity extends Activity implements AdapterView.OnItemSelectedListener {
+public class FavoritesListsActivity extends Activity implements AdapterView.OnItemSelectedListener, OnDragListener {
 	private Menu mMenu;
 	private String mCurrentNameList;
 
@@ -29,9 +36,10 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 	private Spinner mSpinner;
 	private List<String> mFavoriteListNames;
 
-	private RecyclerView mRecycler;
 	private FavoriteAdapter mAdapter;
 	private List<FavoriteStation> mStationsList;
+
+	private ItemTouchHelper mItemTouchHelper;
 
 	private Toast mToast;
 
@@ -66,7 +74,7 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 
 		mFavoriteListNames = mController.getFavoriteLists();
 
-		mRecycler = findViewById(R.id.favorite_list_content);
+		RecyclerView mRecycler = findViewById(R.id.favorite_list_content);
 		mRecycler.addOnItemTouchListener(new RecyclerItemClickListener(this, mRecycler, new RecyclerItemClickListener.OnItemClickListener() {
 			@Override
 			public void onItemClick(View view, int position) {
@@ -79,14 +87,28 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 			}
 		}));
 
-		mAdapter = new FavoriteAdapter(mStationsList);
+		mAdapter = new FavoriteAdapter(mStationsList, this);
 		mRecycler.setAdapter(mAdapter);
 
 		reloadLists();
 		reloadContent();
 
+		ItemTouchHelper.Callback callback = new SimpleItemTouchHelperCallback(mAdapter);
+		mItemTouchHelper = new ItemTouchHelper(callback);
+		mItemTouchHelper.attachToRecyclerView(mRecycler);
+
 		// Listen this only after setSelection
 		mSpinner.setOnItemSelectedListener(this);
+	}
+
+	@Override
+	public void onStartDrag(RecyclerView.ViewHolder viewHolder) {
+		mItemTouchHelper.startDrag(viewHolder);
+	}
+
+	@Override
+	public void onEndDrag() {
+		mController.save();
 	}
 
 	/**
@@ -224,54 +246,6 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 				.setNegativeButton(android.R.string.no, (dlg, buttonId) -> {})
 				.setIcon(android.R.drawable.ic_dialog_alert);
 		dialog.create().show();
-	}
-
-	static class FavoriteHolder extends RecyclerView.ViewHolder {
-
-		private TextView mFrequency;
-		private TextView mTitle;
-
-		public FavoriteHolder(View v) {
-			super(v);
-			mFrequency = v.findViewById(R.id.station_item_frequency);
-			mTitle = v.findViewById(R.id.station_item_title);
-		}
-
-		public void set(FavoriteStation s) {
-			mFrequency.setText(Utils.getMHz(s.getFrequency()).trim());
-			mTitle.setText(s.getTitle());
-		}
-	}
-
-	static class FavoriteAdapter extends RecyclerView.Adapter<FavoriteHolder> {
-
-		private List<FavoriteStation> mDataset;
-
-		public FavoriteAdapter(List<FavoriteStation> dataset) {
-			setDataset(dataset);
-		}
-
-		public void setDataset(List<FavoriteStation> dataset) {
-			mDataset = dataset;
-		}
-
-		@Override
-		@NonNull
-		public FavoriteHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-			View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.station_list_item, parent, false);
-
-			return new FavoriteHolder(v);
-		}
-
-		@Override
-		public void onBindViewHolder(FavoriteHolder holder, int position) {
-			holder.set(mDataset.get(position));
-		}
-
-		@Override
-		public int getItemCount() {
-			return mDataset.size();
-		}
 	}
 
 	@Override
