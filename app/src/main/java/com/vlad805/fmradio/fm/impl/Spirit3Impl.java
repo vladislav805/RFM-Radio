@@ -7,7 +7,7 @@ import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.IFMController;
+import com.vlad805.fmradio.fm.FMController;
 import com.vlad805.fmradio.fm.IFMEventPoller;
 import com.vlad805.fmradio.fm.LaunchConfig;
 
@@ -23,7 +23,7 @@ import java.util.Queue;
 /**
  * vlad805 (c) 2020
  */
-public class Spirit3Impl extends IFMController implements IFMEventPoller {
+public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	public static class Config extends LaunchConfig {
 		@Override

@@ -16,8 +16,9 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
-import com.vlad805.fmradio.fm.IFMController;
+import com.vlad805.fmradio.fm.FMController;
 import com.vlad805.fmradio.fm.IFMEventPoller;
+import com.vlad805.fmradio.fm.impl.QualCommLegacy;
 import com.vlad805.fmradio.fm.impl.Spirit3Impl;
 
 import java.util.Locale;
@@ -31,7 +32,7 @@ import static com.vlad805.fmradio.Utils.getStorage;
 public class FMService extends Service {
 
 	private RadioController mRadioController;
-	private IFMController mFmController;
+	private FMController mFmController;
 	private FMAudioService mAudioService;
 	private NotificationManager mNotificationMgr;
 	private PlayerReceiver mStatusReceiver;
@@ -97,7 +98,7 @@ public class FMService extends Service {
 
 		if (mFmController instanceof IFMEventPoller) {
 			mTimer = new Timer("Poll", true);
-			mTimer.schedule(new PollTunerHandler(), 2000, 1000);
+			mTimer.schedule(new PollTunerHandler(), C.Config.Polling.DELAY, C.Config.Polling.INTERVAL);
 		}
 
 		IntentFilter filter = new IntentFilter();
@@ -227,7 +228,11 @@ public class FMService extends Service {
 		return mDatabase.stationDao().getAll();
 	}*/
 
-	private FMAudioService createAudioService() {
+	/**
+	 * Returns preferred audio service
+	 * @return Audio service
+	 */
+	private FMAudioService getPreferredAudioService() {
 		final int id = getStorage(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
@@ -237,6 +242,23 @@ public class FMService extends Service {
 			case FMAudioService.SERVICE_LEGACY:
 			default:
 				return new LegacyAudioService(this);
+		}
+	}
+
+	/**
+	 * Returns preferred tuner driver
+	 * @return Tuner driver
+	 */
+	private FMController getPreferredTunerDriver() {
+		final int id = getStorage(this).getInt(C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+
+		switch (id) {
+			case FMController.DRIVER_NEW:
+				return new QualCommLegacy(new QualCommLegacy.Config());
+
+			case FMController.DRIVER_SPIRIT3:
+			default:
+				return new Spirit3Impl(new Spirit3Impl.Config());
 		}
 	}
 

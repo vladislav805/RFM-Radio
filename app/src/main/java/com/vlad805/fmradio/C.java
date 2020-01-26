@@ -1,5 +1,8 @@
 package com.vlad805.fmradio;
 
+import com.vlad805.fmradio.fm.FMController;
+import com.vlad805.fmradio.service.FMAudioService;
+
 /**
  * vlad805 (c) 2019
  */
@@ -55,6 +58,7 @@ final public class C {
 
 		public static final String STATION_LIST = "station_list";
 		public static final String AUDIO_SERVICE = "audio_service";
+		public static final String TUNER_DRIVER = "tuner_driver";
 		public static final String MESSAGE = "message";
 	}
 
@@ -69,7 +73,8 @@ final public class C {
 		public static final boolean RDS_ENABLE = true;
 		public static final boolean AUTOPLAY = false;
 
-		public static final int AUDIO_SERVICE = 0;
+		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LEGACY;
+		public static final int TUNER_DRIVER = FMController.DRIVER_NEW;
 	}
 
 	private C() {}
@@ -78,4 +83,10 @@ final public class C {
 	/** @deprecated */ public static final String FM_SET_STEREO = "fm_setstereo";
 	/** @deprecated */ public static final String FM_SET_MUTE = "fm_setmute";
 
+	public static final class Config {
+		public static final class Polling {
+			public static final int DELAY = 3000;
+			public static final int INTERVAL = 1000;
+		}
+	}
 }

@@ -10,11 +10,13 @@ import com.vlad805.fmradio.service.FMService;
 /**
  * vlad805 (c) 2020
  */
-public abstract class IFMController {
+public abstract class FMController {
+	public static final int DRIVER_NEW = 0;
+	public static final int DRIVER_SPIRIT3 = 1;
 
 	protected final LaunchConfig config;
 
-	public IFMController(LaunchConfig config) {
+	public FMController(LaunchConfig config) {
 		this.config = config;
 	}
 

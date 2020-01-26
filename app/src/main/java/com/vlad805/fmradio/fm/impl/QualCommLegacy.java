@@ -5,7 +5,7 @@ import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.IFMController;
+import com.vlad805.fmradio.fm.FMController;
 import com.vlad805.fmradio.fm.IFMEventListener;
 import com.vlad805.fmradio.fm.LaunchConfig;
 import com.vlad805.fmradio.service.FMEventListenerServer;
@@ -21,9 +21,9 @@ import java.util.Queue;
 /**
  * vlad805 (c) 2020
  */
-public class QualCommLegacy extends IFMController implements IFMEventListener {
+public class QualCommLegacy extends FMController implements IFMEventListener {
 
-	public class Config extends LaunchConfig {
+	public static class Config extends LaunchConfig {
 		@Override
 		public int getClientPort() {
 			return 2112;
@@ -115,6 +115,7 @@ public class QualCommLegacy extends IFMController implements IFMEventListener {
 	public void kill() {
 		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
+		mServer.closeServer();
 	}
 
 	@Override
