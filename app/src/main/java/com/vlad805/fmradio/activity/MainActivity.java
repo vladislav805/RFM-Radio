@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import androidx.annotation.IdRes;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -37,6 +38,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	private ImageButton mCtlToggle;
 
 	private TextView mViewRssi;
+	private ImageView mViewRssiIcon;
 	private ImageView mViewStereoMode;
 
 	private Menu mMenu;
@@ -150,6 +152,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	private void initClickableButtons() {
 		mCtlToggle = findViewById(R.id.ctl_toggle);
 		mViewRssi = findViewById(R.id.rssi_value);
+		mViewRssiIcon = findViewById(R.id.rssi_icon);
 		mViewStereoMode = findViewById(R.id.stereo_mono);
 
 		int[] ids = {
@@ -262,7 +265,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 				mFrequencyInfo.setRdsPs("");
 				mFrequencyInfo.setRdsRt("");
-				mViewRssi.setText("…");
+				mViewRssi.setText("……");
 				break;
 
 			case C.Event.UPDATE_PS:
@@ -275,15 +278,43 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				mFrequencyInfo.setRdsRt(rt);
 				break;
 
-			case C.Event.UPDATE_RSSI:
-				mViewRssi.setText(String.valueOf(intent.getIntExtra(C.Key.RSSI, -1)));
+			case C.Event.UPDATE_RSSI: {
+				int rssi = intent.getIntExtra(C.Key.RSSI, -1);
+				mViewRssi.setText(String.format("%02d", rssi));
+				setRssiIcon(rssi);
 				break;
+			}
 
 			case C.Event.UPDATE_STEREO:
 				boolean isStereo = intent.getBooleanExtra(C.Key.STEREO_MODE, false);
 				mViewStereoMode.setImageResource(isStereo ? R.drawable.ic_stereo : R.drawable.ic_mono);
 				break;
 
+		}
+	}
+
+	private static final @IdRes	int[] SIGNAL_RES_ID = {
+			R.drawable.ic_signal_4,
+			R.drawable.ic_signal_3,
+			R.drawable.ic_signal_2,
+			R.drawable.ic_signal_1,
+			R.drawable.ic_signal_0
+	};
+
+	private static final int[] SIGNAL_THRESHOLD = {
+			60,
+			50,
+			40,
+			30,
+			20
+	};
+
+	private void setRssiIcon(final int rssi) {
+		for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
+			if (rssi > SIGNAL_THRESHOLD[i]) {
+				mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
+				break;
+			}
 		}
 	}
 
