@@ -10,11 +10,13 @@ import com.vlad805.fmradio.service.FMService;
 /**
  * vlad805 (c) 2020
  */
-public abstract class IFMController {
+public abstract class FMController {
+	public static final int DRIVER_NEW = 0;
+	public static final int DRIVER_SPIRIT3 = 1;
 
 	protected final LaunchConfig config;
 
-	public IFMController(LaunchConfig config) {
+	public FMController(LaunchConfig config) {
 		this.config = config;
 	}
 
@@ -110,13 +112,6 @@ public abstract class IFMController {
 	 */
 	public abstract void search();
 
-	/**
-	 * Returns RDS info
-	 * @return RDS info
-	 */
-	public abstract IRdsStruct getRds();
-
-	public abstract Intent poll();
 
 	public void fireEvent(Context context, String event, Intent intent) {
 		context.startService(intent.setAction(event).setClass(context, FMService.class));

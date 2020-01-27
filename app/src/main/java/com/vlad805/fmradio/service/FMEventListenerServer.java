@@ -1,9 +1,9 @@
 package com.vlad805.fmradio.service;
 
-import android.content.Context;
-import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.fm.FMEventCallback;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -17,8 +17,8 @@ import static com.vlad805.fmradio.Utils.parseInt;
  */
 public class FMEventListenerServer extends Thread {
 
-	private DatagramSocket mDatagramSocketServer;
-	private Context mContext;
+	private final DatagramSocket mDatagramSocketServer;
+	private FMEventCallback mCallback;
 
 	private static final int BUFFER_SIZE = 96; // 2 + 1 + 4 * 20 + 1 = 84 as minimum
 
@@ -35,9 +35,12 @@ public class FMEventListenerServer extends Thread {
 	private static final int EVT_STEREO = 9;
 	private static final int EVT_SEARCH_DONE = 10;
 
-	public FMEventListenerServer(Context context, int port) throws IOException {
+	public FMEventListenerServer(final int port) throws IOException {
 		mDatagramSocketServer = new DatagramSocket(port);
-		mContext = context;
+	}
+
+	public void setCallback(FMEventCallback callback) {
+		mCallback = callback;
 	}
 
 	@Override
@@ -69,6 +72,12 @@ public class FMEventListenerServer extends Thread {
 
 	private static final char FF = 0x0c; // split for messages
 
+	/**
+	 * Handle event from native client (events such as RSSI change, RDS, etc...)
+	 * @param data String in special format
+	 * @return Response for native server
+	 * @throws StopServer Throws when server should be killed
+	 */
 	private String handle(String data) throws StopServer {
 		int splitOn = data.indexOf(FF);
 		String code = data.substring(0, splitOn);
@@ -79,38 +88,45 @@ public class FMEventListenerServer extends Thread {
 
 		Log.i("FMELS", "received new event " + code + " = [" + data + "]");
 
-		Intent intent = new Intent();
+		Bundle bundle = new Bundle();
+		String action;
 
 		switch (evt) {
-			case EVT_ENABLED:
-				intent.setAction(C.Event.ENABLED);
+			case EVT_ENABLED: {
+				action = C.Event.ENABLED;
 				break;
+			}
 
-			case EVT_DISABLED:
-				intent.setAction(C.Event.DISABLED);
+			case EVT_DISABLED: {
+				action = C.Event.DISABLED;
 				throw new StopServer();
+			}
 
-			case EVT_FREQUENCY_SET:
-				intent.setAction(C.Event.FREQUENCY_SET);
-				intent.putExtra(C.Key.FREQUENCY, Integer.valueOf(data));
+			case EVT_FREQUENCY_SET: {
+				action = C.Event.FREQUENCY_SET;
+				bundle.putInt(C.Key.FREQUENCY, Integer.parseInt(data));
 				break;
+			}
 
-			case EVT_UPDATE_RSSI:
-				intent.setAction(C.Event.UPDATE_RSSI);
-				intent.putExtra(C.Key.RSSI, Integer.valueOf(data));
+			case EVT_UPDATE_RSSI: {
+				action = C.Event.UPDATE_RSSI;
+				bundle.putInt(C.Key.RSSI, Integer.parseInt(data));
 				break;
+			}
 
-			case EVT_UPDATE_PS:
-				intent.setAction(C.Event.UPDATE_PS);
-				intent.putExtra(C.Key.PS, data);
+			case EVT_UPDATE_PS: {
+				action = C.Event.UPDATE_PS;
+				bundle.putString(C.Key.PS, data);
 				break;
+			}
 
-			case EVT_UPDATE_RT:
-				intent.setAction(C.Event.UPDATE_RT);
-				intent.putExtra(C.Key.RT, data);
+			case EVT_UPDATE_RT: {
+				action = C.Event.UPDATE_RT;
+				bundle.putString(C.Key.RT, data);
 				break;
+			}
 
-			case EVT_SEARCH_DONE:
+			case EVT_SEARCH_DONE: {
 				String stations = data.trim();
 				int lengthKHz = 4;
 				int count = stations.length() / lengthKHz;
@@ -124,23 +140,28 @@ public class FMEventListenerServer extends Thread {
 
 				Arrays.sort(res);
 
-				intent.setAction(C.Event.SEARCH_DONE);
-				intent.putExtra(C.Key.STATION_LIST, res);
+				action = C.Event.SEARCH_DONE;
+				bundle.putIntArray(C.Key.STATION_LIST, res);
 				break;
+			}
 
-			case EVT_STEREO:
+			case EVT_STEREO: {
 				String mode = data.trim();
 
-				intent.setAction(C.Event.UPDATE_STEREO);
-				intent.putExtra(C.Key.STEREO_MODE, mode.equals("1"));
+				action = C.Event.UPDATE_STEREO;
+				bundle.putBoolean(C.Key.STEREO_MODE, mode.equals("1"));
 				break;
+			}
 
-			default:
+			default: {
 				Log.w("FMELS", "unknown event = " + evt);
 				return null;
+			}
 		}
 
-		mContext.sendBroadcast(intent);
+		if (mCallback != null) {
+			mCallback.onEvent(action, bundle);
+		}
 
 		return "ok";
 	}
@@ -153,7 +174,7 @@ public class FMEventListenerServer extends Thread {
 		byte[] bs = bin.getBytes();
 		int bit;
 		for (byte b : bs) {
-			bit = (b & 0x0f0) >> 4;
+			bit = (b & 0xf0) >> 4;
 			sb.append(digital[bit]);
 			bit = b & 0x0f;
 			sb.append(digital[bit]);
@@ -162,10 +183,8 @@ public class FMEventListenerServer extends Thread {
 	}
 
 	public void closeServer() {
-		if (mDatagramSocketServer != null) {
-			if (mDatagramSocketServer.isConnected()) {
-				mDatagramSocketServer.close();
-			}
+		if (mDatagramSocketServer.isConnected()) {
+			mDatagramSocketServer.close();
 		}
 	}
 }

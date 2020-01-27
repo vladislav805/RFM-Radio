@@ -73,7 +73,6 @@ int SLAVE_ADDR = 0x2A;
 #define V4L2_CID_PRIVATE_TAVARUA_RDSD_BUF      0x08000013
 #define V4L2_CID_PRIVATE_TAVARUA_PSALL         0x08000014
 #define V4L2_CID_PRIVATE_TAVARUA_ANTENNA       0x08000012
-#define V4L2_CID_PRIVATE_TAVARUA_STATE         0x08000004
 #define V4L2_CID_PRIVATE_TAVARUA_LP_MODE       0x08000011
 #define V4L2_CID_PRIVATE_TAVARUA_SIGNAL_TH     0x08000008
 #define V4L2_CID_PRIVATE_TAVARUA_SRCHMODE      0x08000001
@@ -138,6 +137,7 @@ int fd_radio = -1;
 
 // FM asynchronous thread to perform the long running ON
 pthread_t fm_interrupt_thread;
+pthread_t fm_rssi_thread;
 pthread_t fm_on_thread;
 
 // Prototype of FM ON thread
@@ -149,6 +149,50 @@ fm_station_params_available fm_global_params;
 volatile poweron_status poweron;
 
 
+/**
+ * Delay
+ * @param ms Time
+ */
+void wait(int ms) {
+  usleep(ms * 1000);
+}
+
+/**
+ * Return 1 if file, or directory, or device node etc. exists
+ * @param file Path to file/directory
+ * @return True if exists
+ */
+int file_exists(const char* file) {
+  struct stat sb;
+  return stat(file, &sb) == 0;
+}
+
+
+
+const char* log_types[] = { "[ OK ]", "[FAIL]", "[INFO]" };
+#define LOG_OK 0
+#define LOG_ERR 1
+#define LOG_INFO 2
+
+void _log(int type, char* message, int val) {
+  printf("%s %s %d\n", log_types[type], message, val);
+}
+
+#ifdef FM_DEBUG
+  #define logk(x) _log(LOG_OK, x, 0)
+  #define logk2(x, y) _log(LOG_OK, x, y)
+  #define loge(x) _log(LOG_ERR, x, 0)
+  #define loge2(x, y) _log(LOG_ERR, x, y)
+  #define logi(x) _log(LOG_INFO, x, 0)
+  #define logi2(x, y) _log(LOG_INFO, x, y)
+#else
+#define logk(x, y)
+  #define logk(x, y)
+  #define loge(x)
+  #define loge2(x, y)
+  #define logi(x)
+  #define logi2(x, y)
+#endif
 
 /**
  * set_v4l2_ctrl
@@ -476,48 +520,41 @@ void* interrupt_thread(void *ptr) {
 	return NULL;
 }
 
-/**
- * Return 1 if file, or directory, or device node etc. exists
- * @param file Path to file/directory
- * @return True if exists
- */
-int file_exists(const char* file) {
-	struct stat sb;
-	return stat(file, &sb) == 0;
+int fetch_and_send_rssi() {
+  struct v4l2_tuner tuner;
+  tuner.index = 0;
+  tuner.signal = 0;
+
+  if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) == 0) {
+    send_interruption_info(EVT_UPDATE_RSSI, itoa(tuner.signal));
+  } else {
+    return -1;
+  }
+  return 0;
 }
 
 /**
- * Delay
- * @param ms Time
+ * rssi_thread
+ * Thread to send rssi
+ * @return NIL
  */
-void wait(int ms) {
-  usleep(ms * 1000);
+void* rssi_thread(void *ptr) {
+  print("Starting RSSI listener\n");
+
+  int errors = 0;
+
+  while (errors < 100) {
+    wait(1000);
+    if (fetch_and_send_rssi() != 0) {
+      ++errors;
+    }
+  }
+
+  print("RSSI listener thread exited\n");
+  return NULL;
 }
 
-const char* log_types[] = { "[ OK ]", "[FAIL]", "[INFO]" };
-#define LOG_OK 0
-#define LOG_ERR 1
-#define LOG_INFO 2
 
-void _log(int type, char* message, int val) {
-  printf("%s %s %d\n", log_types[type], message, val);
-}
-
-#ifdef FM_DEBUG
-  #define logk(x) _log(LOG_OK, x, 0)
-  #define logk2(x, y) _log(LOG_OK, x, y)
-  #define loge(x) _log(LOG_ERR, x, 0)
-  #define loge2(x, y) _log(LOG_ERR, x, y)
-  #define logi(x) _log(LOG_INFO, x, 0)
-  #define logi2(x, y) _log(LOG_INFO, x, y)
-#else
-  #define logk(x, y)
-  #define logk(x, y)
-  #define loge(x)
-  #define loge2(x, y)
-  #define logi(x)
-  #define logi2(x, y)
-#endif
 
 
 /**
@@ -801,6 +838,7 @@ fm_cmd_status_type (fm_long_thread)(void *ptr) {
 	}
 
 	pthread_create(&fm_interrupt_thread, NULL, interrupt_thread, NULL);
+	pthread_create(&fm_rssi_thread, NULL, rssi_thread, NULL);
 
 #ifdef FM_DEBUG
 	print("\nEnable Receiver exit\n");

@@ -2,18 +2,20 @@ package com.vlad805.fmradio.fm.impl;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.IFMController;
-import com.vlad805.fmradio.fm.IRdsStruct;
+import com.vlad805.fmradio.fm.FMController;
+import com.vlad805.fmradio.fm.IFMEventPoller;
 import com.vlad805.fmradio.fm.LaunchConfig;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -21,7 +23,7 @@ import java.util.Queue;
 /**
  * vlad805 (c) 2020
  */
-public class Spirit3Impl extends IFMController {
+public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	public static class Config extends LaunchConfig {
 		@Override
@@ -130,14 +132,27 @@ public class Spirit3Impl extends IFMController {
 	}
 
 	@Override
-	public Intent poll() {
+	public Bundle poll() {
+		Bundle bundle = new Bundle();
 
-		return null;
-	}
+		String f = sendCommandSync(new Request("g tuner_freq"));
+		if (f != null) {
+			int frequency = Integer.parseInt(f);
+			bundle.putInt(C.Key.FREQUENCY, frequency);
+		}
 
-	@Override
-	public IRdsStruct getRds() {
-		return null;
+		String r = sendCommandSync(new Request("g tuner_rssi"));
+		if (r != null) {
+			int rssi = Integer.parseInt(r);
+			bundle.putInt(C.Key.RSSI, rssi);
+		}
+
+		String p = sendCommandSync(new Request("g rds_ps"));
+		if (p != null) {
+			bundle.putString(C.Key.PS, p);
+		}
+
+		return bundle;
 	}
 
 	interface OnReceivedResponse {
@@ -208,6 +223,16 @@ public class Spirit3Impl extends IFMController {
 		}
 	}
 
+	private static InetAddress LOOPBACK;
+
+	static {
+		try {
+			LOOPBACK = InetAddress.getByName("127.0.0.1");
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private void sendCommandReal() {
 		Request command = mQueueCommands.peek();
 
@@ -217,30 +242,7 @@ public class Spirit3Impl extends IFMController {
 
 		new Thread(() -> {
 			try {
-				if (mDatagramSocketClient == null) {
-					initSocket();
-				}
-
-				mDatagramSocketClient.setSoTimeout(command.getTimeout());
-
-				Log.d("S3I", "Sent command: " + command.getCommand());
-
-				DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), InetAddress.getByName("127.0.0.1"), config.getClientPort());
-
-				mDatagramSocketClient.send(dps);
-
-				byte[] buf = new byte[40];
-				dps.setData(buf);
-				mDatagramSocketClient.receive(dps);
-
-				int size = dps.getLength();
-
-				if (size < 0) {
-					System.out.println("read: size read -1");
-					return;
-				}
-
-				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
+				String res = sendDataSocketAndWaitForResult(command);
 
 				Log.d("S3I", "Received response: " + res);
 
@@ -253,6 +255,43 @@ public class Spirit3Impl extends IFMController {
 				Log.i("S3I", "FAILED: attempt for request [" + command + "]");
 			}
 		}).start();
+	}
+
+	private String sendDataSocketAndWaitForResult(Request command) throws IOException {
+		if (mDatagramSocketClient == null) {
+			initSocket();
+		}
+
+		mDatagramSocketClient.setSoTimeout(command.getTimeout());
+
+		Log.d("S3I", "Sent command: " + command.getCommand());
+
+		DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), LOOPBACK, config.getClientPort());
+
+		mDatagramSocketClient.send(dps);
+
+		byte[] buf = new byte[40];
+		dps.setData(buf);
+		mDatagramSocketClient.receive(dps);
+
+		int size = dps.getLength();
+
+		if (size < 0) {
+			System.out.println("read: size read -1");
+			return null;
+		}
+
+		return new String(buf, 0, size, StandardCharsets.UTF_8);
+	}
+
+	private String sendCommandSync(Request command) {
+		try {
+			return sendDataSocketAndWaitForResult(command);
+		} catch (Throwable e) {
+			e.printStackTrace();
+			Log.i("S3I", "FAILED: attempt for request [" + command + "]");
+			return null;
+		}
 	}
 
 }
