@@ -26,6 +26,20 @@ public final class Storage {
 		return mPrefs;
 	}
 
+	public static int getPrefInt(Context ctx, String key, int defaultValue) {
+		String val = getPrefs(ctx).getString(key, "" + defaultValue);
+		return val != null ? Integer.parseInt(val) : defaultValue;
+	}
+
+	public static String getPrefString(Context ctx, String key, String defaultValue) {
+		String val = getPrefs(ctx).getString(key, defaultValue);
+		return val != null ? val : defaultValue;
+	}
+
+	public static boolean getPrefBoolean(Context ctx, String key, boolean defaultValue) {
+		return getPrefs(ctx).getBoolean(key, defaultValue);
+	}
+
 	private Storage() {
 
 	}

@@ -11,7 +11,6 @@ import com.vlad805.fmradio.Storage;
  * vlad805 (c) 2019
  */
 public abstract class FMAudioService {
-
 	public static final int SERVICE_LIGHT = 0;
 	public static final int SERVICE_SPIRIT3 = 1;
 
@@ -23,7 +22,7 @@ public abstract class FMAudioService {
 
 	public FMAudioService(Context context) {
 		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-		mAudioSource = Integer.parseInt(Storage.getPrefs(context).getString(C.Key.AUDIO_SOURCE, "" + mAudioSource));
+		mAudioSource = Storage.getPrefInt(context, C.Key.AUDIO_SOURCE, mAudioSource);
 	}
 
 	/**

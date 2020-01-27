@@ -6,7 +6,7 @@ import android.os.Parcelable;
 /**
  * vlad805 (c) 2019
  */
-public class FMState implements Parcelable {
+public final class FMState implements Parcelable {
 	private int state = STATE_OFF;
 	private String message;
 	private int frequency;
@@ -14,10 +14,22 @@ public class FMState implements Parcelable {
 	private String ps;
 	private String rt;
 
-	public static final int STATE_OFF = 0;
-	public static final int STATE_ON = 1;
+	public static final int STATE_OFF = 0x0;
+	public static final int STATE_LAUNCHED = 0x1;
+	public static final int STATE_ENABLED = 0x2;
 
-	public FMState() { }
+	private FMState() {
+
+	}
+
+	private static FMState mInstance;
+
+	public static FMState getInstance() {
+		if (mInstance == null) {
+			mInstance = new FMState();
+		}
+		return mInstance;
+	}
 
 	public int getState() {
 		return state;
@@ -25,6 +37,26 @@ public class FMState implements Parcelable {
 
 	public void setState(int state) {
 		this.state = state;
+	}
+
+	public void addState(int state) {
+		this.state |= state;
+	}
+
+	public void removeState(int state) {
+		this.state ^= state;
+	}
+
+	public boolean isOff() {
+		return state == STATE_OFF;
+	}
+
+	public boolean isLaunched() {
+		return (state & STATE_LAUNCHED) == STATE_LAUNCHED;
+	}
+
+	public boolean isEnabled() {
+		return (state & STATE_ENABLED) == STATE_ENABLED;
 	}
 
 	public String getMessage() {
