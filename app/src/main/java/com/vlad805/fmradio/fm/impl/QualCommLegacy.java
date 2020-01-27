@@ -6,6 +6,7 @@ import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.fm.FMController;
+import com.vlad805.fmradio.fm.FMEventCallback;
 import com.vlad805.fmradio.fm.IFMEventListener;
 import com.vlad805.fmradio.fm.LaunchConfig;
 import com.vlad805.fmradio.service.FMEventListenerServer;
@@ -36,6 +37,12 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	private FMEventListenerServer mServer;
+
+	private FMEventCallback mEventCallback;
+
+	public void setEventListener(FMEventCallback callback) {
+		mEventCallback = callback;
+	}
 
 	public QualCommLegacy(LaunchConfig config) {
 		super(config);
@@ -108,20 +115,20 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	public void launch(Context context) {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
-		startServerListener(context);
+		startServerListener();
+		sendCommand("init");
 	}
 
 	@Override
 	public void kill() {
+		mServer.closeServer();
 		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
-		mServer.closeServer();
 	}
 
 	@Override
 	public void enable() {
-		sendCommand("init");
-		sendCommand("enable"); // 5000
+		sendCommand("enable");
 	}
 
 	@Override
@@ -302,9 +309,10 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 		}).start();
 	}
 
-	private void startServerListener(Context context) {
+	private void startServerListener() {
 		try {
-			mServer = new FMEventListenerServer(context, config.getServerPort());
+			mServer = new FMEventListenerServer(config.getServerPort());
+			mServer.setCallback(mEventCallback);
 			mServer.start();
 		} catch (IOException e) {
 			e.printStackTrace();

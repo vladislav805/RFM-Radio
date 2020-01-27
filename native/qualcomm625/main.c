@@ -100,8 +100,8 @@ srv_response api_fetch(char* request) {
 		res->code = ret;
 		res->data = response;
 	} else if (str_equals(cmd, MK_INIT)) {
-	  res->code = fm_receiver_open();
-	  res->data = RSP_OK;
+		res->code = fm_receiver_open();
+		res->data = RSP_OK;
 	} else if (str_equals(cmd, MK_ENABLE)) {
 		fm_config_data cfg_data = {
 			.band = FM_RX_US_EUROPE,
