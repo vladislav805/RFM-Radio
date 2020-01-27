@@ -2,6 +2,7 @@ package com.vlad805.fmradio.controller;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.Direction;
@@ -15,66 +16,72 @@ public class RadioController {
 
 	private static RadioController sInstance;
 
-	public static RadioController getInstance(Context context) {
+	public static RadioController getInstance() {
 		if (sInstance == null) {
-			sInstance = new RadioController(context);
+			sInstance = new RadioController();
 		}
 
 		return sInstance;
 	}
 
-	private Context mContext;
 	private FMState mState;
 
-	private RadioController(final Context context) {
-		mContext = context;
-		mState = new FMState();
+	private RadioController() {
+		mState = FMState.getInstance();
 	}
 
 	public final FMState getState() {
 		return mState;
 	}
 
-	private void send(String action) {
-		send(action, new Intent(mContext, FMService.class));
+	private void send(final Context context, final String action) {
+		send(context, action, new Bundle());
 	}
 
-	private void send(String action, Intent intent) {
-		Log.d("RadioController", "send(" + action + ", " + intent + ")");
-		mContext.startService(intent.setAction(action));
+	private void send(final Context context, final String action, final Bundle bundle) {
+		Log.d("RC", "Command '" + action + "' sending... with bundle " + bundle + ")");
+		context.startService(new Intent(context, FMService.class).setAction(action).putExtras(bundle));
 	}
 
-	public void setup() {
-		send(C.Command.INIT);
+	public void setup(final Context context) {
+		send(context, C.Command.SETUP);
 	}
 
-	public void launch() {
-		send(C.Command.LAUNCH);
+	public void launch(final Context context) {
+		send(context, C.Command.LAUNCH);
 	}
 
-	public void kill() {
-		send(C.Command.KILL);
+	public void kill(final Context context) {
+		send(context, C.Command.KILL);
 	}
 
-	public void enable() {
-		send(C.Command.ENABLE);
+	public void enable(final Context context) {
+		send(context, C.Command.ENABLE);
 	}
 
-	public void disable() {
-		send(C.Command.DISABLE);
+	public void setFrequency(final Context context, final int kHz) {
+		final Bundle bundle = new Bundle();
+		bundle.putInt(C.Key.FREQUENCY, kHz);
+		send(context, C.Command.SET_FREQUENCY, bundle);
 	}
 
-	public void jump(Direction direction) {
-		send(C.Command.JUMP, new Intent(mContext, FMService.class).putExtra(C.Key.JUMP_DIRECTION, direction.getValue()));
+	public void jump(final Context context, final Direction direction) {
+		final Bundle bundle = new Bundle();
+		bundle.putInt(C.Key.JUMP_DIRECTION, direction.getValue());
+		send(context, C.Command.JUMP, bundle);
 	}
 
-	public void hwSeek(Direction direction) {
-		send(C.Command.HW_SEEK, new Intent(mContext, FMService.class).putExtra(C.Key.SEEK_HW_DIRECTION, direction.getValue()));
+	public void hwSeek(final Context context, final Direction direction) {
+		final Bundle bundle = new Bundle();
+		bundle.putInt(C.Key.SEEK_HW_DIRECTION, direction.getValue());
+		send(context, C.Command.HW_SEEK, bundle);
 	}
 
-	public void setFrequency(int kHz) {
-		send(C.Command.SET_FREQUENCY, new Intent(mContext, FMService.class).putExtra(C.Key.FREQUENCY, kHz));
+	public void disable(final Context context) {
+		send(context, C.Command.DISABLE);
 	}
+
+
 
 	public void onEvent(final Intent intent) {
 		if (intent == null || intent.getAction() == null) {
@@ -84,11 +91,14 @@ public class RadioController {
 		switch (intent.getAction()) {
 			case C.Event.BINARY_READY: mState.setMessage("Binary is ready"); break;
 			case C.Event.READY: mState.setMessage("Ready for enable"); break;
-			case C.Event.FM_READY: mState.setMessage(null); mState.setState(FMState.STATE_ON); break;
+			case C.Event.FM_READY: mState.setMessage(null); mState.addState(FMState.STATE_LAUNCHED); break;
+			case C.Event.ENABLED: mState.addState(FMState.STATE_ENABLED); break;
+			case C.Event.DISABLED: mState.removeState(FMState.STATE_ENABLED); break;
+			case C.Event.KILL: mState.setState(FMState.STATE_OFF); break;
+
 			case C.Event.FREQUENCY_SET: mState.setFrequency(intent.getIntExtra(C.Key.FREQUENCY, 1)); break;
 			case C.Event.UPDATE_PS: mState.setPs(intent.getStringExtra(C.Key.PS)); break;
 			case C.Event.UPDATE_RT: mState.setRt(intent.getStringExtra(C.Key.RT)); break;
-			case C.Event.KILL: mState.setState(FMState.STATE_OFF); break;
 		}
 
 		//Log.d("RCS", "state = " + mState);

@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
@@ -44,27 +45,27 @@ public class FMService extends Service implements FMEventCallback {
 	public class PlayerReceiver extends BroadcastReceiver {
 
 		@Override
-		public void onReceive(Context context, final Intent intent) {
+		public void onReceive(final Context context, final Intent intent) {
 			if (intent == null || intent.getAction() == null) {
 				return;
 			}
 
-			// Log.d("FMService", "onReceive(" + intent.getAction() + ")");
+			Log.d("FMService", "Received event " + intent.getAction());
 
 			switch (intent.getAction()) {
 				case C.Event.BINARY_READY: {
-					mRadioController.launch();
+					mRadioController.launch(context);
 					break;
 				}
 
 				case C.Event.READY: {
-					//mRadioController.enable();
+					//mRadioController.enable(context);
 					break;
 				}
 
 				case C.Event.FM_READY: {
-					int frequency = Utils.getStorage(getApplicationContext()).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-					mRadioController.setFrequency(frequency);
+					int frequency = Utils.getStorage(context).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+					mRadioController.setFrequency(getApplicationContext(), frequency);
 					break;
 				}
 
@@ -91,9 +92,10 @@ public class FMService extends Service implements FMEventCallback {
 	public void onCreate() {
 		super.onCreate();
 
-		mRadioController = RadioController.getInstance(this);
+		mRadioController = RadioController.getInstance();
 		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mStatusReceiver = new PlayerReceiver();
+
 		mAudioService = new LightAudioService(this); // TODO createAudioService();
 		mFmController = new QualCommLegacy(new QualCommLegacy.Config()); // TODO createFmService();
 
@@ -114,6 +116,8 @@ public class FMService extends Service implements FMEventCallback {
 		filter.addAction(C.Event.UPDATE_PS);
 		filter.addAction(C.Event.UPDATE_RT);
 		filter.addAction(C.Event.UPDATE_RSSI);
+		filter.addAction(C.Event.ENABLED);
+		filter.addAction(C.Event.DISABLED);
 		filter.addAction(C.Event.KILL);
 		registerReceiver(mStatusReceiver, filter);
 	}
@@ -125,7 +129,7 @@ public class FMService extends Service implements FMEventCallback {
 		}
 
 		switch (intent.getAction()) {
-			case C.Command.INIT: {
+			case C.Command.SETUP: {
 				try {
 					mFmController.init(this);
 					sendBroadcast(new Intent(C.Event.BINARY_READY));
@@ -233,20 +237,16 @@ public class FMService extends Service implements FMEventCallback {
 		return mDatabase.stationDao().getAll();
 	}*/
 
-	/**
-	 * Returns preferred audio service
-	 * @return Audio service
-	 */
-	private FMAudioService getPreferredAudioService() {
-		final int id = getStorage(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
+	private FMAudioService createAudioService() {
+		final int id = Storage.getPrefInt(this, C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
 			case FMAudioService.SERVICE_LIGHT:
 				return new LightAudioService(this);
 
-			case FMAudioService.SERVICE_LEGACY:
+			case FMAudioService.SERVICE_SPIRIT3:
 			default:
-				return new LegacyAudioService(this);
+				return new Spirit3AudioService(this);
 		}
 	}
 

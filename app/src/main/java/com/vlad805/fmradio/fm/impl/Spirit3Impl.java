@@ -113,7 +113,6 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 				setFrequency(frequency);
 			}
 		}));
-
 	}
 
 	@Override

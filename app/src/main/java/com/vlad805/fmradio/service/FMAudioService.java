@@ -4,25 +4,25 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 
 /**
  * vlad805 (c) 2019
  */
 public abstract class FMAudioService {
-
-	public static final int SERVICE_LEGACY = 0;
-	public static final int SERVICE_LIGHT = 1;
+	public static final int SERVICE_LIGHT = 0;
+	public static final int SERVICE_SPIRIT3 = 1;
 
 	protected AudioManager mAudioManager;
 
 	protected int mSampleRate = 44100; // Default = 8000 (Max with AMR)
-
 	protected int mBufferSize = 16384;
-
-	protected int mRecorderSource = 0;
+	protected int mAudioSource = 1998;
 
 	public FMAudioService(Context context) {
 		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+		mAudioSource = Storage.getPrefInt(context, C.Key.AUDIO_SOURCE, mAudioSource);
 	}
 
 	/**
@@ -49,13 +49,10 @@ public abstract class FMAudioService {
 	 * 1998 = FM            work (Mi A1) / not work (Xperia L)
 	 */
 	protected AudioRecord getAudioRecorder() {
-
-		int audioSource = 1998;
 		// AUDIO_CHANNEL_IN_FRONT_BACK?
-
 		try {
 			AudioRecord recorder = new AudioRecord(
-					audioSource,
+					mAudioSource,
 					mSampleRate,
 					AudioFormat.CHANNEL_IN_STEREO,
 					AudioFormat.ENCODING_PCM_16BIT,
@@ -63,7 +60,6 @@ public abstract class FMAudioService {
 			);
 
 			if (recorder.getState() == AudioRecord.STATE_INITIALIZED) { // If works, then done
-				mRecorderSource = audioSource;
 				return recorder;
 			}
 		} catch (Exception e) {

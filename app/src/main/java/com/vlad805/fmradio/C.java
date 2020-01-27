@@ -34,7 +34,7 @@ final public class C {
 	}
 
 	public static final class Command {
-		public static final String INIT = "init";
+		public static final String SETUP = "setup";
 		public static final String LAUNCH = "launch";
 		public static final String ENABLE = "enable";
 		public static final String DISABLE = "disable";
@@ -59,6 +59,8 @@ final public class C {
 		public static final String STATION_LIST = "station_list";
 		public static final String AUDIO_SERVICE = "audio_service";
 		public static final String TUNER_DRIVER = "tuner_driver";
+		public static final String AUDIO_SOURCE = "audio_source";
+		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String MESSAGE = "message";
 	}
 
@@ -73,7 +75,7 @@ final public class C {
 		public static final boolean RDS_ENABLE = true;
 		public static final boolean AUTOPLAY = false;
 
-		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LEGACY;
+		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
 		public static final int TUNER_DRIVER = FMController.DRIVER_NEW;
 	}
 

@@ -89,7 +89,7 @@ public class RadioUIView extends LinearLayout {
 			return;
 		}
 
-		mRadioController.setFrequency(kHz);
+		mRadioController.setFrequency(getContext(), kHz);
 
 		setFrequency(kHz);
 	}
@@ -128,7 +128,7 @@ public class RadioUIView extends LinearLayout {
 		}
 	};
 
-	public void setRadioController(RadioController controller) {
+	public void setRadioController(final RadioController controller) {
 		mRadioController = controller;
 	}
 }
