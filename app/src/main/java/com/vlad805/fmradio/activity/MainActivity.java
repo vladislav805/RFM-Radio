@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -20,7 +21,6 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.enums.Direction;
-import com.vlad805.fmradio.fm.FMState;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -51,7 +51,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 	{
 		final String[] events = {
-				C.Event.FM_READY,
 				C.Event.FREQUENCY_SET,
 				C.Event.UPDATE_PS,
 				C.Event.UPDATE_RT,
@@ -61,9 +60,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				C.Event.RECORD_STARTED,
 				C.Event.RECORD_TIME_UPDATE,
 				C.Event.RECORD_ENDED,
+				C.Event.LAUNCHED,
 				C.Event.ENABLED,
 				C.Event.DISABLED,
-				C.Event.KILL
+				C.Event.KILLED
 		};
 
 		mFilter = new IntentFilter();
@@ -110,13 +110,16 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	 * Initialize connection and service
 	 */
 	private void initLogic() {
-		mRadioController = RadioController.getInstance();
+		mRadioController = new RadioController(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
 		mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
 
-		if (Storage.getPrefBoolean(this, C.Key.APP_AUTO_STARTUP, false)) {
+		final boolean needStartup = Storage.getPrefBoolean(this, C.Key.APP_AUTO_STARTUP, false);
+
+		if (false && needStartup) {
 			mProgress.show();
+			mRadioController.setup();
 		}
 
 		mFrequencyInfo.setRadioController(mRadioController);
@@ -184,32 +187,37 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public void onClick(View view) {
 		switch (view.getId()) {
 			case R.id.ctl_toggle:
-				FMState state = mRadioController.getState();
+				final Bundle state = mRadioController.getState();
+				final boolean isLaunched = state.getBoolean(C.Key.STATE_LAUNCH);
 
-				if (state.isOff()) {
-					mRadioController.launch(this);
-				} else if (state.isLaunched()) {
-					mRadioController.enable(this);
-				} else if (state.isEnabled()) {
-					mRadioController.disable(this);
+				if (!isLaunched) {
+					mRadioController.launch();
+					return;
+				} else {
+					final boolean isEnabled = state.getBoolean(C.Key.STATE_ENABLE);
+					if (isEnabled) {
+						mRadioController.disable();
+					} else {
+						mRadioController.enable();
+					}
 				}
 				break;
 
 			case R.id.ctl_go_down:
-				mRadioController.jump(this, Direction.DOWN);
+				mRadioController.jump(Direction.DOWN);
 				break;
 
 			case R.id.ctl_go_up:
-				mRadioController.jump(this, Direction.UP);
+				mRadioController.jump(Direction.UP);
 				break;
 
 			case R.id.ctl_seek_down:
-				mRadioController.hwSeek(this, Direction.DOWN);
+				mRadioController.hwSeek(Direction.DOWN);
 				mProgress.text("Searching...");
 				break;
 
 			case R.id.ctl_seek_up:
-				mRadioController.hwSeek(this, Direction.UP);
+				mRadioController.hwSeek(Direction.UP);
 				mProgress.text("Searching...");
 				break;
 
@@ -221,12 +229,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 	@Override
 	public void onFavoriteClick(FavoriteStation station) {
-		mRadioController.setFrequency(this, station.getFrequency());
+		mRadioController.setFrequency(station.getFrequency());
 	}
 
 	@Override
 	public int getCurrentFrequencyForAddFavorite() {
-		return mRadioController.getState().getFrequency();
+		return mRadioController.getState().getInt(C.Key.FREQUENCY);
 	}
 
 	/**
@@ -243,7 +251,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
-				mRadioController.kill(this);
+				mRadioController.kill();
 				break;
 
 			case R.id.menu_about:
@@ -264,8 +272,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		}
 
 		switch (intent.getAction()) {
-			case C.Event.FM_READY: {
-				mProgress.close();
+			case C.Event.LAUNCHED: {
+				mProgress.show();
 				/*if (intent.hasExtra(C.Key.STATION_LIST)) {
 					List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
 					Log.i("MA", "StationList = " + s.size());
@@ -275,8 +283,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				break;
 			}
 
+			case C.Event.ENABLED: {
+				mProgress.hide();
+				setEnabledUi(true);
+				break;
+			}
+
 			case C.Event.FREQUENCY_SET: {
-				mProgress.close();
+				mProgress.hide();
 				final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
 				mFrequencyInfo.setFrequency(kHz);
 				String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
@@ -312,7 +326,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			}
 
 			case C.Event.DISABLED: {
-				mRadioController.getState().setState(FMState.STATE_OFF);
+				setEnabledUi(false);
 				break;
 			}
 
@@ -322,8 +336,24 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	}
 
 	private void updateUi() {
-		boolean enabled = mRadioController.getState().getState() == FMState.STATE_LAUNCHED;
+		boolean enabled = mRadioController.getState().getBoolean(C.Key.STATE_ENABLE);
 		mCtlToggle.setImageResource(enabled ? R.drawable.ic_stop : R.drawable.ic_play);
+	}
+
+	private void setEnabledUi(final boolean state) {
+		@IdRes int[] ids = {
+				R.id.ctl_toggle,
+				R.id.ctl_go_down,
+				R.id.ctl_go_up,
+				R.id.ctl_seek_down,
+				R.id.ctl_seek_up
+		};
+
+		for (int id : ids) {
+			View v = findViewById(id);
+			v.setAlpha(state ? 1f : .5f);
+			v.setEnabled(state);
+		}
 	}
 
 	private static final @IdRes	int[] SIGNAL_RES_ID = {
@@ -361,6 +391,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				return;
 			}
 
+			Log.d("MARERoR", "update " + intent.getExtras());
 			mRadioController.onEvent(intent);
 			runOnUiThread(() -> handleEvent(intent));
 		}

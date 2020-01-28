@@ -40,13 +40,13 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	private FMEventCallback mEventCallback;
 
-	public void setEventListener(FMEventCallback callback) {
-		mEventCallback = callback;
+	public QualCommLegacy(final LaunchConfig config, final Context context) {
+		super(config, context);
+		mQueueCommands = new LinkedList<>();
 	}
 
-	public QualCommLegacy(LaunchConfig config) {
-		super(config);
-		mQueueCommands = new LinkedList<>();
+	public void setEventListener(final FMEventCallback callback) {
+		mEventCallback = callback;
 	}
 
 	/**
@@ -73,7 +73,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
 	@Override
-	public void install(Context context) {
+	protected boolean installImpl() {
 		File dir = new File(getAppRootPath());
 		if (!dir.exists()) {
 			dir.mkdirs();
@@ -81,7 +81,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 		try {
 			// Copy binary
-			boolean success = copyBinary(context);
+			boolean success = copyBinary();
 
 			// Unsuccessfully
 			if (!success) {
@@ -93,67 +93,74 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 			Utils.shell("killall " + getBinaryPath(), true);
 
 			try {
-				copyBinary(context);
+				copyBinary();
 			} catch (FileNotFoundException e2) {
 				throw new Error("Error while copy binary after kill busy binary");
 			}
 		}
 
-		Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
+		int ret = Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
+
+		return ret == 0;
 	}
 
 	/**
 	 * Copy binary from assets
-	 * @param context Context
 	 * @return True if success
 	 */
-	private boolean copyBinary(Context context) throws FileNotFoundException {
+	private boolean copyBinary() throws FileNotFoundException {
 		return copyAsset(context, getBinaryName(), getBinaryPath());
 	}
 
 	@Override
-	public void launch(Context context) {
+	protected boolean launchImpl() {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
 		startServerListener();
 		sendCommand("init");
+		return true; // TODO REAL STATE
 	}
 
 	@Override
-	public void kill() {
+	protected boolean killImpl() {
 		mServer.closeServer();
 		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
-		Utils.shell(command, true);
+		return Utils.shell(command, true) == 0;
 	}
 
 	@Override
-	public void enable() {
+	protected boolean enableImpl() {
 		sendCommand("enable");
+		return true; // TODO REAL STATE
 	}
 
 	@Override
-	public void disable() {
-		sendCommand("disable"); // 5000
+	protected boolean disableImpl() {
+		sendCommand("disable");
+		return true; // TODO REAL STATE
 	}
 
 	@Override
-	public void setFrequency(int kHz) {
+	protected boolean setFrequencyImpl(int kHz) {
 		sendCommand("setfreq " + kHz);
+		return true; // TODO REAL STATE
 	}
 
 	@Override
-	public int getSignalStretch() {
+	protected int getSignalStretchImpl() {
 		return 0;
 	}
 
 	@Override
-	public void jump(int direction) {
+	protected int jumpImpl(final int direction) {
 		sendCommand("jump " + direction);
+		return 0; // TODO REAL VALUE
 	}
 
 	@Override
-	public void hwSeek(int direction) {
+	protected int hwSeekImpl(final int direction) {
 		sendCommand("seekhw " + direction);
+		return 0; // TODO REAL VALUE
 	}
 
 	@Override

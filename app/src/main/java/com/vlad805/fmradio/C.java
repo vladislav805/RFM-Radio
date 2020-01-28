@@ -14,9 +14,8 @@ final public class C {
 		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
 		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
-		public static final String BINARY_READY = BASE + "BINARY_READY";
-		public static final String READY = BASE + "READY";
-		public static final String FM_READY = BASE + "FM_READY";
+		public static final String INSTALLED = BASE + "INSTALLED";
+		public static final String LAUNCHED = BASE + "READY";
 		public static final String ENABLED = BASE + "ENABLED";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
@@ -25,12 +24,14 @@ final public class C {
 		public static final String UPDATE_RT = BASE + "UPDATE_RT";
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
 		public static final String SEARCH_DONE = BASE + "SEARCH_DONE";
+		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
+		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";
 
 		public static final String RECORD_STARTED = BASE + "RECORD_STARTED";
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
 		public static final String RECORD_ENDED = BASE + "RECORD_ENDED";
 
-		public static final String KILL = BASE + "KILL";
+		public static final String KILLED = BASE + "KILLED";
 	}
 
 	public static final class Command {
@@ -62,6 +63,8 @@ final public class C {
 		public static final String AUDIO_SOURCE = "audio_source";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String MESSAGE = "message";
+		public static final String STATE_LAUNCH = "state_launch";
+		public static final String STATE_ENABLE = "state_enable";
 	}
 
 	public static final class PrefKey {

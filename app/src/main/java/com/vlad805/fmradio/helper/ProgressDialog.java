@@ -45,9 +45,9 @@ public class ProgressDialog {
 		return this;
 	}
 
-	public void close() {
+	public void hide() {
 		if (dialog != null) {
-			dialog.dismiss();
+			dialog.cancel();
 		}
 	}
 }
