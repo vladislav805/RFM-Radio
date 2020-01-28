@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.view;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -16,6 +17,7 @@ import java.util.Set;
  * vlad805 (c) 2018
  * Custom SeekBar
  */
+@SuppressLint("AppCompatCustomView")
 public class FrequencySeekView extends SeekBar {
 
 	private Paint mTrait;
