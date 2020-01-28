@@ -4,10 +4,7 @@ import android.content.Context;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.SeekBar;
-import android.widget.TextView;
+import android.widget.*;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.RadioController;
@@ -20,6 +17,7 @@ public class RadioUIView extends LinearLayout {
 	private ImageView mReflection;
 	private TextView mRdsPs;
 	private TextView mRdsRt;
+	private HorizontalScrollView mSeekWrap;
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
 
@@ -54,6 +52,7 @@ public class RadioUIView extends LinearLayout {
 		mReflection = findViewById(R.id.frequency_mhz_reflection);
 		mRdsPs = findViewById(R.id.frequency_ps);
 		mRdsRt = findViewById(R.id.frequency_rt);
+		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
 		mSeek = findViewById(R.id.frequency_seek);
 
 		Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
@@ -67,6 +66,10 @@ public class RadioUIView extends LinearLayout {
 		mReflection.setVisibility(GONE);
 	}
 
+	/**
+	 * Calls when frequency has changed externally
+	 * @param kHz Frequency in kHz
+	 */
 	public final void setFrequency(int kHz) {
 		mkHz = kHz;
 		mFrequencyView.setText(Utils.getMHz(kHz));
@@ -74,6 +77,8 @@ public class RadioUIView extends LinearLayout {
 		mSeek.setProgress(kHz);
 
 		post(() -> mReflection.setImageBitmap(mFrequencyView.getReflection(.9f)));
+
+		scrollSeekBar();
 	}
 
 	public final void setRdsPs(String ps) {
@@ -130,5 +135,22 @@ public class RadioUIView extends LinearLayout {
 
 	public void setRadioController(final RadioController controller) {
 		mRadioController = controller;
+	}
+
+	/**
+	 * Center the scrollview for seekbar so that the red line is centered
+	 */
+	private void scrollSeekBar() {
+		final int deltaPadding = mSeek.getPaddingLeft() + mSeek.getPaddingRight();
+		final int bandLength = (BAND_HIGH - BAND_LOW) / BAND_STEP;
+		final int ticksFromStart = (mkHz - BAND_LOW) / BAND_STEP;
+
+		final int viewWidth = mSeek.getWidth() - deltaPadding;
+		final float viewInterval = viewWidth * 1f / bandLength;
+
+		final int halfScreen = mSeekWrap.getWidth() / 2;
+
+		final int x = (int) (viewInterval * ticksFromStart - halfScreen + mSeek.getPaddingLeft());
+		mSeekWrap.smoothScrollTo(x, 0);
 	}
 }
