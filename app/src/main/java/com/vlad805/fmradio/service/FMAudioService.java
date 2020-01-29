@@ -4,8 +4,11 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.util.SparseArray;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
+
+import static com.vlad805.fmradio.Utils.sleep;
 
 /**
  * vlad805 (c) 2019
@@ -13,6 +16,14 @@ import com.vlad805.fmradio.Storage;
 public abstract class FMAudioService {
 	public static final int SERVICE_LIGHT = 0;
 	public static final int SERVICE_SPIRIT3 = 1;
+
+	public static final SparseArray<String> sService;
+
+	static {
+		sService = new SparseArray<>();
+		sService.put(SERVICE_LIGHT, "Lightweight audio service");
+		sService.put(SERVICE_SPIRIT3, "Audio service from Spirit3");
+	}
 
 	protected AudioManager mAudioManager;
 
@@ -58,6 +69,8 @@ public abstract class FMAudioService {
 					AudioFormat.ENCODING_PCM_16BIT,
 					mBufferSize
 			);
+
+			sleep(200);
 
 			if (recorder.getState() == AudioRecord.STATE_INITIALIZED) { // If works, then done
 				return recorder;

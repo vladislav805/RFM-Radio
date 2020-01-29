@@ -15,7 +15,7 @@ final public class C {
 
 		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
 		public static final String INSTALLED = BASE + "INSTALLED";
-		public static final String LAUNCHED = BASE + "READY";
+		public static final String LAUNCHED = BASE + "LAUNCHED";
 		public static final String ENABLED = BASE + "ENABLED";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
@@ -79,7 +79,7 @@ final public class C {
 		public static final boolean AUTOPLAY = false;
 
 		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
-		public static final int TUNER_DRIVER = FMController.DRIVER_NEW;
+		public static final int TUNER_DRIVER = FMController.DRIVER_QUALCOMM;
 	}
 
 	private C() {}

@@ -109,8 +109,8 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	}
 
 	@Override
-	public int getSignalStretchImpl() {
-		return 0;
+	public void getSignalStretchImpl(final Callback<Integer> result) {
+		result.onResult(0); // TODO
 	}
 
 	private String toDirection(int direction) {
@@ -118,28 +118,26 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	}
 
 	@Override
-	public int jumpImpl(final int direction) {
+	public void jumpImpl(final int direction, final Callback<Integer> callback) {
 		try {
 			String res = sendCommandSync(new Request("g tuner_freq"));
 			int frequency = Integer.parseInt(res);
 			frequency += direction > 0 ? 100 : -100;
 			setFrequency(frequency);
-			return frequency;
+			callback.onResult(frequency);
 		} catch (IOException e) {
 			e.printStackTrace();
-			return -1;
 		}
 	}
 
 	@Override
-	protected int hwSeekImpl(final int direction) {
+	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
 		try {
 			String res = sendCommandSync(new Request("s tuner_scan_state " + toDirection(direction)).setTimeout(15000));
 
-			return Integer.parseInt(res);
+			callback.onResult(Integer.parseInt(res));
 		} catch (IOException e) {
 			e.printStackTrace();
-			return -1;
 		}
 	}
 

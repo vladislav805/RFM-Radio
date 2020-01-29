@@ -47,12 +47,14 @@ public class Empty extends FMController implements IFMEventListener {
 	@Override
 	public boolean launchImpl() {
 		Log.d(TAG, "launch");
+		sleep(1000);
 		return true;
 	}
 
 	@Override
 	protected boolean killImpl() {
 		Log.d(TAG, "kill");
+		sleep(1000);
 		return true;
 	}
 
@@ -75,21 +77,23 @@ public class Empty extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	protected int getSignalStretchImpl() {
+	protected void getSignalStretchImpl(final Callback<Integer> result) {
 		Log.d(TAG, "getSignalStretch");
-		return 777;
+		result.onResult(777);
 	}
 
 	@Override
-	protected int jumpImpl(final int direction) {
+	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
 		Log.d(TAG, "jump " + direction);
-		return 87500;
+		sleep(1000);
+		callback.onResult(87500);
 	}
 
 	@Override
-	protected int hwSeekImpl(final int direction) {
+	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
 		Log.d(TAG, "hwSeek " + direction);
-		return 87500;
+		sleep(2000);
+		callback.onResult(87500);
 	}
 
 	@Override
@@ -100,5 +104,13 @@ public class Empty extends FMController implements IFMEventListener {
 	@Override
 	public void search() {
 		Log.d(TAG, "search");
+	}
+
+	private void sleep(int ms) {
+		try {
+			Thread.sleep(ms);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 }

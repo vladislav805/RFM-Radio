@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -47,32 +46,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	private Menu mMenu;
 	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
 
-	private IntentFilter mFilter;
-
-	{
-		final String[] events = {
-				C.Event.FREQUENCY_SET,
-				C.Event.UPDATE_PS,
-				C.Event.UPDATE_RT,
-				C.Event.UPDATE_RSSI,
-				C.Event.UPDATE_STEREO,
-				C.Event.SEARCH_DONE,
-				C.Event.RECORD_STARTED,
-				C.Event.RECORD_TIME_UPDATE,
-				C.Event.RECORD_ENDED,
-				C.Event.LAUNCHED,
-				C.Event.ENABLED,
-				C.Event.DISABLED,
-				C.Event.KILLED
-		};
-
-		mFilter = new IntentFilter();
-
-		for (String event : events) {
-			mFilter.addAction(event);
-		}
-	}
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -113,16 +86,29 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		mRadioController = new RadioController(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
-		mProgress = ProgressDialog.create(this).text(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
-
 		final boolean needStartup = Storage.getPrefBoolean(this, C.Key.APP_AUTO_STARTUP, false);
 
-		if (false && needStartup) {
-			mProgress.show();
+		if (needStartup) {
 			mRadioController.setup();
+			mRadioController.launch();
 		}
 
 		mFrequencyInfo.setRadioController(mRadioController);
+	}
+
+	private void showProgress(String text) {
+		if (mProgress != null) {
+			hideProgress();
+		}
+
+		mProgress = ProgressDialog.create(this).text(text).show();
+	}
+
+	private void hideProgress() {
+		if (mProgress != null) {
+			mProgress.hide();
+			mProgress = null;
+		}
 	}
 
 	/**
@@ -133,7 +119,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	protected void onResume() {
 		super.onResume();
 
-		registerReceiver(mRadioEventReceiver, mFilter);
+		registerReceiver(mRadioEventReceiver, RadioController.sFilter);
 	}
 
 	/**
@@ -213,12 +199,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 			case R.id.ctl_seek_down:
 				mRadioController.hwSeek(Direction.DOWN);
-				mProgress.text("Searching...");
+				showProgress("Searching...");
 				break;
 
 			case R.id.ctl_seek_up:
 				mRadioController.hwSeek(Direction.UP);
-				mProgress.text("Searching...");
+				showProgress("Searching...");
 				break;
 
 			case R.id.favorite_button:
@@ -251,6 +237,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
+				showProgress("Stopping...");
 				mRadioController.kill();
 				break;
 
@@ -272,8 +259,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		}
 
 		switch (intent.getAction()) {
+			case C.Event.INSTALLED: {
+				showProgress(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
+				break;
+			}
+
 			case C.Event.LAUNCHED: {
-				mProgress.show();
+				showProgress("Starting...");
 				/*if (intent.hasExtra(C.Key.STATION_LIST)) {
 					List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
 					Log.i("MA", "StationList = " + s.size());
@@ -284,13 +276,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			}
 
 			case C.Event.ENABLED: {
-				mProgress.hide();
+				hideProgress();
 				setEnabledUi(true);
 				break;
 			}
 
 			case C.Event.FREQUENCY_SET: {
-				mProgress.hide();
+				hideProgress();
+
 				final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
 				mFrequencyInfo.setFrequency(kHz);
 				String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
@@ -327,6 +320,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 			case C.Event.DISABLED: {
 				setEnabledUi(false);
+				hideProgress();
+				break;
+			}
+
+			case C.Event.HW_SEEK_COMPLETE:
+			case C.Event.JUMP_COMPLETE: {
+				hideProgress();
 				break;
 			}
 
@@ -342,11 +342,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 	private void setEnabledUi(final boolean state) {
 		@IdRes int[] ids = {
-				R.id.ctl_toggle,
 				R.id.ctl_go_down,
 				R.id.ctl_go_up,
 				R.id.ctl_seek_down,
-				R.id.ctl_seek_up
+				R.id.ctl_seek_up,
+				R.id.frequency_info
 		};
 
 		for (int id : ids) {

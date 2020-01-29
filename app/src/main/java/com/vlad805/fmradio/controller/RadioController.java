@@ -2,6 +2,7 @@ package com.vlad805.fmradio.controller;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import com.vlad805.fmradio.C;
@@ -68,6 +69,37 @@ public class RadioController {
 
 	public void disable() {
 		send(C.Command.DISABLE);
+	}
+
+	public static final IntentFilter sFilter;
+
+	static {
+		final String[] events = {
+				C.Event.LAUNCHED,
+				C.Event.ENABLED,
+
+				C.Event.FREQUENCY_SET,
+				C.Event.UPDATE_PS,
+				C.Event.UPDATE_RT,
+				C.Event.UPDATE_RSSI,
+				C.Event.UPDATE_STEREO,
+				C.Event.SEARCH_DONE,
+				C.Event.JUMP_COMPLETE,
+				C.Event.HW_SEEK_COMPLETE,
+
+				C.Event.RECORD_STARTED,
+				C.Event.RECORD_TIME_UPDATE,
+				C.Event.RECORD_ENDED,
+
+				C.Event.DISABLED,
+				C.Event.KILLED
+		};
+
+		sFilter = new IntentFilter();
+
+		for (String event : events) {
+			sFilter.addAction(event);
+		}
 	}
 
 	public void onEvent(@NonNull final Intent intent) {

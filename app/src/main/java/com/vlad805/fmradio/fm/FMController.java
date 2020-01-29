@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
+import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.MuteState;
@@ -12,8 +14,20 @@ import com.vlad805.fmradio.enums.MuteState;
  * vlad805 (c) 2020
  */
 public abstract class FMController {
-	public static final int DRIVER_NEW = 0;
+	public static final int DRIVER_QUALCOMM = 0;
 	public static final int DRIVER_SPIRIT3 = 1;
+	public static final int DRIVER_EMPTY = 999;
+
+	public static final SparseArray<String> sDrivers;
+
+	static {
+		sDrivers = new SparseArray<>();
+		sDrivers.put(DRIVER_QUALCOMM, "QualComm V4L2 service");
+		sDrivers.put(DRIVER_SPIRIT3, "QualComm V4L2 service from Spirit3 (installed spirit3 required)");
+		if (BuildConfig.DEBUG) {
+			sDrivers.put(DRIVER_EMPTY, "Test service (empty)");
+		}
+	}
 
 	protected final LaunchConfig config;
 	protected final Context context;
@@ -67,6 +81,7 @@ public abstract class FMController {
 	public final void launch() {
 		if (launchImpl()) {
 			fireEvent(C.Event.LAUNCHED);
+			Log.d("FMCA", "launch: ok");
 		} else {
 			fireError("Error while launch binary");
 		}
@@ -137,63 +152,66 @@ public abstract class FMController {
 		}
 	}
 
+	public interface Callback<T> {
+		void onResult(T result);
+	}
+
 	/**
 	 * Returns RSSI
 	 * TODO: range of value?
-	 * @return RSSI
 	 */
-	protected abstract int getSignalStretchImpl();
+	protected abstract void getSignalStretchImpl(final Callback<Integer> result);
 
 	/**
 	 * Jump to -0.1 MHz or +0.1 MHz
 	 * @param direction Direction: "-1" or "1"
-	 * @return
+	 * @param callback Callback with
 	 *   87500 to 108000 if success, new value frequency
 	 *   0 if success, but without frequency
 	 *   -1 if failed
 	 */
-	protected abstract int jumpImpl(final int direction);
+	protected abstract void jumpImpl(final int direction, final Callback<Integer> callback);
 
 	public final void jump(final int direction) {
-		final int result = jumpImpl(direction);
+		jumpImpl(direction, result -> {
+			if (result < 0) {
+				fireError("Error while jumping");
+				return;
+			}
 
-		if (result < 0) {
-			fireError("Error while jumping");
-			return;
-		}
+			Bundle bundle = new Bundle();
+			if (result > 0) {
+				bundle.putInt(C.Key.FREQUENCY, result);
+			}
 
-		Bundle bundle = new Bundle();
-		if (result > 0) {
-			bundle.putInt(C.Key.FREQUENCY, result);
-		}
-
-		fireEvent(C.Event.JUMP_COMPLETE, bundle);
+			fireEvent(C.Event.JUMP_COMPLETE, bundle);
+		});
 	}
 
 	/**
 	 * Hardware automatic seek
 	 * @param direction Direction: "-1" or "1"
-	 * @return
+	 * @param callback callback with value
 	 *   87500 to 108000 if success, new value frequency
 	 *   0 if success, but without frequency
 	 *   -1 if failed
 	 */
-	protected abstract int hwSeekImpl(final int direction);
+	protected abstract void hwSeekImpl(final int direction, final Callback<Integer> callback);
 
 	public void hwSeek(final int direction) {
-		final int result = hwSeekImpl(direction);
+		hwSeekImpl(direction, result -> {
+			if (result < 0) {
+				fireError("Error while hwSeek");
+				return;
+			}
 
-		if (result < 0) {
-			fireError("Error while hwSeek");
-			return;
-		}
+			Bundle bundle = new Bundle();
+			if (result > 0) {
+				bundle.putInt(C.Key.FREQUENCY, result);
+			}
 
-		Bundle bundle = new Bundle();
-		if (result > 0) {
-			bundle.putInt(C.Key.FREQUENCY, result);
-		}
-
-		fireEvent(C.Event.HW_SEEK_COMPLETE, bundle);
+			fireEvent(C.Event.HW_SEEK_COMPLETE, bundle);
+		});
 	}
 
 	/**

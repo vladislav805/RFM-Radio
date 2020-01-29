@@ -147,20 +147,36 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	protected int getSignalStretchImpl() {
-		return 0;
+	protected void getSignalStretchImpl(final Callback<Integer> result) {
+		result.onResult(0); // TODO
 	}
 
 	@Override
-	protected int jumpImpl(final int direction) {
-		sendCommand("jump " + direction);
-		return 0; // TODO REAL VALUE
+	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
+		final Request req = new Request("jump " + direction);
+		req.setListener(data -> {
+			/*
+			 * TODO in response need replace "ok" by frequency
+			 * https://github.com/vladislav805/RFM-Radio/issues/32
+			 */
+			callback.onResult(0);
+
+		});
+		sendCommand(req);
 	}
 
 	@Override
-	protected int hwSeekImpl(final int direction) {
-		sendCommand("seekhw " + direction);
-		return 0; // TODO REAL VALUE
+	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
+		final Request req = new Request("seekhw " + direction);
+		req.setListener(data -> {
+			/*
+			 * TODO in response need replace "ok" by frequency
+			 * https://github.com/vladislav805/RFM-Radio/issues/32
+ 			 */
+			callback.onResult(0);
+
+		});
+		sendCommand(req);
 	}
 
 	@Override
@@ -271,7 +287,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	private void sendCommandReal() {
-		Request command = mQueueCommands.peek();
+		final Request command = mQueueCommands.peek();
 
 		if (command == null) {
 			return;
@@ -306,6 +322,8 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
 
 				Log.d("QCL", "Received response: " + res);
+
+				command.fire(res);
 
 				mQueueCommands.remove();
 				sendCommandReal();
