@@ -43,7 +43,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	private ImageView mViewRssiIcon;
 	private ImageView mViewStereoMode;
 
-	private Menu mMenu;
 	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
 
 	@Override
@@ -89,6 +88,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		final boolean needStartup = Storage.getPrefBoolean(this, C.Key.APP_AUTO_STARTUP, false);
 
 		if (needStartup) {
+			setEnabledToggleButton(false);
 			mRadioController.setup();
 			mRadioController.launch();
 		}
@@ -173,18 +173,25 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public void onClick(View view) {
 		switch (view.getId()) {
 			case R.id.ctl_toggle:
-				final Bundle state = mRadioController.getState();
-				final boolean isLaunched = state.getBoolean(C.Key.STATE_LAUNCH);
+				setEnabledToggleButton(false);
 
-				if (!isLaunched) {
-					mRadioController.launch();
-					return;
-				} else {
-					final boolean isEnabled = state.getBoolean(C.Key.STATE_ENABLE);
-					if (isEnabled) {
-						mRadioController.disable();
-					} else {
+				final Bundle state = mRadioController.getState();
+				final int stage = state.getInt(C.Key.STAGE);
+
+				switch (stage) {
+					case C.FMStage.VOID: {
+						mRadioController.launch();
+						break;
+					}
+
+					case C.FMStage.LAUNCHED: {
 						mRadioController.enable();
+						break;
+					}
+
+					case C.FMStage.ENABLED: {
+						mRadioController.disable();
+						break;
 					}
 				}
 				break;
@@ -229,7 +236,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.main, menu);
-		mMenu = menu;
 		return super.onCreateOptionsMenu(menu);
 	}
 
@@ -251,6 +257,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		}
 
 		return super.onOptionsItemSelected(item);
+	}
+
+	private void setEnabledToggleButton(final boolean enabled) {
+		findViewById(R.id.ctl_toggle).setEnabled(enabled);
 	}
 
 	private void handleEvent(final Intent intent) {
@@ -278,6 +288,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			case C.Event.ENABLED: {
 				hideProgress();
 				setEnabledUi(true);
+				setEnabledToggleButton(true);
 				break;
 			}
 
@@ -321,6 +332,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			case C.Event.DISABLED: {
 				setEnabledUi(false);
 				hideProgress();
+				setEnabledToggleButton(true);
 				break;
 			}
 
@@ -336,7 +348,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	}
 
 	private void updateUi() {
-		boolean enabled = mRadioController.getState().getBoolean(C.Key.STATE_ENABLE);
+		final int stage = mRadioController.getState().getInt(C.Key.STAGE);
+		final boolean enabled = stage == C.FMStage.ENABLED;
 		mCtlToggle.setImageResource(enabled ? R.drawable.ic_stop : R.drawable.ic_play);
 	}
 

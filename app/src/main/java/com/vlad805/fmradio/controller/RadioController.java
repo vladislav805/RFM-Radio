@@ -119,18 +119,17 @@ public class RadioController {
 			}
 
 			case C.Event.ENABLED: {
-				mState.putBoolean(C.Key.STATE_ENABLE, true);
+				mState.putInt(C.Key.STAGE, C.FMStage.ENABLED);
 				break;
 			}
 
 			case C.Event.DISABLED: {
-				mState.remove(C.Key.STATE_ENABLE);
+				mState.putInt(C.Key.STAGE, C.FMStage.LAUNCHED);
 				break;
 			}
 
 			case C.Event.KILLED: {
-				mState.remove(C.Key.STATE_ENABLE);
-				mState.remove(C.Key.STATE_LAUNCH);
+				mState.putInt(C.Key.STAGE, C.FMStage.VOID);
 				break;
 			}
 
