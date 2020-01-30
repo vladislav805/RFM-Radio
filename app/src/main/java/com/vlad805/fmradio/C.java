@@ -63,8 +63,6 @@ final public class C {
 		public static final String AUDIO_SOURCE = "audio_source";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String MESSAGE = "message";
-		@Deprecated public static final String STATE_LAUNCH = "state_launch";
-		@Deprecated public static final String STATE_ENABLE = "state_enable";
 		public static final String STAGE = "stage_ctl";
 	}
 
