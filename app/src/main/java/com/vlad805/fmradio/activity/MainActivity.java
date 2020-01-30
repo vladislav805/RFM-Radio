@@ -359,7 +359,17 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				R.id.ctl_go_up,
 				R.id.ctl_seek_down,
 				R.id.ctl_seek_up,
-				R.id.frequency_info
+				R.id.frequency_mhz,
+				R.id.frequency_mhz_reflection,
+				R.id.frequency_ps,
+				R.id.frequency_rt,
+				R.id.frequency_seek,
+				R.id.rssi_icon,
+				R.id.rssi_value,
+				R.id.record_icon,
+				R.id.record_duration,
+				R.id.stereo_mono,
+				R.id.favorite_list
 		};
 
 		for (int id : ids) {
