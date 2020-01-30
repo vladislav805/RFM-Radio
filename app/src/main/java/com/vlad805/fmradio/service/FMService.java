@@ -334,19 +334,21 @@ public class FMService extends Service implements FMEventCallback {
 
 		public void run() {
 			if (mFmController instanceof IFMEventPoller) {
-				Bundle bundle = ((IFMEventPoller) mFmController).poll();
-
-				if (last == null) {
-					last = bundle;
-					return;
-				}
-
-				sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
-				sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
-				sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
-
-				last = bundle;
+				((IFMEventPoller) mFmController).poll(this::get);
 			}
+		}
+
+		private void get(final Bundle bundle) {
+			if (last == null) {
+				last = bundle;
+				return;
+			}
+
+			sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
+			sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
+			sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
+
+			last = bundle;
 		}
 
 		private void sendIntEventIfExistsAndDiff(final Bundle now, final String key, final String action) {

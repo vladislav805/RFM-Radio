@@ -8,12 +8,12 @@ package com.vlad805.fmradio.service.fm;
 public interface IFMEventPoller {
 	/**
 	 * Call a poll for fresh data
-	 * @return Bundle with fresh data
+	 * @param callback Call back with Bundle fresh data
 	 * Supported values:
 	 * 	- C.Key.FREQUENCY
 	 * 	- C.Key.RSSI
 	 *  - C.Key.PS
 	 *  - C.Key.RT
 	 */
-	android.os.Bundle poll();
+	void poll(final FMController.Callback<android.os.Bundle> callback);
 }

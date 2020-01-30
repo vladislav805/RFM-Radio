@@ -39,41 +39,44 @@ public class Empty extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	protected boolean installImpl() {
+	protected void installImpl(final Callback<Void> callback) {
 		Log.d(TAG, "install");
-		return true;
+		callback.onResult(null);
 	}
 
 	@Override
-	public boolean launchImpl() {
+	public void launchImpl(final Callback<Void> callback) {
 		Log.d(TAG, "launch");
 		sleep(1000);
-		return true;
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean killImpl() {
+	protected void killImpl(final Callback<Void> callback) {
 		Log.d(TAG, "kill");
 		sleep(1000);
-		return true;
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean enableImpl() {
+	protected void enableImpl(final Callback<Void> callback) {
 		Log.d(TAG, "enable");
-		return true;
+		sleep(1000);
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean disableImpl() {
+	protected void disableImpl(final Callback<Void> callback) {
 		Log.d(TAG, "disable");
-		return true;
+		sleep(1000);
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean setFrequencyImpl(final int kHz) {
+	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
 		Log.d(TAG, "setFrequency: " + kHz);
-		return true;
+		sleep(200);
+		callback.onResult(kHz);
 	}
 
 	@Override

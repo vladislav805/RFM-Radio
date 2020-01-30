@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
@@ -26,6 +25,13 @@ public abstract class FMController {
 		sDrivers.put(DRIVER_SPIRIT3, "QualComm V4L2 service from Spirit3 (installed spirit3 required)");
 		if (BuildConfig.DEBUG) {
 			sDrivers.put(DRIVER_EMPTY, "Test service (empty)");
+		}
+	}
+
+	public interface Callback<T> {
+		void onResult(T result);
+		default void onError(Error e) {
+
 		}
 	}
 
@@ -65,26 +71,19 @@ public abstract class FMController {
 	 * Install binary(ies) to system
 	 * Calls when isInstalled() == false OR isObsolete() == true
 	 */
-	protected abstract boolean installImpl();
+	protected abstract void installImpl(final Callback<Void> callback);
 
 	public final void install() {
-		if (installImpl()) {
-			fireEvent(C.Event.INSTALLED);
-		}
+		installImpl(result -> fireEvent(C.Event.INSTALLED));
 	}
 
 	/**
 	 * Launch binary
 	 */
-	protected abstract boolean launchImpl();
+	protected abstract void launchImpl(final Callback<Void> callback);
 
 	public final void launch() {
-		if (launchImpl()) {
-			fireEvent(C.Event.LAUNCHED);
-			Log.d("FMCA", "launch: ok");
-		} else {
-			fireError("Error while launch binary");
-		}
+		launchImpl(result -> fireEvent(C.Event.LAUNCHED));
 	}
 
 	/**
@@ -99,61 +98,49 @@ public abstract class FMController {
 	/**
 	 * Kill process of binary
 	 */
-	protected abstract boolean killImpl();
+	protected abstract void killImpl(final Callback<Void> callback);
 
 	public final void kill() {
-		if (killImpl()) {
+		killImpl(result -> {
 			fireEvent(C.Event.DISABLED);
 			fireEvent(C.Event.KILLED);
-		} else {
-			fireError("Error while kill");
-		}
+		});
 	}
 
 	/**
 	 * Enable radio audio stream
 	 */
-	protected abstract boolean enableImpl();
+	protected abstract void enableImpl(final Callback<Void> callback);
 
 	public final void enable() {
-		if (enableImpl()) {
+		enableImpl(result -> {
 			fireEvent(C.Event.ENABLED);
-		} else {
-			fireError("Error while enable");
-		}
+		});
 	}
 
 	/**
 	 * Disable radio audio stream
 	 */
-	protected abstract boolean disableImpl();
+	protected abstract void disableImpl(final Callback<Void> callback);
 
 	public final void disable() {
-		if (disableImpl()) {
+		disableImpl(result -> {
 			fireEvent(C.Event.DISABLED);
-		} else {
-			fireError("Error while disable");
-		}
+		});
 	}
 
 	/**
 	 * Set frequency
 	 * @param kHz Frequency in kHz (88.0 MHz = 88000)
 	 */
-	protected abstract boolean setFrequencyImpl(final int kHz);
+	protected abstract void setFrequencyImpl(final int kHz, final Callback<Integer> callback);
 
 	public final void setFrequency(final int kHz) {
-		if (setFrequencyImpl(kHz)) {
+		setFrequencyImpl(kHz, result -> {
 			Bundle bundle = new Bundle();
 			bundle.putInt(C.Key.FREQUENCY, kHz);
 			fireEvent(C.Event.FREQUENCY_SET, bundle);
-		} else {
-			fireError("Error while set frequency");
-		}
-	}
-
-	public interface Callback<T> {
-		void onResult(T result);
+		});
 	}
 
 	/**

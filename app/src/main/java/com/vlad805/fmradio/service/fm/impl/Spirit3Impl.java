@@ -61,50 +61,52 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	}
 
 	@Override
-	protected boolean installImpl() {
-		return true;
+	protected void installImpl(final Callback<Void> callback) {
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean launchImpl() {
+	protected void launchImpl(final Callback<Void> callback) {
 		String command = String.format("%s 4 1>/dev/null 2>/dev/null &", getBinaryPath());
-		return Utils.shell(command, true) == 0;
+		Utils.shell(command, true);
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean killImpl() {
+	protected void killImpl(final Callback<Void> callback) {
 		String command = String.format("killall %s 1>/dev/null 2>/dev/null &", getBinaryName());
-		return Utils.shell(command, true) == 0;
+		Utils.shell(command, true);
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean enableImpl() {
+	protected void enableImpl(final Callback<Void> callback) {
 		try {
 			sendCommandSync(new Request("s radio_nop start").setTimeout(100));
 			sendCommandSync(new Request("s tuner_state start").setTimeout(5000));
-			return true;
+			callback.onResult(null);
 		} catch (IOException e) {
-			return false;
+			callback.onError(new Error("IO error: " + e.getMessage()));
 		}
 	}
 
 	@Override
-	protected boolean disableImpl() {
+	protected void disableImpl(final Callback<Void> callback) {
 		try {
 			sendCommandSync(new Request("s tuner_state stop").setTimeout(5000));
-			return true;
+			callback.onResult(null);
 		} catch (IOException e) {
-			return true;
+			callback.onError(new Error("IO error: " + e.getMessage()));
 		}
 	}
 
 	@Override
-	protected boolean setFrequencyImpl(final int kHz) {
+	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
 		try {
 			sendCommandSync(new Request("s tuner_freq " + kHz));
-			return true;
+			callback.onResult(kHz); // TODO REAL STATE
 		} catch (IOException e) {
-			return false;
+			callback.onError(new Error("setFrequency IO error: " + e.getMessage()));
 		}
 	}
 
@@ -156,7 +158,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	private static Request cmdRdsPs = new Request("g rds_ps");
 
 	@Override
-	public Bundle poll() {
+	public void poll(final Callback<Bundle> callback) {
 		Bundle bundle = new Bundle();
 		String tmp;
 
@@ -177,11 +179,12 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 			if (tmp != null) {
 				bundle.putString(C.Key.PS, tmp);
 			}
+
+			callback.onResult(bundle);
 		} catch (IOException e) {
 			e.printStackTrace();
+			callback.onError(new Error("poll(): IO error: " + e.getMessage()));
 		}
-
-		return bundle;
 	}
 
 	interface OnReceivedResponse {

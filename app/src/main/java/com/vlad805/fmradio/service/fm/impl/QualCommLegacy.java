@@ -73,7 +73,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
 	@Override
-	protected boolean installImpl() {
+	protected void installImpl(final Callback<Void> callback) {
 		File dir = new File(getAppRootPath());
 		if (!dir.exists()) {
 			dir.mkdirs();
@@ -83,9 +83,9 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 			// Copy binary
 			boolean success = copyBinary();
 
-			// Unsuccessfully
 			if (!success) {
-				throw new Error("Error while copy binary");
+				callback.onError(new Error("Error while copy binary"));
+				return;
 			}
 		} catch (FileNotFoundException e) {
 			// FileNotFoundException - Text file busy
@@ -95,13 +95,13 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 			try {
 				copyBinary();
 			} catch (FileNotFoundException e2) {
-				throw new Error("Error while copy binary after kill busy binary");
+				callback.onError(new Error("Error while copy binary after kill busy binary"));
+				return;
 			}
 		}
 
-		int ret = Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
-
-		return ret == 0;
+		Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
+		callback.onResult(null);
 	}
 
 	/**
@@ -113,37 +113,39 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	protected boolean launchImpl() {
+	protected void launchImpl(final Callback<Void> callback) {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
 		startServerListener();
-		sendCommand("init");
-		return true; // TODO REAL STATE
+		final Request request = new Request("init");
+		request.setListener(data -> {
+			callback.onResult(null);
+		});
+		sendCommand(request);
 	}
 
 	@Override
-	protected boolean killImpl() {
+	protected void killImpl(final Callback<Void> callback) {
 		mServer.closeServer();
 		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
-		return Utils.shell(command, true) == 0;
+		Utils.shell(command, true);
+		callback.onResult(null);
 	}
 
 	@Override
-	protected boolean enableImpl() {
-		sendCommand("enable");
-		return true; // TODO REAL STATE
+	protected void enableImpl(final Callback<Void> callback) {
+		sendCommand(new Request("enable").setListener(result -> callback.onResult(null)));
 	}
 
 	@Override
-	protected boolean disableImpl() {
-		sendCommand("disable");
-		return true; // TODO REAL STATE
+	protected void disableImpl(final Callback<Void> callback) {
+		sendCommand(new Request("disable").setListener(result -> callback.onResult(null)));
 	}
 
 	@Override
-	protected boolean setFrequencyImpl(int kHz) {
+	protected void setFrequencyImpl(int kHz, final Callback<Integer> callback) {
 		sendCommand("setfreq " + kHz);
-		return true; // TODO REAL STATE
+		callback.onResult(kHz); // TODO REAL STATE
 	}
 
 	@Override
@@ -206,8 +208,9 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 			this.timeout = timeout;
 		}
 
-		public void setListener(OnReceivedResponse listener) {
+		public Request setListener(OnReceivedResponse listener) {
 			this.listener = listener;
+			return this;
 		}
 
 		public byte[] bytes() {
