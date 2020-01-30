@@ -143,6 +143,9 @@ public class FMService extends Service implements FMEventCallback {
 		return START_STICKY;
 	}
 
+	/**
+	 * Stop FM
+	 */
 	private void kill() {
 		if (mFmController instanceof IFMEventPoller) {
 			if (mTimer != null) {
@@ -169,6 +172,10 @@ public class FMService extends Service implements FMEventCallback {
 		super.onDestroy();
 	}
 
+	/**
+	 * Returns preferred by user audio service (from settings)
+	 * @return FMAudioService instance
+	 */
 	private FMAudioService getPreferredAudioService() {
 		final int id = Storage.getPrefInt(this, C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
@@ -183,7 +190,7 @@ public class FMService extends Service implements FMEventCallback {
 	}
 
 	/**
-	 * Returns preferred tuner driver
+	 * Returns preferred by user tuner driver (from settings)
 	 * @return Tuner driver
 	 */
 	private FMController getPreferredTunerDriver() {
@@ -214,6 +221,9 @@ public class FMService extends Service implements FMEventCallback {
 		sendBroadcast(new Intent(event).putExtras(bundle));
 	}
 
+	/**
+	 * Event listener
+	 */
 	public class PlayerReceiver extends BroadcastReceiver {
 
 		@Override
@@ -266,8 +276,10 @@ public class FMService extends Service implements FMEventCallback {
 		}
 	}
 
-
-
+	/**
+	 * Create notification
+	 * @return Notification builder
+	 */
 	private Notification.Builder createNotificationBuilder() {
 		Intent mainIntent = new Intent(this, MainActivity.class);
 		mainIntent.setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
@@ -334,19 +346,18 @@ public class FMService extends Service implements FMEventCallback {
 			}
 		}
 
-		private void sendIntEventIfExistsAndDiff(Bundle now, String key, String action) {
+		private void sendIntEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
 			if (last.containsKey(key) && now.containsKey(key) && last.getInt(key) != now.getInt(key)) {
 				sendBroadcast(new Intent(action).putExtra(key, now.getInt(key)));
 			}
 		}
 
-		private void sendStringEventIfExistsAndDiff(Bundle now, String key, String action) {
+		private void sendStringEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
 			if (
 					last.containsKey(key) && now.containsKey(key) &&
 					!Objects.equals(last.getString(key), now.get(key))
 			) {
-				Intent i = new Intent(action).putExtra(key, now.getString(key));
-				sendBroadcast(i);
+				sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
 			}
 		}
 	}
