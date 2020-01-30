@@ -75,6 +75,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			mFrequencyInfo.hideReflection();
 		}
 
+		mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, 0));
+
 		initClickableButtons();
 	}
 
@@ -91,6 +93,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			setEnabledToggleButton(false);
 			mRadioController.setup();
 			mRadioController.launch();
+		} else {
+			setEnabledUi(false);
 		}
 
 		mFrequencyInfo.setRadioController(mRadioController);
