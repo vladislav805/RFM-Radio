@@ -1,7 +1,5 @@
 package com.vlad805.fmradio;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
 
@@ -71,9 +69,5 @@ public class Utils {
 
 	public static String getMHz(int kHz) {
 		return String.format(Locale.ENGLISH, "%5.1f", kHz / 1000.);
-	}
-
-	public static SharedPreferences getStorage(Context ctx) {
-		return Storage.getInstance(ctx);
 	}
 }

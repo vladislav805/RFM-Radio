@@ -3,6 +3,7 @@ package com.vlad805.fmradio.view;
 import android.content.Context;
 import android.util.AttributeSet;
 import androidx.preference.EditTextPreference;
+import com.vlad805.fmradio.Utils;
 
 /**
  * vlad805 (c) 2020
@@ -28,6 +29,6 @@ public class IntEditTextPreference extends EditTextPreference {
 
 	@Override
 	protected boolean persistString(String value) {
-		return persistInt(Integer.parseInt(value));
+		return persistInt(Utils.parseInt(value));
 	}
 }

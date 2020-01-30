@@ -9,6 +9,7 @@ import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.fm.FMController;
 import com.vlad805.fmradio.service.FMAudioService;
 
@@ -63,7 +64,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
 			final List<String> keys = new ArrayList<>();
 			final List<String> values = new ArrayList<>();
 
-			for (int i = 0; i < entries.size(); i++) {
+			for (int i = 0; i < entries.size(); ++i) {
 				final int k = entries.keyAt(i);
 
 				keys.add(String.valueOf(k));
@@ -71,12 +72,11 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
 			}
 
 			lp.setSummaryProvider((Preference.SummaryProvider<ListPreference>) s -> {
-				//noinspection CodeBlock2Expr
-				return entries.get(entries.indexOfKey(Integer.parseInt(s.getValue())));
+				final int id = entries.indexOfKey(Utils.parseInt(s.getValue()));
+				return entries.valueAt(id);
 			});
 			lp.setEntries(values.toArray(new String[0]));
 			lp.setEntryValues(keys.toArray(new String[0]));
 		}
 	}
-
 }

@@ -121,7 +121,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	public void jumpImpl(final int direction, final Callback<Integer> callback) {
 		try {
 			String res = sendCommandSync(new Request("g tuner_freq"));
-			int frequency = Integer.parseInt(res);
+			int frequency = Utils.parseInt(res);
 			frequency += direction > 0 ? 100 : -100;
 			setFrequency(frequency);
 			callback.onResult(frequency);
@@ -135,7 +135,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 		try {
 			String res = sendCommandSync(new Request("s tuner_scan_state " + toDirection(direction)).setTimeout(15000));
 
-			callback.onResult(Integer.parseInt(res));
+			callback.onResult(Utils.parseInt(res));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -163,13 +163,13 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 		try {
 			tmp = sendCommandSync(cmdTunerFreq);
 			if (tmp != null) {
-				int frequency = Integer.parseInt(tmp);
+				int frequency = Utils.parseInt(tmp);
 				bundle.putInt(C.Key.FREQUENCY, frequency);
 			}
 
 			tmp = sendCommandSync(cmdTunerRssi);
 			if (tmp != null) {
-				int rssi = Integer.parseInt(tmp);
+				int rssi = Utils.parseInt(tmp);
 				bundle.putInt(C.Key.RSSI, rssi);
 			}
 

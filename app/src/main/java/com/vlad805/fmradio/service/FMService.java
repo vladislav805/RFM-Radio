@@ -7,13 +7,13 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.fm.FMController;
@@ -29,10 +29,9 @@ import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static com.vlad805.fmradio.Utils.getStorage;
-
 @SuppressWarnings("deprecation")
 public class FMService extends Service implements FMEventCallback {
+	private static final String TAG = "FMS";
 	private static final int NOTIFICATION_ID = 1027;
 
 	private RadioController mRadioController;
@@ -40,6 +39,7 @@ public class FMService extends Service implements FMEventCallback {
 	private FMAudioService mAudioService;
 	private NotificationManager mNotificationMgr;
 	private PlayerReceiver mStatusReceiver;
+	private SharedPreferences mStorage;
 	private Notification.Builder mNotification;
 	private Timer mTimer;
 
@@ -50,6 +50,7 @@ public class FMService extends Service implements FMEventCallback {
 		mRadioController = new RadioController(this);
 		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mStatusReceiver = new PlayerReceiver();
+		mStorage = Storage.getInstance(this);
 
 		mAudioService = getPreferredAudioService();
 		mFmController = getPreferredTunerDriver();
@@ -186,7 +187,9 @@ public class FMService extends Service implements FMEventCallback {
 	 * @return Tuner driver
 	 */
 	private FMController getPreferredTunerDriver() {
-		final int id = getStorage(this).getInt(C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+
+		Log.d(TAG, "getPreferredTunerDriver: preferred id = " + id);
 
 		switch (id) {
 			case FMController.DRIVER_QUALCOMM:
@@ -234,7 +237,7 @@ public class FMService extends Service implements FMEventCallback {
 
 				case C.Event.ENABLED: {
 					mAudioService.startAudio();
-					int frequency = Utils.getStorage(context).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+					int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 					mRadioController.setFrequency(frequency);
 					break;
 				}
@@ -246,7 +249,7 @@ public class FMService extends Service implements FMEventCallback {
 
 				case C.Event.FREQUENCY_SET:
 					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					getStorage(FMService.this).edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
+					mStorage.edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
 					updateNotification();
 					break;
 
