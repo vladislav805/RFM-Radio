@@ -131,7 +131,7 @@
 		<ImageView
 				style="@style/ControlIcon"
 				android:id="@+id/rssi_icon"
-				android:src="@drawable/ic_signal_off"
+				android:src="@drawable/ic_signal_unknown"
 				android:layout_width="@dimen/control_icon_size"
 				android:layout_height="@dimen/control_icon_size"
 				android:contentDescription="@string/nil"
@@ -142,15 +142,16 @@
 
 		<TextView
 				android:id="@+id/rssi_value"
-				tools:text="70"
-				android:gravity="center_vertical"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
+				android:layout_marginEnd="8dp"
+				android:fontFamily="monospace"
+				android:gravity="center_vertical"
+				android:text="@string/space_two"
 				app:layout_constraintTop_toTopOf="@+id/rssi_icon"
 				app:layout_constraintBottom_toBottomOf="@+id/rssi_icon"
 				app:layout_constraintEnd_toStartOf="@+id/stereo_mono"
-				android:layout_marginEnd="8dp"
-				android:fontFamily="monospace"/>
+				tools:text="70"/>
 
 		<TextView
 				style="@style/RDS_PS"

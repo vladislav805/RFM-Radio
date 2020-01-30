@@ -65,5 +65,6 @@
 	<string name="pref_tuner_antenna_message">By default it is \'0\'.\nOn some Sony devices it is \'1\'.</string>
 	<string name="pref_tuner_audio_source_message">0 - default\n1998 - \'new\' FM source</string>
 	<string name="pref_audio_service">Audio service</string>
+	<string name="space_two">  </string>
 
 </resources>
