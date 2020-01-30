@@ -1,7 +1,7 @@
 package com.vlad805.fmradio;
 
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.service.FMAudioService;
+import com.vlad805.fmradio.service.audio.FMAudioService;
+import com.vlad805.fmradio.service.fm.FMController;
 
 /**
  * vlad805 (c) 2019

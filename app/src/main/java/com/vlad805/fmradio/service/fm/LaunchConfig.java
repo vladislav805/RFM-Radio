@@ -1,15 +1,17 @@
-package com.vlad805.fmradio.fm;
+package com.vlad805.fmradio.service.fm;
 
 import com.vlad805.fmradio.BuildConfig;
 
 /**
+ * Controller Configuration
+ * May contain data to run
  * vlad805 (c) 2020
  */
 public abstract class LaunchConfig {
 
 	/**
-	 * Returns No antenna
-	 * @return No antenna
+	 * Returns number of antenna
+	 * @return Number antenna
 	 */
 	public int getAntenna() {
 		return 0;

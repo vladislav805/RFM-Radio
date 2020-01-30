@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.fm.impl;
+package com.vlad805.fmradio.service.fm.impl;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -7,9 +7,9 @@ import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.fm.IFMEventPoller;
-import com.vlad805.fmradio.fm.LaunchConfig;
+import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.IFMEventPoller;
+import com.vlad805.fmradio.service.fm.LaunchConfig;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

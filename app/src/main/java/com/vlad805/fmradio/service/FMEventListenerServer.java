@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
-import com.vlad805.fmradio.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

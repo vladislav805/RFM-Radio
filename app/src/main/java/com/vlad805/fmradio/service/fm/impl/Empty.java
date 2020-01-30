@@ -1,12 +1,12 @@
-package com.vlad805.fmradio.fm.impl;
+package com.vlad805.fmradio.service.fm.impl;
 
 import android.content.Context;
 import android.util.Log;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.fm.FMEventCallback;
-import com.vlad805.fmradio.fm.IFMEventListener;
-import com.vlad805.fmradio.fm.LaunchConfig;
+import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.LaunchConfig;
 
 /**
  * vlad805 (c) 2020
@@ -24,7 +24,7 @@ public class Empty extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	public void setEventListener(FMEventCallback callback) {
+	public void setEventListener(final FMEventCallback callback) {
 		mEventCallback = callback;
 	}
 

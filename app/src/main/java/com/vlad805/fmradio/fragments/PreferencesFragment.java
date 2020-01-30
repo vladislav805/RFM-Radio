@@ -10,8 +10,8 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.service.FMAudioService;
+import com.vlad805.fmradio.service.audio.FMAudioService;
+import com.vlad805.fmradio.service.fm.FMController;
 
 import java.util.ArrayList;
 import java.util.List;

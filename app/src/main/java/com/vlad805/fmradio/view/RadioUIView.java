@@ -24,7 +24,7 @@ public class RadioUIView extends LinearLayout {
 	/**
 	 * Current frequency
 	 */
-	private int mkHz = 87500;
+	private int mkHz = BAND_LOW;
 
 	/**
 	 * Settings

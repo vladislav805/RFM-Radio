@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.fm;
+package com.vlad805.fmradio.service.fm;
 
 import android.annotation.SuppressLint;
 import android.content.Context;

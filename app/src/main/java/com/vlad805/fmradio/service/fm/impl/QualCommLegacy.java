@@ -1,15 +1,15 @@
-package com.vlad805.fmradio.fm.impl;
+package com.vlad805.fmradio.service.fm.impl;
 
 import android.content.Context;
 import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.fm.FMEventCallback;
-import com.vlad805.fmradio.fm.IFMEventListener;
-import com.vlad805.fmradio.fm.LaunchConfig;
 import com.vlad805.fmradio.service.FMEventListenerServer;
+import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.LaunchConfig;
 
 import java.io.*;
 import java.net.DatagramPacket;
