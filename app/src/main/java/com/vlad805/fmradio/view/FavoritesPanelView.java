@@ -29,18 +29,20 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	private OnFavoriteClick mClickListener;
 	private FavoriteController mController;
 
+	private boolean mIsLocked = false;
+
 	public interface OnFavoriteClick {
-		void onFavoriteClick(FavoriteStation station);
+		void onFavoriteClick(final FavoriteStation station);
 		int getCurrentFrequencyForAddFavorite();
 	}
 
-	public FavoritesPanelView(Context context) {
+	public FavoritesPanelView(final Context context) {
 		super(context);
 
 		init();
 	}
 
-	public FavoritesPanelView(Context context, AttributeSet attrs) {
+	public FavoritesPanelView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 
 		init();
@@ -57,7 +59,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 * Set stations in view. If force is true - will be reloaded data from file.
 	 * @param force If true, data will be fetched from file
 	 */
-	public void reload(boolean force) {
+	public void reload(final boolean force) {
 		if (force) {
 			mController.reload();
 		}
@@ -66,7 +68,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	}
 
 	private void init() {
-		LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
+		final LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
 		setLayoutManager(horizontalLayoutManager);
 
 		mAdapter = new FavoritePanelAdapter(getContext());
@@ -84,7 +86,11 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 * @param position Position
 	 */
 	@Override
-	public void onItemClick(View view, int position) {
+	public void onItemClick(final View view, final int position) {
+		if (mIsLocked) {
+			return;
+		}
+
 		final int size = mStations.size();
 		boolean isExists = position < size;
 
@@ -114,8 +120,8 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 * @param position Position
 	 */
 	@Override
-	public void onLongItemClick(View view, int position) {
-		if (position >= mStations.size()) {
+	public void onLongItemClick(final View view, final int position) {
+		if (mIsLocked || position >= mStations.size()) {
 			return;
 		}
 
@@ -159,7 +165,19 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 * Set callback for click by favorite item
 	 * @param listener Listener
 	 */
-	public void setOnFavoriteClick(OnFavoriteClick listener) {
+	public void setOnFavoriteClick(final OnFavoriteClick listener) {
 		mClickListener = listener;
+	}
+
+	@Override
+	public boolean canScrollVertically(int direction) {
+		return !mIsLocked;
+	}
+
+	@Override
+	public void setEnabled(final boolean enabled) {
+		super.setEnabled(enabled);
+
+		mIsLocked = !enabled;
 	}
 }
