@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.fm.impl;
+package com.vlad805.fmradio.service.fm.impl;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -7,9 +7,9 @@ import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.fm.IFMEventPoller;
-import com.vlad805.fmradio.fm.LaunchConfig;
+import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.IFMEventPoller;
+import com.vlad805.fmradio.service.fm.LaunchConfig;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -24,6 +24,7 @@ import java.util.Queue;
  * vlad805 (c) 2020
  */
 public class Spirit3Impl extends FMController implements IFMEventPoller {
+	private static final String TAG = "S3I";
 
 	public static class Config extends LaunchConfig {
 		@Override
@@ -32,8 +33,8 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 		}
 	}
 
-	public Spirit3Impl(LaunchConfig config) {
-		super(config);
+	public Spirit3Impl(final LaunchConfig config, final Context context) {
+		super(config, context);
 		mQueueCommands = new LinkedList<>();
 	}
 
@@ -61,41 +62,58 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	}
 
 	@Override
-	public void install(Context context) {
-
+	protected void installImpl(final Callback<Void> callback) {
+		callback.onResult(null);
 	}
 
 	@Override
-	public void launch(Context context) {
+	protected void launchImpl(final Callback<Void> callback) {
 		String command = String.format("%s 4 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
+		callback.onResult(null);
 	}
 
 	@Override
-	public void kill() {
+	protected void killImpl(final Callback<Void> callback) {
 		String command = String.format("killall %s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
+		callback.onResult(null);
 	}
 
 	@Override
-	public void enable() {
-		sendCommand(new Request("s radio_nop start").setTimeout(100));
-		sendCommand(new Request("s tuner_state start").setTimeout(5000));
+	protected void enableImpl(final Callback<Void> callback) {
+		try {
+			sendCommandSync(new Request("s radio_nop start").setTimeout(100));
+			sendCommandSync(new Request("s tuner_state start").setTimeout(5000));
+			callback.onResult(null);
+		} catch (IOException e) {
+			callback.onError(new Error("IO error: " + e.getMessage()));
+		}
 	}
 
 	@Override
-	public void disable() {
-		sendCommand(new Request("s tuner_state stop").setTimeout(5000));
+	protected void disableImpl(final Callback<Void> callback) {
+		try {
+			sendCommandSync(new Request("s tuner_state stop").setTimeout(5000));
+			callback.onResult(null);
+		} catch (IOException e) {
+			callback.onError(new Error("IO error: " + e.getMessage()));
+		}
 	}
 
 	@Override
-	public void setFrequency(int kHz) {
-		sendCommand("s tuner_freq " + kHz);
+	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
+		try {
+			sendCommandSync(new Request("s tuner_freq " + kHz));
+			callback.onResult(kHz); // TODO REAL STATE
+		} catch (IOException e) {
+			callback.onError(new Error("setFrequency IO error: " + e.getMessage()));
+		}
 	}
 
 	@Override
-	public int getSignalStretch() {
-		return 0;
+	public void getSignalStretchImpl(final Callback<Integer> result) {
+		result.onResult(0); // TODO
 	}
 
 	private String toDirection(int direction) {
@@ -103,21 +121,27 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	}
 
 	@Override
-	public void jump(final int direction) {
-		sendCommand(new Request("g tuner_freq").setListener(data -> {
-			if (data.length() == 4 || data.length() == 5) {
-				int frequency = Integer.parseInt(data) * 10;
-
-				frequency += direction > 0 ? 100 : -100;
-
-				setFrequency(frequency);
-			}
-		}));
+	public void jumpImpl(final int direction, final Callback<Integer> callback) {
+		try {
+			String res = sendCommandSync(new Request("g tuner_freq"));
+			int frequency = Utils.parseInt(res);
+			frequency += direction > 0 ? 100 : -100;
+			setFrequency(frequency);
+			callback.onResult(frequency);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
-	public void hwSeek(int direction) {
-		sendCommand("s tuner_scan_state " + toDirection(direction));
+	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
+		try {
+			String res = sendCommandSync(new Request("s tuner_scan_state " + toDirection(direction)).setTimeout(15000));
+
+			callback.onResult(Utils.parseInt(res));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -130,28 +154,38 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	}
 
+	private static Request cmdTunerFreq = new Request("g tuner_freq");
+	private static Request cmdTunerRssi = new Request("g tuner_rssi");
+	private static Request cmdRdsPs = new Request("g rds_ps");
+
 	@Override
-	public Bundle poll() {
+	public void poll(final Callback<Bundle> callback) {
 		Bundle bundle = new Bundle();
+		String tmp;
 
-		String f = sendCommandSync(new Request("g tuner_freq"));
-		if (f != null) {
-			int frequency = Integer.parseInt(f);
-			bundle.putInt(C.Key.FREQUENCY, frequency);
+		try {
+			tmp = sendCommandSync(cmdTunerFreq);
+			if (tmp != null) {
+				int frequency = Utils.parseInt(tmp);
+				bundle.putInt(C.Key.FREQUENCY, frequency);
+			}
+
+			tmp = sendCommandSync(cmdTunerRssi);
+			if (tmp != null) {
+				int rssi = Utils.parseInt(tmp);
+				bundle.putInt(C.Key.RSSI, rssi);
+			}
+
+			tmp = sendCommandSync(cmdRdsPs);
+			if (tmp != null) {
+				bundle.putString(C.Key.PS, tmp);
+			}
+
+			callback.onResult(bundle);
+		} catch (IOException e) {
+			e.printStackTrace();
+			callback.onError(new Error("poll(): IO error: " + e.getMessage()));
 		}
-
-		String r = sendCommandSync(new Request("g tuner_rssi"));
-		if (r != null) {
-			int rssi = Integer.parseInt(r);
-			bundle.putInt(C.Key.RSSI, rssi);
-		}
-
-		String p = sendCommandSync(new Request("g rds_ps"));
-		if (p != null) {
-			bundle.putString(C.Key.PS, p);
-		}
-
-		return bundle;
 	}
 
 	interface OnReceivedResponse {
@@ -204,7 +238,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	private void initSocket() throws IOException {
 		mDatagramSocketClient = new DatagramSocket(0);
-		Log.i("S3I", "Created socket");
+		//Log.i("S3I", "Created socket");
 
 	}
 
@@ -263,7 +297,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 		mDatagramSocketClient.setSoTimeout(command.getTimeout());
 
-		Log.d("S3I", "Sent command: " + command.getCommand());
+		//Log.d("S3I", "Sent command: " + command.getCommand());
 
 		DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), LOOPBACK, config.getClientPort());
 
@@ -283,14 +317,8 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 		return new String(buf, 0, size, StandardCharsets.UTF_8);
 	}
 
-	private String sendCommandSync(Request command) {
-		try {
-			return sendDataSocketAndWaitForResult(command);
-		} catch (Throwable e) {
-			e.printStackTrace();
-			Log.i("S3I", "FAILED: attempt for request [" + command + "]");
-			return null;
-		}
+	private String sendCommandSync(Request command) throws IOException {
+		return sendDataSocketAndWaitForResult(command);
 	}
 
 }

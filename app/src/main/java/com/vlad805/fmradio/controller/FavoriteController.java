@@ -3,7 +3,7 @@ package com.vlad805.fmradio.controller;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
-import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -33,7 +33,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	private static final String JSON_EXT = ".json";
 
 	public FavoriteController(Context context) {
-		this.mStorage = Utils.getStorage(context);
+		this.mStorage = Storage.getInstance(context);
 	}
 
 	/**

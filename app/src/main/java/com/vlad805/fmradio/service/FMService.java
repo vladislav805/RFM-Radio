@@ -7,97 +7,56 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.fm.FMEventCallback;
-import com.vlad805.fmradio.fm.IFMEventListener;
-import com.vlad805.fmradio.fm.IFMEventPoller;
-import com.vlad805.fmradio.fm.impl.QualCommLegacy;
-import com.vlad805.fmradio.fm.impl.Spirit3Impl;
+import com.vlad805.fmradio.service.audio.FMAudioService;
+import com.vlad805.fmradio.service.audio.LightAudioService;
+import com.vlad805.fmradio.service.audio.Spirit3AudioService;
+import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.IFMEventPoller;
+import com.vlad805.fmradio.service.fm.impl.Empty;
+import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
+import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
 
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static com.vlad805.fmradio.Utils.getStorage;
-
 @SuppressWarnings("deprecation")
 public class FMService extends Service implements FMEventCallback {
+	private static final String TAG = "FMS";
+	private static final int NOTIFICATION_ID = 1027;
 
 	private RadioController mRadioController;
 	private FMController mFmController;
 	private FMAudioService mAudioService;
 	private NotificationManager mNotificationMgr;
 	private PlayerReceiver mStatusReceiver;
-
+	private SharedPreferences mStorage;
+	private Notification.Builder mNotification;
 	private Timer mTimer;
-
-	public class PlayerReceiver extends BroadcastReceiver {
-
-		@Override
-		public void onReceive(final Context context, final Intent intent) {
-			if (intent == null || intent.getAction() == null) {
-				return;
-			}
-
-			Log.d("FMService", "Received event " + intent.getAction());
-
-			switch (intent.getAction()) {
-				case C.Event.BINARY_READY: {
-					mRadioController.launch(context);
-					break;
-				}
-
-				case C.Event.READY: {
-					//mRadioController.enable(context);
-					break;
-				}
-
-				case C.Event.FM_READY: {
-					int frequency = Utils.getStorage(context).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-					mRadioController.setFrequency(getApplicationContext(), frequency);
-					break;
-				}
-
-				case C.Event.FREQUENCY_SET:
-					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					getStorage(FMService.this).edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
-					updateNotification();
-					break;
-
-				case C.Event.UPDATE_PS:
-					//mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
-					break;
-
-				case C.Event.UPDATE_RT:
-					//mConfiguration.setRt(intent.getStringExtra(C.Key.RT));
-					break;
-			}
-
-			mRadioController.onEvent(intent);
-		}
-	}
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
 
-		mRadioController = RadioController.getInstance();
+		mRadioController = new RadioController(this);
 		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		mStatusReceiver = new PlayerReceiver();
+		mStorage = Storage.getInstance(this);
 
-		mAudioService = new LightAudioService(this); // TODO createAudioService();
-		mFmController = new QualCommLegacy(new QualCommLegacy.Config()); // TODO createFmService();
+		mAudioService = getPreferredAudioService();
+		mFmController = getPreferredTunerDriver();
 
 		if (mFmController instanceof IFMEventPoller) {
 			mTimer = new Timer("Poll", true);
@@ -108,18 +67,7 @@ public class FMService extends Service implements FMEventCallback {
 			((IFMEventListener) mFmController).setEventListener(this);
 		}
 
-		IntentFilter filter = new IntentFilter();
-		filter.addAction(C.Event.BINARY_READY);
-		filter.addAction(C.Event.READY);
-		filter.addAction(C.Event.FM_READY);
-		filter.addAction(C.Event.FREQUENCY_SET);
-		filter.addAction(C.Event.UPDATE_PS);
-		filter.addAction(C.Event.UPDATE_RT);
-		filter.addAction(C.Event.UPDATE_RSSI);
-		filter.addAction(C.Event.ENABLED);
-		filter.addAction(C.Event.DISABLED);
-		filter.addAction(C.Event.KILL);
-		registerReceiver(mStatusReceiver, filter);
+		registerReceiver(mStatusReceiver, RadioController.sFilter);
 	}
 
 	@Override
@@ -128,31 +76,25 @@ public class FMService extends Service implements FMEventCallback {
 			return START_STICKY;
 		}
 
+		Log.d(TAG, "onStartCommand: " + intent.getAction());
+
 		switch (intent.getAction()) {
 			case C.Command.SETUP: {
-				try {
-					mFmController.init(this);
-					sendBroadcast(new Intent(C.Event.BINARY_READY));
-				} catch (Exception e) {
-					sendBroadcast(new Intent(C.Event.ERROR_OCCURRED).putExtra(C.Key.MESSAGE, "Failed to init"));
-				}
+				mFmController.prepareBinary();
 				break;
 			}
 
 			case C.Command.LAUNCH: {
-				mFmController.launch(this);
-				sendBroadcast(new Intent(C.Event.READY));
+				mFmController.launch();
+				break;
 			}
 
 			case C.Command.ENABLE: {
 				mFmController.enable();
-				mAudioService.startAudio();
-				sendBroadcast(new Intent(C.Event.FM_READY));
 				break;
 			}
 
 			case C.Command.DISABLE: {
-				mAudioService.stopAudio();
 				mFmController.disable();
 				stopSelf();
 				break;
@@ -164,10 +106,8 @@ public class FMService extends Service implements FMEventCallback {
 					break;
 				}
 
-				int frequency = intent.getIntExtra(C.Key.FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-				Log.d("FMS", "Set frequency to " + frequency + " kHz");
+				final int frequency = intent.getIntExtra(C.Key.FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 				mFmController.setFrequency(frequency);
-				sendBroadcast(new Intent(C.Event.FREQUENCY_SET).putExtras(intent));
 				break;
 			}
 
@@ -198,8 +138,8 @@ public class FMService extends Service implements FMEventCallback {
 				break;*/
 
 			case C.Command.KILL: {
-				kill();
-				sendBroadcast(new Intent(C.Event.KILL));
+				stopService(new Intent(this, FMService.class));
+				sendBroadcast(new Intent(C.Event.KILLED));
 				break;
 			}
 		}
@@ -207,6 +147,9 @@ public class FMService extends Service implements FMEventCallback {
 		return START_STICKY;
 	}
 
+	/**
+	 * Stop FM
+	 */
 	private void kill() {
 		if (mFmController instanceof IFMEventPoller) {
 			if (mTimer != null) {
@@ -214,16 +157,16 @@ public class FMService extends Service implements FMEventCallback {
 			}
 		}
 		mAudioService.stopAudio();
-		mFmController.disable();
-		mFmController.kill();
 
-		mNotificationMgr.cancel(NOTIFICATION_ID);
-		stopForeground(true);
+		mFmController.kill();
 
 		if (mStatusReceiver != null) {
 			unregisterReceiver(mStatusReceiver);
 			mStatusReceiver = null;
 		}
+
+		mNotificationMgr.cancel(NOTIFICATION_ID);
+		stopForeground(true);
 	}
 
 	@Override
@@ -233,37 +176,47 @@ public class FMService extends Service implements FMEventCallback {
 		super.onDestroy();
 	}
 
-	/*private List<Station> getStationList() {
-		return mDatabase.stationDao().getAll();
-	}*/
-
-	private FMAudioService createAudioService() {
+	/**
+	 * Returns preferred by user audio service (from settings)
+	 * @return FMAudioService instance
+	 */
+	private FMAudioService getPreferredAudioService() {
 		final int id = Storage.getPrefInt(this, C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
-			case FMAudioService.SERVICE_LIGHT:
+			case FMAudioService.SERVICE_LIGHT: {
 				return new LightAudioService(this);
+			}
 
 			case FMAudioService.SERVICE_SPIRIT3:
-			default:
+			default: {
 				return new Spirit3AudioService(this);
+			}
 		}
 	}
 
 	/**
-	 * Returns preferred tuner driver
+	 * Returns preferred by user tuner driver (from settings)
 	 * @return Tuner driver
 	 */
 	private FMController getPreferredTunerDriver() {
-		final int id = getStorage(this).getInt(C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+
+		Log.d(TAG, "getPreferredTunerDriver: preferred id = " + id);
 
 		switch (id) {
-			case FMController.DRIVER_NEW:
-				return new QualCommLegacy(new QualCommLegacy.Config());
+			case FMController.DRIVER_QUALCOMM: {
+				return new QualCommLegacy(new QualCommLegacy.Config(), this);
+			}
+
+			case FMController.DRIVER_EMPTY: {
+				return new Empty(new Empty.Config(), this);
+			}
 
 			case FMController.DRIVER_SPIRIT3:
-			default:
-				return new Spirit3Impl(new Spirit3Impl.Config());
+			default: {
+				return new Spirit3Impl(new Spirit3Impl.Config(), this);
+			}
 		}
 	}
 
@@ -277,9 +230,58 @@ public class FMService extends Service implements FMEventCallback {
 		sendBroadcast(new Intent(event).putExtras(bundle));
 	}
 
-	private Notification.Builder mNotification;
-	private static final int NOTIFICATION_ID = 1027;
+	/**
+	 * Event listener
+	 */
+	public class PlayerReceiver extends BroadcastReceiver {
 
+		@Override
+		public void onReceive(final Context context, final Intent intent) {
+			if (intent == null || intent.getAction() == null) {
+				return;
+			}
+
+			Log.d(TAG, "onReceive: " + intent.getAction());
+
+			switch (intent.getAction()) {
+				case C.Event.INSTALLED: {
+					mRadioController.launch();
+					break;
+				}
+
+				case C.Event.LAUNCHED: {
+					mRadioController.enable();
+					break;
+				}
+
+				case C.Event.ENABLED: {
+					mAudioService.startAudio();
+					int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+					mRadioController.setFrequency(frequency);
+					break;
+				}
+
+				case C.Event.DISABLED: {
+					mAudioService.stopAudio();
+					break;
+				}
+
+				case C.Event.FREQUENCY_SET: {
+					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
+					mStorage.edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
+					updateNotification();
+					break;
+				}
+			}
+
+			mRadioController.onEvent(intent);
+		}
+	}
+
+	/**
+	 * Create notification
+	 * @return Notification builder
+	 */
 	private Notification.Builder createNotificationBuilder() {
 		Intent mainIntent = new Intent(this, MainActivity.class);
 		mainIntent.setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
@@ -305,7 +307,7 @@ public class FMService extends Service implements FMEventCallback {
 			mNotification = createNotificationBuilder();
 		}
 
-		int frequency = mRadioController.getState().getFrequency();
+		int frequency = mRadioController.getState().getInt(C.Key.FREQUENCY);
 
 		mNotification
 				.setContentTitle(getString(R.string.app_name))
@@ -331,34 +333,35 @@ public class FMService extends Service implements FMEventCallback {
 
 		public void run() {
 			if (mFmController instanceof IFMEventPoller) {
-				Bundle bundle = ((IFMEventPoller) mFmController).poll();
-
-				if (last == null) {
-					last = bundle;
-					return;
-				}
-
-				sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
-				sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
-				sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
-
-				last = bundle;
+				((IFMEventPoller) mFmController).poll(this::get);
 			}
 		}
 
-		private void sendIntEventIfExistsAndDiff(Bundle now, String key, String action) {
+		private void get(final Bundle bundle) {
+			if (last == null) {
+				last = bundle;
+				return;
+			}
+
+			sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
+			sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
+			sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
+
+			last = bundle;
+		}
+
+		private void sendIntEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
 			if (last.containsKey(key) && now.containsKey(key) && last.getInt(key) != now.getInt(key)) {
 				sendBroadcast(new Intent(action).putExtra(key, now.getInt(key)));
 			}
 		}
 
-		private void sendStringEventIfExistsAndDiff(Bundle now, String key, String action) {
+		private void sendStringEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
 			if (
 					last.containsKey(key) && now.containsKey(key) &&
 					!Objects.equals(last.getString(key), now.get(key))
 			) {
-				Intent i = new Intent(action).putExtra(key, now.getString(key));
-				sendBroadcast(i);
+				sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
 			}
 		}
 	}

@@ -1,7 +1,7 @@
 package com.vlad805.fmradio;
 
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.service.FMAudioService;
+import com.vlad805.fmradio.service.audio.FMAudioService;
+import com.vlad805.fmradio.service.fm.FMController;
 
 /**
  * vlad805 (c) 2019
@@ -14,9 +14,8 @@ final public class C {
 		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
 		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
-		public static final String BINARY_READY = BASE + "BINARY_READY";
-		public static final String READY = BASE + "READY";
-		public static final String FM_READY = BASE + "FM_READY";
+		public static final String INSTALLED = BASE + "INSTALLED";
+		public static final String LAUNCHED = BASE + "LAUNCHED";
 		public static final String ENABLED = BASE + "ENABLED";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
@@ -25,12 +24,14 @@ final public class C {
 		public static final String UPDATE_RT = BASE + "UPDATE_RT";
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
 		public static final String SEARCH_DONE = BASE + "SEARCH_DONE";
+		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
+		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";
 
 		public static final String RECORD_STARTED = BASE + "RECORD_STARTED";
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
 		public static final String RECORD_ENDED = BASE + "RECORD_ENDED";
 
-		public static final String KILL = BASE + "KILL";
+		public static final String KILLED = BASE + "KILLED";
 	}
 
 	public static final class Command {
@@ -62,6 +63,7 @@ final public class C {
 		public static final String AUDIO_SOURCE = "audio_source";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String MESSAGE = "message";
+		public static final String STAGE = "stage_ctl";
 	}
 
 	public static final class PrefKey {
@@ -76,19 +78,27 @@ final public class C {
 		public static final boolean AUTOPLAY = false;
 
 		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
-		public static final int TUNER_DRIVER = FMController.DRIVER_NEW;
+		public static final int TUNER_DRIVER = FMController.DRIVER_QUALCOMM;
 	}
 
 	private C() {}
 
-	/** @deprecated */ public static final String FM_GET_STATUS = "fm_get_status";
-	/** @deprecated */ public static final String FM_SET_STEREO = "fm_setstereo";
-	/** @deprecated */ public static final String FM_SET_MUTE = "fm_setmute";
+	@Deprecated public static final String FM_GET_STATUS = "fm_get_status";
+	@Deprecated public static final String FM_SET_STEREO = "fm_setstereo";
+	@Deprecated public static final String FM_SET_MUTE = "fm_setmute";
 
 	public static final class Config {
 		public static final class Polling {
 			public static final int DELAY = 3000;
 			public static final int INTERVAL = 1000;
 		}
+	}
+
+	public static final class FMStage {
+		public static final int VOID = 0;
+		public static final int LAUNCHING = 1;
+		public static final int LAUNCHED = 2;
+		public static final int ENABLING = 3;
+		public static final int ENABLED = 4;
 	}
 }

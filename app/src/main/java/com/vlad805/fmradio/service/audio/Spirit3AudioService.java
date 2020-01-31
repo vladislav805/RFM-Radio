@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service;
+package com.vlad805.fmradio.service.audio;
 
 import android.content.Context;
 import android.media.AudioFormat;

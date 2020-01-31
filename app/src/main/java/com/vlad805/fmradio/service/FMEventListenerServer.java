@@ -3,7 +3,8 @@ package com.vlad805.fmradio.service;
 import android.os.Bundle;
 import android.util.Log;
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.fm.FMEventCallback;
+import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -98,19 +99,19 @@ public class FMEventListenerServer extends Thread {
 			}
 
 			case EVT_DISABLED: {
-				action = C.Event.DISABLED;
+				// action = C.Event.DISABLED;
 				throw new StopServer();
 			}
 
 			case EVT_FREQUENCY_SET: {
 				action = C.Event.FREQUENCY_SET;
-				bundle.putInt(C.Key.FREQUENCY, Integer.parseInt(data));
+				bundle.putInt(C.Key.FREQUENCY, Utils.parseInt(data));
 				break;
 			}
 
 			case EVT_UPDATE_RSSI: {
 				action = C.Event.UPDATE_RSSI;
-				bundle.putInt(C.Key.RSSI, Integer.parseInt(data));
+				bundle.putInt(C.Key.RSSI, Utils.parseInt(data));
 				break;
 			}
 
@@ -135,7 +136,7 @@ public class FMEventListenerServer extends Thread {
 
 				for (int i = 0; i < count; ++i) {
 					int start = i * lengthKHz;
-					res[i] = Integer.parseInt(stations.substring(start, start + lengthKHz)) * 100;
+					res[i] = Utils.parseInt(stations.substring(start, start + lengthKHz)) * 100;
 				}
 
 				Arrays.sort(res);

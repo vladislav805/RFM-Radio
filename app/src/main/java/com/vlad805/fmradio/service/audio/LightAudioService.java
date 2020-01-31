@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service;
+package com.vlad805.fmradio.service.audio;
 
 import android.content.Context;
 import android.media.AudioFormat;
@@ -25,6 +25,10 @@ public class LightAudioService extends FMAudioService {
 
 	@Override
 	public void startAudio() {
+		if (mIsActive) {
+			return;
+		}
+
 		mIsActive = true;
 		mThread = new Thread(mReadWrite);
 		mThread.start();
@@ -32,6 +36,10 @@ public class LightAudioService extends FMAudioService {
 
 	@Override
 	public void stopAudio() {
+		if (!mIsActive) {
+			return;
+		}
+
 		mIsActive = false;
 		if (mThread != null) {
 			mThread.interrupt();

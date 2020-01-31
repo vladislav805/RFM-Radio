@@ -24,7 +24,7 @@ public class RadioUIView extends LinearLayout {
 	/**
 	 * Current frequency
 	 */
-	private int mkHz = 87500;
+	private int mkHz = BAND_LOW;
 
 	/**
 	 * Settings
@@ -94,7 +94,7 @@ public class RadioUIView extends LinearLayout {
 			return;
 		}
 
-		mRadioController.setFrequency(getContext(), kHz);
+		mRadioController.setFrequency(kHz);
 
 		setFrequency(kHz);
 	}

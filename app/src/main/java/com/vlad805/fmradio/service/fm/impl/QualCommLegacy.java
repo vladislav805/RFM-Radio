@@ -1,15 +1,15 @@
-package com.vlad805.fmradio.fm.impl;
+package com.vlad805.fmradio.service.fm.impl;
 
 import android.content.Context;
 import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.fm.FMController;
-import com.vlad805.fmradio.fm.FMEventCallback;
-import com.vlad805.fmradio.fm.IFMEventListener;
-import com.vlad805.fmradio.fm.LaunchConfig;
 import com.vlad805.fmradio.service.FMEventListenerServer;
+import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.LaunchConfig;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -40,13 +40,13 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	private FMEventCallback mEventCallback;
 
-	public void setEventListener(FMEventCallback callback) {
-		mEventCallback = callback;
+	public QualCommLegacy(final LaunchConfig config, final Context context) {
+		super(config, context);
+		mQueueCommands = new LinkedList<>();
 	}
 
-	public QualCommLegacy(LaunchConfig config) {
-		super(config);
-		mQueueCommands = new LinkedList<>();
+	public void setEventListener(final FMEventCallback callback) {
+		mEventCallback = callback;
 	}
 
 	/**
@@ -73,7 +73,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
 	@Override
-	public void install(Context context) {
+	protected void installImpl(final Callback<Void> callback) {
 		File dir = new File(getAppRootPath());
 		if (!dir.exists()) {
 			dir.mkdirs();
@@ -81,11 +81,11 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 		try {
 			// Copy binary
-			boolean success = copyBinary(context);
+			boolean success = copyBinary();
 
-			// Unsuccessfully
 			if (!success) {
-				throw new Error("Error while copy binary");
+				callback.onError(new Error("Error while copy binary"));
+				return;
 			}
 		} catch (FileNotFoundException e) {
 			// FileNotFoundException - Text file busy
@@ -93,67 +93,92 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 			Utils.shell("killall " + getBinaryPath(), true);
 
 			try {
-				copyBinary(context);
+				copyBinary();
 			} catch (FileNotFoundException e2) {
-				throw new Error("Error while copy binary after kill busy binary");
+				callback.onError(new Error("Error while copy binary after kill busy binary"));
+				return;
 			}
 		}
 
 		Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
+		callback.onResult(null);
 	}
 
 	/**
 	 * Copy binary from assets
-	 * @param context Context
 	 * @return True if success
 	 */
-	private boolean copyBinary(Context context) throws FileNotFoundException {
+	private boolean copyBinary() throws FileNotFoundException {
 		return copyAsset(context, getBinaryName(), getBinaryPath());
 	}
 
 	@Override
-	public void launch(Context context) {
+	protected void launchImpl(final Callback<Void> callback) {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
 		startServerListener();
-		sendCommand("init");
+		final Request request = new Request("init");
+		request.setListener(data -> {
+			callback.onResult(null);
+		});
+		sendCommand(request);
 	}
 
 	@Override
-	public void kill() {
+	protected void killImpl(final Callback<Void> callback) {
 		mServer.closeServer();
 		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
+		callback.onResult(null);
 	}
 
 	@Override
-	public void enable() {
-		sendCommand("enable");
+	protected void enableImpl(final Callback<Void> callback) {
+		sendCommand(new Request("enable").setListener(result -> callback.onResult(null)));
 	}
 
 	@Override
-	public void disable() {
-		sendCommand("disable"); // 5000
+	protected void disableImpl(final Callback<Void> callback) {
+		sendCommand(new Request("disable").setListener(result -> callback.onResult(null)));
 	}
 
 	@Override
-	public void setFrequency(int kHz) {
+	protected void setFrequencyImpl(int kHz, final Callback<Integer> callback) {
 		sendCommand("setfreq " + kHz);
+		callback.onResult(kHz); // TODO REAL STATE
 	}
 
 	@Override
-	public int getSignalStretch() {
-		return 0;
+	protected void getSignalStretchImpl(final Callback<Integer> result) {
+		result.onResult(0); // TODO
 	}
 
 	@Override
-	public void jump(int direction) {
-		sendCommand("jump " + direction);
+	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
+		final Request req = new Request("jump " + direction);
+		req.setListener(data -> {
+			/*
+			 * TODO in response need replace "ok" by frequency
+			 * https://github.com/vladislav805/RFM-Radio/issues/32
+			 */
+			callback.onResult(0);
+
+		});
+		sendCommand(req);
 	}
 
 	@Override
-	public void hwSeek(int direction) {
-		sendCommand("seekhw " + direction);
+	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
+		final Request req = new Request("seekhw " + direction);
+		req.setListener(data -> {
+			/*
+			 * TODO in response need replace "ok" by frequency
+			 * https://github.com/vladislav805/RFM-Radio/issues/32
+ 			 */
+			callback.onResult(0);
+
+		});
+		sendCommand(req);
 	}
 
 	@Override
@@ -183,8 +208,9 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 			this.timeout = timeout;
 		}
 
-		public void setListener(OnReceivedResponse listener) {
+		public Request setListener(OnReceivedResponse listener) {
 			this.listener = listener;
+			return this;
 		}
 
 		public byte[] bytes() {
@@ -264,7 +290,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	private void sendCommandReal() {
-		Request command = mQueueCommands.peek();
+		final Request command = mQueueCommands.peek();
 
 		if (command == null) {
 			return;
@@ -299,6 +325,8 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
 
 				Log.d("QCL", "Received response: " + res);
+
+				command.fire(res);
 
 				mQueueCommands.remove();
 				sendCommandReal();
