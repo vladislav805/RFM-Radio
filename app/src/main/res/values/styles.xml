@@ -9,14 +9,17 @@
 		<item name="android:navigationBarColor">@color/main_background</item>
 	</style>
 
+	<style name="AppCompatTheme" parent="Theme.AppCompat.NoActionBar">
+		<item name="android:windowBackground">@color/main_background</item>
+		<item name="android:colorBackground">@color/main_background</item>
+		<item name="android:statusBarColor">@color/main_background</item>
+		<item name="android:navigationBarColor">@color/main_background</item>
+	</style>
+
 	<style name="FrequencySeekBar">
 		<item name="android:progressBackgroundTint">@android:color/transparent</item>
 		<item name="android:progressTint">@android:color/transparent</item>
 		<item name="android:colorControlActivated">@android:color/transparent</item>
-	</style>
-
-	<style name="AppTheme.General" parent="AppTheme">
-
 	</style>
 
 	<style name="Frequency">

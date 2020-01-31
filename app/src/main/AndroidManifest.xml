@@ -31,7 +31,9 @@
 				android:name=".activity.SettingsActivity"
 				android:label="@string/title_activity_settings"
 				android:theme="@style/Theme.AppCompat"/>
-		<activity android:name=".activity.FavoritesListsActivity"/>
+		<activity
+				android:name=".activity.FavoritesListsActivity"
+				android:theme="@style/AppCompatTheme"/>
 		<activity android:name=".activity.AboutActivity"/>
 
 		<service

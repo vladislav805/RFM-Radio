@@ -66,5 +66,6 @@
 	<string name="pref_tuner_audio_source_message">0 - default\n1998 - \'new\' FM source</string>
 	<string name="pref_audio_service">Audio service</string>
 	<string name="space_two">  </string>
+	<string name="toolbar_favorite_title">Favorites</string>
 
 </resources>
