@@ -1,8 +1,6 @@
 package com.vlad805.fmradio.service;
 
 import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -12,9 +10,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
@@ -27,23 +23,19 @@ import com.vlad805.fmradio.service.fm.impl.Empty;
 import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
 import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
 
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-@SuppressWarnings("deprecation")
 public class FMService extends Service implements FMEventCallback {
 	private static final String TAG = "FMS";
-	private static final int NOTIFICATION_ID = 1027;
 
+	private RadioNotificationManager mRadioNotification;
 	private RadioController mRadioController;
 	private FMController mFmController;
 	private FMAudioService mAudioService;
-	private NotificationManager mNotificationMgr;
 	private PlayerReceiver mStatusReceiver;
 	private SharedPreferences mStorage;
-	private Notification.Builder mNotification;
 	private Timer mTimer;
 
 	@Override
@@ -51,12 +43,13 @@ public class FMService extends Service implements FMEventCallback {
 		super.onCreate();
 
 		mRadioController = new RadioController(this);
-		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
 
 		mAudioService = getPreferredAudioService();
 		mFmController = getPreferredTunerDriver();
+		mRadioNotification = getPreferredNotificationType();
 
 		if (mFmController instanceof IFMEventPoller) {
 			mTimer = new Timer("Poll", true);
@@ -165,7 +158,6 @@ public class FMService extends Service implements FMEventCallback {
 			mStatusReceiver = null;
 		}
 
-		mNotificationMgr.cancel(NOTIFICATION_ID);
 		stopForeground(true);
 	}
 
@@ -220,6 +212,10 @@ public class FMService extends Service implements FMEventCallback {
 		}
 	}
 
+	private RadioNotificationManager getPreferredNotificationType() {
+		return new RadioNotificationManager(this);
+	}
+
 	/**
 	 * Calls by FM implementation which extends IFMEventListener
 	 * @param event Action
@@ -258,6 +254,7 @@ public class FMService extends Service implements FMEventCallback {
 					mAudioService.startAudio();
 					int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 					mRadioController.setFrequency(frequency);
+					updateNotification();
 					break;
 				}
 
@@ -272,51 +269,40 @@ public class FMService extends Service implements FMEventCallback {
 					updateNotification();
 					break;
 				}
+
+				case C.Event.UPDATE_PS: {
+					mRadioController.getState().putString(C.Key.PS, intent.getStringExtra(C.Key.PS));
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_RT: {
+					mRadioController.getState().putString(C.Key.RT, intent.getStringExtra(C.Key.RT));
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_RSSI: {
+					mRadioController.getState().putInt(C.Key.RSSI, intent.getIntExtra(C.Key.RSSI, 0));
+					break;
+				}
 			}
 
 			mRadioController.onEvent(intent);
 		}
 	}
 
-	/**
-	 * Create notification
-	 * @return Notification builder
-	 */
-	private Notification.Builder createNotificationBuilder() {
-		Intent mainIntent = new Intent(this, MainActivity.class);
-		mainIntent.setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
 
-		PendingIntent pendingMain = PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-		return new Notification.Builder(this)
-				.setColor(getResources().getColor(R.color.primary_blue))
-				.setAutoCancel(false)
-				.setSmallIcon(R.drawable.ic_radio)
-				.setOnlyAlertOnce(true)
-				.setContentIntent(pendingMain)
-				.setPriority(Notification.PRIORITY_HIGH)
-				.setOngoing(true)
-				.setShowWhen(false);
-	}
 
 	/**
 	 * Update notification
 	 */
 	private void updateNotification() {
-		if (mNotification == null) {
-			mNotification = createNotificationBuilder();
+		final Notification notification = mRadioNotification.update(mRadioController.getState());
+		if (notification == null) {
+			return;
 		}
-
-		int frequency = mRadioController.getState().getInt(C.Key.FREQUENCY);
-
-		mNotification
-				.setContentTitle(getString(R.string.app_name))
-				//.setContentText(mConfiguration.getPs() == null || mConfiguration.getPs().length() == 0 ? "< no rds >" : mConfiguration.getPs())
-				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
-
-		Notification ntf = mNotification.build();
-		startForeground(NOTIFICATION_ID, ntf);
-		mNotificationMgr.notify(NOTIFICATION_ID, ntf);
+		startForeground(RadioNotificationManager.NOTIFICATION_ID, notification);
 	}
 
 
