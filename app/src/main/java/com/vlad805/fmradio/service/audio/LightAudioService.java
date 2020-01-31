@@ -92,7 +92,5 @@ public class LightAudioService extends FMAudioService {
 				mAudioTrack.write(buffer, 0, bytes);
 			}
 		}
-
-		closeAll();
 	};
 }
