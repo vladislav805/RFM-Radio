@@ -6,20 +6,33 @@
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		tools:context=".activity.FavoritesListsActivity">
-	<Spinner
-			android:id="@+id/favorite_list_lists"
+	<androidx.appcompat.widget.Toolbar
+			android:id="@+id/favorite_list_toolbar"
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
+			android:layout_height="?attr/actionBarSize"
+			android:elevation="10dp"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
-			app:layout_constraintTop_toTopOf="parent"
-			android:spinnerMode="dialog"/>
+			app:layout_constraintTop_toTopOf="parent">
+		<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="match_parent"
+				android:layout_marginEnd="8dp"
+				android:text="@string/toolbar_favorite_title"
+				android:textAppearance="@style/TextAppearance.AppCompat.Title"
+				android:gravity="center_vertical"/>
+		<Spinner
+				android:id="@+id/favorite_list_lists"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:spinnerMode="dialog"/>
+	</androidx.appcompat.widget.Toolbar>
 	<androidx.recyclerview.widget.RecyclerView
 			android:id="@+id/favorite_list_content"
 			android:layout_width="match_parent"
 			android:layout_height="0dp"
 			app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-			app:layout_constraintTop_toBottomOf="@+id/favorite_list_lists"
+			app:layout_constraintTop_toBottomOf="@+id/favorite_list_toolbar"
 			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"

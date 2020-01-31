@@ -13,6 +13,9 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
@@ -28,7 +31,7 @@ import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
 import java.io.FileNotFoundException;
 import java.util.List;
 
-public class FavoritesListsActivity extends Activity implements AdapterView.OnItemSelectedListener, OnDragListener {
+public class FavoritesListsActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, OnDragListener {
 	private Menu mMenu;
 	private String mCurrentNameList;
 
@@ -42,12 +45,6 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 	private ItemTouchHelper mItemTouchHelper;
 
 	private Toast mToast;
-
-	private void setTitle(String title) {
-		if (getActionBar() != null) {
-			getActionBar().setTitle(title);
-		}
-	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -70,11 +67,19 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 	 * Initialize UI
 	 */
 	private void initUI() {
+		final Toolbar toolbar = findViewById(R.id.favorite_list_toolbar);
 		mSpinner = findViewById(R.id.favorite_list_lists);
+
+		setSupportActionBar(toolbar);
+
+		final ActionBar ab = getSupportActionBar();
+		if (ab != null) {
+			ab.setDisplayHomeAsUpEnabled(true);
+		}
 
 		mFavoriteListNames = mController.getFavoriteLists();
 
-		RecyclerView mRecycler = findViewById(R.id.favorite_list_content);
+		final RecyclerView mRecycler = findViewById(R.id.favorite_list_content);
 		mRecycler.addOnItemTouchListener(new RecyclerItemClickListener(this, mRecycler, new RecyclerItemClickListener.OnItemClickListener() {
 			@Override
 			public void onItemClick(View view, int position) {
@@ -93,7 +98,7 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		reloadLists();
 		reloadContent();
 
-		ItemTouchHelper.Callback callback = new SimpleItemTouchHelperCallback(mAdapter);
+		final ItemTouchHelper.Callback callback = new SimpleItemTouchHelperCallback(mAdapter);
 		mItemTouchHelper = new ItemTouchHelper(callback);
 		mItemTouchHelper.attachToRecyclerView(mRecycler);
 
@@ -135,7 +140,7 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 		}
 
 		mStationsList = mController.getStationsInCurrentList();
-		setTitle(mCurrentNameList);
+
 		mAdapter.setDataset(mStationsList);
 		mAdapter.notifyDataSetChanged();
 
@@ -187,6 +192,11 @@ public class FavoritesListsActivity extends Activity implements AdapterView.OnIt
 
 			case R.id.menu_favorite_remove: {
 				removeDialog();
+				break;
+			}
+
+			case android.R.id.home: {
+				finish();
 				break;
 			}
 		}

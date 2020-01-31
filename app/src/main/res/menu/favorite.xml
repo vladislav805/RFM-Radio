@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu
-		xmlns:tools="http://schemas.android.com/tools"
-		xmlns:android="http://schemas.android.com/apk/res/android">
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:app="http://schemas.android.com/apk/res-auto">
 	<item
 			android:id="@+id/menu_favorite_add"
 			android:title="@string/menu_favorite_list_create"
 			android:icon="@drawable/ic_favorite_list_add"
-			android:showAsAction="always"
-			tools:ignore="AppCompatResource"/>
+			app:showAsAction="always"/>
 	<item
 			android:id="@+id/menu_favorite_remove"
 			android:title="@string/menu_favorite_list_remove"
 			android:icon="@drawable/ic_favorite_list_remove"
-			android:showAsAction="ifRoom"
-			tools:ignore="AppCompatResource"/>
+			app:showAsAction="ifRoom"/>
 </menu>
