@@ -24,6 +24,7 @@ import java.util.Queue;
  * vlad805 (c) 2020
  */
 public class Spirit3Impl extends FMController implements IFMEventPoller {
+	private static final String TAG = "S3I";
 
 	public static class Config extends LaunchConfig {
 		@Override
@@ -237,7 +238,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	private void initSocket() throws IOException {
 		mDatagramSocketClient = new DatagramSocket(0);
-		Log.i("S3I", "Created socket");
+		//Log.i("S3I", "Created socket");
 
 	}
 
@@ -296,7 +297,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 		mDatagramSocketClient.setSoTimeout(command.getTimeout());
 
-		Log.d("S3I", "Sent command: " + command.getCommand());
+		//Log.d("S3I", "Sent command: " + command.getCommand());
 
 		DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), LOOPBACK, config.getClientPort());
 

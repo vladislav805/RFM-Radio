@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
@@ -13,6 +14,7 @@ import com.vlad805.fmradio.enums.MuteState;
  * vlad805 (c) 2020
  */
 public abstract class FMController {
+	private static final String TAG = "FMC";
 	public static final int DRIVER_QUALCOMM = 0;
 	public static final int DRIVER_SPIRIT3 = 1;
 	public static final int DRIVER_EMPTY = 999;
@@ -83,7 +85,11 @@ public abstract class FMController {
 	protected abstract void launchImpl(final Callback<Void> callback);
 
 	public final void launch() {
-		launchImpl(result -> fireEvent(C.Event.LAUNCHED));
+		Log.d(TAG, "launch: call");
+		launchImpl(result -> {
+			Log.d(TAG, "launch: ok");
+			fireEvent(C.Event.LAUNCHED);
+		});
 	}
 
 	/**
@@ -114,6 +120,7 @@ public abstract class FMController {
 
 	public final void enable() {
 		enableImpl(result -> {
+			Log.d(TAG, "enable: call");
 			fireEvent(C.Event.ENABLED);
 		});
 	}

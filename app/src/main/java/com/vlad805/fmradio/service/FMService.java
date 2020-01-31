@@ -76,6 +76,8 @@ public class FMService extends Service implements FMEventCallback {
 			return START_STICKY;
 		}
 
+		Log.d(TAG, "onStartCommand: " + intent.getAction());
+
 		switch (intent.getAction()) {
 			case C.Command.SETUP: {
 				mFmController.prepareBinary();
@@ -105,7 +107,6 @@ public class FMService extends Service implements FMEventCallback {
 				}
 
 				final int frequency = intent.getIntExtra(C.Key.FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-				Log.d("FMS", "Set frequency to " + frequency + " kHz");
 				mFmController.setFrequency(frequency);
 				break;
 			}
@@ -137,7 +138,7 @@ public class FMService extends Service implements FMEventCallback {
 				break;*/
 
 			case C.Command.KILL: {
-				kill();
+				stopService(new Intent(this, FMService.class));
 				sendBroadcast(new Intent(C.Event.KILLED));
 				break;
 			}
@@ -159,13 +160,13 @@ public class FMService extends Service implements FMEventCallback {
 
 		mFmController.kill();
 
-		mNotificationMgr.cancel(NOTIFICATION_ID);
-		stopForeground(true);
-
 		if (mStatusReceiver != null) {
 			unregisterReceiver(mStatusReceiver);
 			mStatusReceiver = null;
 		}
+
+		mNotificationMgr.cancel(NOTIFICATION_ID);
+		stopForeground(true);
 	}
 
 	@Override
@@ -183,12 +184,14 @@ public class FMService extends Service implements FMEventCallback {
 		final int id = Storage.getPrefInt(this, C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
-			case FMAudioService.SERVICE_LIGHT:
+			case FMAudioService.SERVICE_LIGHT: {
 				return new LightAudioService(this);
+			}
 
 			case FMAudioService.SERVICE_SPIRIT3:
-			default:
+			default: {
 				return new Spirit3AudioService(this);
+			}
 		}
 	}
 
@@ -202,15 +205,18 @@ public class FMService extends Service implements FMEventCallback {
 		Log.d(TAG, "getPreferredTunerDriver: preferred id = " + id);
 
 		switch (id) {
-			case FMController.DRIVER_QUALCOMM:
+			case FMController.DRIVER_QUALCOMM: {
 				return new QualCommLegacy(new QualCommLegacy.Config(), this);
+			}
 
-			case FMController.DRIVER_EMPTY:
+			case FMController.DRIVER_EMPTY: {
 				return new Empty(new Empty.Config(), this);
+			}
 
 			case FMController.DRIVER_SPIRIT3:
-			default:
+			default: {
 				return new Spirit3Impl(new Spirit3Impl.Config(), this);
+			}
 		}
 	}
 
@@ -235,7 +241,7 @@ public class FMService extends Service implements FMEventCallback {
 				return;
 			}
 
-			Log.d("FMService", "Received event " + intent.getAction() + "; " + intent.getExtras());
+			Log.d(TAG, "onReceive: " + intent.getAction());
 
 			switch (intent.getAction()) {
 				case C.Event.INSTALLED: {
@@ -260,19 +266,12 @@ public class FMService extends Service implements FMEventCallback {
 					break;
 				}
 
-				case C.Event.FREQUENCY_SET:
+				case C.Event.FREQUENCY_SET: {
 					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
 					mStorage.edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
 					updateNotification();
 					break;
-
-				case C.Event.UPDATE_PS:
-					//mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
-					break;
-
-				case C.Event.UPDATE_RT:
-					//mConfiguration.setRt(intent.getStringExtra(C.Key.RT));
-					break;
+				}
 			}
 
 			mRadioController.onEvent(intent);
