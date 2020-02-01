@@ -55,6 +55,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		initUserInterface();
 		initLogic();
 		updateUi();
+
+		registerReceiver(mRadioEventReceiver, RadioController.sFilter);
 	}
 
 	/**
@@ -115,26 +117,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		}
 	}
 
-	/**
-	 * Lifecycle: application is now active
-	 * When application will be showed, we need update info on activity
-	 */
 	@Override
-	protected void onResume() {
-		super.onResume();
-
-		registerReceiver(mRadioEventReceiver, RadioController.sFilter);
-	}
-
-	/**
-	 * Lifecycle: application is now not active
-	 * When application hide or close, we not need update info - unsubscribe
-	 */
-	@Override
-	protected void onPause() {
+	protected void onDestroy() {
 		unregisterReceiver(mRadioEventReceiver);
 
-		super.onPause();
+		super.onDestroy();
 	}
 
 	@Override
