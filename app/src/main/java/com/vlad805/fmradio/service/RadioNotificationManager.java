@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -25,12 +24,10 @@ public class RadioNotificationManager {
 	private static final String TAG = "RNM";
 
 	private final Context mContext;
-	private final NotificationManagerCompat mNManager;
 	private NotificationCompat.Builder mNBuilder;
 
 	public RadioNotificationManager(final Context context) {
 		mContext = context;
-		mNManager = NotificationManagerCompat.from(context);
 	}
 
 	/**
@@ -38,21 +35,52 @@ public class RadioNotificationManager {
 	 * @return Notification builder
 	 */
 	private NotificationCompat.Builder createNotificationBuilder() {
-		final Intent mainIntent = new Intent(mContext, MainActivity.class);
-		mainIntent.setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+		final Intent mainIntent = new Intent(mContext, MainActivity.class)
+				.setAction(Intent.ACTION_MAIN)
+				.addCategory(Intent.CATEGORY_LAUNCHER);
 
-		final PendingIntent pendingMain = PendingIntent.getActivity(mContext, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		final PendingIntent pendingMain = PendingIntent.getActivity(
+				mContext,
+				0,
+				mainIntent,
+				PendingIntent.FLAG_UPDATE_CURRENT
+		);
 
-		final PendingIntent pendingStop = PendingIntent.getService(mContext, 0, new Intent(mContext, FMService.class).setAction(C.Command.DISABLE), 0);
-		final PendingIntent pendingRec = PendingIntent.getService(mContext, 0, new Intent(mContext, FMService.class).setAction(""), 0);
-		final PendingIntent pendingSeekDown = PendingIntent.getService(mContext, 0, new Intent(mContext, FMService.class).setAction(C.Command.HW_SEEK).putExtra(C.Key.SEEK_HW_DIRECTION, Direction.DOWN), 0);
-		final PendingIntent pendingSeekUp = PendingIntent.getService(mContext, 0, new Intent(mContext, FMService.class).setAction(C.Command.HW_SEEK).putExtra(C.Key.SEEK_HW_DIRECTION, Direction.UP), 0);
+		final PendingIntent pendingStop = PendingIntent.getService(
+				mContext,
+				0,
+				new Intent(mContext, FMService.class).setAction(C.Command.DISABLE),
+				0
+		);
 
-		/*Bitmap bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-		bitmap.setPixel(0, 0, Color.BLACK);*/
+		final PendingIntent pendingRec = PendingIntent.getService(
+				mContext,
+				0,
+				new Intent(mContext, FMService.class).setAction(""),
+				0
+		);
 
+		final PendingIntent pendingSeekDown = PendingIntent.getService(
+				mContext,
+				0,
+				new Intent(mContext, FMService.class)
+						.setAction(C.Command.HW_SEEK)
+						.putExtra(C.Key.SEEK_HW_DIRECTION, Direction.DOWN.getValue()),
+				0
+		);
 
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_ID)
+		final PendingIntent pendingSeekUp = PendingIntent.getService(
+				mContext,
+				0,
+				new Intent(mContext, FMService.class)
+						.setAction(C.Command.HW_SEEK)
+						.putExtra(C.Key.SEEK_HW_DIRECTION, Direction.UP.getValue()),
+				0
+		);
+
+		//.setMediaSession(mediaSession.getSessionToken()))
+
+		return new NotificationCompat.Builder(mContext, CHANNEL_ID)
 				.setSmallIcon(R.drawable.ic_radio)
 				.setContentIntent(pendingMain)
 				.setContentTitle(mContext.getString(R.string.app_name))
@@ -67,12 +95,7 @@ public class RadioNotificationManager {
 				.addAction(R.drawable.ic_stop, "Pause", pendingStop) // #1
 				.addAction(R.drawable.ic_cassette, "Rec", pendingRec) // #2
 				.addAction(R.drawable.ic_go_up, "Seek up", pendingSeekUp) // #3
-				.setStyle(new MediaStyle().setShowActionsInCompactView(1, 2))
-				//.setLargeIcon(bitmap)
-						//.setMediaSession(mediaSession.getSessionToken()))
-				;
-
-		return builder;
+				.setStyle(new MediaStyle().setShowActionsInCompactView(1, 2));
 
 	}
 
@@ -82,9 +105,8 @@ public class RadioNotificationManager {
 		}
 
 		final int frequency = state.getInt(C.Key.FREQUENCY);
-		final int rssi = state.getInt(C.Key.RSSI);
-		mNBuilder
-				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz (RSSI = %d)", frequency / 1000d, rssi));
+		// final int rssi = state.getInt(C.Key.RSSI);
+		mNBuilder.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
 
 		final String rdsPs = state.getString(C.Key.PS);
 		final String rdsRt = state.getString(C.Key.RT);
@@ -101,8 +123,6 @@ public class RadioNotificationManager {
 			mNBuilder.setContentText("");
 		}
 
-		final Notification q = mNBuilder.build();
-		//mNManager.notify(NOTIFICATION_ID, q);
-		return q;
+		return mNBuilder.build();
 	}
 }
