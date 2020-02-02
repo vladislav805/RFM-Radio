@@ -63,7 +63,7 @@ public class Utils {
 		try {
 			return Integer.parseInt(s);
 		} catch (NumberFormatException e) {
-			return 0;
+			return Integer.MAX_VALUE;
 		}
 	}
 

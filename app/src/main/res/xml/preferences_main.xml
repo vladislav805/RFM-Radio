@@ -3,30 +3,35 @@
 	<PreferenceCategory
 			android:key="tuner"
 			android:title="@string/pref_header_tuner">
-		<SwitchPreferenceCompat
-				android:key="tuner_step"
-				android:defaultValue="false"
-				android:title="@string/pref_tuner_step"
-				android:summaryOn="@string/pref_tuner_step_100kHz"
-				android:summaryOff="@string/pref_tuner_step_50kHz"
-				android:icon="@drawable/ic_step_freq"/>
+		<ListPreference
+				android:key="tuner_driver"
+				android:defaultValue="0"
+				android:title="@string/pref_tuner_driver"
+				android:icon="@drawable/ic_tuner_driver"/>
 		<SwitchPreferenceCompat
 				android:key="tuner_rds"
 				android:defaultValue="true"
 				android:title="@string/pref_tuner_rds_enable"
 				android:summaryOn="@string/pref_tuner_rds_enabled"
 				android:summaryOff="@string/pref_tuner_rds_disabled"
+				android:enabled="false"
 				android:icon="@drawable/ic_rds"/>
-		<ListPreference
-				android:key="tuner_driver"
-				android:defaultValue="0"
-				android:title="@string/pref_tuner_driver"
-				android:icon="@drawable/ic_tuner_driver"/>
+		<Preference
+				android:key="tuner_rds_description"
+				android:summary="@string/pref_tuner_rds_description" />
 		<EditTextPreference
 				android:key="tuner_antenna"
 				android:defaultValue="0"
-				android:title="Antenna"
+				android:title="@string/pref_tuner_antenna"
+				android:enabled="false"
 				android:icon="@drawable/ic_antenna"/>
+		<!--SwitchPreferenceCompat
+				android:key="tuner_step"
+				android:defaultValue="true"
+				android:title="@string/pref_tuner_step"
+				android:summaryOn="@string/pref_tuner_step_100kHz"
+				android:summaryOff="@string/pref_tuner_step_50kHz"
+				android:icon="@drawable/ic_step_freq"/-->
 	</PreferenceCategory>
 	<PreferenceCategory
 			android:key="audio"
@@ -34,10 +39,12 @@
 		<ListPreference
 				android:key="audio_service"
 				android:defaultValue="0"
-				android:title="@string/pref_audio_service"/>
+				android:title="@string/pref_audio_service"
+				android:icon="@drawable/ic_audio_service"/>
 		<ListPreference
 				android:key="audio_source"
 				android:title="@string/pref_audio_source"
+				android:defaultValue="0"
 				android:icon="@drawable/ic_audio_source"/>
 	</PreferenceCategory>
 	<PreferenceCategory
@@ -52,12 +59,24 @@
 				android:icon="@drawable/ic_autostart"/>
 	</PreferenceCategory>
 	<PreferenceCategory
+			android:key="notification"
+			android:title="@string/pref_header_notifications">
+		<SwitchPreferenceCompat
+				android:key="notification_show_ps"
+				android:defaultValue="true"
+				android:summaryOn="@string/pref_notification_show_ps_enabled"
+				android:summaryOff="@string/pref_notification_show_ps_disabled"
+				android:title="@string/pref_notification_show_ps"
+				android:icon="@drawable/ic_ps_name"/>
+	</PreferenceCategory>
+	<PreferenceCategory
 			android:key="info"
 			android:title="@string/pref_header_info">
 		<Preference
 				android:id="@+id/pref_info_link_4pda"
 				android:key="info_links_4pda"
 				android:title="@string/pref_info_link_4pda"
+				android:summary="@string/pref_info_link_4pda_summary"
 				android:icon="@drawable/ic_4pda_logo">
 			<intent
 					android:action="android.intent.action.VIEW"
@@ -66,14 +85,16 @@
 		<Preference
 				android:key="info_links_github"
 				android:title="@string/pref_info_link_github"
+				android:summary="@string/pref_info_link_github_summary"
 				android:icon="@drawable/ic_github">
 			<intent
 					android:action="android.intent.action.VIEW"
-					android:data="https://www.github.com/vladislav805/RFM-Radio" />
+					android:data="https://github.com/vladislav805/RFM-Radio" />
 		</Preference>
 		<Preference
 				android:key="info_links_telegram"
 				android:title="@string/pref_info_link_telegram"
+				android:summary="@string/pref_info_link_telegram_summary"
 				android:icon="@drawable/ic_telegram">
 			<intent
 					android:action="android.intent.action.VIEW"
@@ -82,7 +103,8 @@
 		<Preference
 				android:id="@+id/pref_info_author_vv"
 				android:key="pref_info_author_vv"
-				android:title="@string/pref_info_author_vv_title"
-				android:summary="@string/pref_info_author_vv_sub"/>
+				android:title="@string/pref_info_author_title"
+				android:summary="@string/pref_info_author_content"
+				android:icon="@drawable/ic_developer"/>
 	</PreferenceCategory>
 </PreferenceScreen>

@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
@@ -161,8 +162,11 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 			mCurrentNameList = item;
 			reloadContent();
 
+			// need to remove and replace by broadcast?
 			Intent intent = new Intent().putExtra("changed", true);
 			setResult(Activity.RESULT_OK, intent);
+
+			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
 		} catch (FileNotFoundException e) {
 			mToast.text("Not found this list").show();
 		}

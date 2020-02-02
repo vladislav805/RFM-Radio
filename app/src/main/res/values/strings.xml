@@ -1,35 +1,51 @@
 <resources>
+	<!-- General -->
 	<string name="app_name">RFM Radio</string>
 	<string name="nil">null</string>
-	<string name="title_activity_design">RFM Radio</string>
-	<string name="menu_stop">Stop</string>
-	<string name="menu_settings">Settings</string>
-	<string name="menu_about">About</string>
-	<string name="popup_preset_add">Add</string>
-	<string name="popup_preset_rename">Rename</string>
-	<string name="popup_preset_replace">Replace</string>
-	<string name="popup_preset_remove">Remove</string>
-	<string name="menu_open_debug">Debug activity</string>
-	<string name="menu_open_list">Station list</string>
-	<string name="menu_record">Record</string>
-	<string name="menu_open_list_favorites">Favorites</string>
-	<string name="title_activity_station_list">Stations</string>
-	<string name="station_list_search">Search…</string>
-	<string name="station_list_search_message">Please, wait…</string>
-	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
-	<string name="popup_station_create">Create</string>
-	<string name="popup_station_create_hint">Station name…</string>
-	<string name="popup_station_rename">Rename</string>
-	<string name="popup_station_remove">Remove</string>
-	<string name="about_version">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2020</string>
+
+	<!-- Main Activity -->
+	<string name="main_activity_label">RFM Radio</string>
 	<string name="progress_init">Please, wait…\nInitializing…\nVersion %s</string>
+	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
+	<string name="space_two">  </string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
 	<string name="seek_up">Seek up</string>
 	<string name="jump_down">Jump down</string>
 	<string name="seek_down">Seek down</string>
+	<string name="progress_launching">Launching…</string>
+	<string name="progress_starting">Starting…</string>
+	<string name="progress_searching">Searching…</string>
+	<string name="progress_stopping">Stopping…</string>
+
+	<!-- Main Activity menu -->
+	<string name="menu_stop">Stop</string>
+	<string name="menu_settings">Settings</string>
+	<string name="menu_open_list">Station list</string>
+	<string name="menu_record">Record</string>
+	<string name="menu_about">About</string>
+	<string name="menu_open_list_favorites">Favorites</string>
+
+	<!-- Favorite stations panel -->
+	<string name="popup_preset_add">Add</string>
+	<string name="popup_preset_rename">Rename</string>
+	<string name="popup_preset_replace">Replace</string>
+	<string name="popup_preset_remove">Remove</string>
+	<string name="popup_station_create">Create</string>
+	<string name="popup_station_create_hint">Station name…</string>
+	<string name="popup_station_rename">Rename</string>
+	<string name="popup_station_remove">Remove</string>
 	<string name="favorite_list_item_add">+</string>
+
+	<!-- Station list (currently doesn't used) -->
+	<string name="station_list_search">Search…</string>
+	<string name="station_list_search_message">Please, wait…</string>
+
+	<!-- About activity -->
+	<string name="about_version">v%s</string>
+	<string name="about_author">Vladislav Veluga © 2020</string>
+
+	<!-- Favorite lists activity -->
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
@@ -37,9 +53,9 @@
 	<string name="favorite_list_create_error_invalid_name">Invalid name. It can be used only A–Z, a–z, \'–\', \'_\' and 0–9</string>
 	<string name="favorite_list_remove_title">Confirmation</string>
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
-	<string name="title_activity_settings">Settings</string>
 
-	<!-- Preference Titles -->
+	<!-- Preference activity -->
+	<string name="pref_activity_title">Settings</string>
 	<string name="pref_header_tuner">Tuner</string>
 	<string name="pref_header_audio">Audio</string>
 	<string name="pref_header_app">Application</string>
@@ -48,24 +64,34 @@
 	<string name="pref_tuner_step_100kHz">100 kHz</string>
 	<string name="pref_tuner_step_50kHz">50 kHz</string>
 	<string name="pref_tuner_rds_enable">Enable RDS</string>
-	<string name="pref_tuner_rds_enabled">Show RDS data such as Program Service and Radio Text</string>
-	<string name="pref_tuner_rds_disabled">Do not show PS and RT</string>
+	<string name="pref_tuner_rds_enabled">Show RDS such as Program Service and Radio Text</string>
+	<string name="pref_tuner_rds_disabled">Do not show RDS</string>
 	<string name="pref_audio_source">Audio source</string>
-	<string name="pref_app_auto_startup">Auto start</string>
-	<string name="pref_app_auto_startup_enabled">Start audio when app launched</string>
-	<string name="pref_auto_startup_disabled">Audio start only after manual launch</string>
+	<string name="pref_app_auto_startup">Autostart</string>
+	<string name="pref_app_auto_startup_enabled">Start playing audio immediately when the application starts</string>
+	<string name="pref_auto_startup_disabled">Audio playback needs to be started manually</string>
 	<string name="pref_header_info_links">Links</string>
 	<string name="pref_header_info_authors">Authors</string>
 	<string name="pref_info_link_4pda">4pda topic</string>
+	<string name="pref_info_link_4pda_summary">Topic about this application on the Russian-language forum</string>
 	<string name="pref_info_link_github">GitHub repository</string>
-	<string name="pref_info_author_vv_title">@string/about_author</string>
-	<string name="pref_info_author_vv_sub">Developer</string>
+	<string name="pref_info_link_github_summary">Repository with the code for this application. Project are OpenSource</string>
+	<string name="pref_info_author_content">Developer: Vladislav Veluga\nNative code: QualComm Corp., Mike Reids\nInspired by: Mike Reids</string>
+	<string name="pref_info_author_title">Developer</string>
 	<string name="pref_info_link_telegram">Telegram channel</string>
+	<string name="pref_info_link_telegram_summary">Publishes news and new releases of the application</string>
 	<string name="pref_tuner_driver">Tuner driver</string>
+	<string name="pref_tuner_antenna">Antenna</string>
 	<string name="pref_tuner_antenna_message">By default it is \'0\'.\nOn some Sony devices it is \'1\'.</string>
 	<string name="pref_tuner_audio_source_message">0 - default\n1998 - \'new\' FM source</string>
 	<string name="pref_audio_service">Audio service</string>
-	<string name="space_two">  </string>
 	<string name="toolbar_favorite_title">Favorites</string>
+	<string name="pref_header_notifications">Notifications</string>
+	<string name="pref_notification_show_ps_enabled">If the station is transmitting PS, it will be shown in the notification</string>
+	<string name="pref_notification_show_ps_disabled">The name from the favorites will be displayed as station name</string>
+	<string name="pref_notification_show_ps">Show PS in title</string>
+	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)</string>
 
+	<!-- Notification & service -->
+	<string name="notification_mhz">%.1f MHz</string>
 </resources>

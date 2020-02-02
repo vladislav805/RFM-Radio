@@ -192,12 +192,12 @@
 				android:id="@+id/record_duration"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				tools:text="00:00"
+				android:layout_marginEnd="8dp"
+				android:fontFamily="monospace"
 				android:textColor="@color/red"
+				tools:text="00:00"
 				app:layout_constraintEnd_toStartOf="@+id/record_icon"
 				app:layout_constraintTop_toTopOf="@+id/record_icon"
-				app:layout_constraintBottom_toBottomOf="@+id/record_icon"
-				android:layout_marginEnd="8dp"
-				android:fontFamily="monospace"/>
+				app:layout_constraintBottom_toBottomOf="@+id/record_icon"/>
 	</androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -305,7 +305,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 				// mDatagramSocketClient.setSoTimeout(timeout);
 				mDatagramSocketClient.setSoTimeout(5000);
 
-				Log.d("QCL", "Sent command: " + command);
+				Log.d("QCL", "Sent command: " + command.command);
 
 				DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), InetAddress.getByName("127.0.0.1"), config.getClientPort());
 

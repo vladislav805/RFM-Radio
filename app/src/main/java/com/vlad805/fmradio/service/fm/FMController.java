@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
@@ -85,11 +84,7 @@ public abstract class FMController {
 	protected abstract void launchImpl(final Callback<Void> callback);
 
 	public final void launch() {
-		Log.d(TAG, "launch: call");
-		launchImpl(result -> {
-			Log.d(TAG, "launch: ok");
-			fireEvent(C.Event.LAUNCHED);
-		});
+		launchImpl(result -> fireEvent(C.Event.LAUNCHED));
 	}
 
 	/**
@@ -120,7 +115,6 @@ public abstract class FMController {
 
 	public final void enable() {
 		enableImpl(result -> {
-			Log.d(TAG, "enable: call");
 			fireEvent(C.Event.ENABLED);
 		});
 	}

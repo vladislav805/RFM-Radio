@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -77,7 +76,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			mFrequencyInfo.hideReflection();
 		}
 
-		mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, 0));
+		mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY));
 
 		initClickableButtons();
 	}
@@ -89,7 +88,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		mRadioController = new RadioController(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
-		final boolean needStartup = Storage.getPrefBoolean(this, C.Key.APP_AUTO_STARTUP, false);
+		final boolean needStartup = Storage.getPrefBoolean(this, C.PrefKey.APP_AUTO_STARTUP, C.PrefDefaultValue.APP_AUTO_STARTUP);
 
 		if (needStartup) {
 			setEnabledToggleButton(false);
@@ -197,12 +196,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 
 			case R.id.ctl_seek_down:
 				mRadioController.hwSeek(Direction.DOWN);
-				showProgress("Searching...");
+				showProgress(getString(R.string.progress_searching));
 				break;
 
 			case R.id.ctl_seek_up:
 				mRadioController.hwSeek(Direction.UP);
-				showProgress("Searching...");
+				showProgress(getString(R.string.progress_searching));
 				break;
 
 			case R.id.favorite_button:
@@ -234,7 +233,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
-				showProgress("Stopping...");
+				showProgress(getString(R.string.progress_stopping));
 				mRadioController.kill();
 				break;
 
@@ -266,7 +265,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			}
 
 			case C.Event.LAUNCHED: {
-				showProgress("Starting...");
+				showProgress(getString(R.string.progress_launching));
 				/*if (intent.hasExtra(C.Key.STATION_LIST)) {
 					List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
 					Log.i("MA", "StationList = " + s.size());
@@ -405,7 +404,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 				return;
 			}
 
-			Log.d("MARERoR", "update " + intent.getExtras());
 			mRadioController.onEvent(intent);
 			runOnUiThread(() -> handleEvent(intent));
 		}

@@ -1,7 +1,6 @@
 package com.vlad805.fmradio.service;
 
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -11,11 +10,14 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import androidx.core.app.NotificationCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.activity.MainActivity;
+import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.Spirit3AudioService;
@@ -27,23 +29,24 @@ import com.vlad805.fmradio.service.fm.impl.Empty;
 import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
 import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
 
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
+
+import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 
 @SuppressWarnings("deprecation")
 public class FMService extends Service implements FMEventCallback {
 	private static final String TAG = "FMS";
-	private static final int NOTIFICATION_ID = 1027;
+	public static final int NOTIFICATION_ID = 1027;
+	private static final String CHANNEL_ID = "default_channel";
 
+	private NotificationCompat.Builder mNBuilder;
 	private RadioController mRadioController;
+	private FavoriteController mFavoriteController;
+	private Map<Integer, String> mFavoriteList;
 	private FMController mFmController;
 	private FMAudioService mAudioService;
-	private NotificationManager mNotificationMgr;
 	private PlayerReceiver mStatusReceiver;
 	private SharedPreferences mStorage;
-	private Notification.Builder mNotification;
 	private Timer mTimer;
 
 	@Override
@@ -51,7 +54,8 @@ public class FMService extends Service implements FMEventCallback {
 		super.onCreate();
 
 		mRadioController = new RadioController(this);
-		mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+		mFavoriteController = new FavoriteController(this);
+
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
 
@@ -66,6 +70,8 @@ public class FMService extends Service implements FMEventCallback {
 		if (mFmController instanceof IFMEventListener) {
 			((IFMEventListener) mFmController).setEventListener(this);
 		}
+
+		reloadFavorite();
 
 		registerReceiver(mStatusReceiver, RadioController.sFilter);
 	}
@@ -165,7 +171,6 @@ public class FMService extends Service implements FMEventCallback {
 			mStatusReceiver = null;
 		}
 
-		mNotificationMgr.cancel(NOTIFICATION_ID);
 		stopForeground(true);
 	}
 
@@ -201,8 +206,6 @@ public class FMService extends Service implements FMEventCallback {
 	 */
 	private FMController getPreferredTunerDriver() {
 		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
-
-		Log.d(TAG, "getPreferredTunerDriver: preferred id = " + id);
 
 		switch (id) {
 			case FMController.DRIVER_QUALCOMM: {
@@ -258,6 +261,7 @@ public class FMService extends Service implements FMEventCallback {
 					mAudioService.startAudio();
 					int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 					mRadioController.setFrequency(frequency);
+					updateNotification();
 					break;
 				}
 
@@ -272,6 +276,28 @@ public class FMService extends Service implements FMEventCallback {
 					updateNotification();
 					break;
 				}
+
+				case C.Event.UPDATE_PS: {
+					mRadioController.getState().putString(C.Key.PS, intent.getStringExtra(C.Key.PS));
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_RT: {
+					mRadioController.getState().putString(C.Key.RT, intent.getStringExtra(C.Key.RT));
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_RSSI: {
+					mRadioController.getState().putInt(C.Key.RSSI, intent.getIntExtra(C.Key.RSSI, 0));
+					break;
+				}
+
+				case C.Event.FAVORITE_LIST_CHANGED: {
+					reloadFavorite();
+					break;
+				}
 			}
 
 			mRadioController.onEvent(intent);
@@ -282,41 +308,124 @@ public class FMService extends Service implements FMEventCallback {
 	 * Create notification
 	 * @return Notification builder
 	 */
-	private Notification.Builder createNotificationBuilder() {
-		Intent mainIntent = new Intent(this, MainActivity.class);
-		mainIntent.setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+	private NotificationCompat.Builder createNotificationBuilder() {
+		final Intent mainIntent = new Intent(this, MainActivity.class)
+				.setAction(Intent.ACTION_MAIN)
+				.addCategory(Intent.CATEGORY_LAUNCHER);
 
-		PendingIntent pendingMain = PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		final PendingIntent pendingMain = PendingIntent.getActivity(
+				this,
+				0,
+				mainIntent,
+				FLAG_UPDATE_CURRENT
+		);
 
-		return new Notification.Builder(this)
-				.setColor(getResources().getColor(R.color.primary_blue))
-				.setAutoCancel(false)
+		final PendingIntent pendingStop = PendingIntent.getService(
+				this,
+				1,
+				new Intent(this, FMService.class).setAction(C.Command.DISABLE),
+				0
+		);
+
+		final PendingIntent pendingRec = PendingIntent.getService(
+				this,
+				2,
+				new Intent(this, FMService.class).setAction(""),
+				0
+		);
+
+
+		final PendingIntent pendingSeekDown = PendingIntent.getService(
+				this,
+				3,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.HW_SEEK)
+						.putExtra(C.Key.SEEK_HW_DIRECTION, -1),
+				0
+		);
+
+		final PendingIntent pendingSeekUp = PendingIntent.getService(
+				this,
+				4,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.HW_SEEK)
+						.putExtra(C.Key.SEEK_HW_DIRECTION, 1),
+				0
+		);
+
+		//.setMediaSession(mediaSession.getSessionToken()))
+
+		return new NotificationCompat.Builder(this, CHANNEL_ID)
 				.setSmallIcon(R.drawable.ic_radio)
-				.setOnlyAlertOnce(true)
 				.setContentIntent(pendingMain)
-				.setPriority(Notification.PRIORITY_HIGH)
+				.setContentTitle(getString(R.string.app_name))
+				.setContentText(getString(R.string.progress_starting))
+				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+				.setShowWhen(false)
+				.setAutoCancel(false)
 				.setOngoing(true)
-				.setShowWhen(false);
+				.setColor(getResources().getColor(R.color.primary_blue))
+				.addAction(R.drawable.ic_go_down, getString(R.string.seek_down), pendingSeekDown) // #0
+				.addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop) // #1
+				.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec) // #2
+				.addAction(R.drawable.ic_go_up, getString(R.string.seek_up), pendingSeekUp) // #3
+				.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(1, 2));
+
+	}
+
+	public Notification updateNotification(final Bundle state) {
+		if (mNBuilder == null) {
+			mNBuilder = createNotificationBuilder();
+		}
+
+		final int frequency = state.getInt(C.Key.FREQUENCY);
+		// final int rssi = state.getInt(C.Key.RSSI);
+
+		/*
+		 * Subtitle
+		 */
+		mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d));
+
+		final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
+
+		/*
+		 * Title
+		 */
+		String title = getString(R.string.app_name);
+		final String stationTitle = mFavoriteList.get(frequency);
+		final String rdsPs = state.getString(C.Key.PS);
+
+		if (isNeedShowRds && rdsPs != null && !rdsPs.isEmpty()) {
+			title = rdsPs.trim();
+		} else if (stationTitle != null) {
+			title = stationTitle;
+		}
+
+		mNBuilder.setContentTitle(title);
+
+		/*
+		 * Text
+		 */
+		String text = "";
+		final String rdsRt = state.getString(C.Key.RT);
+
+		if (isNeedShowRds && rdsRt != null && !rdsRt.isEmpty()) {
+			text = rdsRt;
+		}
+
+		mNBuilder.setContentText(text);
+
+		return mNBuilder.build();
 	}
 
 	/**
 	 * Update notification
 	 */
 	private void updateNotification() {
-		if (mNotification == null) {
-			mNotification = createNotificationBuilder();
-		}
+		final Notification notification = updateNotification(mRadioController.getState());
 
-		int frequency = mRadioController.getState().getInt(C.Key.FREQUENCY);
-
-		mNotification
-				.setContentTitle(getString(R.string.app_name))
-				//.setContentText(mConfiguration.getPs() == null || mConfiguration.getPs().length() == 0 ? "< no rds >" : mConfiguration.getPs())
-				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
-
-		Notification ntf = mNotification.build();
-		startForeground(NOTIFICATION_ID, ntf);
-		mNotificationMgr.notify(NOTIFICATION_ID, ntf);
+		startForeground(NOTIFICATION_ID, notification);
 	}
 
 
@@ -363,6 +472,15 @@ public class FMService extends Service implements FMEventCallback {
 			) {
 				sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
 			}
+		}
+	}
+
+	private void reloadFavorite() {
+		mFavoriteController.reload();
+		mFavoriteList = new HashMap<>();
+		List<FavoriteStation> list = mFavoriteController.getStationsInCurrentList();
+		for (FavoriteStation station : list) {
+			mFavoriteList.put(station.getFrequency(), station.getTitle());
 		}
 	}
 
