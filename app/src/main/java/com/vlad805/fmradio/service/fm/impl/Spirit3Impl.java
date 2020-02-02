@@ -173,6 +173,15 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 			tmp = sendCommandSync(cmdTunerRssi);
 			if (tmp != null) {
 				int rssi = Utils.parseInt(tmp);
+
+
+				// Spirit3 versions <= 3.0.12 has invalid normalize
+				if (rssi > 0) {
+					rssi = (139 + rssi);
+				}
+
+				rssi = -0xff + rssi;
+
 				bundle.putInt(C.Key.RSSI, rssi);
 			}
 

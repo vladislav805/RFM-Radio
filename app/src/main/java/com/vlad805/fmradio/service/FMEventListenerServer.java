@@ -111,7 +111,9 @@ public class FMEventListenerServer extends Thread {
 
 			case EVT_UPDATE_RSSI: {
 				action = C.Event.UPDATE_RSSI;
-				bundle.putInt(C.Key.RSSI, Utils.parseInt(data));
+				int val = Utils.parseInt(data);
+				val = -0xff + val;
+				bundle.putInt(C.Key.RSSI, val);
 				break;
 			}
 

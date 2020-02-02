@@ -150,8 +150,8 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	protected void getSignalStretchImpl(final Callback<Integer> result) {
-		result.onResult(0); // TODO
+	protected void getSignalStretchImpl(final Callback<Integer> callback) {
+		sendCommand(new Request("getrssi").setListener(data -> callback.onResult(Utils.parseInt(-0xff + data))));
 	}
 
 	@Override
