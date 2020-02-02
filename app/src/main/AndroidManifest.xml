@@ -8,6 +8,7 @@
 	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	<uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
 	<application
 			android:allowBackup="true"
@@ -43,6 +44,13 @@
 				android:label="RFM Main Service"
 				android:process=":service"
 				tools:ignore="ExportedService"/>
+
+		<receiver android:name=".receivers.CallReceiver" android:enabled="true">
+			<intent-filter>
+				<action android:name="android.intent.action.PHONE_STATE" />
+				<action android:name="android.intent.action.NEW_OUTGOING_CALL" />
+			</intent-filter>
+		</receiver>
 	</application>
 
 </manifest>
