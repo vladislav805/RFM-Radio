@@ -67,5 +67,9 @@
 	<string name="pref_audio_service">Audio service</string>
 	<string name="space_two">  </string>
 	<string name="toolbar_favorite_title">Favorites</string>
+	<string name="pref_header_notifications">Notifications</string>
+	<string name="pref_notification_show_ps_enabled">If the station is transmitting PS, it will be shown in the notification</string>
+	<string name="pref_notification_show_ps_disabled">The name from the favorites will be displayed as station name</string>
+	<string name="pref_notification_show_ps">Show PS in title</string>
 
 </resources>

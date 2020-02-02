@@ -70,6 +70,7 @@ final public class C {
 
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
+		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
 		public static final String RDS_ENABLE = "rds_enable";
 		public static final String AUTOPLAY = "autoplay";
 	}

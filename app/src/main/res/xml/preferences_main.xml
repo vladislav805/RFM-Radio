@@ -52,6 +52,17 @@
 				android:icon="@drawable/ic_autostart"/>
 	</PreferenceCategory>
 	<PreferenceCategory
+			android:key="notification"
+			android:title="@string/pref_header_notifications">
+		<SwitchPreferenceCompat
+				android:key="notification_show_ps"
+				android:defaultValue="true"
+				android:summaryOn="@string/pref_notification_show_ps_enabled"
+				android:summaryOff="@string/pref_notification_show_ps_disabled"
+				android:title="@string/pref_notification_show_ps"
+				android:icon="@drawable/ic_ps_name"/>
+	</PreferenceCategory>
+	<PreferenceCategory
 			android:key="info"
 			android:title="@string/pref_header_info">
 		<Preference

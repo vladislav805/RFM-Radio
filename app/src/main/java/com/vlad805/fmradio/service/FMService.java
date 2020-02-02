@@ -47,6 +47,7 @@ public class FMService extends Service implements FMEventCallback {
 	private FMAudioService mAudioService;
 	private PlayerReceiver mStatusReceiver;
 	private SharedPreferences mStorage;
+	private SharedPreferences mPrefs;
 	private Timer mTimer;
 
 	@Override
@@ -58,6 +59,7 @@ public class FMService extends Service implements FMEventCallback {
 
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
+		mPrefs = Storage.getPrefs(this);
 
 		mAudioService = getPreferredAudioService();
 		mFmController = getPreferredTunerDriver();
@@ -389,6 +391,8 @@ public class FMService extends Service implements FMEventCallback {
 		 */
 		mNBuilder.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
 
+		final boolean isNeedShowRds = mPrefs.getBoolean(C.PrefKey.NOTIFICATION_SHOW_RDS, true);
+
 		/*
 		 * Title
 		 */
@@ -396,8 +400,8 @@ public class FMService extends Service implements FMEventCallback {
 		final String stationTitle = mFavoriteList.get(frequency);
 		final String rdsPs = state.getString(C.Key.PS);
 
-		if (rdsPs != null && !rdsPs.isEmpty()) {
-			title = rdsPs;
+		if (isNeedShowRds && rdsPs != null && !rdsPs.isEmpty()) {
+			title = rdsPs.trim();
 		} else if (stationTitle != null) {
 			title = stationTitle;
 		}
@@ -410,7 +414,7 @@ public class FMService extends Service implements FMEventCallback {
 		String text = "";
 		final String rdsRt = state.getString(C.Key.RT);
 
-		if (rdsRt != null && !rdsRt.isEmpty()) {
+		if (isNeedShowRds && rdsRt != null && !rdsRt.isEmpty()) {
 			text = rdsRt;
 		}
 
