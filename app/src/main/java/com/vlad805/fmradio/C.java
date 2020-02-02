@@ -31,6 +31,8 @@ final public class C {
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
 		public static final String RECORD_ENDED = BASE + "RECORD_ENDED";
 
+		public static final String FAVORITE_LIST_CHANGED = BASE + "FAVORITE_LIST_CHANGED";
+
 		public static final String KILLED = BASE + "KILLED";
 	}
 

@@ -15,7 +15,9 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.activity.MainActivity;
+import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.Spirit3AudioService;
@@ -27,13 +29,11 @@ import com.vlad805.fmradio.service.fm.impl.Empty;
 import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
 import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
 
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 
+@SuppressWarnings("deprecation")
 public class FMService extends Service implements FMEventCallback {
 	private static final String TAG = "FMS";
 	public static final int NOTIFICATION_ID = 1027;
@@ -41,6 +41,8 @@ public class FMService extends Service implements FMEventCallback {
 
 	private NotificationCompat.Builder mNBuilder;
 	private RadioController mRadioController;
+	private FavoriteController mFavoriteController;
+	private Map<Integer, String> mFavoriteList;
 	private FMController mFmController;
 	private FMAudioService mAudioService;
 	private PlayerReceiver mStatusReceiver;
@@ -52,6 +54,7 @@ public class FMService extends Service implements FMEventCallback {
 		super.onCreate();
 
 		mRadioController = new RadioController(this);
+		mFavoriteController = new FavoriteController(this);
 
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
@@ -67,6 +70,8 @@ public class FMService extends Service implements FMEventCallback {
 		if (mFmController instanceof IFMEventListener) {
 			((IFMEventListener) mFmController).setEventListener(this);
 		}
+
+		reloadFavorite();
 
 		registerReceiver(mStatusReceiver, RadioController.sFilter);
 	}
@@ -290,6 +295,11 @@ public class FMService extends Service implements FMEventCallback {
 					mRadioController.getState().putInt(C.Key.RSSI, intent.getIntExtra(C.Key.RSSI, 0));
 					break;
 				}
+
+				case C.Event.FAVORITE_LIST_CHANGED: {
+					reloadFavorite();
+					break;
+				}
 			}
 
 			mRadioController.onEvent(intent);
@@ -373,22 +383,38 @@ public class FMService extends Service implements FMEventCallback {
 
 		final int frequency = state.getInt(C.Key.FREQUENCY);
 		// final int rssi = state.getInt(C.Key.RSSI);
+
+		/*
+		 * Subtitle
+		 */
 		mNBuilder.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
 
+		/*
+		 * Title
+		 */
+		String title = getString(R.string.app_name);
+		final String stationTitle = mFavoriteList.get(frequency);
 		final String rdsPs = state.getString(C.Key.PS);
-		final String rdsRt = state.getString(C.Key.RT);
 
 		if (rdsPs != null && !rdsPs.isEmpty()) {
-			mNBuilder.setContentTitle(rdsPs);
-		} else {
-			mNBuilder.setContentTitle(getString(R.string.app_name));
+			title = rdsPs;
+		} else if (stationTitle != null) {
+			title = stationTitle;
 		}
 
+		mNBuilder.setContentTitle(title);
+
+		/*
+		 * Text
+		 */
+		String text = "";
+		final String rdsRt = state.getString(C.Key.RT);
+
 		if (rdsRt != null && !rdsRt.isEmpty()) {
-			mNBuilder.setContentText(rdsRt);
-		} else {
-			mNBuilder.setContentText("");
+			text = rdsRt;
 		}
+
+		mNBuilder.setContentText(text);
 
 		return mNBuilder.build();
 	}
@@ -398,9 +424,7 @@ public class FMService extends Service implements FMEventCallback {
 	 */
 	private void updateNotification() {
 		final Notification notification = updateNotification(mRadioController.getState());
-		if (notification == null) {
-			return;
-		}
+
 		startForeground(NOTIFICATION_ID, notification);
 	}
 
@@ -448,6 +472,15 @@ public class FMService extends Service implements FMEventCallback {
 			) {
 				sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
 			}
+		}
+	}
+
+	private void reloadFavorite() {
+		mFavoriteController.reload();
+		mFavoriteList = new HashMap<>();
+		List<FavoriteStation> list = mFavoriteController.getStationsInCurrentList();
+		for (FavoriteStation station : list) {
+			mFavoriteList.put(station.getFrequency(), station.getTitle());
 		}
 	}
 
