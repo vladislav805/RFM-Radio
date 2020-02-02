@@ -13,6 +13,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
+import androidx.appcompat.app.AppCompatActivity;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -27,7 +28,7 @@ import com.vlad805.fmradio.view.RadioUIView;
 
 import java.util.Locale;
 
-public class MainActivity extends Activity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
 	private RadioUIView mFrequencyInfo;
@@ -50,6 +51,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		setContentView(R.layout.activity_main);
 
 		mToast = Toast.create(this);
+
+		setSupportActionBar(findViewById(R.id.main_toolbar));
 
 		initUserInterface();
 		initLogic();

@@ -88,8 +88,8 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 		private ViewHolder(View root) {
 			super(root);
 
-			frequency = root.findViewById(R.id.favorite_station_item_frequency);
-			title = root.findViewById(R.id.favorite_station_item_title);
+			frequency = root.findViewById(R.id.favorite_panel_item_frequency);
+			title = root.findViewById(R.id.favorite_panel_item_title);
 		}
 
 		public void populate(FavoriteStation station) {

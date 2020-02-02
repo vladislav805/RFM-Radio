@@ -16,7 +16,7 @@
 			android:label="@string/app_name"
 			android:launchMode="singleInstance"
 			android:supportsRtl="false"
-			android:theme="@style/AppTheme"
+			android:theme="@style/AppCompatTheme"
 			tools:ignore="GoogleAppIndexingWarning">
 		<activity
 				android:name=".activity.MainActivity"
@@ -24,18 +24,16 @@
 				android:screenOrientation="portrait">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
-
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>
 		<activity
 				android:name=".activity.SettingsActivity"
-				android:label="@string/pref_activity_title"
-				android:theme="@style/Theme.AppCompat"/>
+				android:label="@string/pref_activity_title"/>
 		<activity
-				android:name=".activity.FavoritesListsActivity"
-				android:theme="@style/AppCompatTheme"/>
-		<activity android:name=".activity.AboutActivity"/>
+				android:name=".activity.FavoritesListsActivity"/>
+		<activity
+				android:name=".activity.AboutActivity"/>
 
 		<service
 				android:name=".service.FMService"

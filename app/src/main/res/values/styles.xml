@@ -1,14 +1,6 @@
 <resources>
 
-	<!-- Base application theme. -->
-	<style name="AppTheme" parent="android:Theme.Material">
-		<!-- Customize your theme here. -->
-		<item name="android:windowBackground">@color/main_background</item>
-		<item name="android:colorBackground">@color/main_background</item>
-		<item name="android:statusBarColor">@color/main_background</item>
-		<item name="android:navigationBarColor">@color/main_background</item>
-	</style>
-
+	<!-- Default style for all activities -->
 	<style name="AppCompatTheme" parent="Theme.AppCompat.NoActionBar">
 		<item name="android:windowBackground">@color/main_background</item>
 		<item name="android:colorBackground">@color/main_background</item>
@@ -16,12 +8,14 @@
 		<item name="android:navigationBarColor">@color/main_background</item>
 	</style>
 
+	<!-- Frequency SeekBar -->
 	<style name="FrequencySeekBar">
 		<item name="android:progressBackgroundTint">@android:color/transparent</item>
 		<item name="android:progressTint">@android:color/transparent</item>
 		<item name="android:colorControlActivated">@android:color/transparent</item>
 	</style>
 
+	<!-- Frequency TextView and reflection -->
 	<style name="Frequency">
 		<item name="android:lineSpacingMultiplier">1</item>
 		<item name="android:lineSpacingExtra">0sp</item>
@@ -45,6 +39,4 @@
 	<style name="ControlIcon">
 		<!--item name="android:gravity">center</item-->
 	</style>
-
-
 </resources>
