@@ -26,8 +26,6 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
 
-import java.util.Locale;
-
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
@@ -296,7 +294,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 				mFrequencyInfo.setRdsPs("");
 				mFrequencyInfo.setRdsRt("");
-				mViewRssi.setText("……");
+				mViewRssi.setText("?");
 				break;
 			}
 
@@ -312,7 +310,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case C.Event.UPDATE_RSSI: {
 				int rssi = intent.getIntExtra(C.Key.RSSI, -1);
-				mViewRssi.setText(String.format(Locale.getDefault(), "%02d dB", rssi));
+				mViewRssi.setText(getString(R.string.main_rssi_db, rssi));
 				setRssiIcon(rssi);
 				break;
 			}
