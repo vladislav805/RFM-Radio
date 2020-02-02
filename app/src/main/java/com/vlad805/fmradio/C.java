@@ -86,10 +86,6 @@ final public class C {
 
 	private C() {}
 
-	@Deprecated public static final String FM_GET_STATUS = "fm_get_status";
-	@Deprecated public static final String FM_SET_STEREO = "fm_setstereo";
-	@Deprecated public static final String FM_SET_MUTE = "fm_setmute";
-
 	public static final class Config {
 		public static final class Polling {
 			public static final int DELAY = 3000;

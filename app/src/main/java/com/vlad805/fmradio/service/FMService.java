@@ -207,8 +207,6 @@ public class FMService extends Service implements FMEventCallback {
 	private FMController getPreferredTunerDriver() {
 		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
 
-		Log.d(TAG, "getPreferredTunerDriver: preferred id = " + id);
-
 		switch (id) {
 			case FMController.DRIVER_QUALCOMM: {
 				return new QualCommLegacy(new QualCommLegacy.Config(), this);
@@ -361,17 +359,17 @@ public class FMService extends Service implements FMEventCallback {
 				.setSmallIcon(R.drawable.ic_radio)
 				.setContentIntent(pendingMain)
 				.setContentTitle(getString(R.string.app_name))
-				.setContentText("Starting...")
+				.setContentText(getString(R.string.progress_starting))
 				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
 				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 				.setShowWhen(false)
 				.setAutoCancel(false)
 				.setOngoing(true)
 				.setColor(getResources().getColor(R.color.primary_blue))
-				.addAction(R.drawable.ic_go_down, "Seek down", pendingSeekDown) // #0
-				.addAction(R.drawable.ic_stop, "Pause", pendingStop) // #1
-				.addAction(R.drawable.ic_cassette, "Rec", pendingRec) // #2
-				.addAction(R.drawable.ic_go_up, "Seek up", pendingSeekUp) // #3
+				.addAction(R.drawable.ic_go_down, getString(R.string.seek_down), pendingSeekDown) // #0
+				.addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop) // #1
+				.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec) // #2
+				.addAction(R.drawable.ic_go_up, getString(R.string.seek_up), pendingSeekUp) // #3
 				.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(1, 2));
 
 	}
@@ -387,7 +385,7 @@ public class FMService extends Service implements FMEventCallback {
 		/*
 		 * Subtitle
 		 */
-		mNBuilder.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
+		mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d));
 
 		final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
 

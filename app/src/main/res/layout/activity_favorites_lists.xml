@@ -24,8 +24,9 @@
 		<Spinner
 				android:id="@+id/favorite_list_lists"
 				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:spinnerMode="dialog"/>
+				android:layout_height="match_parent"
+				android:spinnerMode="dialog" tools:layout_editor_absoluteY="16dp"
+				tools:layout_editor_absoluteX="108dp"/>
 	</androidx.appcompat.widget.Toolbar>
 	<androidx.recyclerview.widget.RecyclerView
 			android:id="@+id/favorite_list_content"
