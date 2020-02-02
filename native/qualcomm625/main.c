@@ -6,7 +6,7 @@
  * @author rakeshk
  */
 
-#define VERSION "0.3"
+#define VERSION "0.4.dev"
 
 #include <stdio.h>
 #include <string.h>
@@ -74,6 +74,13 @@ char** args_parse(char* cmd) {
 	return token;
 }
 
+struct fm_config {
+  int antenna;
+  int port_client;
+  int port_server;
+  enum channel_space_type spacing;
+} fm_config;
+
 srv_response api_fetch(char* request) {
 	char** ar = args_parse(request);
 	char* cmd = ar[0];
@@ -136,18 +143,23 @@ srv_response api_fetch(char* request) {
 
 		fm_search_stations cfg_data = {
 			.search_dir = direction,
-			.search_mode = 0x00,
+			.search_mode = SEEK,
 			.dwell_period = 0x07
 		};
 
 		res->code = SearchStationsReceiver(cfg_data);
 
-		res->data = RSP_OK;
+		char response[8];
+		sprintf(response, "%d", fm_get_current_frequency_cached());
+		res->data = response;
 	} else if (str_equals(ar[0], MK_JUMP)) {
 		uint32 direction = str_equals(ar[1], "1") ? 100 : -100;
 
 		res->code = fm_receiver_jump_by_delta_frequency(direction);
-		res->data = RSP_OK;
+
+		char response[8];
+		sprintf(response, "%d", fm_get_current_frequency_cached());
+		res->data = response;
 	} else if (str_equals(cmd, MK_SET_STEREO)) {
 		res->code = SetStereoModeReceiver(FM_RX_STEREO);
 
@@ -185,7 +197,7 @@ srv_response api_fetch(char* request) {
 	} else if (str_equals(cmd, MK_SEARCH)) {
 		fm_search_list_stations liststationparams;
 
-		liststationparams.search_mode = 0x02;
+		liststationparams.search_mode = SCAN_FOR_STRONG;
 		liststationparams.search_dir = 0x00;
 		liststationparams.srch_list_max = 20;
 		liststationparams.program_type = 0x00;
@@ -209,5 +221,11 @@ __ret:
 
 int main(int argc, char *argv[]) {
 	printf("FM binary root v%s\nAuthor: vladislav805\n", VERSION);
+
+	fm_config.antenna = 0;
+	fm_config.port_client = CS_PORT;
+	fm_config.port_server = CS_PORT_SRV;
+	fm_config.spacing = FM_RX_SPACE_50KHZ;
+
 	init_server(&api_fetch);
 }

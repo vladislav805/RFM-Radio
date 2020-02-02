@@ -173,6 +173,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 				switch (stage) {
 					case C.FMStage.VOID: {
+						mRadioController.setup();
 						mRadioController.launch();
 						break;
 					}
@@ -311,7 +312,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case C.Event.UPDATE_RSSI: {
 				int rssi = intent.getIntExtra(C.Key.RSSI, -1);
-				mViewRssi.setText(String.format(Locale.getDefault(), "%02d", rssi));
+				mViewRssi.setText(String.format(Locale.getDefault(), "%02d dB", rssi));
 				setRssiIcon(rssi);
 				break;
 			}

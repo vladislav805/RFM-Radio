@@ -14,6 +14,7 @@
 #define EVT_SEEK_COMPLETE 8
 #define EVT_STEREO 9
 #define EVT_SEARCH_DONE 10
+#define EVT_UPDATE_RAW_RDS 100
 #define EVT_INIT 999
 
 typedef struct {

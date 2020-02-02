@@ -126,7 +126,9 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	@Override
 	protected void killImpl(final Callback<Void> callback) {
-		mServer.closeServer();
+		if (mServer != null) {
+			mServer.closeServer();
+		}
 		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
 		callback.onResult(null);
@@ -143,9 +145,8 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	protected void setFrequencyImpl(int kHz, final Callback<Integer> callback) {
-		sendCommand("setfreq " + kHz);
-		callback.onResult(kHz); // TODO REAL STATE
+	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
+		sendCommand(new Request("setfreq " + kHz).setListener(data -> callback.onResult(kHz)));
 	}
 
 	@Override
@@ -155,30 +156,12 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	@Override
 	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
-		final Request req = new Request("jump " + direction);
-		req.setListener(data -> {
-			/*
-			 * TODO in response need replace "ok" by frequency
-			 * https://github.com/vladislav805/RFM-Radio/issues/32
-			 */
-			callback.onResult(0);
-
-		});
-		sendCommand(req);
+		sendCommand(new Request("jump " + direction).setListener(data -> callback.onResult(Utils.parseInt(data))));
 	}
 
 	@Override
 	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
-		final Request req = new Request("seekhw " + direction);
-		req.setListener(data -> {
-			/*
-			 * TODO in response need replace "ok" by frequency
-			 * https://github.com/vladislav805/RFM-Radio/issues/32
- 			 */
-			callback.onResult(0);
-
-		});
-		sendCommand(req);
+		sendCommand(new Request("seekhw " + direction).setListener(data -> callback.onResult(Utils.parseInt(data))));
 	}
 
 	@Override
@@ -339,6 +322,9 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	private void startServerListener() {
 		try {
+			if (mServer != null) {
+				mServer.closeServer();
+			}
 			mServer = new FMEventListenerServer(config.getServerPort());
 			mServer.setCallback(mEventCallback);
 			mServer.start();

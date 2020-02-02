@@ -27,8 +27,8 @@ public final class Storage {
 	}
 
 	public static int getPrefInt(final Context ctx, final String key, final int defaultValue) {
-		final String val = getPrefs(ctx).getString(key, "" + defaultValue);
-		return val != null ? Utils.parseInt(val) : defaultValue;
+		final String val = getPrefString(ctx, key, "" + defaultValue);
+		return Utils.parseInt(val);
 	}
 
 	public static String getPrefString(final Context ctx, final String key, final String defaultValue) {

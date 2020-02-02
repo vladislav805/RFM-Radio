@@ -31,11 +31,16 @@
 
 #define PROPERTY_VALUE_MAX 256
 
-// Multiplying factor to convert to Radio frequency
+/*
+ * Multiplying factor to convert to Radio frequency
+ * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,
+ * 62.5 kHz otherwise.
+ * The tuner is able to have a channel spacing of 50, 100 or 200 kHz.
+ * tuner->capability is therefore set to V4L2_TUNER_CAP_LOW
+ * The FREQ_MUL is then: 1 MHz / 62.5 Hz = 16000
+ */
 #define TUNE_MULT 16000
 
-// Constant to request for Radio Events
-#define EVENT_LISTEN 1
 
 // 1000 multiplier
 #define MULTIPLE_1000 1000
@@ -60,8 +65,6 @@ int SLAVE_ADDR = 0x2A;
 	#define print3(x,y,z)
 #endif
 
-#define TAVARUA_BUF_RT_RDS 2
-#define TAVARUA_BUF_PS_RDS 3
 #define V4L2_CID_PRIVATE_TAVARUA_STATE         0x08000004
 #define V4L2_CID_PRIVATE_TAVARUA_EMPHASIS      0x0800000C
 #define V4L2_CID_PRIVATE_TAVARUA_SPACING       0x0800000E
@@ -84,6 +87,15 @@ int SLAVE_ADDR = 0x2A;
 
 // #define V4L2_CID_TUNE_POWER_LEVEL              0x009b0971
 
+enum tavarua_buf_t {
+  TAVARUA_BUF_SRCH_LIST,
+  TAVARUA_BUF_EVENTS,
+  TAVARUA_BUF_RT_RDS,
+  TAVARUA_BUF_PS_RDS,
+  TAVARUA_BUF_RAW_RDS,
+  TAVARUA_BUF_AF_LIST,
+  TAVARUA_BUF_MAX
+};
 
 
 
@@ -284,7 +296,7 @@ boolean extract_radio_text() {
 	if (bytesread < 0) {
 		return TRUE;
 	}
-	int radiotext_size = (int) (buf[0] & 0xFF);
+	int radiotext_size = (int) (buf[0] + 5);
 	fm_global_params.pgm_id = (((buf[2] & 0xFF) << 8) | (buf[3] & 0xFF));
 	fm_global_params.pgm_type = (int) (buf[1] & 0x1F);
 	memset(fm_global_params.radio_text, 0x0, 64);
@@ -292,6 +304,24 @@ boolean extract_radio_text() {
 	//fm_global_params.radio_text[radiotext_size] = '\0';
 	printf("RadioText: %s\n", fm_global_params.radio_text);
 	return TRUE;
+}
+
+boolean extract_raw_rds() {
+  const int size = 0xff;
+  uint8 buf[0xff];
+
+  int bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_RAW_RDS);
+  if (bytesread < 0) {
+    return TRUE;
+  }
+  int len = (int) (buf[0] & size);
+  char res[size];
+  memset(res, 0, size);
+  memcpy(res, &buf[1], len);
+
+  send_interruption_info(EVT_UPDATE_RAW_RDS, res);
+
+  return TRUE;
 }
 
 /**
@@ -417,6 +447,7 @@ boolean process_radio_event(uint8 event_buf) {
 
 		case TAVARUA_EVT_NEW_RAW_RDS:
 			print("Received Raw RDS info\n");
+			extract_raw_rds();
 			break;
 
 		case TAVARUA_EVT_NEW_RT_RDS:
@@ -490,24 +521,14 @@ void* interrupt_thread(void *ptr) {
 	uint8 buf[128] = {0};
 	boolean status = TRUE;
 
-	struct v4l2_tuner tuner;
-	tuner.index = 0;
-	tuner.signal = 0;
 
 	int i = 0;
 	int bytesread = 0;
-	int k = 0;
+
 	while (1) {
-		bytesread = read_data_from_v4l2(fd_radio, buf, EVENT_LISTEN);
+		bytesread = read_data_from_v4l2(fd_radio, buf, TAVARUA_BUF_EVENTS);
 		if (bytesread < 0)
 			break;
-
-		if (++k > 3) {
-			if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) == 0) {
-				send_interruption_info(EVT_UPDATE_RSSI, itoa(tuner.signal));
-			}
-			k = 0;
-		}
 
 		for (i = 0; i < bytesread; i++) {
 			status = process_radio_event(buf[i]);
@@ -520,6 +541,13 @@ void* interrupt_thread(void *ptr) {
 	return NULL;
 }
 
+/**
+ * Get signal strength
+ * In frontend need compute:
+ *   Weakest strength = 139 = -116dB
+ *   Strongest strength = 211 = -44dB
+ *   To get dB need: -255 + N = -X (dB)
+ */
 int fetch_and_send_rssi() {
   struct v4l2_tuner tuner;
   tuner.index = 0;
@@ -983,6 +1011,10 @@ fm_cmd_status_type fm_receiver_jump_by_delta_frequency(uint32 delta) {
   logi2("fm_receiver_jump_by_delta_frequency: call with ", delta);
   logi2("fm_receiver_jump_by_delta_frequency: current frequency is ", fm_global_params.current_station_freq);
 	return fm_receiver_frequency_set(fm_global_params.current_station_freq + delta);
+}
+
+uint32 fm_get_current_frequency_cached() {
+  return fm_global_params.current_station_freq;
 }
 
 /**
