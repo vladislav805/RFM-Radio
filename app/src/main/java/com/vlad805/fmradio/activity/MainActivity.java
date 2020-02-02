@@ -374,24 +374,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	private static final @IdRes	int[] SIGNAL_RES_ID = {
-			R.drawable.ic_signal_4,
-			R.drawable.ic_signal_3,
-			R.drawable.ic_signal_2,
+			R.drawable.ic_signal_0,
 			R.drawable.ic_signal_1,
-			R.drawable.ic_signal_0
+			R.drawable.ic_signal_2,
+			R.drawable.ic_signal_3,
+			R.drawable.ic_signal_4
 	};
 
 	private static final int[] SIGNAL_THRESHOLD = {
-			60,
-			50,
-			40,
-			30,
-			20
+			-95,
+			-85,
+			-75,
+			-65,
+			-55
 	};
 
 	private void setRssiIcon(final int rssi) {
 		for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
-			if (rssi > SIGNAL_THRESHOLD[i]) {
+			if (rssi < SIGNAL_THRESHOLD[i]) {
 				mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
 				break;
 			}
