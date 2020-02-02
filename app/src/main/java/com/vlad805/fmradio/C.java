@@ -63,7 +63,6 @@ final public class C {
 		public static final String AUDIO_SERVICE = "audio_service";
 		public static final String TUNER_DRIVER = "tuner_driver";
 		public static final String AUDIO_SOURCE = "audio_source";
-		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String MESSAGE = "message";
 		public static final String STAGE = "stage_ctl";
 	}
@@ -71,14 +70,15 @@ final public class C {
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
+		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String RDS_ENABLE = "rds_enable";
-		public static final String AUTOPLAY = "autoplay";
 	}
 
 	public static final class PrefDefaultValue {
 		public static final int LAST_FREQUENCY = 87500;
+		public static final boolean NOTIFICATION_SHOW_RDS = true;
+		public static final boolean APP_AUTO_STARTUP = false;
 		public static final boolean RDS_ENABLE = true;
-		public static final boolean AUTOPLAY = false;
 
 		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
 		public static final int TUNER_DRIVER = FMController.DRIVER_QUALCOMM;

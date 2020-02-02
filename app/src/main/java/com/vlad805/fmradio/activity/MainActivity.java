@@ -77,7 +77,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 			mFrequencyInfo.hideReflection();
 		}
 
-		mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, 0));
+		mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY));
 
 		initClickableButtons();
 	}
@@ -89,7 +89,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Favo
 		mRadioController = new RadioController(this);
 		mRadioEventReceiver = new RadioEventReceiver();
 
-		final boolean needStartup = Storage.getPrefBoolean(this, C.Key.APP_AUTO_STARTUP, false);
+		final boolean needStartup = Storage.getPrefBoolean(this, C.PrefKey.APP_AUTO_STARTUP, C.PrefDefaultValue.APP_AUTO_STARTUP);
 
 		if (needStartup) {
 			setEnabledToggleButton(false);

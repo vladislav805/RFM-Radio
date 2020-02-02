@@ -47,7 +47,6 @@ public class FMService extends Service implements FMEventCallback {
 	private FMAudioService mAudioService;
 	private PlayerReceiver mStatusReceiver;
 	private SharedPreferences mStorage;
-	private SharedPreferences mPrefs;
 	private Timer mTimer;
 
 	@Override
@@ -59,7 +58,6 @@ public class FMService extends Service implements FMEventCallback {
 
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
-		mPrefs = Storage.getPrefs(this);
 
 		mAudioService = getPreferredAudioService();
 		mFmController = getPreferredTunerDriver();
@@ -391,7 +389,7 @@ public class FMService extends Service implements FMEventCallback {
 		 */
 		mNBuilder.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", frequency / 1000d));
 
-		final boolean isNeedShowRds = mPrefs.getBoolean(C.PrefKey.NOTIFICATION_SHOW_RDS, true);
+		final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
 
 		/*
 		 * Title
