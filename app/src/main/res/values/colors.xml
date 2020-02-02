@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+	<!-- For Android -->
 	<color name="color_primary">@color/primary_blue</color>
 	<color name="color_primary_dark">@color/primary_blue_shadow</color>
 	<color name="color_accent">#00FFD8</color>
 
-	<color name="primary_blue">#ff32b5e5</color>
-	<color name="primary_blue_shadow">#00ccff</color>
-	<color name="frequency_seek_background">#4f4f4f</color>
-	<color name="main_background">#202020</color>
-	<color name="frequency_digit_background">#2f2f2f</color>
-	<color name="red">#FF0000</color>
+	<!-- App colors -->
+	<color name="main_background">#212121</color>
+	<color name="primary_blue">#2979ff</color>
+	<color name="primary_blue_shadow">#004ecb</color>
+
+	<!-- Recording colors -->
+	<color name="record_active">#ff0000</color>
 </resources>

@@ -23,31 +23,30 @@
 			android:layout_width="match_parent"
 			android:layout_height="@dimen/frequency_mhz_reflection_height"
 			android:contentDescription="@string/nil"
-			android:translationY="-20dp"
+			android:translationY="@dimen/frequency_mhz_translationY"
 			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"/>
-
 
 	<TextView
 			style="@style/RDS_RT"
 			android:id="@+id/frequency_rt"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:layout_marginStart="8dp"
-			android:layout_marginEnd="8dp"
-			android:lines="2"
-			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintEnd_toEndOf="parent"
-			tools:text="RT"
 			android:layout_marginTop="8dp"
-			app:layout_constraintTop_toBottomOf="@+id/main_main"/>
+			android:layout_marginStart="16dp"
+			android:layout_marginEnd="16dp"
+			android:lines="2"
+			tools:text="RT"
+			app:layout_constraintTop_toBottomOf="@+id/main_main"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"/>
 
 	<ImageButton
-			android:src="@drawable/ic_seek_down"
-			android:layout_width="44dp"
-			android:layout_height="44dp"
 			android:id="@+id/ctl_seek_down"
+			android:src="@drawable/ic_seek_down"
+			android:layout_width="@dimen/ctl_size_seek"
+			android:layout_height="@dimen/ctl_size_seek"
 			android:background="?android:selectableItemBackgroundBorderless"
 			android:contentDescription="@string/seek_down"
 			app:layout_constraintEnd_toStartOf="@+id/ctl_go_down"
@@ -55,10 +54,10 @@
 			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
 
 	<ImageButton
-			android:src="@drawable/ic_go_down"
-			android:layout_width="48dp"
-			android:layout_height="48dp"
 			android:id="@+id/ctl_go_down"
+			android:src="@drawable/ic_go_down"
+			android:layout_width="@dimen/ctl_size_jump"
+			android:layout_height="@dimen/ctl_size_jump"
 			android:background="?android:selectableItemBackgroundBorderless"
 			android:contentDescription="@string/jump_down"
 			app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
@@ -66,22 +65,22 @@
 			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
 
 	<ImageButton
-			android:src="@drawable/ic_pause"
-			android:layout_width="60dp"
-			android:layout_height="60dp"
 			android:id="@+id/ctl_toggle"
+			android:src="@drawable/ic_play"
+			android:layout_width="@dimen/ctl_size_toggle"
+			android:layout_height="@dimen/ctl_size_toggle"
+			android:layout_marginTop="8dp"
 			android:background="?android:selectableItemBackgroundBorderless"
 			android:contentDescription="@string/toggle_play_pause"
 			app:layout_constraintTop_toBottomOf="@+id/frequency_rt"
 			app:layout_constraintEnd_toEndOf="parent"
-			app:layout_constraintStart_toStartOf="parent"
-			android:layout_marginTop="8dp"/>
+			app:layout_constraintStart_toStartOf="parent"/>
 
 	<ImageButton
-			android:src="@drawable/ic_go_up"
-			android:layout_width="48dp"
-			android:layout_height="48dp"
 			android:id="@+id/ctl_go_up"
+			android:src="@drawable/ic_go_up"
+			android:layout_width="@dimen/ctl_size_jump"
+			android:layout_height="@dimen/ctl_size_jump"
 			android:background="?android:selectableItemBackgroundBorderless"
 			android:contentDescription="@string/jump_up"
 			app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
@@ -89,16 +88,27 @@
 			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
 
 	<ImageButton
-			android:src="@drawable/ic_seek_up"
-			android:layout_width="44dp"
-			android:layout_height="44dp"
 			android:id="@+id/ctl_seek_up"
+			android:src="@drawable/ic_seek_up"
+			android:layout_width="@dimen/ctl_size_seek"
+			android:layout_height="@dimen/ctl_size_seek"
 			android:background="?android:selectableItemBackgroundBorderless"
 			android:contentDescription="@string/seek_up"
 			app:layout_constraintStart_toEndOf="@+id/ctl_go_up"
 			app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
 			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
 
+	<ImageView
+			style="@style/ControlIcon"
+			android:id="@+id/stereo_mono"
+			android:src="@drawable/ic_mono"
+			android:layout_width="@dimen/icon_size"
+			android:layout_height="@dimen/icon_size"
+			android:layout_marginTop="16dp"
+			android:layout_marginEnd="16dp"
+			android:contentDescription="@string/nil"
+			app:layout_constraintTop_toTopOf="@+id/frequency_mhz"
+			app:layout_constraintEnd_toEndOf="@+id/frequency_mhz"/>
 	<HorizontalScrollView
 			android:id="@+id/frequency_seek_wrap"
 			android:layout_width="match_parent"
@@ -124,80 +134,65 @@
 			android:id="@+id/main_main"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz_reflection"
+			android:layout_marginTop="@dimen/frequency_mhz_reflection_height"
+			app:layout_constraintTop_toBottomOf="@+id/frequency_mhz"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent">
-
-		<ImageView
-				style="@style/ControlIcon"
-				android:id="@+id/rssi_icon"
-				android:src="@drawable/ic_signal_unknown"
-				android:layout_width="@dimen/control_icon_size"
-				android:layout_height="@dimen/control_icon_size"
-				android:contentDescription="@string/nil"
-				app:layout_constraintTop_toTopOf="@+id/stereo_mono"
-				app:layout_constraintBottom_toBottomOf="@+id/stereo_mono"
-				app:layout_constraintEnd_toStartOf="@+id/rssi_value"
-				android:layout_marginEnd="8dp"/>
-
-		<TextView
-				android:id="@+id/rssi_value"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginEnd="8dp"
-				android:fontFamily="monospace"
-				android:gravity="center_vertical"
-				android:text="@string/space_two"
-				app:layout_constraintTop_toTopOf="@+id/rssi_icon"
-				app:layout_constraintBottom_toBottomOf="@+id/rssi_icon"
-				app:layout_constraintEnd_toStartOf="@+id/stereo_mono"
-				tools:text="70"/>
 
 		<TextView
 				style="@style/RDS_PS"
 				android:id="@+id/frequency_ps"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
+				android:layout_marginStart="16dp"
 				tools:text="PS"
 				app:layout_constraintStart_toStartOf="parent"
 				app:layout_constraintTop_toTopOf="parent"
-				app:layout_constraintBottom_toBottomOf="parent"
-				android:layout_marginStart="8dp"/>
-
-		<ImageView
-				style="@style/ControlIcon"
-				android:id="@+id/stereo_mono"
-				android:src="@drawable/ic_mono"
-				android:layout_width="@dimen/control_icon_size"
-				android:layout_height="@dimen/control_icon_size"
-				android:contentDescription="@string/nil"
-				app:layout_constraintEnd_toEndOf="parent"
-				android:layout_marginEnd="8dp"
-				app:layout_constraintTop_toTopOf="parent"
-				android:layout_marginTop="8dp"/>
+				app:layout_constraintBottom_toBottomOf="parent"/>
 
 		<ImageView
 				android:id="@+id/record_icon"
 				android:src="@drawable/ic_record_press"
-				android:layout_width="@dimen/control_icon_size"
-				android:layout_height="@dimen/control_icon_size"
-				app:layout_constraintEnd_toEndOf="@+id/stereo_mono"
-				app:layout_constraintTop_toBottomOf="@+id/stereo_mono"
-				android:layout_marginTop="16dp"
+				android:layout_width="@dimen/icon_size"
+				android:layout_height="@dimen/icon_size"
+				android:layout_marginEnd="16dp"
+				android:contentDescription="@string/nil"
+				app:layout_constraintTop_toTopOf="parent"
 				app:layout_constraintBottom_toBottomOf="parent"
-				android:layout_marginBottom="8dp"
-				android:contentDescription="@string/nil"/>
-
+				app:layout_constraintEnd_toEndOf="parent"/>
 		<TextView
 				android:id="@+id/record_duration"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:layout_marginEnd="8dp"
 				android:fontFamily="monospace"
-				android:textColor="@color/red"
+				android:textColor="@color/record_active"
 				tools:text="00:00"
 				app:layout_constraintEnd_toStartOf="@+id/record_icon"
 				app:layout_constraintTop_toTopOf="@+id/record_icon"
 				app:layout_constraintBottom_toBottomOf="@+id/record_icon"/>
 	</androidx.constraintlayout.widget.ConstraintLayout>
+	<ImageView
+			style="@style/ControlIcon"
+			android:id="@+id/rssi_icon"
+			android:src="@drawable/ic_signal_unknown"
+			android:layout_width="@dimen/icon_size"
+			android:layout_height="@dimen/icon_size"
+			android:layout_marginTop="16dp"
+			android:layout_marginStart="16dp"
+			android:contentDescription="@string/nil"
+			app:layout_constraintTop_toTopOf="parent"
+			app:layout_constraintStart_toStartOf="parent"/>
+	<TextView
+			android:id="@+id/rssi_value"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:fontFamily="monospace"
+			android:gravity="center_vertical"
+			android:text="@string/space_two"
+			tools:text="70"
+			app:layout_constraintTop_toBottomOf="@+id/rssi_icon"
+			app:layout_constraintStart_toStartOf="@+id/rssi_icon"
+			app:layout_constraintEnd_toEndOf="@+id/rssi_icon"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

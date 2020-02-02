@@ -1,20 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+	<!-- Frequency text -->
 	<dimen name="frequency_mhz_height">80dp</dimen>
 	<dimen name="frequency_mhz_reflection_height">64dp</dimen>
-	<dimen name="frequency_info_margin_top">10dp</dimen>
+	<dimen name="frequency_mhz_translationY">-20dp</dimen>
 
-	<dimen name="favorite_list_width">100dp</dimen>
-	<dimen name="favorite_list_height">60dp</dimen>
-	<dimen name="favorite_list_mhz_size">26sp</dimen>
-	<dimen name="favorite_list_title_size">14sp</dimen>
-
-	<dimen name="dialog_horizontal_padding">16dp</dimen>
-
-	<dimen name="control_icon_size">30dp</dimen>
-
+	<!-- Seek frequency -->
+	<!-- Padding left and right inside HorizontalScrollView -->
 	<dimen name="seek_frequency_padding_start">15dp</dimen>
 	<dimen name="seek_frequency_padding_end">35dp</dimen>
-	<dimen name="seek_frequency_height">80dp</dimen>
+	<!-- Sizes of SeekBar -->
 	<dimen name="seek_frequency_width">1920dp</dimen>
+	<dimen name="seek_frequency_height">80dp</dimen>
+
+	<!-- Favorite panel -->
+	<dimen name="favorite_panel_item_width">100dp</dimen>
+	<dimen name="favorite_panel_item_height">60dp</dimen>
+
+	<!-- Icons -->
+	<dimen name="icon_size">30dp</dimen>
+
+	<!-- Control image buttons -->
+	<dimen name="ctl_size_seek">44dp</dimen>
+	<dimen name="ctl_size_jump">56dp</dimen>
+	<dimen name="ctl_size_toggle">70dp</dimen>
+
+
 </resources>
