@@ -26,8 +26,6 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
 
-import java.util.Locale;
-
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
@@ -296,7 +294,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 				mFrequencyInfo.setRdsPs("");
 				mFrequencyInfo.setRdsRt("");
-				mViewRssi.setText("……");
+				mViewRssi.setText("?");
 				break;
 			}
 
@@ -312,7 +310,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case C.Event.UPDATE_RSSI: {
 				int rssi = intent.getIntExtra(C.Key.RSSI, -1);
-				mViewRssi.setText(String.format(Locale.getDefault(), "%02d dB", rssi));
+				mViewRssi.setText(getString(R.string.main_rssi_db, rssi));
 				setRssiIcon(rssi);
 				break;
 			}
@@ -374,24 +372,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	private static final @IdRes	int[] SIGNAL_RES_ID = {
-			R.drawable.ic_signal_4,
-			R.drawable.ic_signal_3,
-			R.drawable.ic_signal_2,
+			R.drawable.ic_signal_0,
 			R.drawable.ic_signal_1,
-			R.drawable.ic_signal_0
+			R.drawable.ic_signal_2,
+			R.drawable.ic_signal_3,
+			R.drawable.ic_signal_4
 	};
 
 	private static final int[] SIGNAL_THRESHOLD = {
-			60,
-			50,
-			40,
-			30,
-			20
+			-95,
+			-85,
+			-75,
+			-65,
+			-55
 	};
 
 	private void setRssiIcon(final int rssi) {
 		for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
-			if (rssi > SIGNAL_THRESHOLD[i]) {
+			if (rssi < SIGNAL_THRESHOLD[i]) {
 				mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
 				break;
 			}
