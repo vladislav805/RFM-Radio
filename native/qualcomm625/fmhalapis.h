@@ -48,6 +48,8 @@ fm_cmd_status_type fm_receiver_frequency_set(uint32 ulfreq);
  */
 fm_cmd_status_type fm_receiver_jump_by_delta_frequency(uint32 delta);
 
+uint32 fm_get_current_frequency_cached();
+
 /**
  * SetMuteModeReceiver
  * PFAL specific routine to configure the FM receiver's mute status

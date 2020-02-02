@@ -5,6 +5,18 @@
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
+/**
+ * https://github.com/carvsdriver/msm8660-common_marla/blob/master/drivers/media/radio/radio-tavarua.c
+ * https://github.com/carvsdriver/msm8660-common_marla/blob/master/include/media/tavarua.h
+ *
+ *
+ * https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/drivers/media/radio/radio-iris.c
+ *
+ * https://source.codeaurora.org/external/gigabyte/qrd-gb-dsds-7225/plain/kernel/drivers/media/radio/radio-tavarua.c
+ * https://source.codeaurora.org/external/gigabyte/qrd-gb-dsds-7225/plain/kernel/include/media/tavarua.h
+ *
+ * https://github.com/SivanLiu/VivoFramework/blob/master/Vivo_y93/src/main/java/qcom/fmradio/FmReceiver.java
+ */
 #include <sys/types.h>
 #include <zconf.h>
 
@@ -88,6 +100,17 @@ typedef enum mute_type {
 	FM_RX_MUTE_LEFT = 0x02,
 	FM_RX_MUTE_BOTH = 0x03
 } mute_type;
+
+typedef enum search_t {
+	SEEK,
+	SCAN,
+	SCAN_FOR_STRONG,
+	SCAN_FOR_WEAK,
+	RDS_SEEK_PTY,
+	RDS_SCAN_PTY,
+	RDS_SEEK_PI,
+	RDS_AF_JUMP,
+} search_t;
 
 /**
  * RDS/RBDS Program Type type.
@@ -178,7 +201,7 @@ typedef struct fm_rds_options {
  * FM RX Search stations request
  */
 typedef struct fm_search_stations {
-	uint8 search_mode;
+	search_t search_mode;
 	uint8 dwell_period;
 	uint8 search_dir;
 } fm_search_stations;
@@ -187,7 +210,7 @@ typedef struct fm_search_stations {
  * FM RX Search DDS stations request
  */
 typedef struct fm_search_rds_stations {
-	uint8 search_mode;
+	search_t search_mode;
 	uint8 dwell_period;
 	uint8 search_dir;
 	uint8 program_type;
@@ -198,7 +221,7 @@ typedef struct fm_search_rds_stations {
  * FM RX Search station lists request
  */
 typedef struct fm_search_list_stations {
-	uint8 search_mode;
+	search_t search_mode;
 	uint8 search_dir;
 	uint32 srch_list_max;
 	/**< Maximum number of stations that can be returned from a search. */
