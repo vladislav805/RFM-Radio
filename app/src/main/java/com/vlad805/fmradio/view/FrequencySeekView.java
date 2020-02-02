@@ -176,15 +176,15 @@ public class FrequencySeekView extends SeekBar {
 			@SuppressWarnings("ConstantConditions")
 			final Paint colorTrait = hasStation ? mStationLine : mTrait;
 
+			final boolean isRoundMHz = kHz % 1000 == 0;
+
+			// Label
+			final String MHz = String.format(Locale.ENGLISH, isRoundMHz ? "%.0f" : "%.1f", kHz / 1000f);
+
 			// If .0 MHz or .5 MHz
 			if (kHz % 500 == 0) {
-				// Label
-				String MHz = String.format(Locale.ENGLISH, "%5.1f", kHz / 1000f);
-
 				// Draw long dash
 				canvas.drawLine(x, paddingTop, x, baseYLong, colorTrait);
-
-				boolean isRoundMHz = kHz % 1000 == 0;
 
 				canvas.drawText(MHz, x,
 					isRoundMHz ? baseYText0 : baseYText5,
