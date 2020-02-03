@@ -92,10 +92,19 @@
 	<string name="pref_notification_show_ps_disabled">The name from the favorites will be displayed as station name</string>
 	<string name="pref_notification_show_ps">Show PS in title</string>
 	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)</string>
+	<string name="pref_header_recording">Recording</string>
+	<string name="pref_recording_path_title">Directory for saving</string>
+	<string name="pref_recording_path_value">~/RFM/recording/$Y-$M-$D</string>
+	<string name="pref_recording_name_title">Filename</string>
+	<string name="pref_recording_name_value">FM-$H$I$S-$F.wav</string>
+	<string name="pref_recording_path_name_description">Available variables:\n$Y - year\n$M - month\n$D - day\n$H - hour\n$I - minute\n$S - second\n$F - frequency (e.g., 103.4 MHz = 1034)\n~/ - home directory</string>
 
 	<!-- Notification & service -->
 	<string name="notification_mhz">%.1f MHz</string>
 	<string name="service_record_unsupported">Recording not supported by this driver.</string>
 	<string name="notification_recording">Recording: %s (%.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
+	<string name="pref_recording_convert_title">Convert wav to mp3 on complete recording</string>
+	<string name="pref_recording_convert_summary">To do this, download ffmpeg required. Click here to continue.</string>
+	<string name="pref_info_version_title">Version</string>
 </resources>

@@ -18,20 +18,23 @@
 				android:icon="@drawable/ic_rds"/>
 		<Preference
 				android:key="tuner_rds_description"
+				android:enabled="false"
 				android:summary="@string/pref_tuner_rds_description" />
 		<EditTextPreference
 				android:key="tuner_antenna"
 				android:defaultValue="0"
 				android:title="@string/pref_tuner_antenna"
 				android:enabled="false"
+				android:dialogMessage="@string/pref_tuner_antenna_message"
 				android:icon="@drawable/ic_antenna"/>
-		<!--SwitchPreferenceCompat
+		<SwitchPreferenceCompat
 				android:key="tuner_step"
 				android:defaultValue="true"
 				android:title="@string/pref_tuner_step"
 				android:summaryOn="@string/pref_tuner_step_100kHz"
 				android:summaryOff="@string/pref_tuner_step_50kHz"
-				android:icon="@drawable/ic_step_freq"/-->
+				android:enabled="false"
+				android:icon="@drawable/ic_step_freq"/>
 	</PreferenceCategory>
 	<PreferenceCategory
 			android:key="audio"
@@ -70,6 +73,29 @@
 				android:icon="@drawable/ic_ps_name"/>
 	</PreferenceCategory>
 	<PreferenceCategory
+			android:key="recording"
+			android:title="@string/pref_header_recording">
+		<EditTextPreference
+				android:key="recording_directory"
+				android:defaultValue="@string/pref_recording_path_value"
+				android:title="@string/pref_recording_path_title"
+				android:dialogMessage="@string/pref_recording_path_name_description"
+				android:icon="@drawable/ic_directory"/>
+		<EditTextPreference
+				android:key="recording_filename"
+				android:defaultValue="@string/pref_recording_name_value"
+				android:title="@string/pref_recording_name_title"
+				android:dialogMessage="@string/pref_recording_path_name_description"
+				android:icon="@drawable/ic_file_music"/>
+		<SwitchPreferenceCompat
+				android:key="recording_convert"
+				android:defaultValue="false"
+				android:title="@string/pref_recording_convert_title"
+				android:summary="@string/pref_recording_convert_summary"
+				android:enabled="false"
+				android:icon="@drawable/ic_convert"/>
+	</PreferenceCategory>
+	<PreferenceCategory
 			android:key="info"
 			android:title="@string/pref_header_info">
 		<Preference
@@ -106,5 +132,10 @@
 				android:title="@string/pref_info_contributors_title"
 				android:summary="@string/pref_info_contributors_content"
 				android:icon="@drawable/ic_developer"/>
+		<Preference
+				android:id="@+id/pref_info_version"
+				android:key="pref_info_version"
+				android:title="@string/pref_info_version_title"
+				android:icon="@drawable/ic_launcher"/>
 	</PreferenceCategory>
 </PreferenceScreen>
