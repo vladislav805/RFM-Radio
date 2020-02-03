@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 		initUserInterface();
 		initLogic();
-		updateUi();
+		updateControlButtonState();
 
 		registerReceiver(mRadioEventReceiver, RadioController.sFilter);
 	}
@@ -264,6 +264,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case R.id.menu_record:
 				mRadioController.record(true);
+				break;
 		}
 
 		return super.onOptionsItemSelected(item);
@@ -369,10 +370,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 		}
 
-		updateUi();
+		updateControlButtonState();
 	}
 
-	private void updateUi() {
+	private void updateControlButtonState() {
 		final int stage = mRadioController.getState().getInt(C.Key.STAGE);
 		final boolean enabled = stage == C.FMStage.ENABLED;
 		mCtlToggle.setImageResource(enabled ? R.drawable.ic_stop : R.drawable.ic_play);
