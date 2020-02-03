@@ -128,7 +128,9 @@ public class FMRecordService implements IFMRecorder {
 		mRecordFile = new File(dir, name);
 
 		try {
-			mRecordFile.createNewFile();
+			if (!mRecordFile.createNewFile()) {
+				throw new FileNotFoundException();
+			}
 
 			mFileOutStream = new FileOutputStream(mRecordFile, true);
 			mBufferOutStream = new BufferedOutputStream(mFileOutStream, 131072);
