@@ -51,7 +51,7 @@
 	<string name="menu_favorite_list_remove">Remove this list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
 	<string name="favorite_list_create_error_already_exists">List with this name already exists</string>
-	<string name="favorite_list_create_error_invalid_name">Invalid name. It can be used only A–Z, a–z, \'–\', \'_\' and 0–9</string>
+	<string name="favorite_list_create_error_invalid_name">Invalid name. Only A–Z, a–z, \'–\', \'_\' and 0–9 can be used.</string>
 	<string name="favorite_list_remove_title">Confirmation</string>
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
 
@@ -76,7 +76,7 @@
 	<string name="pref_info_link_4pda">4pda topic</string>
 	<string name="pref_info_link_4pda_summary">Topic about this application on the Russian-language forum</string>
 	<string name="pref_info_link_github">GitHub repository</string>
-	<string name="pref_info_link_github_summary">Repository with the code for this application. Project are OpenSource</string>
+	<string name="pref_info_link_github_summary">Repository with the code for this application. Project is OpenSource</string>
 	<string name="pref_info_author_content">Developer: Vladislav Veluga\nNative code: QualComm Corp., Mike Reids\nInspired by: Mike Reids</string>
 	<string name="pref_info_author_title">Developer</string>
 	<string name="pref_info_link_telegram">Telegram channel</string>
