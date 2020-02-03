@@ -9,8 +9,8 @@ Real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4x
 * Listening to the radio.
 * Reading RDS - PS and RT.
 * Display the signal strength in dB.
-* Radio recording in `.wav` files. *(currently not available)*
-* Saving selected frequencies with name.
+* Radio recording in `.wav` files.
+* Saving favorite frequencies with name.
 * Ability to create multiple favorites lists.
 * Automatic search for radio stations.
 
@@ -23,7 +23,7 @@ Provides a choice of "driver" to work with the radio chip.
 
 #### Enable RDS
 RDS is a radio data system.
-When this option **is enabled**, the application will display data transmitted from the radio station, such as the Service Program and RadioText.
+When this option **is enabled**, the application will display data transmitted from the radio station, such as the Program Service and Radio Text.
 
 #### Antenna
 Currently unavailable.
@@ -32,10 +32,10 @@ Currently unavailable.
 #### Audio service
 Select an audio service that will record sound inside the application before playing it.
 * **Lightweight audio service** is the simplest service. Should work in most cases.
-* **Audio service from Spirit3** - a service from Spirit3 with more accurate work with memory. The installed Spirit3 application is not required.
+* **Audio service from Spirit3** - a service from Spirit3 with more accurate work with memory. The installed Spirit3 application is **not required**.
 
 #### Audio source
-Select a source for collecting audio within the application.
+Select a source for record audio inside the application.
 * For modern devices should work "1998, FM".
 * For older devices - "0, DEFAULT" (at the same time, sounds from the microphone can be heard when using the *QualComm driver*)
 
