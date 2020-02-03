@@ -5,21 +5,24 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import com.vlad805.fmradio.service.IAudioRecordable;
+import com.vlad805.fmradio.service.fm.IFMRecorder;
 
 /**
  * vlad805 (c) 2019
  */
 @SuppressWarnings("deprecation")
-public class LightAudioService extends FMAudioService {
+public class LightAudioService extends FMAudioService implements IAudioRecordable {
 
 	private Thread mThread;
 
 	private AudioTrack mAudioTrack;
 	private AudioRecord mAudioRecorder;
+	private IFMRecorder mRecordable;
 
 	private boolean mIsActive = false;
 
-	public LightAudioService(Context context) {
+	public LightAudioService(final Context context) {
 		super(context);
 	}
 
@@ -90,7 +93,22 @@ public class LightAudioService extends FMAudioService {
 			bytes = mAudioRecorder.read(buffer, 0, bufferSizeInBytes);
 			if (mIsActive) {
 				mAudioTrack.write(buffer, 0, bytes);
+				if (mRecordable != null) {
+					mRecordable.record(buffer, bytes);
+				}
 			}
 		}
 	};
+
+	@Override
+	public void startRecord(final IFMRecorder driver) {
+		mRecordable = driver;
+		driver.startRecord();
+	}
+
+	@Override
+	public void stopRecord() {
+		mRecordable.stopRecord();
+		mRecordable = null;
+	}
 }

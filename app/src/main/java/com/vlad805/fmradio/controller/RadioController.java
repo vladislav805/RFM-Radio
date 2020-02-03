@@ -71,6 +71,10 @@ public class RadioController {
 		send(C.Command.DISABLE);
 	}
 
+	public void record(final boolean state) {
+		send(state ? C.Command.RECORD_START : C.Command.RECORD_STOP);
+	}
+
 	public static final IntentFilter sFilter;
 
 	static {

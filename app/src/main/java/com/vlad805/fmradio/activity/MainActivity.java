@@ -26,6 +26,8 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
 
+import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
@@ -40,6 +42,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private TextView mViewRssi;
 	private ImageView mViewRssiIcon;
 	private ImageView mViewStereoMode;
+
+	private ImageView mRecordIcon;
+	private TextView mRecordDuration;
 
 	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
 
@@ -67,6 +72,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 		mFavoriteList = findViewById(R.id.favorite_list);
 		mFavoriteList.setOnFavoriteClick(this);
+
+		mRecordIcon = findViewById(R.id.record_icon);
+		mRecordDuration = findViewById(R.id.record_duration);
+
+		mRecordIcon.setOnClickListener(this);
 
 		// On small screens, the elements overlap each other
 		// By removing reflection, you can give room for elements
@@ -135,6 +145,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			}
 		}
+		super.onActivityResult(requestCode, resultCode, data);
 	}
 
 	/**
@@ -209,6 +220,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.favorite_button:
 				startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
 				break;
+
+			case R.id.record_icon:
+				mRadioController.record(false);
+				break;
 		}
 	}
 
@@ -246,6 +261,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.menu_settings:
 				startActivity(new Intent(this, SettingsActivity.class));
 				break;
+
+			case R.id.menu_record:
+				mRadioController.record(true);
 		}
 
 		return super.onOptionsItemSelected(item);
@@ -334,6 +352,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			}
 
+			case C.Event.RECORD_STARTED: {
+				setShowRecordingPanel(true);
+				break;
+			}
+
+			case C.Event.RECORD_TIME_UPDATE: {
+				mRecordDuration.setText(getTimeStringBySeconds(intent.getIntExtra(C.Key.DURATION, 0)));
+				break;
+			}
+
+			case C.Event.RECORD_ENDED: {
+				setShowRecordingPanel(false);
+				break;
+			}
+
 		}
 
 		updateUi();
@@ -394,6 +427,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			}
 		}
+	}
+
+	private void setShowRecordingPanel(final boolean state) {
+		final int visibility = state ? View.VISIBLE : View.GONE;
+		mRecordDuration.setVisibility(visibility);
+		mRecordIcon.setVisibility(visibility);
 	}
 
 	/**
