@@ -19,14 +19,15 @@
 
 	<ImageView
 			android:id="@+id/about_logo"
-			android:src="@drawable/ic_launcher"
+			android:src="@mipmap/ic_launcher_round"
 			android:contentDescription="@string/nil"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
+			android:layout_width="100dp"
+			android:layout_height="100dp"
+			android:layout_marginBottom="36dp"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
 			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintBottom_toTopOf="@+id/about_author" android:layout_marginBottom="32dp"/>
+			app:layout_constraintBottom_toTopOf="@+id/about_author"/>
 
 	<TextView
 			android:id="@+id/about_name"

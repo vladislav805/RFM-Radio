@@ -4,6 +4,7 @@
 	<color name="color_primary">@color/primary_blue</color>
 	<color name="color_primary_dark">@color/primary_blue_shadow</color>
 	<color name="color_accent">#00FFD8</color>
+	<color name="ic_launcher_background">#000000</color>
 
 	<!-- App colors -->
 	<color name="main_background">#212121</color>
