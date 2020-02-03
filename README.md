@@ -31,13 +31,13 @@ Currently unavailable.
 ### Audio
 #### Audio service
 Select an audio service that will record sound inside the application before playing it.
-* **Lightweight audio service** is the easiest service. Should work in most cases.
+* **Lightweight audio service** is the simplest service. Should work in most cases.
 * **Audio service from Spirit3** - a service from Spirit3 with more accurate work with memory. The installed Spirit3 application is not required.
 
 #### Audio source
 Select a source for collecting audio within the application.
-* For modern devices should work **1998, FM**.
-* For older devices - **0, DEFAULT** (at the same time, sounds from the microphone can be heard when using the *QualComm driver*)
+* For modern devices should work "1998, FM".
+* For older devices - "0, DEFAULT" (at the same time, sounds from the microphone can be heard when using the *QualComm driver*)
 
 ### Application
 #### Autostart
@@ -51,7 +51,7 @@ If the option is enabled, then with the "Enable RDS" option enabled, the Program
 <img src="images/main.png" width="280" alt="Main screen"/><img src="images/settings.png" width="280" alt="Settings screen"/><img src="images/favorites.png" width="280" alt="Favorites screen"/>
 
 ## Building
-To modifying the code of the native part of the application Android NDK headers files are required.
+To modify the code of the native part of the application, Android NDK headers files are required.
 
 ## Inspired by
 > Spirit1 and Spirit2 by Mike Reid.
