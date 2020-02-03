@@ -136,6 +136,6 @@
 				android:id="@+id/pref_info_version"
 				android:key="pref_info_version"
 				android:title="@string/pref_info_version_title"
-				android:icon="@drawable/ic_launcher"/>
+				android:icon="@mipmap/ic_launcher_round"/>
 	</PreferenceCategory>
 </PreferenceScreen>

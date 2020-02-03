@@ -3,14 +3,15 @@ package com.vlad805.fmradio.service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Environment;
+import android.util.Log;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.helper.RecordSchemaHelper;
 import com.vlad805.fmradio.service.fm.IFMRecorder;
+import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
 
 /**
  * vlad805 (c) 2020
@@ -87,7 +88,7 @@ public class FMRecordService implements IFMRecorder {
 	}
 
 	@Override
-	public void startRecord() {
+	public void startRecord() throws RecordError {
 		createFile();
 		mState = State.RECORDING;
 		mContext.sendBroadcast(new Intent(C.Event.RECORD_STARTED));
@@ -168,13 +169,18 @@ public class FMRecordService implements IFMRecorder {
 	/**
 	 * Create file and initialize streams
 	 */
-	private void createFile() {
+	private void createFile() throws RecordError {
 		final File dir = makeDirectoryHierarchy();
 		final String name = getFilename();
 
 		mRecordFile = new File(dir, name);
 
 		try {
+			Log.e("FMRS", "path " + mRecordFile.getAbsolutePath());
+			if (mRecordFile.exists()) {
+				throw new RecordError("File with these name already exists!\nPlease, check filename schema for unique.");
+			}
+
 			if (!mRecordFile.createNewFile()) {
 				throw new FileNotFoundException();
 			}
@@ -189,13 +195,29 @@ public class FMRecordService implements IFMRecorder {
 	}
 
 	/**
+	 * Returns user preferred path or default
+	 * @return Path schema to directory
+	 */
+	private String getPreferredDirectory() {
+		return Storage.getPrefString(mContext, C.PrefKey.RECORDING_DIRECTORY, mContext.getString(R.string.pref_recording_path_value));
+	}
+
+	/**
+	 * Returns user preferred name or default
+	 * @return Filename schema
+	 */
+	private String getPreferredFilename() {
+		return Storage.getPrefString(mContext, C.PrefKey.RECORDING_FILENAME, mContext.getString(R.string.pref_recording_name_value));
+	}
+
+	/**
 	 * Create directory hierarchy
 	 * @return Directory
 	 */
 	@SuppressWarnings("ResultOfMethodCallIgnored")
 	private File makeDirectoryHierarchy() {
-		final String path = Environment.getExternalStorageDirectory() + File.separator + "RFM" + File.separator + "record" + File.separator + getTodayDirectoryName();
-		final File dir = new File(path);
+		final String path = Environment.getExternalStorageDirectory() + File.separator + getPreferredDirectory();
+		final File dir = new File(RecordSchemaHelper.prepareString(path, mKHz));
 
 		if (!dir.exists()) {
 			dir.mkdirs();
@@ -205,26 +227,11 @@ public class FMRecordService implements IFMRecorder {
 	}
 
 	/**
-	 * Returns today directory
-	 * @return Name of directory
-	 */
-	private String getTodayDirectoryName() {
-		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-		sdf.setTimeZone(TimeZone.getDefault());
-		return sdf.format(new Date());
-	}
-
-
-
-	/**
 	 * Returns filename for audio file
 	 * @return Filename
 	 */
 	private String getFilename() {
-		Date now = new Date();
-		SimpleDateFormat sdf = new SimpleDateFormat("HHmmss", Locale.getDefault());
-		sdf.setTimeZone(TimeZone.getDefault());
-		return String.format(Locale.ENGLISH, "FM-%s-%04d.wav", sdf.format(now), mKHz);
+		return RecordSchemaHelper.prepareString(getPreferredFilename(), mKHz);
 	}
 
 	/**

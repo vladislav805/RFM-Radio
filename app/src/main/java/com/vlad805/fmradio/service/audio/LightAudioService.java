@@ -7,6 +7,7 @@ import android.media.AudioRecord;
 import android.media.AudioTrack;
 import com.vlad805.fmradio.service.IAudioRecordable;
 import com.vlad805.fmradio.service.fm.IFMRecorder;
+import com.vlad805.fmradio.service.fm.RecordError;
 
 /**
  * vlad805 (c) 2019
@@ -101,7 +102,7 @@ public class LightAudioService extends FMAudioService implements IAudioRecordabl
 	};
 
 	@Override
-	public void startRecord(final IFMRecorder driver) {
+	public void startRecord(final IFMRecorder driver) throws RecordError {
 		mRecordable = driver;
 		driver.startRecord();
 	}

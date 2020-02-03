@@ -77,6 +77,8 @@ final public class C {
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String RDS_ENABLE = "rds_enable";
+		public static final String RECORDING_DIRECTORY = "recording_directory";
+		public static final String RECORDING_FILENAME = "recording_filename";
 	}
 
 	public static final class PrefDefaultValue {

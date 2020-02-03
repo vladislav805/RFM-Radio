@@ -139,7 +139,15 @@ public class FMService extends Service implements FMEventCallback {
 					IFMRecordable drv = (IFMRecordable) mFmController;
 					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
 
-					drv.newRecord(audioRecord::startRecord);
+
+					drv.newRecord(driver -> {
+						try {
+							audioRecord.startRecord(driver);
+						} catch (RecordError e) {
+							Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+						}
+					});
+
 				} else {
 					Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
 				}

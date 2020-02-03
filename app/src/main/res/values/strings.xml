@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 	<!-- General -->
 	<string name="app_name">RFM Radio</string>
 	<string name="nil">null</string>
@@ -94,10 +94,10 @@
 	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)</string>
 	<string name="pref_header_recording">Recording</string>
 	<string name="pref_recording_path_title">Directory for saving</string>
-	<string name="pref_recording_path_value">~/RFM/recording/$Y-$M-$D</string>
+	<string name="pref_recording_path_value">RFM/recording/$y-$m-$d</string>
 	<string name="pref_recording_name_title">Filename</string>
-	<string name="pref_recording_name_value">FM-$H$I$S-$F.wav</string>
-	<string name="pref_recording_path_name_description">Available variables:\n$Y - year\n$M - month\n$D - day\n$H - hour\n$I - minute\n$S - second\n$F - frequency (e.g., 103.4 MHz = 1034)\n~/ - home directory</string>
+	<string name="pref_recording_name_value">FM-$h$i$s-$f.wav</string>
+	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Available variables:\n$y - year\n$m - month\n$d - day of month\n$h - hour\n$i - minute\n$s - second\n$f - frequency (e.g., 103.4 MHz = 1034)\n$r - random number 10000-99999\nExample:\nDirectory: FM/$y-$m-$d -> FM/2020-01-27\nFilename: Rec-$h_$i_$s_$f.wav -> Rec_23_01_49_0906.wav</string>
 
 	<!-- Notification & service -->
 	<string name="notification_mhz">%.1f MHz</string>
