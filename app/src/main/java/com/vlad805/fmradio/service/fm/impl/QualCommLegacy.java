@@ -1,23 +1,15 @@
 package com.vlad805.fmradio.service.fm.impl;
 
 import android.content.Context;
-import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.FMEventListenerServer;
-import com.vlad805.fmradio.service.fm.FMController;
-import com.vlad805.fmradio.service.fm.FMEventCallback;
-import com.vlad805.fmradio.service.fm.IFMEventListener;
-import com.vlad805.fmradio.service.fm.LaunchConfig;
+import com.vlad805.fmradio.service.fm.*;
+import com.vlad805.fmradio.service.fm.communications.Poll;
+import com.vlad805.fmradio.service.fm.communications.Request;
 
 import java.io.*;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.List;
 
 /**
  * vlad805 (c) 2020
@@ -37,12 +29,13 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	}
 
 	private FMEventListenerServer mServer;
-
 	private FMEventCallback mEventCallback;
+	private Poll mCommandPoll;
 
 	public QualCommLegacy(final LaunchConfig config, final Context context) {
 		super(config, context);
-		mQueueCommands = new LinkedList<>();
+
+		mCommandPoll = new Poll(config);
 	}
 
 	public void setEventListener(final FMEventCallback callback) {
@@ -104,23 +97,12 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 		callback.onResult(null);
 	}
 
-	/**
-	 * Copy binary from assets
-	 * @return True if success
-	 */
-	private boolean copyBinary() throws FileNotFoundException {
-		return copyAsset(context, getBinaryName(), getBinaryPath());
-	}
-
 	@Override
 	protected void launchImpl(final Callback<Void> callback) {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
 		startServerListener();
-		final Request request = new Request("init");
-		request.setListener(data -> {
-			callback.onResult(null);
-		});
+		final Request request = new Request("init", 1500).onResponse(data -> callback.onResult(null));
 		sendCommand(request);
 	}
 
@@ -136,83 +118,42 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 
 	@Override
 	protected void enableImpl(final Callback<Void> callback) {
-		sendCommand(new Request("enable").setListener(result -> callback.onResult(null)));
+		sendCommand(new Request("enable", 5000).onResponse(result -> callback.onResult(null)));
 	}
 
 	@Override
 	protected void disableImpl(final Callback<Void> callback) {
-		sendCommand(new Request("disable").setListener(result -> callback.onResult(null)));
+		sendCommand(new Request("disable", 5000).onResponse(result -> callback.onResult(null)));
 	}
 
 	@Override
 	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
-		sendCommand(new Request("setfreq " + kHz).setListener(data -> callback.onResult(kHz)));
+		sendCommand(new Request("setfreq " + kHz).onResponse(data -> callback.onResult(kHz)));
 	}
 
 	@Override
 	protected void getSignalStretchImpl(final Callback<Integer> callback) {
-		sendCommand(new Request("getrssi").setListener(data -> callback.onResult(Utils.parseInt(-0xff + data))));
+		sendCommand(new Request("getrssi").onResponse(data -> callback.onResult(Utils.parseInt(-0xff + data))));
 	}
 
 	@Override
 	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
-		sendCommand(new Request("jump " + direction).setListener(data -> callback.onResult(Utils.parseInt(data))));
+		sendCommand(new Request("jump " + direction, 1500).onResponse(data -> callback.onResult(Utils.parseInt(data))));
 	}
 
 	@Override
 	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
-		sendCommand(new Request("seekhw " + direction).setListener(data -> callback.onResult(Utils.parseInt(data))));
+		sendCommand(new Request("seekhw " + direction, 4000).onResponse(data -> callback.onResult(Utils.parseInt(data))));
 	}
 
 	@Override
-	public void setMute(MuteState state) {
+	public void setMute(final MuteState state, final Callback<Void> callback) {
 
 	}
 
 	@Override
-	public void search() {
+	public void search(final Callback<List<Integer>> callback) {
 
-	}
-
-	interface OnReceivedResponse {
-		void onResponse(String data);
-	}
-
-	static class Request {
-		private final String command;
-		private int timeout = 1000;
-		private OnReceivedResponse listener;
-
-		public Request(String cmd) {
-			command = cmd;
-		}
-
-		public void setTimeout(int timeout) {
-			this.timeout = timeout;
-		}
-
-		public Request setListener(OnReceivedResponse listener) {
-			this.listener = listener;
-			return this;
-		}
-
-		public byte[] bytes() {
-			return command.getBytes();
-		}
-
-		public int size() {
-			return command.length();
-		}
-
-		public int getTimeout() {
-			return timeout;
-		}
-
-		public void fire(String result) {
-			if (listener != null) {
-				listener.onResponse(result);
-			}
-		}
 	}
 
 	/**
@@ -250,74 +191,20 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 		}
 	}
 
-	private DatagramSocket mDatagramSocketClient;
-
-	private void initSocket() throws IOException {
-		mDatagramSocketClient = new DatagramSocket(0);
-		Log.i("QCL", "Created socket");
-
+	/**
+	 * Copy binary from assets
+	 * @return True if success
+	 */
+	private boolean copyBinary() throws FileNotFoundException {
+		return copyAsset(context, getBinaryName(), getBinaryPath());
 	}
 
-	private Queue<Request> mQueueCommands;
-
-	private void sendCommand(String command) {
-		sendCommand(new Request(command));
-	}
-
-	private void sendCommand(Request command) {
-		mQueueCommands.offer(command);
-
-		if (mQueueCommands.size() == 1) {
-			sendCommandReal();
-		}
-	}
-
-	private void sendCommandReal() {
-		final Request command = mQueueCommands.peek();
-
-		if (command == null) {
-			return;
-		}
-
-		new Thread(() -> {
-			try {
-				if (mDatagramSocketClient == null) {
-					initSocket();
-				}
-
-				// mDatagramSocketClient.setSoTimeout(timeout);
-				mDatagramSocketClient.setSoTimeout(5000);
-
-				Log.d("QCL", "Sent command: " + command.command);
-
-				DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), InetAddress.getByName("127.0.0.1"), config.getClientPort());
-
-				mDatagramSocketClient.send(dps);
-
-				byte[] buf = new byte[40];
-				dps.setData(buf);
-				mDatagramSocketClient.receive(dps);
-
-				int size = dps.getLength();
-
-				if (size < 0) {
-					System.out.println("read: size read -1");
-					return;
-				}
-
-				String res = new String(buf, 0, size - 1, StandardCharsets.UTF_8);
-
-				Log.d("QCL", "Received response: " + res);
-
-				command.fire(res);
-
-				mQueueCommands.remove();
-				sendCommandReal();
-			} catch (Throwable e) {
-				e.printStackTrace();
-				Log.i("QCL", "FAILED: attempt for request [" + command + "]");
-			}
-		}).start();
+	/**
+	 * Send command
+	 * @param command Command
+	 */
+	private void sendCommand(final Request command) {
+		mCommandPoll.send(command);
 	}
 
 	private void startServerListener() {

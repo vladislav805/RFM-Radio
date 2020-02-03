@@ -8,6 +8,8 @@ import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
 
+import java.util.List;
+
 /**
  * vlad805 (c) 2020
  */
@@ -100,16 +102,16 @@ public class Empty extends FMController implements IFMEventListener {
 	}
 
 	@Override
-	public void setMute(MuteState state) {
+	public void setMute(final MuteState state, final Callback<Void> callback) {
 		Log.d(TAG, "setMute " + state);
 	}
 
 	@Override
-	public void search() {
+	public void search(final Callback<List<Integer>> callback) {
 		Log.d(TAG, "search");
 	}
 
-	private void sleep(int ms) {
+	private void sleep(final int ms) {
 		try {
 			Thread.sleep(ms);
 		} catch (InterruptedException e) {

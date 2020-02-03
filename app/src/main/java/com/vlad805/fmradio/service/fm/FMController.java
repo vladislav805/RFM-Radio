@@ -9,6 +9,8 @@ import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.MuteState;
 
+import java.util.List;
+
 /**
  * vlad805 (c) 2020
  */
@@ -206,12 +208,12 @@ public abstract class FMController {
 	 * Set mute state
 	 * @param state State
 	 */
-	public abstract void setMute(final MuteState state);
+	public abstract void setMute(final MuteState state, final Callback<Void> callback);
 
 	/**
 	 * Search stations
 	 */
-	public abstract void search();
+	public abstract void search(final Callback<List<Integer>> callback);
 
 	/**
 	 * Broadcast event with arguments

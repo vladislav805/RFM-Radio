@@ -1,10 +1,9 @@
-package com.vlad805.fmradio.service;
+package com.vlad805.fmradio.service.fm;
 
 import android.os.Bundle;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
-import com.vlad805.fmradio.service.fm.FMEventCallback;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -40,7 +39,7 @@ public class FMEventListenerServer extends Thread {
 		mDatagramSocketServer = new DatagramSocket(port);
 	}
 
-	public void setCallback(FMEventCallback callback) {
+	public void setCallback(final FMEventCallback callback) {
 		mCallback = callback;
 	}
 
@@ -67,6 +66,7 @@ public class FMEventListenerServer extends Thread {
 				e.printStackTrace();
 			} catch (StopServer e) {
 				mEnabled = false;
+
 			}
 		}
 	}
@@ -80,16 +80,16 @@ public class FMEventListenerServer extends Thread {
 	 * @throws StopServer Throws when server should be killed
 	 */
 	private String handle(String data) throws StopServer {
-		int splitOn = data.indexOf(FF);
-		String code = data.substring(0, splitOn);
-		data = data.substring(splitOn + 1);
+		final int splitAt = data.indexOf(FF);
+		final String code = data.substring(0, splitAt);
+		data = data.substring(splitAt + 1);
 
 
 		int evt = parseInt(code);
 
 		Log.i("FMELS", "received new event " + code + " = [" + data + "]");
 
-		Bundle bundle = new Bundle();
+		final Bundle bundle = new Bundle();
 		String action;
 
 		switch (evt) {
@@ -130,11 +130,11 @@ public class FMEventListenerServer extends Thread {
 			}
 
 			case EVT_SEARCH_DONE: {
-				String stations = data.trim();
-				int lengthKHz = 4;
-				int count = stations.length() / lengthKHz;
+				final String stations = data.trim();
+				final int lengthKHz = 4;
+				final int count = stations.length() / lengthKHz;
 
-				int[] res = new int[count];
+				final int[] res = new int[count];
 
 				for (int i = 0; i < count; ++i) {
 					int start = i * lengthKHz;
@@ -149,7 +149,7 @@ public class FMEventListenerServer extends Thread {
 			}
 
 			case EVT_STEREO: {
-				String mode = data.trim();
+				final String mode = data.trim();
 
 				action = C.Event.UPDATE_STEREO;
 				bundle.putBoolean(C.Key.STEREO_MODE, mode.equals("1"));
@@ -170,20 +170,6 @@ public class FMEventListenerServer extends Thread {
 	}
 
 	private static class StopServer extends Throwable { }
-
-	public static String str2Hex(String bin) {
-		char[] digital = "0123456789ABCDEF".toCharArray();
-		StringBuilder sb = new StringBuilder();
-		byte[] bs = bin.getBytes();
-		int bit;
-		for (byte b : bs) {
-			bit = (b & 0xf0) >> 4;
-			sb.append(digital[bit]);
-			bit = b & 0x0f;
-			sb.append(digital[bit]);
-		}
-		return sb.toString();
-	}
 
 	public void closeServer() {
 		if (mDatagramSocketServer.isConnected()) {

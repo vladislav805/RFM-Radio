@@ -3,27 +3,22 @@ package com.vlad805.fmradio.service.fm.impl;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.service.fm.FMController;
 import com.vlad805.fmradio.service.fm.IFMEventPoller;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
+import com.vlad805.fmradio.service.fm.communications.Poll;
+import com.vlad805.fmradio.service.fm.communications.Request;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.List;
 
 /**
  * vlad805 (c) 2020
  */
 public class Spirit3Impl extends FMController implements IFMEventPoller {
+	@SuppressWarnings("unused")
 	private static final String TAG = "S3I";
 
 	public static class Config extends LaunchConfig {
@@ -33,9 +28,11 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 		}
 	}
 
+	private Poll mCommandPoll;
+
 	public Spirit3Impl(final LaunchConfig config, final Context context) {
 		super(config, context);
-		mQueueCommands = new LinkedList<>();
+		mCommandPoll = new Poll(config);
 	}
 
 	/**
@@ -82,38 +79,45 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	@Override
 	protected void enableImpl(final Callback<Void> callback) {
-		try {
-			sendCommandSync(new Request("s radio_nop start").setTimeout(100));
-			sendCommandSync(new Request("s tuner_state start").setTimeout(5000));
-			callback.onResult(null);
-		} catch (IOException e) {
-			callback.onError(new Error("IO error: " + e.getMessage()));
-		}
+		//noinspection CodeBlock2Expr
+		sendCommand(new Request("s radio_nop start", 100).onResponse(v0 -> {
+			sendCommand(new Request("s tuner_state start", 5000).onResponse(v1 -> callback.onResult(null)));
+		}));
 	}
 
 	@Override
 	protected void disableImpl(final Callback<Void> callback) {
-		try {
-			sendCommandSync(new Request("s tuner_state stop").setTimeout(5000));
-			callback.onResult(null);
-		} catch (IOException e) {
-			callback.onError(new Error("IO error: " + e.getMessage()));
-		}
+		sendCommand(new Request("s tuner_state stop", 5000).onResponse(v -> callback.onResult(null)));
 	}
 
 	@Override
 	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
-		try {
-			sendCommandSync(new Request("s tuner_freq " + kHz));
-			callback.onResult(kHz); // TODO REAL STATE
-		} catch (IOException e) {
-			callback.onError(new Error("setFrequency IO error: " + e.getMessage()));
+		sendCommand(new Request("s tuner_freq " + kHz).onResponse(res -> {
+			callback.onResult(kHz); // res contains kHz?
+		}));
+	}
+
+	/**
+	 * Convert rssi to dB
+	 * @param rssi Number
+	 * @return Signal strength in dB
+	 */
+	private int fixRssi(int rssi) {
+		// Spirit3 versions <= 3.0.12 has invalid normalize
+		if (rssi > 0) {
+			rssi = (139 + rssi);
 		}
+
+		return -0xff + rssi;
 	}
 
 	@Override
-	public void getSignalStretchImpl(final Callback<Integer> result) {
-		result.onResult(0); // TODO
+	public void getSignalStretchImpl(final Callback<Integer> callback) {
+		sendCommand(cmdTunerRssi.onResponse(sRssi -> {
+			int rssi = Utils.parseInt(sRssi);
+
+			callback.onResult(fixRssi(rssi));
+		}));
 	}
 
 	private String toDirection(int direction) {
@@ -122,35 +126,29 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	@Override
 	public void jumpImpl(final int direction, final Callback<Integer> callback) {
-		try {
-			String res = sendCommandSync(new Request("g tuner_freq"));
+		sendCommand(new Request("g tuner_freq").onResponse(res -> {
 			int frequency = Utils.parseInt(res);
 			frequency += direction > 0 ? 100 : -100;
 			setFrequency(frequency);
 			callback.onResult(frequency);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		}));
 	}
 
 	@Override
 	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
-		try {
-			String res = sendCommandSync(new Request("s tuner_scan_state " + toDirection(direction)).setTimeout(15000));
-
+		//noinspection CodeBlock2Expr
+		sendCommand(new Request("s tuner_scan_state " + toDirection(direction), 15000).onResponse(res -> {
 			callback.onResult(Utils.parseInt(res));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		}));
 	}
 
 	@Override
-	public void setMute(MuteState state) {
+	public void setMute(final MuteState state, final Callback<Void> callback) {
 
 	}
 
 	@Override
-	public void search() {
+	public void search(final Callback<List<Integer>> callback) {
 
 	}
 
@@ -160,174 +158,26 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 
 	@Override
 	public void poll(final Callback<Bundle> callback) {
-		Bundle bundle = new Bundle();
-		String tmp;
+		final Bundle bundle = new Bundle();
 
-		try {
-			tmp = sendCommandSync(cmdTunerFreq);
-			if (tmp != null) {
-				int frequency = Utils.parseInt(tmp);
-				bundle.putInt(C.Key.FREQUENCY, frequency);
-			}
+		sendCommand(cmdTunerFreq.onResponse(freq -> {
+			int frequency = Utils.parseInt(freq);
+			bundle.putInt(C.Key.FREQUENCY, frequency);
 
-			tmp = sendCommandSync(cmdTunerRssi);
-			if (tmp != null) {
-				int rssi = Utils.parseInt(tmp);
+			sendCommand(cmdTunerRssi.onResponse(sRssi -> {
+				int rssi = Utils.parseInt(sRssi);
 
+				bundle.putInt(C.Key.RSSI, fixRssi(rssi));
 
-				// Spirit3 versions <= 3.0.12 has invalid normalize
-				if (rssi > 0) {
-					rssi = (139 + rssi);
-				}
-
-				rssi = -0xff + rssi;
-
-				bundle.putInt(C.Key.RSSI, rssi);
-			}
-
-			tmp = sendCommandSync(cmdRdsPs);
-			if (tmp != null) {
-				bundle.putString(C.Key.PS, tmp);
-			}
-
-			callback.onResult(bundle);
-		} catch (IOException e) {
-			e.printStackTrace();
-			callback.onError(new Error("poll(): IO error: " + e.getMessage()));
-		}
+				sendCommand(cmdRdsPs.onResponse(ps -> {
+					bundle.putString(C.Key.PS, ps);
+					callback.onResult(bundle);
+				}));
+			}));
+		}));
 	}
 
-	interface OnReceivedResponse {
-		void onResponse(String data);
+	private void sendCommand(final Request request) {
+		mCommandPoll.send(request);
 	}
-
-	static class Request {
-		private final String command;
-		private int timeout = 1000;
-		private OnReceivedResponse listener;
-
-		public Request(String cmd) {
-			command = cmd;
-		}
-
-		public Request setTimeout(int timeout) {
-			this.timeout = timeout;
-			return this;
-		}
-
-		public Request setListener(OnReceivedResponse listener) {
-			this.listener = listener;
-			return this;
-		}
-
-		public byte[] bytes() {
-			return command.getBytes();
-		}
-
-		public String getCommand() {
-			return command;
-		}
-
-		public int size() {
-			return command.length();
-		}
-
-		public int getTimeout() {
-			return timeout;
-		}
-
-		public void fire(String result) {
-			if (listener != null) {
-				listener.onResponse(result);
-			}
-		}
-	}
-
-	private DatagramSocket mDatagramSocketClient;
-
-	private void initSocket() throws IOException {
-		mDatagramSocketClient = new DatagramSocket(0);
-		//Log.i("S3I", "Created socket");
-
-	}
-
-	private Queue<Request> mQueueCommands;
-
-	private void sendCommand(String command) {
-		sendCommand(new Request(command));
-	}
-
-	private void sendCommand(Request command) {
-		mQueueCommands.offer(command);
-
-		if (mQueueCommands.size() == 1) {
-			sendCommandReal();
-		}
-	}
-
-	private static InetAddress LOOPBACK;
-
-	static {
-		try {
-			LOOPBACK = InetAddress.getByName("127.0.0.1");
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void sendCommandReal() {
-		Request command = mQueueCommands.peek();
-
-		if (command == null) {
-			return;
-		}
-
-		new Thread(() -> {
-			try {
-				String res = sendDataSocketAndWaitForResult(command);
-
-				Log.d("S3I", "Received response: " + res);
-
-				command.fire(res);
-
-				mQueueCommands.remove();
-				sendCommandReal();
-			} catch (Throwable e) {
-				e.printStackTrace();
-				Log.i("S3I", "FAILED: attempt for request [" + command + "]");
-			}
-		}).start();
-	}
-
-	private String sendDataSocketAndWaitForResult(Request command) throws IOException {
-		if (mDatagramSocketClient == null) {
-			initSocket();
-		}
-
-		mDatagramSocketClient.setSoTimeout(command.getTimeout());
-
-		//Log.d("S3I", "Sent command: " + command.getCommand());
-
-		DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), LOOPBACK, config.getClientPort());
-
-		mDatagramSocketClient.send(dps);
-
-		byte[] buf = new byte[40];
-		dps.setData(buf);
-		mDatagramSocketClient.receive(dps);
-
-		int size = dps.getLength();
-
-		if (size < 0) {
-			System.out.println("read: size read -1");
-			return null;
-		}
-
-		return new String(buf, 0, size, StandardCharsets.UTF_8);
-	}
-
-	private String sendCommandSync(Request command) throws IOException {
-		return sendDataSocketAndWaitForResult(command);
-	}
-
 }
