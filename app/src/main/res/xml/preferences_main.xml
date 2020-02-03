@@ -103,8 +103,8 @@
 		<Preference
 				android:id="@+id/pref_info_author_vv"
 				android:key="pref_info_author_vv"
-				android:title="@string/pref_info_author_title"
-				android:summary="@string/pref_info_author_content"
+				android:title="@string/pref_info_contributors_title"
+				android:summary="@string/pref_info_contributors_content"
 				android:icon="@drawable/ic_developer"/>
 	</PreferenceCategory>
 </PreferenceScreen>

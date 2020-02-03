@@ -77,8 +77,8 @@
 	<string name="pref_info_link_4pda_summary">Topic about this application on the Russian-language forum</string>
 	<string name="pref_info_link_github">GitHub repository</string>
 	<string name="pref_info_link_github_summary">Repository with the code for this application. Project is OpenSource</string>
-	<string name="pref_info_author_content">Developer: Vladislav Veluga\nNative code: QualComm Corp., Mike Reids\nInspired by: Mike Reids</string>
-	<string name="pref_info_author_title">Developer</string>
+	<string name="pref_info_contributors_title">Contributors</string>
+	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)</string>
 	<string name="pref_info_link_telegram">Telegram channel</string>
 	<string name="pref_info_link_telegram_summary">Publishes news and new releases of the application</string>
 	<string name="pref_tuner_driver">Tuner driver</string>

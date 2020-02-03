@@ -64,3 +64,8 @@ The application uses several sources of code:
 2. Hard-to-piece collected documentation for Tavarua, Iris, I2C, V4L2.
 3. GUI code written by the developer of this application.
 4. If Spirit3 is installed, this application can use its assembled binary file as a driver.
+
+### Contributors
+* Vladislav Veluga (@vladislav805) &mdash; developer;
+* Mike Reid (@mikereidis) &mdash; developer of Spirit 1/2;
+* Konstantin Manaev (@SoSlowMan) &mdash; translator (English).
