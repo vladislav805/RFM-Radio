@@ -414,11 +414,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	};
 
 	private static final int[] SIGNAL_THRESHOLD = {
-			-95,
 			-85,
 			-75,
 			-65,
-			-55
+			-55,
+			-10
 	};
 
 	private void setRssiIcon(final int rssi) {
