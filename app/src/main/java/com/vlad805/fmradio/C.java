@@ -45,6 +45,8 @@ final public class C {
 		public static final String SET_FREQUENCY = "set_frequency";
 		public static final String JUMP = "jump";
 		public static final String SEARCH = "search";
+		public static final String RECORD_START = "record_start";
+		public static final String RECORD_STOP = "record_stop";
 		public static final String KILL = "kill";
 	}
 
@@ -65,6 +67,9 @@ final public class C {
 		public static final String AUDIO_SOURCE = "audio_source";
 		public static final String MESSAGE = "message";
 		public static final String STAGE = "stage_ctl";
+		public static final String SIZE = "size";
+		public static final String DURATION = "duration";
+		public static final String PATH = "filename";
 	}
 
 	public static final class PrefKey {
@@ -72,6 +77,8 @@ final public class C {
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String RDS_ENABLE = "rds_enable";
+		public static final String RECORDING_DIRECTORY = "recording_directory";
+		public static final String RECORDING_FILENAME = "recording_filename";
 	}
 
 	public static final class PrefDefaultValue {

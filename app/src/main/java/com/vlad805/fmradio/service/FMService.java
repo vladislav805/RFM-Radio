@@ -10,7 +10,9 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -21,25 +23,27 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.Spirit3AudioService;
-import com.vlad805.fmradio.service.fm.FMController;
-import com.vlad805.fmradio.service.fm.FMEventCallback;
-import com.vlad805.fmradio.service.fm.IFMEventListener;
-import com.vlad805.fmradio.service.fm.IFMEventPoller;
+import com.vlad805.fmradio.service.fm.*;
 import com.vlad805.fmradio.service.fm.impl.Empty;
 import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
 import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
 
+import java.io.File;
 import java.util.*;
 
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 @SuppressWarnings("deprecation")
 public class FMService extends Service implements FMEventCallback {
 	private static final String TAG = "FMS";
 	public static final int NOTIFICATION_ID = 1027;
+	public static final int NOTIFICATION_RECORD_ID = 1029;
 	private static final String CHANNEL_ID = "default_channel";
+	private static final String CHANNEL_RECORD_ID = "record_channel";
 
 	private NotificationCompat.Builder mNBuilder;
+	private NotificationManagerCompat mNotificationManager;
 	private RadioController mRadioController;
 	private FavoriteController mFavoriteController;
 	private Map<Integer, String> mFavoriteList;
@@ -48,6 +52,8 @@ public class FMService extends Service implements FMEventCallback {
 	private PlayerReceiver mStatusReceiver;
 	private SharedPreferences mStorage;
 	private Timer mTimer;
+	private boolean mNeedRecreateNotification = true;
+	private boolean mRecordingNow = false;
 
 	@Override
 	public void onCreate() {
@@ -55,6 +61,7 @@ public class FMService extends Service implements FMEventCallback {
 
 		mRadioController = new RadioController(this);
 		mFavoriteController = new FavoriteController(this);
+		mNotificationManager = NotificationManagerCompat.from(this);
 
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
@@ -124,6 +131,37 @@ public class FMService extends Service implements FMEventCallback {
 
 			case C.Command.HW_SEEK: {
 				mFmController.hwSeek(intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1));
+				break;
+			}
+
+			case C.Command.RECORD_START: {
+				if (mFmController instanceof IFMRecordable && mAudioService instanceof IAudioRecordable) {
+					IFMRecordable drv = (IFMRecordable) mFmController;
+					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
+
+
+					drv.newRecord(driver -> {
+						try {
+							audioRecord.startRecord(driver);
+						} catch (RecordError e) {
+							Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+						}
+					});
+
+				} else {
+					Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+				}
+				break;
+			}
+
+			case C.Command.RECORD_STOP: {
+				if (mAudioService instanceof IAudioRecordable) {
+					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
+
+					audioRecord.stopRecord();
+				} else {
+					Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+				}
 				break;
 			}
 
@@ -244,7 +282,7 @@ public class FMService extends Service implements FMEventCallback {
 				return;
 			}
 
-			Log.d(TAG, "onReceive: " + intent.getAction());
+			Log.d(TAG, "onReceive: " + intent.getAction() + "; " + intent.getExtras());
 
 			switch (intent.getAction()) {
 				case C.Event.INSTALLED: {
@@ -298,6 +336,30 @@ public class FMService extends Service implements FMEventCallback {
 					reloadFavorite();
 					break;
 				}
+
+				case C.Event.RECORD_STARTED: {
+					mRecordingNow = true;
+					mNeedRecreateNotification = true;
+					break;
+				}
+
+				case C.Event.RECORD_TIME_UPDATE: {
+					updateRecordingNotification(
+							intent.getIntExtra(C.Key.DURATION, 0),
+							intent.getIntExtra(C.Key.SIZE, 0)
+					);
+					break;
+				}
+
+				case C.Event.RECORD_ENDED: {
+					mRecordingNow = false;
+					mNeedRecreateNotification = true;
+					mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
+					if (intent.getExtras() != null) {
+						showRecorded(intent.getExtras());
+					}
+					break;
+				}
 			}
 
 			mRadioController.onEvent(intent);
@@ -330,7 +392,8 @@ public class FMService extends Service implements FMEventCallback {
 		final PendingIntent pendingRec = PendingIntent.getService(
 				this,
 				2,
-				new Intent(this, FMService.class).setAction(""),
+				new Intent(this, FMService.class)
+						.setAction(C.Command.RECORD_START),
 				0
 		);
 
@@ -355,7 +418,8 @@ public class FMService extends Service implements FMEventCallback {
 
 		//.setMediaSession(mediaSession.getSessionToken()))
 
-		return new NotificationCompat.Builder(this, CHANNEL_ID)
+		androidx.media.app.NotificationCompat.MediaStyle ms = new androidx.media.app.NotificationCompat.MediaStyle();
+		NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_ID)
 				.setSmallIcon(R.drawable.ic_radio)
 				.setContentIntent(pendingMain)
 				.setContentTitle(getString(R.string.app_name))
@@ -367,16 +431,26 @@ public class FMService extends Service implements FMEventCallback {
 				.setOngoing(true)
 				.setColor(getResources().getColor(R.color.primary_blue))
 				.addAction(R.drawable.ic_go_down, getString(R.string.seek_down), pendingSeekDown) // #0
-				.addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop) // #1
-				.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec) // #2
-				.addAction(R.drawable.ic_go_up, getString(R.string.seek_up), pendingSeekUp) // #3
-				.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(1, 2));
+				.addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop); // #1
 
+		Log.d(TAG, "createNotificationBuilder: now recording = " + mRecordingNow);
+		if (!mRecordingNow) {
+			n.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec); // #2
+			ms.setShowActionsInCompactView(1, 2);
+		} else {
+			ms.setShowActionsInCompactView(1);
+		}
+
+		n.addAction(R.drawable.ic_go_up, getString(R.string.seek_up), pendingSeekUp) // #3 or #2
+				.setStyle(ms);
+
+		return n;
 	}
 
 	public Notification updateNotification(final Bundle state) {
-		if (mNBuilder == null) {
+		if (mNBuilder == null || mNeedRecreateNotification) {
 			mNBuilder = createNotificationBuilder();
+			mNeedRecreateNotification = false;
 		}
 
 		final int frequency = state.getInt(C.Key.FREQUENCY);
@@ -428,6 +502,47 @@ public class FMService extends Service implements FMEventCallback {
 		startForeground(NOTIFICATION_ID, notification);
 	}
 
+	private void updateRecordingNotification(final int duration, final int size) {
+		final PendingIntent pendingRecordStop = PendingIntent.getService(
+				this,
+				5,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.RECORD_STOP),
+				0
+		);
+		NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
+				.setSmallIcon(R.drawable.ic_record_on)
+				.setContentTitle(getString(R.string.app_name))
+				.setContentText(getString(R.string.notification_recording, getTimeStringBySeconds(duration), size / 1024f / 1024f))
+				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+				.setShowWhen(false)
+				.setAutoCancel(false)
+				.setOngoing(true)
+				.setColor(getResources().getColor(R.color.record_active))
+				.addAction(R.drawable.ic_record_off, getString(R.string.seek_down), pendingRecordStop)
+				.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0));
+
+		mNotificationManager.notify(NOTIFICATION_RECORD_ID, n.build());
+	}
+
+	private void showRecorded(final Bundle extras) {
+		final int size = extras.getInt(C.Key.SIZE);
+		final int duration = extras.getInt(C.Key.DURATION);
+		final String path = extras.getString(C.Key.PATH);
+		final String file = new File(path).getName();
+
+		final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
+				.setSmallIcon(R.drawable.ic_radio)
+				.setContentTitle(getString(R.string.app_name))
+				.setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, file))
+				.setPriority(NotificationCompat.PRIORITY_LOW)
+				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+
+		mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
+	}
+
+
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -478,7 +593,7 @@ public class FMService extends Service implements FMEventCallback {
 	private void reloadFavorite() {
 		mFavoriteController.reload();
 		mFavoriteList = new HashMap<>();
-		List<FavoriteStation> list = mFavoriteController.getStationsInCurrentList();
+		final List<FavoriteStation> list = mFavoriteController.getStationsInCurrentList();
 		for (FavoriteStation station : list) {
 			mFavoriteList.put(station.getFrequency(), station.getTitle());
 		}

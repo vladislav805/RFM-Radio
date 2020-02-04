@@ -4,6 +4,7 @@ import android.content.Context;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
+import com.vlad805.fmradio.service.FMRecordService;
 import com.vlad805.fmradio.service.fm.*;
 import com.vlad805.fmradio.service.fm.communications.Poll;
 import com.vlad805.fmradio.service.fm.communications.Request;
@@ -14,7 +15,7 @@ import java.util.List;
 /**
  * vlad805 (c) 2020
  */
-public class QualCommLegacy extends FMController implements IFMEventListener {
+public class QualCommLegacy extends FMController implements IFMEventListener, IFMRecordable {
 
 	public static class Config extends LaunchConfig {
 		@Override
@@ -126,6 +127,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 		sendCommand(new Request("disable", 5000).onResponse(result -> callback.onResult(null)));
 	}
 
+	private int frequency;
 	@Override
 	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
 		sendCommand(new Request("setfreq " + kHz).onResponse(data -> callback.onResult(kHz)));
@@ -154,6 +156,11 @@ public class QualCommLegacy extends FMController implements IFMEventListener {
 	@Override
 	public void search(final Callback<List<Integer>> callback) {
 
+	}
+
+	@Override
+	public void newRecord(final Callback<IFMRecorder> callback) {
+		callback.onResult(new FMRecordService(context, frequency));
 	}
 
 	/**

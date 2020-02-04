@@ -3,11 +3,11 @@ package com.vlad805.fmradio.fragments;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.SparseArray;
-import androidx.annotation.StringRes;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.audio.FMAudioService;
@@ -15,6 +15,7 @@ import com.vlad805.fmradio.service.fm.FMController;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * vlad805 (c) 2020
@@ -41,20 +42,26 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
 	public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
 		setPreferencesFromResource(R.xml.preferences_main, rootKey);
 
-		setNumberMessageAndProvider("tuner_antenna", R.string.pref_tuner_antenna_message);
+		Preference ver = findPreference("pref_info_version");
+		if (ver != null) {
+			ver.setSummary(String.format(Locale.ENGLISH, "v%s (build %d / %s)", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.BUILD_TYPE));
+		}
+
+		setNumberMessageAndProvider("tuner_antenna", InputType.TYPE_CLASS_NUMBER);
+		setNumberMessageAndProvider("recording_directory", InputType.TYPE_CLASS_TEXT);
+		setNumberMessageAndProvider("recording_filename", InputType.TYPE_CLASS_TEXT);
 
 		setListProviderAndEntries("tuner_driver", FMController.sDrivers);
 		setListProviderAndEntries("audio_service", FMAudioService.sService);
 		setListProviderAndEntries("audio_source", mAudioSource);
 	}
 
-	private void setNumberMessageAndProvider(final String key, final @StringRes int resId) {
+	private void setNumberMessageAndProvider(final String key, final int type) {
 		EditTextPreference preference = findPreference(key);
 
 		if (preference != null) {
 			preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) EditTextPreference::getText);
-			preference.setDialogMessage(getString(resId));
-			preference.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_NUMBER));
+			preference.setOnBindEditTextListener(editText -> editText.setInputType(type));
 		}
 	}
 

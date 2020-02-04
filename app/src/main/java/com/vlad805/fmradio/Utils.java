@@ -70,4 +70,12 @@ public class Utils {
 	public static String getMHz(int kHz) {
 		return String.format(Locale.ENGLISH, "%5.1f", kHz / 1000.);
 	}
+
+	public static String getTimeStringBySeconds(int seconds) {
+		double second = Math.floor(seconds % 60);
+		double minute = Math.floor(seconds / 60f % 60f);
+		long hour = Math.round(Math.floor(seconds / 60f / 60f % 60f));
+
+		return (hour > 0 ? hour + ":" : "") + String.format(Locale.ENGLISH, "%02.0f:%02.0f", minute, second);
+	}
 }

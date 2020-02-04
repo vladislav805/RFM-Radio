@@ -11,14 +11,15 @@ import com.vlad805.fmradio.service.fm.IFMEventPoller;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
 import com.vlad805.fmradio.service.fm.communications.Poll;
 import com.vlad805.fmradio.service.fm.communications.Request;
+import com.vlad805.fmradio.service.FMRecordService;
+import com.vlad805.fmradio.service.fm.*;
 
 import java.util.List;
 
 /**
  * vlad805 (c) 2020
  */
-public class Spirit3Impl extends FMController implements IFMEventPoller {
-	@SuppressWarnings("unused")
+public class Spirit3Impl extends FMController implements IFMEventPoller, IFMRecordable {
 	private static final String TAG = "S3I";
 
 	public static class Config extends LaunchConfig {
@@ -150,6 +151,11 @@ public class Spirit3Impl extends FMController implements IFMEventPoller {
 	@Override
 	public void search(final Callback<List<Integer>> callback) {
 
+	}
+
+	@Override
+	public void newRecord(final Callback<IFMRecorder> callback) {
+		callback.onResult(new FMRecordService(context, 0));
 	}
 
 	private static Request cmdTunerFreq = new Request("g tuner_freq");
