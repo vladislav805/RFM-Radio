@@ -48,7 +48,7 @@ If enabled, audio from the radio will be immediately turned on after starting th
 If the option is enabled, then with the "Enable RDS" option enabled, the Program Service and Radio Text will be displayed in the notification header.
 
 ## Screenshots
-<img src="images/main.png" width="280" alt="Main screen"/><img src="images/settings.png" width="280" alt="Settings screen"/><img src="images/favorites.png" width="280" alt="Favorites screen"/>
+<img src="images/main.png" width="33%" alt="Main screen"/><img src="images/settings.png" width="33%" alt="Settings screen"/><img src="images/favorites.png" width="33%" alt="Favorites screen"/>
 
 ## Building
 To modify the code of the native part of the application, Android NDK headers files are required.
