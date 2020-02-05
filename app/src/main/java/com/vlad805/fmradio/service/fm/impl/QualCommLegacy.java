@@ -130,7 +130,10 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 	private int frequency;
 	@Override
 	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
-		sendCommand(new Request("setfreq " + kHz).onResponse(data -> callback.onResult(kHz)));
+		sendCommand(new Request("setfreq " + kHz).onResponse(data -> {
+			frequency = kHz;
+			callback.onResult(kHz);
+		}));
 	}
 
 	@Override
@@ -140,12 +143,18 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 
 	@Override
 	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
-		sendCommand(new Request("jump " + direction, 1500).onResponse(data -> callback.onResult(Utils.parseInt(data))));
+		sendCommand(new Request("jump " + direction, 1500).onResponse(data -> {
+			frequency = Utils.parseInt(data);
+			callback.onResult(frequency);
+		}));
 	}
 
 	@Override
 	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
-		sendCommand(new Request("seekhw " + direction, 4000).onResponse(data -> callback.onResult(Utils.parseInt(data))));
+		sendCommand(new Request("seekhw " + direction, 4000).onResponse(data -> {
+			frequency = Utils.parseInt(data);
+			callback.onResult(frequency);
+		}));
 	}
 
 	@Override
