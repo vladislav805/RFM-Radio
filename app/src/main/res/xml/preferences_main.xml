@@ -33,7 +33,7 @@
 				android:title="@string/pref_tuner_step"
 				android:summaryOn="@string/pref_tuner_step_100kHz"
 				android:summaryOff="@string/pref_tuner_step_50kHz"
-				android:enabled="false"
+				android:enabled="true"
 				android:icon="@drawable/ic_step_freq"/>
 	</PreferenceCategory>
 	<PreferenceCategory
