@@ -46,6 +46,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private ImageView mRecordIcon;
 	private TextView mRecordDuration;
 
+	private Menu mMenu;
+
 	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
 
 	@Override
@@ -241,13 +243,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	 * Menu
 	 */
 	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
+	public boolean onCreateOptionsMenu(final Menu menu) {
 		getMenuInflater().inflate(R.menu.main, menu);
+		mMenu = menu;
 		return super.onCreateOptionsMenu(menu);
 	}
 
 	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
+	public boolean onOptionsItemSelected(final MenuItem item) {
 		switch (item.getItemId()) {
 			case R.id.menu_stop:
 				showProgress(getString(R.string.progress_stopping));
@@ -402,6 +405,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			View v = findViewById(id);
 			v.setAlpha(state ? 1f : .5f);
 			v.setEnabled(state);
+		}
+
+		if (mMenu != null) {
+			mMenu.findItem(R.id.menu_stop).setEnabled(state);
+			mMenu.findItem(R.id.menu_record).setEnabled(state);
 		}
 	}
 
