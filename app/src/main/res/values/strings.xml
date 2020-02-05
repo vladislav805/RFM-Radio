@@ -1,13 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 	<!-- General -->
 	<string name="app_name">RFM Radio</string>
-	<string name="nil">null</string>
+	<string name="nil" translatable="false">null</string>
 
 	<!-- Main Activity -->
-	<string name="main_activity_label">RFM Radio</string>
-	<string name="progress_init">Please, wait…\nInitializing…\nVersion %s</string>
+	<string name="main_activity_label" translatable="false">RFM Radio</string>
+	<string name="progress_init">Please, wait… Initializing… Version %s</string>
 	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
-	<string name="space_two">  </string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
 	<string name="seek_up">Seek up</string>
@@ -36,14 +35,14 @@
 	<string name="popup_station_create_hint">Station name…</string>
 	<string name="popup_station_rename">Rename</string>
 	<string name="popup_station_remove">Remove</string>
-	<string name="favorite_list_item_add">+</string>
+	<string name="favorite_list_item_add" translatable="false">+</string>
 
 	<!-- Station list (currently doesn't used) -->
 	<string name="station_list_search">Search…</string>
 	<string name="station_list_search_message">Please, wait…</string>
 
 	<!-- About activity -->
-	<string name="about_version">v%s</string>
+	<string name="about_version" translatable="false">v%s</string>
 	<string name="about_author">Vladislav Veluga © 2020</string>
 
 	<!-- Favorite lists activity -->
@@ -94,9 +93,9 @@
 	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)</string>
 	<string name="pref_header_recording">Recording</string>
 	<string name="pref_recording_path_title">Directory for saving</string>
-	<string name="pref_recording_path_value">RFM/recording/$y-$m-$d</string>
+	<string name="pref_recording_path_value" translatable="false">RFM/recording/$y-$m-$d</string>
 	<string name="pref_recording_name_title">Filename</string>
-	<string name="pref_recording_name_value">FM-$h$i$s-$f.wav</string>
+	<string name="pref_recording_name_value" translatable="false">FM-$h$i$s-$f.wav</string>
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Available variables:\n$y - year\n$m - month\n$d - day of month\n$h - hour\n$i - minute\n$s - second\n$f - frequency (e.g., 103.4 MHz = 1034)\n$r - random number 10000-99999\nExample:\nDirectory: FM/$y-$m-$d -> FM/2020-01-27\nFilename: Rec-$h_$i_$s_$f.wav -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_convert_title">Convert wav to mp3 on complete recording</string>
 	<string name="pref_recording_convert_summary">To do this, download ffmpeg required. Click here to continue.</string>
@@ -104,7 +103,7 @@
 	<string name="pref_recording_show_notify_summary">At the end of the recording, display information about the saved file</string>
 	<string name="pref_info_version_title">Version</string>
 	<string name="pref_info_link_site">Application\'s site</string>
-	<string name="pref_info_link_site_summary">rfm.velu.ga</string>
+	<string name="pref_info_link_site_summary" translatable="false">rfm.velu.ga</string>
 
 	<!-- Notification & service -->
 	<string name="notification_mhz">%.1f MHz | %d dB</string>
