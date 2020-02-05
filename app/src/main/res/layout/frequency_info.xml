@@ -153,11 +153,13 @@
 		<ImageView
 				android:id="@+id/record_icon"
 				android:src="@drawable/ic_record_press"
-				android:layout_width="@dimen/icon_size"
-				android:layout_height="@dimen/icon_size"
+				android:layout_width="wrap_content"
+				android:layout_height="0dp"
 				android:layout_marginEnd="16dp"
 				android:contentDescription="@string/nil"
 				android:visibility="gone"
+				android:scaleType="fitCenter"
+				tools:visibility="visible"
 				app:layout_constraintTop_toTopOf="parent"
 				app:layout_constraintBottom_toBottomOf="parent"
 				app:layout_constraintEnd_toEndOf="parent"/>
@@ -170,6 +172,7 @@
 				android:textColor="@color/record_active"
 				android:visibility="gone"
 				tools:text="00:00"
+				tools:visibility="visible"
 				app:layout_constraintEnd_toStartOf="@+id/record_icon"
 				app:layout_constraintTop_toTopOf="@+id/record_icon"
 				app:layout_constraintBottom_toBottomOf="@+id/record_icon"/>

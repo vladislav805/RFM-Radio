@@ -358,6 +358,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case C.Event.RECORD_STARTED: {
 				setShowRecordingPanel(true);
+				if (mMenu != null) {
+					mMenu.findItem(R.id.menu_record).setEnabled(false);
+				}
 				break;
 			}
 
@@ -368,6 +371,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case C.Event.RECORD_ENDED: {
 				setShowRecordingPanel(false);
+				if (mMenu != null) {
+					mMenu.findItem(R.id.menu_record).setEnabled(true);
+				}
 				break;
 			}
 
