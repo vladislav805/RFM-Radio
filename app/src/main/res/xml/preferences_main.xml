@@ -127,6 +127,15 @@
 					android:data="https://t.me/RFMRadioApp" />
 		</Preference>
 		<Preference
+				android:key="info_links_site"
+				android:title="@string/pref_info_link_site"
+				android:summary="@string/pref_info_link_site_summary"
+				android:icon="@drawable/ic_web">
+			<intent
+					android:action="android.intent.action.VIEW"
+					android:data="http://rfm.velu.ga/?ref=app" />
+		</Preference>
+		<Preference
 				android:id="@+id/pref_info_author_vv"
 				android:key="pref_info_author_vv"
 				android:title="@string/pref_info_contributors_title"
