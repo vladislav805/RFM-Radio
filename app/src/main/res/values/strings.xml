@@ -107,7 +107,7 @@
 	<string name="pref_info_link_site_summary">rfm.velu.ga</string>
 
 	<!-- Notification & service -->
-	<string name="notification_mhz">%.1f MHz</string>
+	<string name="notification_mhz">%.1f MHz | %d dB</string>
 	<string name="service_record_unsupported">Recording not supported by this driver.</string>
 	<string name="notification_recording">Recording: %s (%.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>

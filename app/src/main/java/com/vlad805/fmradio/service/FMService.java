@@ -454,12 +454,12 @@ public class FMService extends Service implements FMEventCallback {
 		}
 
 		final int frequency = state.getInt(C.Key.FREQUENCY);
-		// final int rssi = state.getInt(C.Key.RSSI);
+		final int rssi = state.getInt(C.Key.RSSI);
 
 		/*
 		 * Subtitle
 		 */
-		mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d));
+		mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d, rssi));
 
 		final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
 

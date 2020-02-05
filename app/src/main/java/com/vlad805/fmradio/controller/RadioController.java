@@ -154,6 +154,11 @@ public class RadioController {
 				mState.putString(C.Key.RT, rt);
 				break;
 			}
+
+			case C.Event.UPDATE_RSSI: {
+				mState.putInt(C.Key.RSSI, intent.getIntExtra(C.Key.RSSI, 0));
+				break;
+			}
 		}
 
 		//Log.d("RCS", "state = " + mState);
