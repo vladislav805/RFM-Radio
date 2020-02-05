@@ -2,6 +2,7 @@ package com.vlad805.fmradio.service.fm;
 
 import android.os.Bundle;
 import android.util.Log;
+import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 
@@ -87,7 +88,9 @@ public class FMEventListenerServer extends Thread {
 
 		int evt = parseInt(code);
 
-		Log.i("FMELS", "received new event " + code + " = [" + data + "]");
+		if (BuildConfig.DEBUG) {
+			Log.i("FMELS", "received new event " + code + " = [" + data + "]");
+		}
 
 		final Bundle bundle = new Bundle();
 		String action;

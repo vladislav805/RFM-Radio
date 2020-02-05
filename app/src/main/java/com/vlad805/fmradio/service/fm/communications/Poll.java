@@ -59,8 +59,6 @@ public class Poll {
 
 				socket.setSoTimeout(command.getTimeout());
 
-				Log.d("QCL", "Sent command: " + command.getCommand());
-
 				final DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), endpoint, config.getClientPort());
 
 				socket.send(dps);
@@ -78,8 +76,6 @@ public class Poll {
 				}
 
 				final String res = new String(buf, 0, length - 1, StandardCharsets.UTF_8);
-
-				Log.d("QCL", "Received response: " + res);
 
 				command.fire(res);
 

@@ -290,12 +290,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case C.Event.LAUNCHED: {
 				showProgress(getString(R.string.progress_launching));
-				/*if (intent.hasExtra(C.Key.STATION_LIST)) {
-					List<IStation> s = convert(intent.getParcelableArrayExtra(C.Key.STATION_LIST));
-					Log.i("MA", "StationList = " + s.size());
-
-					mFrequencyInfo.notifyStationsLists(s);
-				}*/
 				break;
 			}
 

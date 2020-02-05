@@ -160,7 +160,5 @@ public class RadioController {
 				break;
 			}
 		}
-
-		//Log.d("RCS", "state = " + mState);
 	}
 }

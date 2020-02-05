@@ -3,7 +3,6 @@ package com.vlad805.fmradio.service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Environment;
-import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -176,7 +175,6 @@ public class FMRecordService implements IFMRecorder {
 		mRecordFile = new File(dir, name);
 
 		try {
-			Log.e("FMRS", "path " + mRecordFile.getAbsolutePath());
 			if (mRecordFile.exists()) {
 				throw new RecordError("File with these name already exists!\nPlease, check filename schema for unique.");
 			}

@@ -89,8 +89,6 @@ public class FMService extends Service implements FMEventCallback {
 			return START_STICKY;
 		}
 
-		Log.d(TAG, "onStartCommand: " + intent.getAction());
-
 		switch (intent.getAction()) {
 			case C.Command.SETUP: {
 				mFmController.prepareBinary();
@@ -167,10 +165,6 @@ public class FMService extends Service implements FMEventCallback {
 
 			/*case C.FM_GET_STATUS:
 				mFM.getRssi(mOnRssiReceived);
-				break;
-
-			case C.FM_SET_STEREO:
-				mFM.sendCommand("setstereo", data -> Log.i("SET_STEREO", data));
 				break;
 
 			case C.FM_SET_MUTE:
@@ -281,8 +275,6 @@ public class FMService extends Service implements FMEventCallback {
 			if (intent == null || intent.getAction() == null) {
 				return;
 			}
-
-			Log.d(TAG, "onReceive: " + intent.getAction() + "; " + intent.getExtras());
 
 			switch (intent.getAction()) {
 				case C.Event.INSTALLED: {
@@ -433,7 +425,6 @@ public class FMService extends Service implements FMEventCallback {
 				.addAction(R.drawable.ic_go_down, getString(R.string.seek_down), pendingSeekDown) // #0
 				.addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop); // #1
 
-		Log.d(TAG, "createNotificationBuilder: now recording = " + mRecordingNow);
 		if (!mRecordingNow) {
 			n.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec); // #2
 			ms.setShowActionsInCompactView(1, 2);

@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.telephony.TelephonyManager;
-import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.service.FMService;
 
@@ -31,8 +30,6 @@ public class CallReceiver extends BroadcastReceiver {
 		if (action == null) {
 			return;
 		}
-
-		Log.d(TAG, "onReceive: " + action);
 
 		switch (action) {
 			case AudioManager.ACTION_AUDIO_BECOMING_NOISY: {
