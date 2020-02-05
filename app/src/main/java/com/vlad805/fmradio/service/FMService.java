@@ -527,19 +527,23 @@ public class FMService extends Service implements FMEventCallback {
 	}
 
 	private void showRecorded(final Bundle extras) {
+		final boolean needNotification = Storage.getPrefBoolean(this, C.PrefKey.RECORDING_SHOW_NOTIFY, C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
+
 		final int size = extras.getInt(C.Key.SIZE);
 		final int duration = extras.getInt(C.Key.DURATION);
 		final String path = extras.getString(C.Key.PATH);
 		final String file = new File(path).getName();
 
-		final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
-				.setSmallIcon(R.drawable.ic_radio)
-				.setContentTitle(getString(R.string.app_name))
-				.setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, file))
-				.setPriority(NotificationCompat.PRIORITY_LOW)
-				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+		if (needNotification) {
+			final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
+					.setSmallIcon(R.drawable.ic_radio)
+					.setContentTitle(getString(R.string.app_name))
+					.setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, file))
+					.setPriority(NotificationCompat.PRIORITY_LOW)
+					.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
 
-		mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
+			mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
+		}
 
 		Toast.makeText(this, getString(
 				R.string.toast_record_ended,

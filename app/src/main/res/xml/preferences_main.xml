@@ -94,6 +94,12 @@
 				android:summary="@string/pref_recording_convert_summary"
 				android:enabled="false"
 				android:icon="@drawable/ic_convert"/>
+		<SwitchPreferenceCompat
+				android:key="recording_show_notify"
+				android:defaultValue="true"
+				android:title="@string/pref_recording_show_notify"
+				android:summary="@string/pref_recording_show_notify_summary"
+				android:icon="@drawable/ic_info"/>
 	</PreferenceCategory>
 	<PreferenceCategory
 			android:key="info"

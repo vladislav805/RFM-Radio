@@ -79,6 +79,7 @@ final public class C {
 		public static final String RDS_ENABLE = "rds_enable";
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
+		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
 	}
 
 	public static final class PrefDefaultValue {
@@ -89,6 +90,8 @@ final public class C {
 
 		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
 		public static final int TUNER_DRIVER = FMController.DRIVER_QUALCOMM;
+
+		public static final boolean RECORDING_SHOW_NOTIFY = true;
 	}
 
 	private C() {}

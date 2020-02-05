@@ -100,6 +100,8 @@
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Available variables:\n$y - year\n$m - month\n$d - day of month\n$h - hour\n$i - minute\n$s - second\n$f - frequency (e.g., 103.4 MHz = 1034)\n$r - random number 10000-99999\nExample:\nDirectory: FM/$y-$m-$d -> FM/2020-01-27\nFilename: Rec-$h_$i_$s_$f.wav -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_convert_title">Convert wav to mp3 on complete recording</string>
 	<string name="pref_recording_convert_summary">To do this, download ffmpeg required. Click here to continue.</string>
+	<string name="pref_recording_show_notify">Show notifications</string>
+	<string name="pref_recording_show_notify_summary">At the end of the recording, display information about the saved file</string>
 	<string name="pref_info_version_title">Version</string>
 	<string name="pref_info_link_site">Application\'s site</string>
 	<string name="pref_info_link_site_summary">rfm.velu.ga</string>
