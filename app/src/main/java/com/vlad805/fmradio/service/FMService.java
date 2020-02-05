@@ -540,6 +540,13 @@ public class FMService extends Service implements FMEventCallback {
 				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
 
 		mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
+
+		Toast.makeText(this, getString(
+				R.string.toast_record_ended,
+				file,
+				size / 1024f / 1024f,
+				getTimeStringBySeconds(duration)
+		), Toast.LENGTH_LONG).show();
 	}
 
 
