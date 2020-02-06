@@ -195,7 +195,6 @@
 			android:layout_marginTop="8dp"
 			android:fontFamily="monospace"
 			android:gravity="center_vertical"
-			android:text="@string/space_two"
 			tools:text="70"
 			app:layout_constraintTop_toBottomOf="@+id/rssi_icon"
 			app:layout_constraintStart_toStartOf="@+id/rssi_icon"
