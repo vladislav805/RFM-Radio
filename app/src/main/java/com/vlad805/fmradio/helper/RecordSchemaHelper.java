@@ -14,7 +14,7 @@ public final class RecordSchemaHelper {
 		final Calendar cal = Calendar.getInstance();
 
 		final Map<Character, Integer> assoc = new HashMap<>();
-		assoc.put('f', kHz);
+		assoc.put('f', kHz / 100); // TODO: fix when 50 kHz will be available
 		assoc.put('y', cal.get(Calendar.YEAR));
 		assoc.put('m', cal.get(Calendar.MONTH) + 1);
 		assoc.put('d', cal.get(Calendar.DAY_OF_MONTH));
@@ -26,11 +26,13 @@ public final class RecordSchemaHelper {
 		for (final Character c : assoc.keySet()) {
 			final String pat = "$" + c;
 
+			final String format = c == 'f' ? "%04d" : "%02d";
+
 			schema = Pattern.compile(
 					Pattern.quote(pat),
 					Pattern.CASE_INSENSITIVE
 			).matcher(schema).replaceAll(
-					String.format(Locale.US, "%02d", assoc.get(c))
+					String.format(Locale.US, format, assoc.get(c))
 			);
 		}
 
