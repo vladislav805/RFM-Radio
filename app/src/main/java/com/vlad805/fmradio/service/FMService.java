@@ -69,11 +69,6 @@ public class FMService extends Service implements FMEventCallback {
 		mAudioService = getPreferredAudioService();
 		mFmController = getPreferredTunerDriver();
 
-		if (mFmController instanceof IFMEventPoller) {
-			mTimer = new Timer("Poll", true);
-			mTimer.schedule(new PollTunerHandler(), C.Config.Polling.DELAY, C.Config.Polling.INTERVAL);
-		}
-
 		if (mFmController instanceof IFMEventListener) {
 			((IFMEventListener) mFmController).setEventListener(this);
 		}
@@ -102,6 +97,10 @@ public class FMService extends Service implements FMEventCallback {
 
 			case C.Command.ENABLE: {
 				mFmController.enable();
+				if (mFmController instanceof IFMEventPoller) {
+					mTimer = new Timer("Poll", true);
+					mTimer.schedule(new PollTunerHandler(), C.Config.Polling.DELAY, C.Config.Polling.INTERVAL);
+				}
 				break;
 			}
 
@@ -114,6 +113,11 @@ public class FMService extends Service implements FMEventCallback {
 			case C.Command.SET_FREQUENCY: {
 				if (!intent.hasExtra(C.Key.FREQUENCY)) {
 					Log.e("FMS", "Command SET_FREQUENCY: not specified frequency");
+					break;
+				}
+
+				if (mFmController == null) {
+					Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
 					break;
 				}
 

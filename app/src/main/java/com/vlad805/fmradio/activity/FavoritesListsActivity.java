@@ -25,6 +25,7 @@ import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
+import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.OnDragListener;
 import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
 import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
@@ -80,35 +81,39 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 
 		mFavoriteListNames = mController.getFavoriteLists();
 
-		final RecyclerView mRecycler = findViewById(R.id.favorite_list_content);
-		mRecycler.addOnItemTouchListener(new RecyclerItemClickListener(this, mRecycler, new RecyclerItemClickListener.OnItemClickListener() {
+		final RecyclerView recycler = findViewById(R.id.favorite_list_content);
+		recycler.addOnItemTouchListener(new RecyclerItemClickListener(this, recycler, new RecyclerItemClickListener.OnItemClickListener() {
 			@Override
-			public void onItemClick(View view, int position) {
-
+			public void onItemClick(final View view, final int position) {
+				final FavoriteStation station = mStationsList.get(position);
+				final Intent intent = new Intent(FavoritesListsActivity.this, FMService.class)
+						.setAction(C.Command.SET_FREQUENCY)
+						.putExtra(C.Key.FREQUENCY, station.getFrequency());
+				startService(intent);
 			}
 
 			@Override
-			public void onLongItemClick(View view, int position) {
-
+			public void onLongItemClick(final View view, int position) {
+				// TODO: open menu here
 			}
 		}));
 
 		mAdapter = new FavoriteAdapter(mStationsList, this);
-		mRecycler.setAdapter(mAdapter);
+		recycler.setAdapter(mAdapter);
 
 		reloadLists();
 		reloadContent();
 
 		final ItemTouchHelper.Callback callback = new SimpleItemTouchHelperCallback(mAdapter);
 		mItemTouchHelper = new ItemTouchHelper(callback);
-		mItemTouchHelper.attachToRecyclerView(mRecycler);
+		mItemTouchHelper.attachToRecyclerView(recycler);
 
 		// Listen this only after setSelection
 		mSpinner.setOnItemSelectedListener(this);
 	}
 
 	@Override
-	public void onStartDrag(RecyclerView.ViewHolder viewHolder) {
+	public void onStartDrag(final RecyclerView.ViewHolder viewHolder) {
 		mItemTouchHelper.startDrag(viewHolder);
 	}
 
@@ -124,9 +129,9 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		mFavoriteListNames = mController.getFavoriteLists();
 
 		mCurrentNameList = mController.getCurrentFavoriteList();
-		int position = mFavoriteListNames.indexOf(mCurrentNameList);
+		final int position = mFavoriteListNames.indexOf(mCurrentNameList);
 
-		ArrayAdapter<?> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, mFavoriteListNames.toArray(new String[0]));
+		final ArrayAdapter<?> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, mFavoriteListNames.toArray(new String[0]));
 
 		mSpinner.setAdapter(adapter);
 		mSpinner.setSelection(position);
@@ -154,7 +159,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	 * Listener for selected item in spinner (favorite list)
 	 */
 	@Override
-	public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+	public void onItemSelected(final AdapterView<?> parent, final View view, final int position, final long id) {
 		String item = (String) parent.getItemAtPosition(position);
 
 		try {
@@ -163,7 +168,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 			reloadContent();
 
 			// need to remove and replace by broadcast?
-			Intent intent = new Intent().putExtra("changed", true);
+			final Intent intent = new Intent().putExtra("changed", true);
 			setResult(Activity.RESULT_OK, intent);
 
 			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
@@ -173,7 +178,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	}
 
 	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
+	public boolean onCreateOptionsMenu(final Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		mMenu = menu;
 		getMenuInflater().inflate(R.menu.favorite, menu);
@@ -247,7 +252,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	}
 
 	private void removeDialog() {
-		AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+		final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
 				.setTitle(R.string.favorite_list_remove_title)
 				.setMessage(getString(R.string.favorite_list_remove_message, mCurrentNameList))
 				.setCancelable(false)
