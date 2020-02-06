@@ -2,6 +2,7 @@ package com.vlad805.fmradio.helper;
 
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -25,7 +26,12 @@ public final class RecordSchemaHelper {
 		for (final Character c : assoc.keySet()) {
 			final String pat = "$" + c;
 
-			schema = Pattern.compile(Pattern.quote(pat), Pattern.CASE_INSENSITIVE).matcher(schema).replaceAll(String.valueOf(assoc.get(c)));
+			schema = Pattern.compile(
+					Pattern.quote(pat),
+					Pattern.CASE_INSENSITIVE
+			).matcher(schema).replaceAll(
+					String.format(Locale.US, "%02d", assoc.get(c))
+			);
 		}
 
 		return schema;
