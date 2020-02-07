@@ -121,5 +121,8 @@
 	<string name="toast_record_ended">Record saved as %1$s\nSize: %2$.1f MB\nDuration: %3$s</string>
 	<string name="main_warning_pref_changed_title">Attention!</string>
 	<string name="main_warning_pref_changed_content">To apply some settings that you changed, you need to completely restart the application:\n1. Stop the tuner (shutdown button at the top)\n2. Close and swipe the application out of multitasking\n3. Launch the application.</string>
+	<string name="pref_notification_seek_by_favorites">Navigate through favorites</string>
+	<string name="pref_notification_seek_by_favorites_enabled">Using the arrows in the notification, jump to the prev/next favorite</string>
+	<string name="pref_notification_seek_by_favorites_disabled">Use the arrows in the notification to search for the prev/next station</string>
 
 </resources>
