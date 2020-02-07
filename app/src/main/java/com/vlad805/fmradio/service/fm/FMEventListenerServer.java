@@ -85,7 +85,6 @@ public class FMEventListenerServer extends Thread {
 		final String code = data.substring(0, splitAt);
 		data = data.substring(splitAt + 1);
 
-
 		int evt = parseInt(code);
 
 		if (BuildConfig.DEBUG) {
@@ -175,7 +174,8 @@ public class FMEventListenerServer extends Thread {
 	private static class StopServer extends Throwable { }
 
 	public void closeServer() {
-		if (mDatagramSocketServer.isConnected()) {
+		mEnabled = false;
+		if (!mDatagramSocketServer.isClosed()) {
 			mDatagramSocketServer.close();
 		}
 	}
