@@ -89,4 +89,6 @@
 	<string name="toast_record_ended">Запись %1$s сохранена\nРазмер: %2$.1f МБ\nДлительность: %3$s</string>
 	<string name="toggle_play_pause">Старт</string>
 	<string name="toolbar_favorite_title">Избранное</string>
+	<string name="main_warning_pref_changed_title">Внимание!</string>
+	<string name="main_warning_pref_changed_content">Для применения некоторых настроек, которые Вы изменили, нужно полностью перезапустить приложение:\n1. Остановить тюнер (кнопка выключения наверху)\n2. Закрыть и смахнуть приложение из мультизадачности\n3. Запустить приложение.</string>
 </resources>

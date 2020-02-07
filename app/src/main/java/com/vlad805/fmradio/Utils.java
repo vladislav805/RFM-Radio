@@ -1,7 +1,10 @@
 package com.vlad805.fmradio;
 
+import android.content.Context;
 import android.os.Build;
 import android.util.Log;
+import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
 
 import java.io.DataOutputStream;
 import java.util.Arrays;
@@ -77,5 +80,15 @@ public class Utils {
 		long hour = Math.round(Math.floor(seconds / 60f / 60f % 60f));
 
 		return (hour > 0 ? hour + ":" : "") + String.format(Locale.ENGLISH, "%02.0f:%02.0f", minute, second);
+	}
+
+	public static void alert(final Context context, final @StringRes int title, final @StringRes int content, final @StringRes int ok) {
+		new AlertDialog.Builder(context)
+				.setTitle(title)
+				.setMessage(content)
+				.setCancelable(false)
+				.setPositiveButton(ok, (dialog, which) -> dialog.cancel())
+				.create()
+				.show();
 	}
 }

@@ -112,5 +112,7 @@
 	<string name="notification_recording">Recording: %s (%.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
 	<string name="toast_record_ended">Record saved as %1$s\nSize: %2$.1f MB\nDuration: %3$s</string>
+	<string name="main_warning_pref_changed_title">Attention!</string>
+	<string name="main_warning_pref_changed_content">To apply some settings that you changed, you need to completely restart the application:\n1. Stop the tuner (shutdown button at the top)\n2. Close and swipe the application out of multitasking\n3. Launch the application.</string>
 
 </resources>

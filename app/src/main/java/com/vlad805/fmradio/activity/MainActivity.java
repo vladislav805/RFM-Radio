@@ -25,6 +25,7 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
 
+import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
@@ -48,6 +49,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private Menu mMenu;
 
 	private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
+	private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -137,13 +139,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		//noinspection SwitchStatementWithTooFewBranches
 		switch (requestCode) {
 			case REQUEST_CODE_FAVORITES_OPENED: {
 				if (resultCode == Activity.RESULT_OK && data.getBooleanExtra("changed", false)) {
 					mFavoriteList.reload(true);
 				}
 				break;
+			}
+
+			case REQUEST_CODE_SETTINGS_CHANGED: {
+				if (resultCode == RESULT_OK && data.getBooleanExtra("changed", false)) {
+					alert(
+							this,
+							R.string.main_warning_pref_changed_title,
+							R.string.main_warning_pref_changed_content,
+							android.R.string.ok
+					);
+				}
 			}
 		}
 		super.onActivityResult(requestCode, resultCode, data);
@@ -261,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 
 			case R.id.menu_settings:
-				startActivity(new Intent(this, SettingsActivity.class));
+				startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
 				break;
 
 			case R.id.menu_record:
