@@ -107,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		if (needStartup) {
 			setEnabledToggleButton(false);
 			mRadioController.setup();
-			mRadioController.launch();
 		} else {
 			setEnabledUi(false);
 		}
