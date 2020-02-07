@@ -98,6 +98,8 @@ public abstract class FMController {
 		fireEvent(C.Event.PREPARING);
 		if (!isInstalled() || isObsolete()) {
 			install();
+		} else {
+			fireEvent(C.Event.INSTALLED);
 		}
 	}
 

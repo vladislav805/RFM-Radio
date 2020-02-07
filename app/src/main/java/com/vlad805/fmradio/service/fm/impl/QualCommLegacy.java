@@ -2,6 +2,8 @@ package com.vlad805.fmradio.service.fm.impl;
 
 import android.content.Context;
 import com.vlad805.fmradio.BuildConfig;
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.service.FMRecordService;
@@ -62,7 +64,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 
 	@Override
 	public boolean isObsolete() {
-		return BuildConfig.DEBUG;
+		return Storage.getInstance(context).getInt(C.PrefKey.BINARY_VERSION, 0) < BuildConfig.VERSION_CODE;
 	}
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
@@ -93,6 +95,8 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 				return;
 			}
 		}
+
+		Storage.getInstance(context).edit().putInt(C.PrefKey.BINARY_VERSION, BuildConfig.VERSION_CODE).apply();
 
 		Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
 		callback.onResult(null);

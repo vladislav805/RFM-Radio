@@ -87,6 +87,7 @@ final public class C {
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
+		public static final String BINARY_VERSION = "bin_version";
 	}
 
 	public static final class PrefDefaultValue {

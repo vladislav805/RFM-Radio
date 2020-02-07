@@ -54,7 +54,7 @@ int SLAVE_ADDR = 0x2A;
 #define ARRAY_SIZE(a)   (sizeof(a) / sizeof(*a))
 
 /* Debug Macro */
-#define FM_DEBUG
+// #define FM_DEBUG
 #ifdef FM_DEBUG
 	#define print(x) printf(x)
 	#define print2(x,y) printf(x,y)
@@ -198,8 +198,8 @@ void _log(int type, char* message, int val) {
   #define logi(x) _log(LOG_INFO, x, 0)
   #define logi2(x, y) _log(LOG_INFO, x, y)
 #else
-#define logk(x, y)
-  #define logk(x, y)
+  #define logk(x)
+  #define logk2(x, y)
   #define loge(x)
   #define loge2(x, y)
   #define logi(x)

@@ -4,12 +4,14 @@ def versionMajor = 0
 def versionMinor = 4
 def versionPatch = 0
 
+def dev = false
+
 android {
     compileSdkVersion 28
 
     defaultConfig {
         //noinspection GroovyAssignabilityCheck
-        applicationId "com.vlad805.fmradio"
+        applicationId dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
         minSdkVersion 21
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 22
@@ -65,7 +67,7 @@ configurations.all {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'androidx.core:core:1.2.0-rc01'
+    implementation 'androidx.core:core:1.3.0-alpha01'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation 'androidx.recyclerview:recyclerview:1.2.0-alpha01'
     implementation 'androidx.annotation:annotation:1.1.0'
