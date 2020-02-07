@@ -75,18 +75,18 @@ public class Poll {
 					return;
 				}
 
-				final String res = new String(buf, 0, length - 1, StandardCharsets.UTF_8);
+				final String res = new String(buf, 0, length, StandardCharsets.UTF_8);
 
 				command.fire(res);
 
 				queue.remove();
-
-				if (!queue.isEmpty()) {
-					next();
-				}
 			} catch (Throwable e) {
 				e.printStackTrace();
 				Log.i("QCL", "FAILED: attempt for request [" + command + "]");
+			} finally {
+				if (!queue.isEmpty()) {
+					next();
+				}
 			}
 		}).start();
 	}

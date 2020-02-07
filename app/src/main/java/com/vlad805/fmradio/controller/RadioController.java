@@ -79,7 +79,11 @@ public class RadioController {
 
 	static {
 		final String[] events = {
+				C.Event.INSTALLING,
+				C.Event.INSTALLED,
+				C.Event.LAUNCHING,
 				C.Event.LAUNCHED,
+				C.Event.ENABLING,
 				C.Event.ENABLED,
 
 				C.Event.FREQUENCY_SET,
@@ -95,6 +99,7 @@ public class RadioController {
 				C.Event.RECORD_TIME_UPDATE,
 				C.Event.RECORD_ENDED,
 
+				C.Event.DISABLING,
 				C.Event.DISABLED,
 				C.Event.KILLED
 		};

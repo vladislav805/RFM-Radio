@@ -12,8 +12,9 @@
 	<string name="seek_up">Seek up</string>
 	<string name="jump_down">Jump down</string>
 	<string name="seek_down">Seek down</string>
+	<string name="progress_installing">Install binary…</string>
 	<string name="progress_launching">Launching…</string>
-	<string name="progress_starting">Starting…</string>
+	<string name="progress_starting">Enabling tuner…</string>
 	<string name="progress_searching">Searching…</string>
 	<string name="progress_stopping">Stopping…</string>
 	<string name="main_rssi_db">%d dB</string>

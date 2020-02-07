@@ -14,7 +14,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
-import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -114,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		mFrequencyInfo.setRadioController(mRadioController);
 	}
 
-	private void showProgress(String text) {
+	private void showProgress(final String text) {
 		if (mProgress != null) {
 			hideProgress();
 		}
@@ -185,7 +184,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				switch (stage) {
 					case C.FMStage.VOID: {
 						mRadioController.setup();
-						mRadioController.launch();
+
 						break;
 					}
 
@@ -283,14 +282,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		}
 
 		switch (intent.getAction()) {
+			case C.Event.INSTALLING: {
+				showProgress(getString(R.string.progress_installing));
+				break;
+			}
 			case C.Event.INSTALLED: {
-				showProgress(getString(R.string.progress_init, BuildConfig.VERSION_NAME));
+				showProgress(null);
+				break;
+			}
+
+			case C.Event.LAUNCHING: {
+				showProgress(getString(R.string.progress_launching));
 				break;
 			}
 
 			case C.Event.LAUNCHED: {
-				showProgress(getString(R.string.progress_launching));
+				showProgress(null);
 				break;
+			}
+
+			case C.Event.ENABLING: {
+				showProgress(getString(R.string.progress_starting));
 			}
 
 			case C.Event.ENABLED: {
