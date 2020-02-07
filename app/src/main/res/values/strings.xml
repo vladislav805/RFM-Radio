@@ -105,6 +105,13 @@
 	<string name="pref_info_version_title">Version</string>
 	<string name="pref_info_link_site">Application\'s site</string>
 	<string name="pref_info_link_site_summary" translatable="false">rfm.velu.ga</string>
+	<string name="pref_version_check_progress">Checking for updates…</string>
+	<string name="pref_version_check_fresh_title">It\'s OK!</string>
+	<string name="pref_version_check_fresh_content">The latest version is installed. No update required.</string>
+	<string name="pref_version_check_need_update_title">Update available</string>
+	<string name="pref_version_check_need_update_content">Latest app version: v%1$s (%2$d)\nInstalled app version: %3$s (v%4$d)\n\nUpdates:\n%5$s\n\nOpen the release page to download the installer?</string>
+	<string name="pref_version_check_need_update_ok">Update</string>
+	<string name="pref_version_check_fresh_ok">Well</string>
 
 	<!-- Notification & service -->
 	<string name="notification_mhz">%.1f MHz | %d dB</string>

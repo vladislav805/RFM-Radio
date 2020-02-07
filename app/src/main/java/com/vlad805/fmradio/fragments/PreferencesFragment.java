@@ -1,8 +1,13 @@
 package com.vlad805.fmradio.fragments;
 
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.SparseArray;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
@@ -10,19 +15,26 @@ import androidx.preference.PreferenceFragmentCompat;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.fm.FMController;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+
+import static com.vlad805.fmradio.Utils.fetch;
+import static com.vlad805.fmradio.Utils.uiThread;
 
 /**
  * vlad805 (c) 2020
  */
-public class PreferencesFragment extends PreferenceFragmentCompat {
+public class PreferencesFragment extends PreferenceFragmentCompat implements Preference.OnPreferenceClickListener {
 
 	private static SparseArray<String> mAudioSource;
+	private ProgressDialog mProgress;
 
 	static {
 		mAudioSource = new SparseArray<>();
@@ -42,9 +54,10 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
 	public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
 		setPreferencesFromResource(R.xml.preferences_main, rootKey);
 
-		Preference ver = findPreference("pref_info_version");
+		final Preference ver = findPreference("pref_info_version");
 		if (ver != null) {
 			ver.setSummary(String.format(Locale.ENGLISH, "v%s (build %d / %s)", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.BUILD_TYPE));
+			ver.setOnPreferenceClickListener(this);
 		}
 
 		setNumberMessageAndProvider("tuner_antenna", InputType.TYPE_CLASS_NUMBER);
@@ -85,5 +98,66 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
 			lp.setEntries(values.toArray(new String[0]));
 			lp.setEntryValues(keys.toArray(new String[0]));
 		}
+	}
+
+	@Override
+	public boolean onPreferenceClick(final Preference preference) {
+		switch (preference.getKey()) {
+			case "pref_info_version": {
+				checkVersion();
+				break;
+			}
+		}
+		return false;
+	}
+
+	private void checkVersion() {
+		final Context ctx = getContext();
+		mProgress = ProgressDialog.create(ctx).text(R.string.pref_version_check_progress).show();
+		new Thread(() -> fetch("http://rfm.velu.ga/app_version.json", json -> {
+			mProgress.hide();
+
+			final JSONObject latest = json.optJSONObject("latest");
+
+			if (latest == null) {
+				Toast.makeText(ctx, "err", Toast.LENGTH_SHORT).show();
+				return;
+			}
+
+			final boolean isFresh = latest.optInt("build") <= BuildConfig.VERSION_CODE;
+
+			String title;
+			String content;
+
+			if (isFresh) {
+				title = getString(R.string.pref_version_check_fresh_title);
+				content = getString(R.string.pref_version_check_fresh_content);
+			} else {
+				title = getString(R.string.pref_version_check_need_update_title);
+				content = getString(
+						R.string.pref_version_check_need_update_content,
+						latest.optString("version"),
+						latest.optInt("build"),
+						BuildConfig.VERSION_NAME,
+						BuildConfig.VERSION_CODE,
+						latest.optString("changelog", "< not specified >")
+				);
+			}
+
+			final AlertDialog.Builder ab = new AlertDialog.Builder(Objects.requireNonNull(ctx));
+			ab.setTitle(title).setMessage(content);
+
+			if (!isFresh) {
+				ab.setPositiveButton(R.string.pref_version_check_need_update_ok, (dialog, which) -> {
+					final Intent intent = new Intent(Intent.ACTION_VIEW);
+					intent.setData(Uri.parse(latest.optString("url")));
+					startActivity(intent);
+				});
+			}
+
+			ab.setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.cancel());
+
+			uiThread(() -> ab.create().show());
+		})).start();
 	}
 }

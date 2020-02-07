@@ -91,4 +91,11 @@
 	<string name="toolbar_favorite_title">Избранное</string>
 	<string name="main_warning_pref_changed_title">Внимание!</string>
 	<string name="main_warning_pref_changed_content">Для применения некоторых настроек, которые Вы изменили, нужно полностью перезапустить приложение:\n1. Остановить тюнер (кнопка выключения наверху)\n2. Закрыть и смахнуть приложение из мультизадачности\n3. Запустить приложение.</string>
+	<string name="pref_version_check_progress">Проверка обновлений…</string>
+	<string name="pref_version_check_fresh_title">Всё хорошо!</string>
+	<string name="pref_version_check_fresh_content">Установлена последняя версия. Обновление не требуется.</string>
+	<string name="pref_version_check_need_update_title">Доступно обновление</string>
+	<string name="pref_version_check_need_update_content">Последняя версия: v%1$s (%2$d)\nУстановленная врсия: %3$s (v%4$d)\n\nИзменения:\n%5$s\n\nОткрыть страницу релиза, чтобы скачать установщик?</string>
+	<string name="pref_version_check_need_update_ok">Обновить</string>
+	<string name="pref_version_check_fresh_ok">Хорошо</string>
 </resources>
