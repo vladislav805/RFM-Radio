@@ -77,6 +77,7 @@ public abstract class FMController {
 	protected abstract void installImpl(final Callback<Void> callback);
 
 	public final void install() {
+		fireEvent(C.Event.INSTALLING);
 		installImpl(result -> fireEvent(C.Event.INSTALLED));
 	}
 
@@ -86,6 +87,7 @@ public abstract class FMController {
 	protected abstract void launchImpl(final Callback<Void> callback);
 
 	public final void launch() {
+		fireEvent(C.Event.LAUNCHING);
 		launchImpl(result -> fireEvent(C.Event.LAUNCHED));
 	}
 
@@ -93,6 +95,7 @@ public abstract class FMController {
 	 * Check binary for exists and fresh
 	 */
 	public final void prepareBinary() {
+		fireEvent(C.Event.PREPARING);
 		if (!isInstalled() || isObsolete()) {
 			install();
 		}
@@ -116,9 +119,8 @@ public abstract class FMController {
 	protected abstract void enableImpl(final Callback<Void> callback);
 
 	public final void enable() {
-		enableImpl(result -> {
-			fireEvent(C.Event.ENABLED);
-		});
+		fireEvent(C.Event.ENABLING);
+		enableImpl(result -> fireEvent(C.Event.ENABLED));
 	}
 
 	/**
@@ -127,9 +129,8 @@ public abstract class FMController {
 	protected abstract void disableImpl(final Callback<Void> callback);
 
 	public final void disable() {
-		disableImpl(result -> {
-			fireEvent(C.Event.DISABLED);
-		});
+		fireEvent(C.Event.DISABLING);
+		disableImpl(result -> fireEvent(C.Event.DISABLED));
 	}
 
 	/**

@@ -14,9 +14,14 @@ final public class C {
 		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
 		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
+		public static final String PREPARING = BASE + "PREPARING";
+		public static final String INSTALLING = BASE + "INSTALLING";
 		public static final String INSTALLED = BASE + "INSTALLED";
+		public static final String LAUNCHING = BASE + "LAUNCHING";
 		public static final String LAUNCHED = BASE + "LAUNCHED";
+		public static final String ENABLING = BASE + "ENABLING";
 		public static final String ENABLED = BASE + "ENABLED";
+		public static final String DISABLING = BASE + "DISABLING";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
 		public static final String UPDATE_RSSI = BASE + "UPDATE_RSSI";
