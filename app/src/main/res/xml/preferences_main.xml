@@ -71,6 +71,13 @@
 				android:summaryOff="@string/pref_notification_show_ps_disabled"
 				android:title="@string/pref_notification_show_ps"
 				android:icon="@drawable/ic_ps_name"/>
+		<SwitchPreferenceCompat
+				android:key="notification_seek_by_favorites"
+				android:defaultValue="false"
+				android:title="@string/pref_notification_seek_by_favorites"
+				android:summaryOn="@string/pref_notification_seek_by_favorites_enabled"
+				android:summaryOff="@string/pref_notification_seek_by_favorites_disabled"
+				android:icon="@drawable/ic_seek_arrows"/>
 	</PreferenceCategory>
 	<PreferenceCategory
 			android:key="recording"

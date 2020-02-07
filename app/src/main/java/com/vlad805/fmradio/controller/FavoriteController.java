@@ -2,7 +2,6 @@ package com.vlad805.fmradio.controller;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
@@ -32,7 +31,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 
 	private static final String JSON_EXT = ".json";
 
-	public FavoriteController(Context context) {
+	public FavoriteController(final Context context) {
 		this.mStorage = Storage.getInstance(context);
 	}
 
@@ -41,8 +40,8 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @return Names of lists
 	 */
 	public List<String> getFavoriteLists() {
-		File dir = new File(getBaseApplicationDirectory());
-		String[] files = dir.list();
+		final File dir = new File(getBaseApplicationDirectory());
+		final String[] files = dir.list();
 
 		for (int i = 0; i < files.length; ++i) {
 			files[i] = files[i].replace(JSON_EXT, "");
@@ -63,10 +62,10 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * Change current favorite list by name
 	 * @param name Name of favorite list
 	 */
-	public void setCurrentFavoriteList(String name) throws FileNotFoundException {
-		// app                     stat     name]  .json
+	public void setCurrentFavoriteList(final String name) throws FileNotFoundException {
+		// app                     stat     name   .json
 		// /storage/emulated/0/RFM/stations/default.json
-		File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
+		final File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
 		if (!file.exists()) {
 			throw new FileNotFoundException("setCurrentFavoriteList: not found list with name '" + name + "'; full path = " + file.getAbsolutePath());
 		}
@@ -92,7 +91,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @param name Name of list
 	 * @return True if invalid
 	 */
-	public boolean isInvalidName(String name) {
+	public boolean isInvalidName(final String name) {
 		return !name.matches("[A-Za-z0-9_-]+");
 	}
 
@@ -101,7 +100,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @param name Name of list
 	 * @return True, if already exists
 	 */
-	public boolean isAlreadyExists(String name) {
+	public boolean isAlreadyExists(final String name) {
 		return new File(getDirectory(), name + JSON_EXT).exists();
 	}
 
@@ -111,7 +110,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @return True, if created successfully
 	 * @throws Error if name is invalid or list with same name already exists
 	 */
-	public boolean addList(String name) {
+	public boolean addList(final String name) {
 		if (isInvalidName(name)) {
 			throw new Error("Invalid name");
 		}
@@ -120,9 +119,9 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new Error("List with this name already exists");
 		}
 
-		File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
+		final File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
 
-		try (FileOutputStream stream = new FileOutputStream(file)) {
+		try (final FileOutputStream stream = new FileOutputStream(file)) {
 			stream.write("{\"items\":[]}".getBytes());
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -136,13 +135,12 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @param name Name of list to remove
 	 * @return True, if successfully
 	 */
-	public boolean removeList(String name) {
+	public boolean removeList(final String name) {
 		if (name.equals(DEFAULT_NAME)) {
 			return false;
 		}
 
-		String path = getFullPath();
-		Log.d("remove", "removeList: " + path);
+		final String path = getFullPath();
 		if (getCurrentFavoriteList().equals(name)) {
 			try {
 				setCurrentFavoriteList(DEFAULT_NAME);
@@ -194,10 +192,10 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	@Override
 	public FavoriteFile read() {
 		try {
-			String str = readFile();
-			JSONObject obj = new JSONObject(str);
-			JSONArray items = obj.getJSONArray(KEY_JSON_ITEMS);
-			List<FavoriteStation> fs = new ArrayList<>();
+			final String str = readFile();
+			final JSONObject obj = new JSONObject(str);
+			final JSONArray items = obj.getJSONArray(KEY_JSON_ITEMS);
+			final List<FavoriteStation> fs = new ArrayList<>();
 
 			for (int i = 0; i < items.length(); ++i) {
 				fs.add(new FavoriteStation(items.optJSONObject(i)));
@@ -214,15 +212,15 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @param data Fresh favorite list
 	 */
 	@Override
-	public void write(FavoriteFile data) {
+	public void write(final FavoriteFile data) {
 		try {
-			List<JSONObject> list = new ArrayList<>();
+			final List<JSONObject> list = new ArrayList<>();
 
-			for (FavoriteStation station : mList) {
+			for (final FavoriteStation station : mList) {
 				list.add(station.toJson());
 			}
 
-			String str = new JSONObject().put(KEY_JSON_ITEMS, new JSONArray(list)).toString();
+			final String str = new JSONObject().put(KEY_JSON_ITEMS, new JSONArray(list)).toString();
 
 			writeFile(str);
 		} catch (JSONException e) {

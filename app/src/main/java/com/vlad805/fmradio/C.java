@@ -47,6 +47,7 @@ final public class C {
 		public static final String ENABLE = "enable";
 		public static final String DISABLE = "disable";
 		public static final String HW_SEEK = "hw_seek";
+		public static final String NOTIFICATION_SEEK = "notification_seek";
 		public static final String SET_FREQUENCY = "set_frequency";
 		public static final String JUMP = "jump";
 		public static final String SEARCH = "search";
@@ -80,6 +81,7 @@ final public class C {
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
+		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String RDS_ENABLE = "rds_enable";
 		public static final String RECORDING_DIRECTORY = "recording_directory";
@@ -90,6 +92,7 @@ final public class C {
 	public static final class PrefDefaultValue {
 		public static final int LAST_FREQUENCY = 87500;
 		public static final boolean NOTIFICATION_SHOW_RDS = true;
+		public static final boolean NOTIFICATION_SEEK_BY_FAVORITES = false;
 		public static final boolean APP_AUTO_STARTUP = false;
 		public static final boolean RDS_ENABLE = true;
 

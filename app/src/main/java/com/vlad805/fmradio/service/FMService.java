@@ -167,6 +167,19 @@ public class FMService extends Service implements FMEventCallback {
 				break;
 			}
 
+			case C.Command.NOTIFICATION_SEEK: {
+				final int direction = intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1);
+				final boolean byFavorite = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SEEK_BY_FAVORITES, C.PrefDefaultValue.NOTIFICATION_SEEK_BY_FAVORITES);
+
+				if (!byFavorite) {
+					startService(intent.setAction(C.Command.HW_SEEK));
+					return START_STICKY;
+				}
+
+				navigateThroughFavorite(direction);
+				break;
+			}
+
 			/*case C.FM_GET_STATUS:
 				mFM.getRssi(mOnRssiReceived);
 				break;
@@ -269,6 +282,33 @@ public class FMService extends Service implements FMEventCallback {
 		sendBroadcast(new Intent(event).putExtras(bundle));
 	}
 
+	private void navigateThroughFavorite(final int direction) {
+		final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
+		final int currentFrequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+		int currentPosition = -1;
+
+		for (int i = 0; i < stations.size(); i++) {
+			FavoriteStation station = stations.get(i);
+			if (station.getFrequency() == currentFrequency) {
+				currentPosition = i;
+				break;
+			}
+		}
+
+		if (currentPosition < 0) {
+			// If 0 - nowhere to iterate
+			// If 1 - will always be the same
+			if (stations.size() < 2) {
+				return;
+			}
+			currentPosition = direction > 0 ? -1 : stations.size();
+		}
+
+		currentPosition += direction > 0 ? 1 : -1;
+
+		mFmController.setFrequency(stations.get(currentPosition).getFrequency());
+	}
+
 	/**
 	 * Event listener
 	 */
@@ -293,7 +333,7 @@ public class FMService extends Service implements FMEventCallback {
 
 				case C.Event.ENABLED: {
 					mAudioService.startAudio();
-					int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+					final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 					mRadioController.setFrequency(frequency);
 					updateNotification();
 					break;
@@ -398,7 +438,7 @@ public class FMService extends Service implements FMEventCallback {
 				this,
 				3,
 				new Intent(this, FMService.class)
-						.setAction(C.Command.HW_SEEK)
+						.setAction(C.Command.NOTIFICATION_SEEK)
 						.putExtra(C.Key.SEEK_HW_DIRECTION, -1),
 				0
 		);
@@ -407,7 +447,7 @@ public class FMService extends Service implements FMEventCallback {
 				this,
 				4,
 				new Intent(this, FMService.class)
-						.setAction(C.Command.HW_SEEK)
+						.setAction(C.Command.NOTIFICATION_SEEK)
 						.putExtra(C.Key.SEEK_HW_DIRECTION, 1),
 				0
 		);

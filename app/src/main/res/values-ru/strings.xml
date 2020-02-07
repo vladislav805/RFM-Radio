@@ -98,4 +98,7 @@
 	<string name="pref_version_check_need_update_content">Последняя версия: v%1$s (%2$d)\nУстановленная врсия: %3$s (v%4$d)\n\nИзменения:\n%5$s\n\nОткрыть страницу релиза, чтобы скачать установщик?</string>
 	<string name="pref_version_check_need_update_ok">Обновить</string>
 	<string name="pref_version_check_fresh_ok">Хорошо</string>
+	<string name="pref_notification_seek_by_favorites">Навигироаться по избранному</string>
+	<string name="pref_notification_seek_by_favorites_enabled">Используя стрелки в уведомлении перемещаться на предыдущую/следующую избранную радиостанцию</string>
+	<string name="pref_notification_seek_by_favorites_disabled">Используя стрелки в уведомлении искать быстрым поиском предыдущую/следующую радиостанцию</string>
 </resources>
