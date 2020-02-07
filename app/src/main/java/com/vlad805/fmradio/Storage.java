@@ -18,9 +18,13 @@ public final class Storage {
 		return mShared;
 	}
 
+	public static void reloadPrefs(final Context ctx) {
+		mPrefs = PreferenceManager.getDefaultSharedPreferences(ctx);
+	}
+
 	private static SharedPreferences getPrefs(final Context ctx) {
 		if (mPrefs == null) {
-			mPrefs = PreferenceManager.getDefaultSharedPreferences(ctx);
+			reloadPrefs(ctx);
 		}
 
 		return mPrefs;

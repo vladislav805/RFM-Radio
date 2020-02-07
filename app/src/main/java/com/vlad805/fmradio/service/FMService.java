@@ -34,7 +34,7 @@ import java.util.*;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "unused"})
 public class FMService extends Service implements FMEventCallback {
 	private static final String TAG = "FMS";
 	public static final int NOTIFICATION_ID = 1027;
@@ -63,11 +63,11 @@ public class FMService extends Service implements FMEventCallback {
 		mFavoriteController = new FavoriteController(this);
 		mNotificationManager = NotificationManagerCompat.from(this);
 
-		mStatusReceiver = new PlayerReceiver();
-		mStorage = Storage.getInstance(this);
-
 		mAudioService = getPreferredAudioService();
 		mFmController = getPreferredTunerDriver();
+
+		mStatusReceiver = new PlayerReceiver();
+		mStorage = Storage.getInstance(this);
 
 		if (mFmController instanceof IFMEventListener) {
 			((IFMEventListener) mFmController).setEventListener(this);
@@ -79,7 +79,7 @@ public class FMService extends Service implements FMEventCallback {
 	}
 
 	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
+	public int onStartCommand(final Intent intent, final int flags, final int startId) {
 		if (intent == null || intent.getAction() == null) {
 			return START_STICKY;
 		}
@@ -265,7 +265,7 @@ public class FMService extends Service implements FMEventCallback {
 	 * @param bundle Arguments
 	 */
 	@Override
-	public void onEvent(String event, Bundle bundle) {
+	public void onEvent(final String event, final Bundle bundle) {
 		sendBroadcast(new Intent(event).putExtras(bundle));
 	}
 
