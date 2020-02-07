@@ -1,187 +1,226 @@
 package com.vlad805.fmradio.service;
 
 import android.app.Notification;
-import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
-import android.content.*;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import androidx.room.Room;
+import android.widget.Toast;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.db.AppDatabase;
-import com.vlad805.fmradio.db.FavoriteStation;
-import com.vlad805.fmradio.db.Station;
-import com.vlad805.fmradio.fm.Configuration;
-import com.vlad805.fmradio.fm.MuteState;
-import com.vlad805.fmradio.fm.OnResponseReceived;
-import com.vlad805.fmradio.fm.QualComm;
+import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.activity.MainActivity;
+import com.vlad805.fmradio.controller.FavoriteController;
+import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.models.FavoriteStation;
+import com.vlad805.fmradio.service.audio.FMAudioService;
+import com.vlad805.fmradio.service.audio.LightAudioService;
+import com.vlad805.fmradio.service.audio.Spirit3AudioService;
+import com.vlad805.fmradio.service.fm.*;
+import com.vlad805.fmradio.service.fm.impl.Empty;
+import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
+import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
 
-import java.util.List;
-import java.util.Locale;
+import java.io.File;
+import java.util.*;
 
-import static com.vlad805.fmradio.Utils.getStorage;
-import static com.vlad805.fmradio.Utils.parseInt;
+import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
-@SuppressWarnings("deprecation")
-public class FMService extends Service {
+@SuppressWarnings({"deprecation", "unused"})
+public class FMService extends Service implements FMEventCallback {
+	private static final String TAG = "FMS";
+	public static final int NOTIFICATION_ID = 1027;
+	public static final int NOTIFICATION_RECORD_ID = 1029;
+	private static final String CHANNEL_ID = "default_channel";
+	private static final String CHANNEL_RECORD_ID = "record_channel";
 
-	private FM mFM;
-
+	private NotificationCompat.Builder mNBuilder;
+	private NotificationManagerCompat mNotificationManager;
+	private RadioController mRadioController;
+	private FavoriteController mFavoriteController;
+	private Map<Integer, String> mFavoriteList;
+	private FMController mFmController;
 	private FMAudioService mAudioService;
-
-	private NotificationManager mNotificationMgr;
-
-	private OnResponseReceived<Integer> mOnRssiReceived = rssi -> {
-		Intent i = new Intent(C.Event.UPDATE_RSSI);
-		i.putExtra(C.Key.RSSI, rssi);
-		sendBroadcast(i);
-	};
-
-	private static Configuration mConfiguration;
-
 	private PlayerReceiver mStatusReceiver;
-
-	private AppDatabase mDatabase;
-
-	public class PlayerReceiver extends BroadcastReceiver {
-
-		@Override
-		public void onReceive(Context context, final Intent intent) {
-			if (intent == null || intent.getAction() == null) {
-				return;
-			}
-
-			switch (intent.getAction()) {
-				case C.Event.FREQUENCY_SET:
-					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					mConfiguration.setFrequency(frequency);
-					getStorage(FMService.this).edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
-					break;
-
-				case C.Event.UPDATE_PS:
-					mConfiguration.setPs(intent.getStringExtra(C.Key.PS));
-					break;
-
-				case C.Event.UPDATE_RT:
-					mConfiguration.setRt(intent.getStringExtra(C.Key.RT));
-					break;
-			}
-
-			showNotification();
-		}
-	}
+	private SharedPreferences mStorage;
+	private Timer mTimer;
+	private boolean mNeedRecreateNotification = true;
+	private boolean mRecordingNow = false;
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
 
-		mDatabase = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, C.DATABASE_NAME).enableMultiInstanceInvalidation().build();
+		mRadioController = new RadioController(this);
+		mFavoriteController = new FavoriteController(this);
+		mNotificationManager = NotificationManagerCompat.from(this);
+
+		mAudioService = getPreferredAudioService();
+		mFmController = getPreferredTunerDriver();
 
 		mStatusReceiver = new PlayerReceiver();
+		mStorage = Storage.getInstance(this);
 
-		mConfiguration = new Configuration();
+		if (mFmController instanceof IFMEventListener) {
+			((IFMEventListener) mFmController).setEventListener(this);
+		}
 
-		IntentFilter filter = new IntentFilter();
-		filter.addAction(C.Event.FREQUENCY_SET);
-		filter.addAction(C.Event.UPDATE_PS);
-		filter.addAction(C.Event.UPDATE_RT);
-		filter.addAction(C.Event.UPDATE_RSSI);
-		registerReceiver(mStatusReceiver, filter);
+		reloadFavorite();
+
+		registerReceiver(mStatusReceiver, RadioController.sFilter);
 	}
 
 	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
-
+	public int onStartCommand(final Intent intent, final int flags, final int startId) {
 		if (intent == null || intent.getAction() == null) {
 			return START_STICKY;
 		}
 
-		String tmp;
-
 		switch (intent.getAction()) {
-			case C.Command.INIT:
-				init();
+			case C.Command.SETUP: {
+				mFmController.prepareBinary();
 				break;
+			}
 
-			case C.Command.ENABLE:
-				init();
-				mAudioService.startAudio();
-				mFM.enable((Void) -> mFM.setFrequency(mConfiguration.getFrequency(), null));
+			case C.Command.LAUNCH: {
+				mFmController.launch();
 				break;
+			}
 
-			case C.Command.DISABLE:
-				mFM.disable(null);
+			case C.Command.ENABLE: {
+				mFmController.enable();
+				if (mFmController instanceof IFMEventPoller) {
+					mTimer = new Timer("Poll", true);
+					mTimer.schedule(new PollTunerHandler(), C.Config.Polling.DELAY, C.Config.Polling.INTERVAL);
+				}
+				break;
+			}
+
+			case C.Command.DISABLE: {
+				mFmController.disable();
 				stopSelf();
 				break;
+			}
 
-			case C.Command.SET_FREQUENCY:
+			case C.Command.SET_FREQUENCY: {
 				if (!intent.hasExtra(C.Key.FREQUENCY)) {
+					Log.e("FMS", "Command SET_FREQUENCY: not specified frequency");
 					break;
 				}
-				int frequency = parseInt(intent.getStringExtra(C.Key.FREQUENCY));
 
-				mFM.setFrequency(frequency, null);
+				if (mFmController == null) {
+					Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
+					break;
+				}
+
+				final int frequency = intent.getIntExtra(C.Key.FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+				mFmController.setFrequency(frequency);
 				break;
+			}
 
-			case C.FM_GET_STATUS:
+			case C.Command.JUMP: {
+				mFmController.jump(intent.getIntExtra(C.Key.JUMP_DIRECTION, 1));
+				break;
+			}
+
+			case C.Command.HW_SEEK: {
+				mFmController.hwSeek(intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1));
+				break;
+			}
+
+			case C.Command.RECORD_START: {
+				if (mFmController instanceof IFMRecordable && mAudioService instanceof IAudioRecordable) {
+					IFMRecordable drv = (IFMRecordable) mFmController;
+					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
+
+
+					drv.newRecord(driver -> {
+						try {
+							audioRecord.startRecord(driver);
+						} catch (RecordError e) {
+							Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+						}
+					});
+
+				} else {
+					Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+				}
+				break;
+			}
+
+			case C.Command.RECORD_STOP: {
+				if (mAudioService instanceof IAudioRecordable) {
+					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
+
+					audioRecord.stopRecord();
+				} else {
+					Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+				}
+				break;
+			}
+
+			case C.Command.NOTIFICATION_SEEK: {
+				final int direction = intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1);
+				final boolean byFavorite = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SEEK_BY_FAVORITES, C.PrefDefaultValue.NOTIFICATION_SEEK_BY_FAVORITES);
+
+				if (!byFavorite) {
+					startService(intent.setAction(C.Command.HW_SEEK));
+					return START_STICKY;
+				}
+
+				navigateThroughFavorite(direction);
+				break;
+			}
+
+			/*case C.FM_GET_STATUS:
 				mFM.getRssi(mOnRssiReceived);
 				break;
 
-			case C.Command.HW_SEEK:
-				tmp = intent.getStringExtra(C.Key.SEEK_HW_DIRECTION);
-
-				if (tmp == null) {
-					tmp = "-1";
-				}
-
-				int direction = parseInt(tmp);
-				mFM.hardwareSeek(direction, null);
-				break;
-
-			case C.Command.JUMP: {
-				tmp = intent.getStringExtra(C.Key.JUMP_DIRECTION);
-
-				if (tmp == null) {
-					tmp = "-1";
-				}
-
-				mFM.jump(parseInt(tmp), null);
-			break; }
-
-			case C.FM_SET_STEREO:
-				mFM.sendCommand("setstereo", data -> Log.i("SET_STEREO", data));
-				break;
-
 			case C.FM_SET_MUTE:
-				mFM.setMute(MuteState.valueOf(intent.getStringExtra(C.KEY_MUTE)), null);
+				mFM.setMute(MuteState.valueOf(intent.getStringExtra(C.Key.MUTE)), null);
 				break;
 
 			case C.Command.SEARCH:
 				mFM.search(null);
-				break;
+				break;*/
 
-			case C.Command.KILL:
-				kill();
+			case C.Command.KILL: {
+				stopService(new Intent(this, FMService.class));
+				sendBroadcast(new Intent(C.Event.KILLED));
+				break;
+			}
 		}
 
 		return START_STICKY;
 	}
 
+	/**
+	 * Stop FM
+	 */
 	private void kill() {
+		if (mFmController instanceof IFMEventPoller) {
+			if (mTimer != null) {
+				mTimer.cancel();
+			}
+		}
 		mAudioService.stopAudio();
 
-		if (mFM != null) {
-			mFM.kill(null);
-		}
-
-		mNotificationMgr.cancel(NOTIFICATION_ID);
-		stopForeground(true);
+		mFmController.kill();
 
 		if (mStatusReceiver != null) {
 			unregisterReceiver(mStatusReceiver);
 			mStatusReceiver = null;
 		}
+
+		stopForeground(true);
 	}
 
 	@Override
@@ -191,97 +230,419 @@ public class FMService extends Service {
 		super.onDestroy();
 	}
 
-	private void init() {
-		if (mAudioService == null) {
-			mAudioService = createAudioService();
-		}
-
-		if (mNotificationMgr == null) {
-			mNotificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		}
-
-		if (mFM == null) {
-			mFM = FM.getInstance();
-			mFM.setImpl(new QualComm());
-			mFM.setup(this, data -> onReadyIntent());
-		} else {
-			new Thread(this::onReadyIntent);
-		}
-	}
-
-	private void onReadyIntent() {
-		final SharedPreferences sp = getStorage(this);
-		Intent intent = new Intent(C.Event.READY);
-		int last = sp.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-		mConfiguration.setFrequency(last);
-
-		intent.putExtra(C.PrefKey.LAST_FREQUENCY, last);
-		intent.putExtra(C.PrefKey.AUTOPLAY, sp.getBoolean(C.PrefKey.AUTOPLAY, C.PrefDefaultValue.AUTOPLAY));
-		intent.putExtra(C.PrefKey.RDS_ENABLE, sp.getBoolean(C.PrefKey.RDS_ENABLE, C.PrefDefaultValue.RDS_ENABLE));
-
-		intent.putExtra(C.Key.STATION_LIST, getStationList().toArray(new Station[0]));
-		intent.putExtra(C.Key.FAVORITE_STATION_LIST, getFavoriteStationList().toArray(new FavoriteStation[0]));
-
-		sendBroadcast(intent);
-	}
-
-	private List<Station> getStationList() {
-		return mDatabase.stationDao().getAll();
-	}
-
-	private List<FavoriteStation> getFavoriteStationList() {
-		return mDatabase.favoriteStationDao().getAll();
-	}
-
-	private FMAudioService createAudioService() {
-		final int id = getStorage(this).getInt(C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
+	/**
+	 * Returns preferred by user audio service (from settings)
+	 * @return FMAudioService instance
+	 */
+	private FMAudioService getPreferredAudioService() {
+		final int id = Storage.getPrefInt(this, C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
-			case FMAudioService.SERVICE_LIGHT:
+			case FMAudioService.SERVICE_LIGHT: {
 				return new LightAudioService(this);
+			}
 
-			case FMAudioService.SERVICE_LEGACY:
-			default:
-				return new LegacyAudioService(this);
+			case FMAudioService.SERVICE_SPIRIT3:
+			default: {
+				return new Spirit3AudioService(this);
+			}
 		}
 	}
 
+	/**
+	 * Returns preferred by user tuner driver (from settings)
+	 * @return Tuner driver
+	 */
+	private FMController getPreferredTunerDriver() {
+		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
 
-	private Notification.Builder mNotification;
-	private static final int NOTIFICATION_ID = 1027;
+		switch (id) {
+			case FMController.DRIVER_QUALCOMM: {
+				return new QualCommLegacy(new QualCommLegacy.Config(), this);
+			}
 
-	private Notification.Builder createNotificationBuilder() {
-		return new Notification.Builder(this)
-				.setColor(getResources().getColor(R.color.primary_blue))
-				.setAutoCancel(false)
+			case FMController.DRIVER_EMPTY: {
+				return new Empty(new Empty.Config(), this);
+			}
+
+			case FMController.DRIVER_SPIRIT3:
+			default: {
+				return new Spirit3Impl(new Spirit3Impl.Config(), this);
+			}
+		}
+	}
+
+	/**
+	 * Calls by FM implementation which extends IFMEventListener
+	 * @param event Action
+	 * @param bundle Arguments
+	 */
+	@Override
+	public void onEvent(final String event, final Bundle bundle) {
+		sendBroadcast(new Intent(event).putExtras(bundle));
+	}
+
+	private void navigateThroughFavorite(final int direction) {
+		final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
+		final int currentFrequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+		int currentPosition = -1;
+
+		for (int i = 0; i < stations.size(); i++) {
+			FavoriteStation station = stations.get(i);
+			if (station.getFrequency() == currentFrequency) {
+				currentPosition = i;
+				break;
+			}
+		}
+
+		if (currentPosition < 0) {
+			// If 0 - nowhere to iterate
+			// If 1 - will always be the same
+			if (stations.size() < 2) {
+				return;
+			}
+			currentPosition = direction > 0 ? -1 : stations.size();
+		}
+
+		currentPosition += direction > 0 ? 1 : -1;
+
+		mFmController.setFrequency(stations.get(currentPosition).getFrequency());
+	}
+
+	/**
+	 * Event listener
+	 */
+	public class PlayerReceiver extends BroadcastReceiver {
+
+		@Override
+		public void onReceive(final Context context, final Intent intent) {
+			if (intent == null || intent.getAction() == null) {
+				return;
+			}
+
+			switch (intent.getAction()) {
+				case C.Event.INSTALLED: {
+					mRadioController.launch();
+					break;
+				}
+
+				case C.Event.LAUNCHED: {
+					mRadioController.enable();
+					break;
+				}
+
+				case C.Event.ENABLED: {
+					mAudioService.startAudio();
+					final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+					mRadioController.setFrequency(frequency);
+					updateNotification();
+					break;
+				}
+
+				case C.Event.DISABLED: {
+					mAudioService.stopAudio();
+					break;
+				}
+
+				case C.Event.FREQUENCY_SET: {
+					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
+					mStorage.edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_PS: {
+					mRadioController.getState().putString(C.Key.PS, intent.getStringExtra(C.Key.PS));
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_RT: {
+					mRadioController.getState().putString(C.Key.RT, intent.getStringExtra(C.Key.RT));
+					updateNotification();
+					break;
+				}
+
+				case C.Event.UPDATE_RSSI: {
+					mRadioController.getState().putInt(C.Key.RSSI, intent.getIntExtra(C.Key.RSSI, 0));
+					break;
+				}
+
+				case C.Event.FAVORITE_LIST_CHANGED: {
+					reloadFavorite();
+					break;
+				}
+
+				case C.Event.RECORD_STARTED: {
+					mRecordingNow = true;
+					mNeedRecreateNotification = true;
+					break;
+				}
+
+				case C.Event.RECORD_TIME_UPDATE: {
+					updateRecordingNotification(
+							intent.getIntExtra(C.Key.DURATION, 0),
+							intent.getIntExtra(C.Key.SIZE, 0)
+					);
+					break;
+				}
+
+				case C.Event.RECORD_ENDED: {
+					mRecordingNow = false;
+					mNeedRecreateNotification = true;
+					mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
+					if (intent.getExtras() != null) {
+						showRecorded(intent.getExtras());
+					}
+					break;
+				}
+			}
+
+			mRadioController.onEvent(intent);
+		}
+	}
+
+	/**
+	 * Create notification
+	 * @return Notification builder
+	 */
+	private NotificationCompat.Builder createNotificationBuilder() {
+		final Intent mainIntent = new Intent(this, MainActivity.class)
+				.setAction(Intent.ACTION_MAIN)
+				.addCategory(Intent.CATEGORY_LAUNCHER);
+
+		final PendingIntent pendingMain = PendingIntent.getActivity(
+				this,
+				0,
+				mainIntent,
+				FLAG_UPDATE_CURRENT
+		);
+
+		final PendingIntent pendingStop = PendingIntent.getService(
+				this,
+				1,
+				new Intent(this, FMService.class).setAction(C.Command.DISABLE),
+				0
+		);
+
+		final PendingIntent pendingRec = PendingIntent.getService(
+				this,
+				2,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.RECORD_START),
+				0
+		);
+
+
+		final PendingIntent pendingSeekDown = PendingIntent.getService(
+				this,
+				3,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.NOTIFICATION_SEEK)
+						.putExtra(C.Key.SEEK_HW_DIRECTION, -1),
+				0
+		);
+
+		final PendingIntent pendingSeekUp = PendingIntent.getService(
+				this,
+				4,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.NOTIFICATION_SEEK)
+						.putExtra(C.Key.SEEK_HW_DIRECTION, 1),
+				0
+		);
+
+		//.setMediaSession(mediaSession.getSessionToken()))
+
+		androidx.media.app.NotificationCompat.MediaStyle ms = new androidx.media.app.NotificationCompat.MediaStyle();
+		NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_ID)
 				.setSmallIcon(R.drawable.ic_radio)
-				.setOnlyAlertOnce(true)
-				//.setContentIntent(pendingMain)
-				.setPriority(Notification.PRIORITY_HIGH)
+				.setContentIntent(pendingMain)
+				.setContentTitle(getString(R.string.app_name))
+				.setContentText(getString(R.string.progress_starting))
+				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+				.setShowWhen(false)
+				.setAutoCancel(false)
 				.setOngoing(true)
-				.setShowWhen(false);
-	}
+				.setColor(getResources().getColor(R.color.primary_blue))
+				.addAction(R.drawable.ic_go_down, getString(R.string.seek_down), pendingSeekDown) // #0
+				.addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop); // #1
 
-	private void showNotification() {
-		if (mNotification == null) {
-			mNotification = createNotificationBuilder();
+		if (!mRecordingNow) {
+			n.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec); // #2
+			ms.setShowActionsInCompactView(1, 2);
+		} else {
+			ms.setShowActionsInCompactView(1);
 		}
 
-		mNotification
-				.setContentTitle(getString(R.string.app_name))
-				.setContentText(mConfiguration.getPs() == null || mConfiguration.getPs().length() == 0 ? "< no rds >" : mConfiguration.getPs())
-				.setSubText(String.format(Locale.ENGLISH, "%.1f MHz", mConfiguration.getFrequency() / 1000d))
-				;
+		n.addAction(R.drawable.ic_go_up, getString(R.string.seek_up), pendingSeekUp) // #3 or #2
+				.setStyle(ms);
 
-		Notification ntf = mNotification.build();
-		//startForeground(NOTIFICATION_ID, ntf);
-		mNotificationMgr.notify(NOTIFICATION_ID, ntf);
+		return n;
 	}
+
+	public Notification updateNotification(final Bundle state) {
+		if (mNBuilder == null || mNeedRecreateNotification) {
+			mNBuilder = createNotificationBuilder();
+			mNeedRecreateNotification = false;
+		}
+
+		final int frequency = state.getInt(C.Key.FREQUENCY);
+		final int rssi = state.getInt(C.Key.RSSI);
+
+		/*
+		 * Subtitle
+		 */
+		mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d, rssi));
+
+		final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
+
+		/*
+		 * Title
+		 */
+		String title = getString(R.string.app_name);
+		final String stationTitle = mFavoriteList.get(frequency);
+		final String rdsPs = state.getString(C.Key.PS);
+
+		if (isNeedShowRds && rdsPs != null && !rdsPs.isEmpty()) {
+			title = rdsPs.trim();
+		} else if (stationTitle != null) {
+			title = stationTitle;
+		}
+
+		mNBuilder.setContentTitle(title);
+
+		/*
+		 * Text
+		 */
+		String text = "";
+		final String rdsRt = state.getString(C.Key.RT);
+
+		if (isNeedShowRds && rdsRt != null && !rdsRt.isEmpty()) {
+			text = rdsRt;
+		}
+
+		mNBuilder.setContentText(text);
+
+		return mNBuilder.build();
+	}
+
+	/**
+	 * Update notification
+	 */
+	private void updateNotification() {
+		final Notification notification = updateNotification(mRadioController.getState());
+
+		startForeground(NOTIFICATION_ID, notification);
+	}
+
+	private void updateRecordingNotification(final int duration, final int size) {
+		final PendingIntent pendingRecordStop = PendingIntent.getService(
+				this,
+				5,
+				new Intent(this, FMService.class)
+						.setAction(C.Command.RECORD_STOP),
+				0
+		);
+		NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
+				.setSmallIcon(R.drawable.ic_record_on)
+				.setContentTitle(getString(R.string.app_name))
+				.setContentText(getString(R.string.notification_recording, getTimeStringBySeconds(duration), size / 1024f / 1024f))
+				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+				.setShowWhen(false)
+				.setAutoCancel(false)
+				.setOngoing(true)
+				.setColor(getResources().getColor(R.color.record_active))
+				.addAction(R.drawable.ic_record_off, getString(R.string.seek_down), pendingRecordStop)
+				.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0));
+
+		mNotificationManager.notify(NOTIFICATION_RECORD_ID, n.build());
+	}
+
+	private void showRecorded(final Bundle extras) {
+		final boolean needNotification = Storage.getPrefBoolean(this, C.PrefKey.RECORDING_SHOW_NOTIFY, C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
+
+		final int size = extras.getInt(C.Key.SIZE);
+		final int duration = extras.getInt(C.Key.DURATION);
+		final String path = extras.getString(C.Key.PATH);
+		final String file = new File(path).getName();
+
+		if (needNotification) {
+			final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
+					.setSmallIcon(R.drawable.ic_radio)
+					.setContentTitle(getString(R.string.app_name))
+					.setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, file))
+					.setPriority(NotificationCompat.PRIORITY_LOW)
+					.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+
+			mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
+		}
+
+		Toast.makeText(this, getString(
+				R.string.toast_record_ended,
+				file,
+				size / 1024f / 1024f,
+				getTimeStringBySeconds(duration)
+		), Toast.LENGTH_LONG).show();
+	}
+
 
 
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
+	}
+
+	/**
+	 * Polling rssi, current frequency, ps and rt
+	 */
+	private class PollTunerHandler extends TimerTask {
+		private Bundle last;
+
+		public void run() {
+			if (mFmController instanceof IFMEventPoller) {
+				((IFMEventPoller) mFmController).poll(this::get);
+			}
+		}
+
+		private void get(final Bundle bundle) {
+			if (last == null) {
+				last = bundle;
+				return;
+			}
+
+			sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
+			sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
+			sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
+
+			last = bundle;
+		}
+
+		private void sendIntEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
+			if (last.containsKey(key) && now.containsKey(key) && last.getInt(key) != now.getInt(key)) {
+				sendBroadcast(new Intent(action).putExtra(key, now.getInt(key)));
+			}
+		}
+
+		private void sendStringEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
+			if (
+					last.containsKey(key) && now.containsKey(key) &&
+					!Objects.equals(last.getString(key), now.get(key))
+			) {
+				sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
+			}
+		}
+	}
+
+	private void reloadFavorite() {
+		mFavoriteController.reload();
+		mFavoriteList = new HashMap<>();
+		final List<FavoriteStation> list = mFavoriteController.getStationsInCurrentList();
+		for (FavoriteStation station : list) {
+			mFavoriteList.put(station.getFrequency(), station.getTitle());
+		}
 	}
 
 }

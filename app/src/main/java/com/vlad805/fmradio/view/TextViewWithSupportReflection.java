@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.view;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.*;
 import android.util.AttributeSet;
@@ -8,8 +9,8 @@ import android.widget.TextView;
 /**
  * vlad805 (c) 2019
  */
+@SuppressLint("AppCompatCustomView")
 public class TextViewWithSupportReflection extends TextView {
-
 	private Shader mTextGradient;
 
 	public TextViewWithSupportReflection(Context context, AttributeSet attrs) {

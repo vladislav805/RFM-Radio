@@ -1,23 +1,21 @@
 package com.vlad805.fmradio.view;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.SparseArray;
 import android.widget.SeekBar;
-import com.vlad805.fmradio.db.IStation;
 
-import java.util.List;
 import java.util.Locale;
 
 /**
  * vlad805 (c) 2018
- * Кастомный SeekBar, отрисовываемый вручную для полосы частот
+ * Custom SeekBar
  */
+@SuppressLint("AppCompatCustomView")
 public class FrequencySeekView extends SeekBar {
-
 	private Paint mTrait;
 	private Paint mFrequency0;
 	private Paint mFrequency5;
@@ -28,22 +26,22 @@ public class FrequencySeekView extends SeekBar {
 	private int mValueMax = 100;
 	private int mStep = 10;
 
-	public FrequencySeekView(Context context) {
+	public FrequencySeekView(final Context context) {
 		super(context);
 		init();
 	}
 
-	public FrequencySeekView(Context context, AttributeSet attrs) {
+	public FrequencySeekView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 		init();
 	}
 
 	private void init() {
-		float dpi = getResources().getDisplayMetrics().density;
+		final float dpi = getResources().getDisplayMetrics().density;
 
 		mTrait = new Paint();
 		mTrait.setColor(Color.GRAY);
-		mTrait.setStrokeWidth(dpi * 1f);
+		mTrait.setStrokeWidth(dpi);
 		mTrait.setStyle(Paint.Style.STROKE);
 
 		mFrequency0 = new Paint();
@@ -66,65 +64,65 @@ public class FrequencySeekView extends SeekBar {
 
 		mStationLine = new Paint();
 		mStationLine.setColor(Color.YELLOW);
-		mStationLine.setStrokeWidth(dpi * 1f);
+		mStationLine.setStrokeWidth(dpi);
 		mStationLine.setStyle(Paint.Style.STROKE);
 
 		invalidate();
 	}
 
-	private void setMaxValue(int maxValue) {
+	private void setMaxValue(final int maxValue) {
 		mValueMax = maxValue;
 	}
 
-	private void setMinValue(int minValue) {
+	private void setMinValue(final int minValue) {
 		mValueMin = minValue;
 	}
 
-	public void setStep(int step) {
+	public void setStep(final int step) {
 		mStep = step;
 	}
 
 	/**
-	 * Изменение границ
-	 * @param minValue Lower-частота в kHz
-	 * @param maxValue Higher-частота в kHz
-	 * @param step Шаг в kHz
+	 * Change edges
+	 * @param minValue Lower frequency in kHz
+	 * @param maxValue Higher frequency in kHz
+	 * @param step Step in kHz
 	 */
-	public void setMinMaxValue(int minValue, int maxValue, int step) {
+	public void setMinMaxValue(final int minValue, final int maxValue, final int step) {
 		setMinValue(minValue);
 		setMaxValue(maxValue);
 		setStep(step);
 		setMax((mValueMax - mValueMin) / mStep);
 	}
 
-	private int sp2px(float spValue) {
+	private int sp2px(final float spValue) {
 		final float fontScale = getResources().getDisplayMetrics().scaledDensity;
 		return (int) (spValue * fontScale + 0.5f);
 	}
 
 	/**
-	 * Получение текущей частоты
-	 * @param progress Значение по seek-bar
-	 * @return Частота в kHz
+	 * Returns current frequency
+	 * @param progress Value by SeekBar
+	 * @return Frequency in kHz
 	 */
-	public int fixProgress(int progress) {
+	public int fixProgress(final int progress) {
 		return progress * mStep + mValueMin;
 	}
 
 	/**
-	 * Изменение текущей частоты
-	 * @param kHz Частота в kHz
+	 * Change current frequency
+	 * @param kHz Frequency in kHz
 	 */
 	@Override
-	public synchronized void setProgress(int kHz) {
+	public synchronized void setProgress(final int kHz) {
 		if (mStep != 0) {
 			super.setProgress((kHz - mValueMin) / mStep);
 		}
 	}
 
 	/**
-	 * Получение текущей частоты в kHz
-	 * @return Частота в kHz
+	 * Returns current frequency in kHz
+	 * @return Frequency in kHz
 	 */
 	@Override
 	public synchronized int getProgress() {
@@ -132,7 +130,7 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	@Override
-	protected void onDraw(Canvas canvas) {
+	protected void onDraw(final Canvas canvas) {
 		final int paddingTop = 0;
 
 		// Width of view
@@ -172,20 +170,21 @@ public class FrequencySeekView extends SeekBar {
 			final float x = deltaX + viewInterval * i;
 
 			// The presence of the current frequency in the list of stations
-			final boolean hasStation = mStations != null && mStations.get(kHz) != null;
+			final boolean hasStation = false; // mStations != null && mStations.contains(kHz);
 
 			// Choose color for dash in depend of presence of the current frequency in the list of stations
-			Paint colorTrait = hasStation ? mStationLine : mTrait;
+			@SuppressWarnings("ConstantConditions")
+			final Paint colorTrait = hasStation ? mStationLine : mTrait;
+
+			final boolean isRoundMHz = kHz % 1000 == 0;
+
+			// Label
+			final String MHz = String.format(Locale.ENGLISH, isRoundMHz ? "%.0f" : "%.1f", kHz / 1000f);
 
 			// If .0 MHz or .5 MHz
 			if (kHz % 500 == 0) {
-				// Label
-				String MHz = String.format(Locale.ENGLISH, "%5.1f", kHz / 1000f);
-
 				// Draw long dash
 				canvas.drawLine(x, paddingTop, x, baseYLong, colorTrait);
-
-				boolean isRoundMHz = kHz % 1000 == 0;
 
 				canvas.drawText(MHz, x,
 					isRoundMHz ? baseYText0 : baseYText5,
@@ -204,23 +203,20 @@ public class FrequencySeekView extends SeekBar {
 
 		super.onDraw(canvas);
 	}
+/*
+	/**
+	 * List of stations, that will be draw
+	 * /
+	private Set<Integer> mStations;
+
 
 	/**
-	 * Список станций, найденных автоматическим поиском, для отрисовки желтых линий
-	 */
-	private SparseArray<IStation> mStations;
-
-	/**
-	 * Обновление списка станций (автоматический поиск) для рисования желтых линий
-	 * @param stations Список станций
-	 */
-	public void notifyStationList(List<IStation> stations) {
-		mStations = new SparseArray<>();
-
-		for (IStation station : stations) {
-			mStations.put(station.getFrequency(), station);
-		}
-
+	 * Update list of stations for draw lines on seek bar
+	 * @param stations List of frequencies
+	 * /
+	public void notifyStationList(List<Integer> stations) {
+		mStations = new HashSet<>(stations);
 		invalidate();
 	}
+ */
 }
