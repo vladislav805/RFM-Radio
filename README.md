@@ -1,6 +1,12 @@
 # Real FM Radio
 Real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4xx and 6xx processors (up to 625 and 650).
 
+## Licence warning
+GPL-3.0 licence is used only for the Android application code and the native server, except the native platform specific routines to program the V4L2 driver for FM. The following files are proprietary code and are the property of Qualcomm Technologies, Inc., these files were found in [repo](https://github.com/msm-proprietary/vendor_qcom_proprietary-msm8953/tree/6cafff53eca7f0c28fa9c470b5211423cf47fd40/fm/fmtest):
+* [/native/qualcomm625/fmcommon.h](https://github.com/vladislav805/RFM-Radio/blob/dev/native/qualcomm625/fmcommon.h)
+* [/native/qualcomm625/fmhalapis.h](https://github.com/vladislav805/RFM-Radio/blob/dev/native/qualcomm625/fmhalapis.h)
+* [/native/qualcomm625/fmhalcmds.c](https://github.com/vladislav805/RFM-Radio/blob/dev/native/qualcomm625/fmhalcmds.c)
+
 ## Requirements
 * To use you need **root** in Android (more emphasis placed on AOSP).
 * Android 5.1+ (SDK 22+).
