@@ -6,7 +6,7 @@ import android.os.Bundle;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.FMRecordService;
+import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.fm.*;
 import com.vlad805.fmradio.service.fm.communications.Poll;
 import com.vlad805.fmradio.service.fm.communications.Request;
@@ -152,12 +152,12 @@ public class Spirit3Impl extends FMController implements IFMEventPoller, IFMReco
 
 	@Override
 	public void newRecord(final Callback<IFMRecorder> callback) {
-		sendCommand(cmdTunerFreq.onResponse(freq -> callback.onResult(new FMRecordService(context, Utils.parseInt(freq)))));
+		sendCommand(cmdTunerFreq.onResponse(freq -> callback.onResult(new RecordRawService(context, Utils.parseInt(freq)))));
 	}
 
-	private static Request cmdTunerFreq = new Request("g tuner_freq");
-	private static Request cmdTunerRssi = new Request("g tuner_rssi");
-	private static Request cmdRdsPs = new Request("g rds_ps");
+	private static final Request cmdTunerFreq = new Request("g tuner_freq");
+	private static final Request cmdTunerRssi = new Request("g tuner_rssi");
+	private static final Request cmdRdsPs = new Request("g rds_ps");
 
 	@Override
 	public void poll(final Callback<Bundle> callback) {

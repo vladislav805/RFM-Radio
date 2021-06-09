@@ -16,7 +16,6 @@
 			android:roundIcon="@mipmap/ic_launcher_round"
 			android:label="@string/app_name"
 			android:launchMode="singleInstance"
-			android:supportsRtl="false"
 			android:theme="@style/AppCompatTheme"
 			tools:ignore="GoogleAppIndexingWarning">
 		<activity
@@ -37,7 +36,7 @@
 				android:name=".activity.AboutActivity"/>
 
 		<service
-				android:name=".service.FMService"
+				android:name=".service.recording.FMService"
 				android:enabled="true"
 				android:exported="true"
 				android:label="RFM Main Service"

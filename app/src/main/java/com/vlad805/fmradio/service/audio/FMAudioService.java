@@ -90,5 +90,4 @@ public abstract class FMAudioService {
 			mAudioManager.abandonAudioFocus(null);
 		}
 	}
-
 }

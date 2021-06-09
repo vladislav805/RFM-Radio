@@ -6,7 +6,7 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.FMRecordService;
+import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.fm.*;
 import com.vlad805.fmradio.service.fm.communications.Poll;
 import com.vlad805.fmradio.service.fm.communications.Request;
@@ -173,7 +173,7 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 
 	@Override
 	public void newRecord(final Callback<IFMRecorder> callback) {
-		callback.onResult(new FMRecordService(context, frequency));
+		callback.onResult(new RecordLameService(context, frequency));
 	}
 
 	/**

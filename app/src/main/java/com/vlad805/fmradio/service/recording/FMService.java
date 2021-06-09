@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service;
+package com.vlad805.fmradio.service.recording;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -138,18 +138,20 @@ public class FMService extends Service implements FMEventCallback {
 
 			case C.Command.RECORD_START: {
 				if (mFmController instanceof IFMRecordable && mAudioService instanceof IAudioRecordable) {
-					IFMRecordable drv = (IFMRecordable) mFmController;
 					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
 
+					int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_MODE, C.PrefDefaultValue.RECORDING_MODE);
+					int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
 
-					drv.newRecord(driver -> {
-						try {
-							audioRecord.startRecord(driver);
-						} catch (RecordError e) {
-							Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-						}
-					});
+					RecordService recordingService = mode == 0
+							? new RecordRawService(this, kHz)
+							: new RecordLameService(this, kHz);
 
+					try {
+						audioRecord.startRecord(recordingService);
+					} catch (RecordError e) {
+						Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+					}
 				} else {
 					Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
 				}

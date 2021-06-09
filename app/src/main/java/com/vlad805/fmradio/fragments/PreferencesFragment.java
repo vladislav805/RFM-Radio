@@ -33,7 +33,8 @@ import static com.vlad805.fmradio.Utils.uiThread;
  */
 public class PreferencesFragment extends PreferenceFragmentCompat implements Preference.OnPreferenceClickListener {
 
-	private static SparseArray<String> mAudioSource;
+	private static final SparseArray<String> mAudioSource;
+	private static final SparseArray<String> mRecordMode;
 	private ProgressDialog mProgress;
 
 	static {
@@ -48,6 +49,10 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	 	mAudioSource.put(7, "7, VOICE_COMMUNICATION");
 		mAudioSource.put(8, "8, REMOTE_SUBMIX");
 	 	mAudioSource.put(1998, "1998, FM");
+
+		mRecordMode = new SparseArray<>();
+		mRecordMode.put(0, "WAV PCM 16bit (raw, large size)");
+		mRecordMode.put(1, "MP3 192kbps (compressed, small size)");
 	}
 
 	@Override
@@ -67,6 +72,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		setListProviderAndEntries("tuner_driver", FMController.sDrivers);
 		setListProviderAndEntries("audio_service", FMAudioService.sService);
 		setListProviderAndEntries("audio_source", mAudioSource);
+		setListProviderAndEntries("recording_mode", mRecordMode);
 	}
 
 	private void setNumberMessageAndProvider(final String key, final int type) {

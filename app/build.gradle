@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 def versionMajor = 0
-def versionMinor = 4
+def versionMinor = 5
 def versionPatch = 0
 
 def dev = false
@@ -73,4 +73,5 @@ dependencies {
     implementation 'androidx.annotation:annotation:1.1.0'
     implementation 'androidx.preference:preference:1.1.0'
     implementation 'androidx.media:media:1.1.0'
+    implementation 'com.github.naman14:TAndroidLame:1.1'
 }

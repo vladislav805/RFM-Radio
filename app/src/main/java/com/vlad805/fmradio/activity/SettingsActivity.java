@@ -53,6 +53,7 @@ public class SettingsActivity extends AppCompatActivity implements SharedPrefere
 			"tuner_step",
 			"audio_service",
 			"audio_source",
+			"recording_mode",
 			"app_auto_startup"
 	};
 

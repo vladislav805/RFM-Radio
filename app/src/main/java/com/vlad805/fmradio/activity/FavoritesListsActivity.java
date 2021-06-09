@@ -25,7 +25,7 @@ import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
-import com.vlad805.fmradio.service.FMService;
+import com.vlad805.fmradio.service.recording.FMService;
 import com.vlad805.fmradio.view.OnDragListener;
 import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
 import com.vlad805.fmradio.view.adapter.FavoriteAdapter;

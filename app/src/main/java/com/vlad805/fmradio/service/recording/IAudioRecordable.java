@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service;
+package com.vlad805.fmradio.service.recording;
 
 import com.vlad805.fmradio.service.fm.IFMRecorder;
 import com.vlad805.fmradio.service.fm.RecordError;

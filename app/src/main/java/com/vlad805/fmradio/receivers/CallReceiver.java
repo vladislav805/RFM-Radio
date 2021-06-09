@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.media.AudioManager;
 import android.telephony.TelephonyManager;
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.service.FMService;
+import com.vlad805.fmradio.service.recording.FMService;
 
 import static android.content.Context.TELEPHONY_SERVICE;
 

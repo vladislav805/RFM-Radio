@@ -94,12 +94,10 @@
 				android:title="@string/pref_recording_name_title"
 				android:dialogMessage="@string/pref_recording_path_name_description"
 				android:icon="@drawable/ic_file_music"/>
-		<SwitchPreferenceCompat
-				android:key="recording_convert"
-				android:defaultValue="false"
+		<ListPreference
+				android:key="recording_mode"
 				android:title="@string/pref_recording_convert_title"
-				android:summary="@string/pref_recording_convert_summary"
-				android:enabled="false"
+				android:defaultValue="0"
 				android:icon="@drawable/ic_convert"/>
 		<SwitchPreferenceCompat
 				android:key="recording_show_notify"

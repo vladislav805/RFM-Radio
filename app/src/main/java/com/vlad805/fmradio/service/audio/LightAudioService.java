@@ -5,7 +5,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
-import com.vlad805.fmradio.service.IAudioRecordable;
+import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.fm.IFMRecorder;
 import com.vlad805.fmradio.service.fm.RecordError;
 
@@ -67,7 +67,7 @@ public class LightAudioService extends FMAudioService implements IAudioRecordabl
 		}
 	}
 
-	private Runnable mReadWrite = () -> {
+	private final Runnable mReadWrite = () -> {
 		int bufferSizeInBytes = AudioTrack.getMinBufferSize(
 				mSampleRate,
 				AudioFormat.CHANNEL_IN_STEREO,
@@ -88,7 +88,7 @@ public class LightAudioService extends FMAudioService implements IAudioRecordabl
 		mAudioTrack.play();
 
 		int bytes;
-		byte[] buffer = new byte[bufferSizeInBytes];
+		short[] buffer = new short[bufferSizeInBytes];
 
 		while (mIsActive) {
 			bytes = mAudioRecorder.read(buffer, 0, bufferSizeInBytes);

@@ -7,7 +7,7 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.Direction;
-import com.vlad805.fmradio.service.FMService;
+import com.vlad805.fmradio.service.recording.FMService;
 
 /**
  * vlad805 (c) 2020
