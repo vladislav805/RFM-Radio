@@ -1,0 +1,15 @@
+Boomer and do not recognize streaming services for listening to music online? Want to not depend on the Internet to listen to radio stations? Have a device with a QualComm processor? <i>Real FM Radio</i> for you!
+
+<i>Real FM Radio</i> uses real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4xx and 6xx processors (up to 625 and 650).
+
+<b>Note:</b> though the app itself is covered by the GPL, there are 3 Qualcomm files (native platform specific routines to program the V4L2 driver for FM) used which are not.
+
+<b>Capabilities:</b>
+
+* Listening to the radio.
+* Reading RDS - PS and RT.
+* Display the signal strength in dB.
+* Radio recording in .wav files.
+* Saving favorite frequencies with name.
+* Ability to create multiple favorites lists.
+* Automatic search for radio stations.
