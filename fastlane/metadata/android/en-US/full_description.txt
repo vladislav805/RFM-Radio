@@ -1,6 +1,8 @@
 **RFM Radio** - real radio (not online, not require Internet), that uses real hardware radio for Android smartphones based on Qualcomm Snapdragon processors.
 
-> Currently supported ONLY smartphones with Qualcomm Snapdragon (except >=632 and >=820). Supported models see [here](https://github.com/vladislav805/Spirit3-FM/#%D0%BE%D1%84%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE-%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82). 
+> **NB**: Application requires root.
+
+> Currently supported ONLY smartphones with Qualcomm Snapdragon (except >=632 and >=820). Supported models see [here](https://github.com/vladislav805/RFM-Radio/blob/dev/SUPPORT_LIST.md).
 
 **Note:** though the app itself is covered by the GPL, there are 3 Qualcomm files (native platform specific routines to program the V4L2 driver for FM) used which are not.
 
@@ -9,7 +11,7 @@
 * Listening to the radio.
 * Reading RDS - PS and RT.
 * Display the signal strength in dB.
-* Radio recording in .wav files.
+* Radio recording in .wav and .mp3 files.
 * Saving favorite frequencies with name.
 * Ability to create multiple favorites lists.
 * Automatic search for radio stations.
