@@ -1,10 +1,10 @@
-Boomer and do not recognize streaming services for listening to music online? Want to not depend on the Internet to listen to radio stations? Have a device with a QualComm processor? <i>Real FM Radio</i> for you!
+**RFM Radio** - real radio (not online, not require Internet), that uses real hardware radio for Android smartphones based on Qualcomm Snapdragon processors.
 
-<i>Real FM Radio</i> uses real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4xx and 6xx processors (up to 625 and 650).
+> Currently supported ONLY smartphones with Qualcomm Snapdragon (except >=632 and >=820). Supported models see [here](https://github.com/vladislav805/Spirit3-FM/#%D0%BE%D1%84%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE-%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82). 
 
-<b>Note:</b> though the app itself is covered by the GPL, there are 3 Qualcomm files (native platform specific routines to program the V4L2 driver for FM) used which are not.
+**Note:** though the app itself is covered by the GPL, there are 3 Qualcomm files (native platform specific routines to program the V4L2 driver for FM) used which are not.
 
-<b>Capabilities:</b>
+**Capabilities:**
 
 * Listening to the radio.
 * Reading RDS - PS and RT.
