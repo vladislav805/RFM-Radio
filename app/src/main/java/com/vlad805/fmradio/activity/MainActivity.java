@@ -456,14 +456,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			R.drawable.ic_signal_1,
 			R.drawable.ic_signal_2,
 			R.drawable.ic_signal_3,
-			R.drawable.ic_signal_4
+			R.drawable.ic_signal_4,
+			R.drawable.ic_signal_5,
+			R.drawable.ic_signal_6
 	};
 
 	private static final int[] SIGNAL_THRESHOLD = {
-			-85,
-			-75,
-			-65,
-			-55,
+			-110,
+			-98,
+			-86,
+			-74,
+			-62,
+			-50,
 			-10
 	};
 
