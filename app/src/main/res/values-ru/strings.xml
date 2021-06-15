@@ -101,4 +101,9 @@
 	<string name="pref_notification_seek_by_favorites">Навигироаться по избранному</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Используя стрелки в уведомлении перемещаться на предыдущую/следующую избранную радиостанцию</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Используя стрелки в уведомлении искать быстрым поиском предыдущую/следующую радиостанцию</string>
+    <string name="main_error_launching">Во время запуска тюнера произошла ошибка. Приложение не может работать.
+        Попробуйте изменить тюнер в настройках и перезапустить приложение. Если ничего не поменялось, то это означает,
+        что приложение не поддерживается на этом устройстве или на данной ОС.
+    </string>
+	<string name="main_error_launching_title">Критическая ошибка</string>
 </resources>

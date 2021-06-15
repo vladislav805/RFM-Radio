@@ -124,5 +124,10 @@
 	<string name="pref_notification_seek_by_favorites">Navigate through favorites</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Using the arrows in the notification, jump to the prev/next favorite</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Use the arrows in the notification to search for the prev/next station</string>
+    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work. Try
+        changing the tuner in settings and restarting the app. If nothing has changed, then this means that the
+        application is not supported on this device or on this operating system.
+    </string>
+	<string name="main_error_launching_title">Fatal error</string>
 
 </resources>

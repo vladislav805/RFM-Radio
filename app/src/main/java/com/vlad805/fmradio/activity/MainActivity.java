@@ -315,6 +315,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			}
 
+			case C.Event.LAUNCH_FAILED: {
+				hideProgress();
+
+				Utils.alert(
+						this,
+						R.string.main_error_launching_title,
+						R.string.main_error_launching,
+						android.R.string.ok
+				);
+				break;
+			}
+
 			case C.Event.ENABLING: {
 				showProgress(getString(R.string.progress_starting));
 			}

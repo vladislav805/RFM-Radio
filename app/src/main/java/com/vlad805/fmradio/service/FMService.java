@@ -352,6 +352,11 @@ public class FMService extends Service implements FMEventCallback {
 					break;
 				}
 
+				case C.Event.LAUNCH_FAILED: {
+					kill();
+					break;
+				}
+
 				case C.Event.ENABLED: {
 					mAudioService.startAudio();
 					final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);

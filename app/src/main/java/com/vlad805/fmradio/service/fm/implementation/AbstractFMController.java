@@ -89,7 +89,17 @@ public abstract class AbstractFMController {
 
 	public final void launch() {
 		fireEvent(C.Event.LAUNCHING);
-		launchImpl(result -> fireEvent(C.Event.LAUNCHED));
+		launchImpl(new Callback<Void>() {
+			@Override
+			public void onResult(Void result) {
+				fireEvent(C.Event.LAUNCHED);
+			}
+
+			@Override
+			public void onError(Error e) {
+				fireEvent(C.Event.LAUNCH_FAILED);
+			}
+		});
 	}
 
 	/**

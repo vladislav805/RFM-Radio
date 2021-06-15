@@ -19,6 +19,7 @@ final public class C {
 		public static final String INSTALLED = BASE + "INSTALLED";
 		public static final String LAUNCHING = BASE + "LAUNCHING";
 		public static final String LAUNCHED = BASE + "LAUNCHED";
+		public static final String LAUNCH_FAILED = BASE + "LAUNCHED_FAILED";
 		public static final String ENABLING = BASE + "ENABLING";
 		public static final String ENABLED = BASE + "ENABLED";
 		public static final String DISABLING = BASE + "DISABLING";
