@@ -1,15 +1,15 @@
-package com.vlad805.fmradio.service.fm.impl;
+package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
+import android.os.Build;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.fm.*;
-import com.vlad805.fmradio.service.fm.communications.Poll;
-import com.vlad805.fmradio.service.fm.communications.Request;
+import com.vlad805.fmradio.service.fm.communication.Poll;
+import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.*;
 import java.util.List;
@@ -17,8 +17,7 @@ import java.util.List;
 /**
  * vlad805 (c) 2020
  */
-public class QualCommLegacy extends FMController implements IFMEventListener, IFMRecordable {
-
+public class QualCommLegacy extends AbstractFMController implements IFMEventListener {
 	public static class Config extends LaunchConfig {
 		@Override
 		public int getClientPort() {
@@ -31,9 +30,9 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 		}
 	}
 
-	private FMEventListenerServer mServer;
+	private DatagramServer mServer;
 	private FMEventCallback mEventCallback;
-	private Poll mCommandPoll;
+	private final Poll mCommandPoll;
 
 	public QualCommLegacy(final LaunchConfig config, final Context context) {
 		super(config, context);
@@ -171,11 +170,6 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 
 	}
 
-	@Override
-	public void newRecord(final Callback<IFMRecorder> callback) {
-		callback.onResult(new RecordLameService(context, frequency));
-	}
-
 	/**
 	 * Copy file from application assets
 	 * @param context Context
@@ -232,11 +226,20 @@ public class QualCommLegacy extends FMController implements IFMEventListener, IF
 			if (mServer != null) {
 				mServer.closeServer();
 			}
-			mServer = new FMEventListenerServer(config.getServerPort());
+			mServer = new DatagramServer(config.getServerPort());
 			mServer.setCallback(mEventCallback);
 			mServer.start();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public static boolean isAbleToWork() {
+		//noinspection RedundantIfStatement
+		if (!"qcom".equals(Build.HARDWARE) || !new File("/dev/radio0").exists()) {
+			return false;
+		}
+
+		return true;
 	}
 }

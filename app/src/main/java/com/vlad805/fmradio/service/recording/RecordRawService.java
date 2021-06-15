@@ -1,16 +1,15 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
-import com.vlad805.fmradio.service.fm.IFMRecorder;
 
 import java.io.RandomAccessFile;
 
 /**
+ * Record WAV audiofile without compression
  * vlad805 (c) 2020
  */
 public class RecordRawService extends RecordService implements IFMRecorder {
 	/**
-	 * Constructor
 	 * @param context Context
 	 * @param kHz Current frequency in kHz
 	 */
@@ -23,11 +22,21 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 		return "wav";
 	}
 
+	/**
+	 * When recording is being started, we can write header of WAV file
+	 */
 	@Override
 	protected void onFileCreated() {
 		writeWavHeader();
 	}
 
+	/**
+	 * We need simple copy data
+	 * @param data New data
+	 * @param length Length of data
+	 * @param encoded Pointer to byte array of encoded data (output)
+	 * @return
+	 */
 	@Override
 	protected int onReceivedData(short[] data, int length, byte[] encoded) {
 		for (int i = 0, l = data.length; i < l; ++i) {
@@ -38,6 +47,9 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 		return length * 2;
 	}
 
+	/**
+	 * When recording is finished, rewrite header of WAV (replace track duration)
+	 */
 	@Override
 	protected void onFinishRecording() {
 		writeFinal();

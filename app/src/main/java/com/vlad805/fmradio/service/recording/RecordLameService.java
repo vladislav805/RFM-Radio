@@ -3,7 +3,6 @@ package com.vlad805.fmradio.service.recording;
 import android.content.Context;
 import com.naman14.androidlame.AndroidLame;
 import com.naman14.androidlame.LameBuilder;
-import com.vlad805.fmradio.service.fm.IFMRecorder;
 
 /**
  * vlad805 (c) 2021
@@ -24,6 +23,9 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 		return "mp3";
 	}
 
+	/**
+	 * When recording is being started, need create instance of encoder lame
+	 */
 	@Override
 	protected void onFileCreated() {
 		mLame = new LameBuilder()
@@ -36,11 +38,21 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 				.build();
 	}
 
+	/**
+	 * When data is received, encode chunk of data with lame
+	 * @param data New data
+	 * @param length Length of data
+	 * @param encoded Pointer to byte array of encoded data (output)
+	 * @return Length of encoded data
+	 */
 	@Override
 	protected int onReceivedData(short[] data, int length, byte[] encoded) {
 		return mLame.encodeBufferInterLeaved(data, length / 2, encoded);
 	}
 
+	/**
+	 * When recording is finished, close encoder
+	 */
 	@Override
 	protected void onFinishRecording() {
 		mLame.close();

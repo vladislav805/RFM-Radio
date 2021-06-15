@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service.fm;
+package com.vlad805.fmradio.service.fm.implementation;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -8,14 +8,14 @@ import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.MuteState;
+import com.vlad805.fmradio.service.fm.LaunchConfig;
 
 import java.util.List;
 
 /**
  * vlad805 (c) 2020
  */
-public abstract class FMController {
-	private static final String TAG = "FMC";
+public abstract class AbstractFMController {
 	public static final int DRIVER_QUALCOMM = 0;
 	public static final int DRIVER_SPIRIT3 = 1;
 	public static final int DRIVER_EMPTY = 999;
@@ -26,6 +26,7 @@ public abstract class FMController {
 		sDrivers = new SparseArray<>();
 		sDrivers.put(DRIVER_QUALCOMM, "QualComm V4L2 service");
 		sDrivers.put(DRIVER_SPIRIT3, "QualComm V4L2 service from Spirit3 (installed spirit3 required)");
+
 		if (BuildConfig.DEBUG) {
 			sDrivers.put(DRIVER_EMPTY, "Test service (empty)");
 		}
@@ -41,7 +42,7 @@ public abstract class FMController {
 	protected final LaunchConfig config;
 	protected final Context context;
 
-	public FMController(final LaunchConfig config, final Context context) {
+	public AbstractFMController(final LaunchConfig config, final Context context) {
 		this.config = config;
 		this.context = context;
 	}
@@ -241,4 +242,7 @@ public abstract class FMController {
 		fireEvent(C.Event.ERROR_OCCURRED, bundle);
 	}
 
+	public static boolean isAbleToWork() {
+		return false;
+	}
 }

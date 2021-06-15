@@ -1,22 +1,23 @@
-package com.vlad805.fmradio.service.fm.impl;
+package com.vlad805.fmradio.service.fm.implementation;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.fm.*;
-import com.vlad805.fmradio.service.fm.communications.Poll;
-import com.vlad805.fmradio.service.fm.communications.Request;
+import com.vlad805.fmradio.service.fm.communication.Poll;
+import com.vlad805.fmradio.service.fm.communication.Request;
 
+import java.io.File;
 import java.util.List;
 
 /**
  * vlad805 (c) 2020
  */
-public class Spirit3Impl extends FMController implements IFMEventPoller, IFMRecordable {
+public class Spirit3Impl extends AbstractFMController implements IFMEventPoller {
 	private static final String TAG = "S3I";
 
 	public static class Config extends LaunchConfig {
@@ -26,7 +27,7 @@ public class Spirit3Impl extends FMController implements IFMEventPoller, IFMReco
 		}
 	}
 
-	private Poll mCommandPoll;
+	private final Poll mCommandPoll;
 
 	public Spirit3Impl(final LaunchConfig config, final Context context) {
 		super(config, context);
@@ -134,10 +135,9 @@ public class Spirit3Impl extends FMController implements IFMEventPoller, IFMReco
 
 	@Override
 	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
-		//noinspection CodeBlock2Expr
-		sendCommand(new Request("s tuner_scan_state " + toDirection(direction), 15000).onResponse(res -> {
-			callback.onResult(Utils.parseInt(res));
-		}));
+		final Request request = new Request("s tuner_scan_state " + toDirection(direction), 15000);
+		request.onResponse(res -> callback.onResult(Utils.parseInt(res)));
+		sendCommand(request);
 	}
 
 	@Override
@@ -148,11 +148,6 @@ public class Spirit3Impl extends FMController implements IFMEventPoller, IFMReco
 	@Override
 	public void search(final Callback<List<Integer>> callback) {
 
-	}
-
-	@Override
-	public void newRecord(final Callback<IFMRecorder> callback) {
-		sendCommand(cmdTunerFreq.onResponse(freq -> callback.onResult(new RecordRawService(context, Utils.parseInt(freq)))));
 	}
 
 	private static final Request cmdTunerFreq = new Request("g tuner_freq");
@@ -182,5 +177,14 @@ public class Spirit3Impl extends FMController implements IFMEventPoller, IFMReco
 
 	private void sendCommand(final Request request) {
 		mCommandPoll.send(request);
+	}
+
+	public static boolean isAbleToWork() {
+		//noinspection RedundantIfStatement
+		if (!"qcom".equals(Build.HARDWARE) || !new File("/dev/radio0").exists()) {
+			return false;
+		}
+
+		return true;
 	}
 }

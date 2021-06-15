@@ -6,7 +6,7 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
-import com.vlad805.fmradio.service.fm.IFMRecorder;
+import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 /**

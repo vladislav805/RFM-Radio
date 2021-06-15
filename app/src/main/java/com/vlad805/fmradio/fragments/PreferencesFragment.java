@@ -17,7 +17,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.service.audio.FMAudioService;
-import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -69,7 +69,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		setNumberMessageAndProvider("recording_directory", InputType.TYPE_CLASS_TEXT);
 		setNumberMessageAndProvider("recording_filename", InputType.TYPE_CLASS_TEXT);
 
-		setListProviderAndEntries("tuner_driver", FMController.sDrivers);
+		setListProviderAndEntries("tuner_driver", AbstractFMController.sDrivers);
 		setListProviderAndEntries("audio_service", FMAudioService.sService);
 		setListProviderAndEntries("audio_source", mAudioSource);
 		setListProviderAndEntries("recording_mode", mRecordMode);

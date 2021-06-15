@@ -1,9 +1,8 @@
-package com.vlad805.fmradio.service.fm.impl;
+package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
 import android.util.Log;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.fm.FMController;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
@@ -13,7 +12,7 @@ import java.util.List;
 /**
  * vlad805 (c) 2020
  */
-public class Empty extends FMController implements IFMEventListener {
+public class Empty extends AbstractFMController implements IFMEventListener {
 	private static transient final String TAG = "FMCE";
 
 	public static class Config extends LaunchConfig {
@@ -117,5 +116,9 @@ public class Empty extends FMController implements IFMEventListener {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public static boolean isAbleToWork() {
+		return true;
 	}
 }

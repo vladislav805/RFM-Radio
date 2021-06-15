@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service.recording;
+package com.vlad805.fmradio.service;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -24,9 +24,14 @@ import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.Spirit3AudioService;
 import com.vlad805.fmradio.service.fm.*;
-import com.vlad805.fmradio.service.fm.impl.Empty;
-import com.vlad805.fmradio.service.fm.impl.QualCommLegacy;
-import com.vlad805.fmradio.service.fm.impl.Spirit3Impl;
+import com.vlad805.fmradio.service.fm.implementation.Empty;
+import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
+import com.vlad805.fmradio.service.fm.implementation.QualCommLegacy;
+import com.vlad805.fmradio.service.fm.implementation.Spirit3Impl;
+import com.vlad805.fmradio.service.recording.IAudioRecordable;
+import com.vlad805.fmradio.service.recording.RecordLameService;
+import com.vlad805.fmradio.service.recording.RecordRawService;
+import com.vlad805.fmradio.service.recording.RecordService;
 
 import java.io.File;
 import java.util.*;
@@ -47,7 +52,7 @@ public class FMService extends Service implements FMEventCallback {
 	private RadioController mRadioController;
 	private FavoriteController mFavoriteController;
 	private Map<Integer, String> mFavoriteList;
-	private FMController mFmController;
+	private AbstractFMController mFmController;
 	private FMAudioService mAudioService;
 	private PlayerReceiver mStatusReceiver;
 	private SharedPreferences mStorage;
@@ -137,18 +142,11 @@ public class FMService extends Service implements FMEventCallback {
 			}
 
 			case C.Command.RECORD_START: {
-				if (mFmController instanceof IFMRecordable && mAudioService instanceof IAudioRecordable) {
+				if (mAudioService instanceof IAudioRecordable) {
 					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
 
-					int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_MODE, C.PrefDefaultValue.RECORDING_MODE);
-					int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
-
-					RecordService recordingService = mode == 0
-							? new RecordRawService(this, kHz)
-							: new RecordLameService(this, kHz);
-
 					try {
-						audioRecord.startRecord(recordingService);
+						audioRecord.startRecord(getPreferredRecorder());
 					} catch (RecordError e) {
 						Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
 					}
@@ -255,23 +253,44 @@ public class FMService extends Service implements FMEventCallback {
 	 * Returns preferred by user tuner driver (from settings)
 	 * @return Tuner driver
 	 */
-	private FMController getPreferredTunerDriver() {
+	private AbstractFMController getPreferredTunerDriver() {
 		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
 
 		switch (id) {
-			case FMController.DRIVER_QUALCOMM: {
+			case AbstractFMController.DRIVER_QUALCOMM: {
 				return new QualCommLegacy(new QualCommLegacy.Config(), this);
 			}
 
-			case FMController.DRIVER_EMPTY: {
+			case AbstractFMController.DRIVER_EMPTY: {
 				return new Empty(new Empty.Config(), this);
 			}
 
-			case FMController.DRIVER_SPIRIT3:
+			case AbstractFMController.DRIVER_SPIRIT3:
 			default: {
 				return new Spirit3Impl(new Spirit3Impl.Config(), this);
 			}
 		}
+	}
+
+	/**
+	 * Returns preferred by user audio recorder (WAV / MP3)
+	 * @return Recorder
+	 */
+	private RecordService getPreferredRecorder() {
+		final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_MODE, C.PrefDefaultValue.RECORDING_MODE);
+		final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
+
+		switch (mode) {
+			case 0: {
+				return new RecordRawService(this, kHz);
+			}
+
+			case 1: {
+				return new RecordLameService(this, kHz);
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -646,5 +665,4 @@ public class FMService extends Service implements FMEventCallback {
 			mFavoriteList.put(station.getFrequency(), station.getTitle());
 		}
 	}
-
 }

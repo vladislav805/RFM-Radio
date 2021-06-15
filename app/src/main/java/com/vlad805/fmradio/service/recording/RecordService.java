@@ -7,7 +7,6 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.RecordSchemaHelper;
-import com.vlad805.fmradio.service.fm.IFMRecorder;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
@@ -77,6 +76,10 @@ public abstract class RecordService implements IFMRecorder {
         mKHz = kHz;
     }
 
+    /**
+     * Calls when user click "Start recording"
+     * @throws RecordError If something going wrong
+     */
     @Override
     public final void startRecord() throws RecordError {
         createFile();
@@ -106,6 +109,9 @@ public abstract class RecordService implements IFMRecorder {
         }
     }
 
+    /**
+     * Called on user click "Stop record"
+     */
     @Override
     public void stopRecord() {
         if (mState == State.FINISHING || mState == State.DONE) {
@@ -233,17 +239,28 @@ public abstract class RecordService implements IFMRecorder {
     }
 
     /**
-     * Return file extension, for example "mp3" or "wav"
-     * @return Extension
+     * Return file extension
+     * @return Extension without ".": for example "mp3" or "wav".
      */
     protected abstract String getExtension();
 
     /**
-     * Calls when file created and opened streams for write
+     * Calls when file created and opened streams for write.
      */
     protected abstract void onFileCreated();
 
+    /**
+     * Calls when AudioRecord receive new packet of data
+     * @param data New data
+     * @param length Length of data
+     * @param encoded Pointer to byte array of encoded data (output)
+     * @return Length of payload encoded array
+     * @throws IOException If happens error
+     */
     protected abstract int onReceivedData(final short[] data, final int length, final byte[] encoded) throws IOException;
 
+    /**
+     * Calls when recording is finished.
+     */
     protected abstract void onFinishRecording();
 }

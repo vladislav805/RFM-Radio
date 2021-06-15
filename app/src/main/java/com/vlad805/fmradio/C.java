@@ -1,7 +1,7 @@
 package com.vlad805.fmradio;
 
 import com.vlad805.fmradio.service.audio.FMAudioService;
-import com.vlad805.fmradio.service.fm.FMController;
+import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
 
 /**
  * vlad805 (c) 2019
@@ -99,7 +99,7 @@ final public class C {
 		public static final boolean RDS_ENABLE = true;
 
 		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
-		public static final int TUNER_DRIVER = FMController.DRIVER_QUALCOMM;
+		public static final int TUNER_DRIVER = AbstractFMController.DRIVER_QUALCOMM;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_MODE = 0;

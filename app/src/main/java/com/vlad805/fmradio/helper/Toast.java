@@ -15,7 +15,7 @@ public class Toast {
 		return new Toast(context);
 	}
 
-	private android.widget.Toast toast;
+	private final android.widget.Toast toast;
 
 	@SuppressLint("ShowToast")
 	private Toast(Context context) {
@@ -46,5 +46,4 @@ public class Toast {
 		toast.cancel();
 		return this;
 	}
-
 }

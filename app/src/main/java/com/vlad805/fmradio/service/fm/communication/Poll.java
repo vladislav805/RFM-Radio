@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service.fm.communications;
+package com.vlad805.fmradio.service.fm.communication;
 
 import android.util.Log;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
@@ -90,6 +90,4 @@ public class Poll {
 			}
 		}).start();
 	}
-
-
 }

@@ -36,7 +36,7 @@
 				android:name=".activity.AboutActivity"/>
 
 		<service
-				android:name=".service.recording.FMService"
+				android:name=".service.FMService"
 				android:enabled="true"
 				android:exported="true"
 				android:label="RFM Main Service"

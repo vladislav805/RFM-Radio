@@ -1,4 +1,6 @@
-package com.vlad805.fmradio.service.fm;
+package com.vlad805.fmradio.service.recording;
+
+import com.vlad805.fmradio.service.fm.RecordError;
 
 /**
  * vlad805 (c) 2020

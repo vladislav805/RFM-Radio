@@ -16,7 +16,7 @@ import static com.vlad805.fmradio.Utils.parseInt;
 /**
  * vlad805 (c) 2019
  */
-public class FMEventListenerServer extends Thread {
+public class DatagramServer extends Thread {
 
 	private final DatagramSocket mDatagramSocketServer;
 	private FMEventCallback mCallback;
@@ -36,7 +36,7 @@ public class FMEventListenerServer extends Thread {
 	private static final int EVT_STEREO = 9;
 	private static final int EVT_SEARCH_DONE = 10;
 
-	public FMEventListenerServer(final int port) throws IOException {
+	public DatagramServer(final int port) throws IOException {
 		mDatagramSocketServer = new DatagramSocket(port);
 	}
 

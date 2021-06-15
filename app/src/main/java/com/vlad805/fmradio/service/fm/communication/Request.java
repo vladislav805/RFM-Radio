@@ -1,4 +1,4 @@
-package com.vlad805.fmradio.service.fm.communications;
+package com.vlad805.fmradio.service.fm.communication;
 
 /**
  * vlad805 (c) 2020

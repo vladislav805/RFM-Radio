@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.activity;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.helper.ProgressDialog;
@@ -28,6 +30,7 @@ import com.vlad805.fmradio.view.RadioUIView;
 import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
+@SuppressLint("NonConstantResourceId")
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick {
 	private ProgressDialog mProgress;
 	private Toast mToast;
