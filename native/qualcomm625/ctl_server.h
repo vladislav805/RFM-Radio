@@ -1,3 +1,5 @@
+#include "fmcommon.h"
+
 #ifndef CPP_FMSRV_H
 #   define CPP_FMSRV_H
 
@@ -15,17 +17,18 @@
 #define EVT_STEREO 9
 #define EVT_SEARCH_DONE 10
 #define EVT_UPDATE_RAW_RDS 100
+#define EVT_UPDATE_PROGRAM_TYPE 11
 #define EVT_INIT 999
 
 typedef struct {
 	int code;
 	const char* data;
-} srv_response;
+} response_t;
 
-typedef srv_response (*fm_srv_callback) (char*);
+typedef response_t (*fm_srv_callback) (char*);
 
-int init_server(fm_srv_callback callback);
+int init_server(fm_srv_callback request_callback);
 
-void send_interruption_info(int evt, char* message);
+boolean send_interruption_info(int evt, char* message);
 
 #endif //CPP_FMSRV_H

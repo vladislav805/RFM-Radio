@@ -18,15 +18,13 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 	public static class Config extends LaunchConfig {
 	}
 
-	private FMEventCallback mEventCallback;
-
 	public Empty(final LaunchConfig config, final Context context) {
 		super(config, context);
 	}
 
 	@Override
 	public void setEventListener(final FMEventCallback callback) {
-		mEventCallback = callback;
+
 	}
 
 	@Override
@@ -43,6 +41,11 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 	protected void installImpl(final Callback<Void> callback) {
 		Log.d(TAG, "install");
 		callback.onResult(null);
+	}
+
+	@Override
+	protected void applyPreferenceImpl(String key, String value) {
+		Log.d(TAG, "applyPref " + key + " = " + value);
 	}
 
 	@Override
@@ -98,6 +101,11 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 		Log.d(TAG, "hwSeek " + direction);
 		sleep(2000);
 		callback.onResult(87500);
+	}
+
+	@Override
+	protected void setPowerModeImpl(String mode) {
+		Log.d(TAG, "setPowerMode " + mode);
 	}
 
 	@Override

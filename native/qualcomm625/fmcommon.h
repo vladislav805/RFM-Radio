@@ -1,11 +1,4 @@
 /**
- * FM Test App Common Header File
- * Global Data declarations of the fm test common component.
- * Copyright (c) 2011 by Qualcomm Technologies, Inc.  All Rights Reserved.
- * Qualcomm Technologies Proprietary and Confidential.
- */
-
-/**
  * https://github.com/carvsdriver/msm8660-common_marla/blob/master/drivers/media/radio/radio-tavarua.c
  * https://github.com/carvsdriver/msm8660-common_marla/blob/master/include/media/tavarua.h
  *
@@ -16,6 +9,12 @@
  * https://source.codeaurora.org/external/gigabyte/qrd-gb-dsds-7225/plain/kernel/include/media/tavarua.h
  *
  * https://github.com/SivanLiu/VivoFramework/blob/master/Vivo_y93/src/main/java/qcom/fmradio/FmReceiver.java
+ * https://gerrit.pixelexperience.org/plugins/gitiles/vendor_qcom_opensource_fm-commonsys/+/d8b9c56644875bd4180a345c2a67a2d28216c9f6/qcom/fmradio/FmReceiver.java
+ * https://gerrit.pixelexperience.org/plugins/gitiles/vendor_qcom_opensource_fm-commonsys/+/d8b9c56644875bd4180a345c2a67a2d28216c9f6/jni/android_hardware_fm.cpp
+ *
+ * https://tract.media/rds/
+ *
+ * https://android.googlesource.com/kernel/msm/+/android-msm-bullhead-3.10-marshmallow-dr/drivers/media/radio/radio-tavarua.c
  */
 #include <sys/types.h>
 #include <zconf.h>
@@ -23,14 +22,58 @@
 typedef unsigned int uint32;
 typedef int int32;
 typedef unsigned short uint16;
+typedef short int16;
 typedef unsigned char uint8;
+typedef char int8;
 typedef unsigned char boolean;
 
 #define FALSE 0
 #define TRUE 1
 
+// Add implementations of system_property_set/get
+#ifdef __ANDROID_API__
+#    include <sys/system_properties.h>
+#    include <sys/stat.h>
+#else
+#    define __system_property_get(x, y)
+//#    define __system_property_get(x, y)
+#    define asprintf(x, y, z)
+#endif
+
+// Add debug function macros
+#ifdef DEBUG
+#    define print(x) printf(x)
+#    define print2(x,y) printf(x,y)
+#    define print3(x,y,z) printf(x,y,z)
+#else
+#    define print(x)
+#    define print2(x, y)
+#    define print3(x, y, z)
+#endif
+
+/*
+ * Multiplying factor to convert to Radio frequency
+ * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,
+ * 62.5 kHz otherwise.
+ * The tuner is able to have a channel spacing of 50, 100 or 200 kHz.
+ * tuner->capability is therefore set to V4L2_TUNER_CAP_LOW
+ * The TUNE_MULT is then: 1 MHz / 62.5 Hz = 16000
+ */
+#define TUNE_MULT 16000
+
 #define FREQ_LOWER  87500
 #define FREQ_UPPER 108000
+
+#define TAVARUA_BUF_SRCH_LIST 0
+#define TAVARUA_BUF_EVENTS    1
+#define TAVARUA_BUF_RT_RDS    2
+#define TAVARUA_BUF_PS_RDS    3
+#define TAVARUA_BUF_RAW_RDS   4
+#define TAVARUA_BUF_AF_LIST   5
+#define TAVARUA_BUF_MAX       6
+
+#ifndef __FMCOMMON_H
+#define __FMCOMMON_H
 
 /* FM power state enum */
 typedef enum {
@@ -48,60 +91,65 @@ typedef enum {
 	FM_CMD_DISALLOWED,
 	FM_CMD_UNRECOGNIZED_CMD,
 	FM_CMD_FAILURE
-} fm_cmd_status_type;
+} fm_cmd_status_t;
 
-typedef enum radio_band_type {
+typedef enum {
 	FM_RX_US_EUROPE = 0x1,
 	FM_RX_JAPAN_STANDARD = 0x2,
 	FM_RX_JAPAN_WIDE = 0x3,
 	FM_RX_USER_DEFINED = 0x4
-} radio_band_type;
+} radio_band_t;
 
-typedef enum emphasis_type {
+typedef enum {
 	FM_RX_EMP75 = 0x0,
 	FM_RX_EMP50 = 0x1
-} emphasis_type;
+} emphasis_t;
 
-typedef enum channel_space_type {
+typedef enum {
 	FM_RX_SPACE_200KHZ = 0x0,
 	FM_RX_SPACE_100KHZ = 0x1,
 	FM_RX_SPACE_50KHZ = 0x2
-} channel_space_type;
+} channel_space_t;
 
-typedef enum rds_system_type {
+typedef enum {
 	FM_RX_RDBS_SYSTEM = 0x0,
 	FM_RX_RDS_SYSTEM = 0x1,
 	FM_RX_NO_RDS_SYSTEM = 0x2
-} rds_sytem_type;
+} rds_system_t;
 
-typedef struct band_limit_freq {
+typedef struct {
 	uint32 lower_limit;
 	uint32 upper_limit;
 } band_limit_freq;
 
-typedef enum rds_sync_type {
+typedef enum {
 	FM_RDS_NOT_SYNCED = 0x0,
 	FM_RDS_SYNCED = 0x1
-} rds_sync_type;
+} rds_sync_t;
 
-typedef enum stereo_type {
+typedef enum {
 	FM_RX_MONO = 0x0,
 	FM_RX_STEREO = 0x1
-} stereo_type;
+} stereo_t;
 
-typedef enum fm_service_available {
+typedef enum {
+    FM_RX_POWER_MODE_NORMAL = 0,
+    FM_RX_POWER_MODE_LOW,
+} power_mode_t;
+
+typedef enum {
 	FM_SERVICE_NOT_AVAILABLE = 0x0,
 	FM_SERVICE_AVAILABLE = 0x1
-} fm_service_available;
+} fm_available_t;
 
-typedef enum mute_type {
+typedef enum {
 	FM_RX_NO_MUTE = 0x00,
 	FM_RX_MUTE_RIGHT = 0x01,
 	FM_RX_MUTE_LEFT = 0x02,
 	FM_RX_MUTE_BOTH = 0x03
-} mute_type;
+} mute_t;
 
-typedef enum search_t {
+typedef enum {
 	SEEK,
 	SCAN,
 	SCAN_FOR_STRONG,
@@ -182,9 +230,10 @@ typedef struct {
  */
 typedef struct fm_config_data {
 	uint8 band;
-	uint8 emphasis;
-	uint8 spacing;
-	uint8 rds_system;
+	emphasis_t emphasis;
+	channel_space_t spacing;
+	boolean rds_enable;
+	rds_system_t rds_system;
 	band_limit_freq bandlimits;
 } fm_config_data;
 
@@ -228,15 +277,6 @@ typedef struct fm_search_list_stations {
 	uint8 program_type;
 } fm_search_list_stations;
 
-/**
- * FM RX I2C request
- */
-typedef struct fm_i2c_params {
-	uint8 slaveaddress;
-	uint8 offset;
-	uint8 payload_length;
-	uint8 data[64];
-} fm_i2c_params;
 
 /**
  * FM All Request Union type.
@@ -252,6 +292,6 @@ typedef union fm_cfg_request {
 	fm_search_stations search_stations_options;
 	fm_search_rds_stations search_rds_stations_options;
 	fm_search_list_stations search_list_stations_options;
-	fm_i2c_params i2c_params;
 	uint32 rds_group_options;
 } fm_cfg_request;
+#endif

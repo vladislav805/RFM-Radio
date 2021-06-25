@@ -4,11 +4,18 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
-#include "fmsrv.h"
+#include "ctl_server.h"
 #include "fmcommon.h"
 
-int init_server(fm_srv_callback callback) {
+/**
+ * Open server for receiving control requests
+ * @param request_callback Callback - handler of each control request
+ * @return
+ */
+int init_server(fm_srv_callback request_callback) {
 	printf("starting server...");
+
+	// Create socket
 	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
 	// Если не удалось слушать порт (например, он уже занят)
@@ -27,6 +34,7 @@ int init_server(fm_srv_callback callback) {
 	srv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	srv_addr.sin_port = htons(CS_PORT);
 
+	// Bind socket to port
 	if (bind(sockfd, (struct sockaddr*) &srv_addr, srv_len) < 0) {
 		printf("Bind error\n");
 		return -2;
@@ -44,6 +52,7 @@ int init_server(fm_srv_callback callback) {
 	const char* exit = "exit";
 
 	while (working) {
+		// Clear
 		memset((char*) &cli_addr, 0, sizeof(cli_addr));
 		memset((char*) &buf, 0, sizeof(buf));
 
@@ -63,48 +72,58 @@ int init_server(fm_srv_callback callback) {
 			break;
 		}
 
-		srv_response res = callback(buf);
+		response_t res = request_callback(buf);
 		res_len = strlen(res.data) * sizeof(char) + 1;
 
+		// Send response after execute callback
 		rcv_len = sendto(sockfd, res.data, res_len, 0, (struct sockaddr *) &cli_addr, cli_len);
+
 		if (rcv_len < 0) {
 			printf("\n");
 		}
+
 		printf("sent %zd bytes.\n", rcv_len);
 
 		//free(&res.data);
 	}
 
+	// Close socket
 	close(sockfd);
 	printf("exited\n");
 	return 0;
 }
 
-void send_interruption_info(int evt, char* message) {
+const char MESSAGE_DELIMITER = 0x0c;
+
+boolean send_interruption_info(int evt, char* message) {
 	int sock;
 	struct sockaddr_in addr;
 	char buf[CS_BUF];
 
+	// If message is NULL - replace it by empty string
 	if (message == NULL) {
 		message = "";
 	}
 
-	const char splitter = 0x0c;
-
-	sprintf(buf, "%d%c%s", evt, splitter, message);
+	// Stringify message with format "${event_id}\x0c${message}"
+	sprintf(buf, "%d%c%s", evt, MESSAGE_DELIMITER, message);
 
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(CS_PORT_SRV); // порт
-	addr.sin_addr.s_addr = INADDR_ANY; // адрес
+	addr.sin_port = htons(CS_PORT_SRV); // port
+	addr.sin_addr.s_addr = INADDR_ANY; // address
 
+	// Open connection
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
 		printf("socket < 0\n");
-		return;
+		return FALSE;
 	}
 
-	// Отправка того, что ввел пользователь
-	ssize_t bytes = sendto(sock, buf, strlen(buf), MSG_CONFIRM, (struct sockaddr*) &addr, sizeof(addr));
+	// Send data to server on application (Android Service)
+	sendto(sock, buf, strlen(buf), MSG_CONFIRM, (struct sockaddr*) &addr, sizeof(addr));
 
+	// Close connection
 	close(sock);
+
+	return TRUE;
 }

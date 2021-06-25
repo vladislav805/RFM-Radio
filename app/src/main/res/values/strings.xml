@@ -61,9 +61,7 @@
 	<string name="pref_header_audio">Audio</string>
 	<string name="pref_header_app">Application</string>
 	<string name="pref_header_info">Info</string>
-	<string name="pref_tuner_step">Step</string>
-	<string name="pref_tuner_step_100kHz">100 kHz</string>
-	<string name="pref_tuner_step_50kHz">50 kHz</string>
+	<string name="pref_tuner_spacing">Spacing</string>
 	<string name="pref_tuner_rds_enable">Enable RDS</string>
 	<string name="pref_tuner_rds_enabled">Show RDS such as Program Service and Radio Text</string>
 	<string name="pref_tuner_rds_disabled">Do not show RDS</string>
@@ -129,5 +127,11 @@
         application is not supported on this device or on this operating system.
     </string>
 	<string name="main_error_launching_title">Fatal error</string>
+    <string name="pref_header_rds">RDS (Radio Data System)</string>
+    <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power
+    </string>
+	<string name="pref_tuner_power_mode_normal">Power saving is disabled when the app is in the background</string>
+	<string name="pref_tuner_power_mode">Power saving</string>
+	<string name="pref_tuner_region">Region / band</string>
 
 </resources>

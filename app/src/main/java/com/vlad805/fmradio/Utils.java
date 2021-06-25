@@ -80,7 +80,7 @@ public class Utils {
 	}
 
 	public static String getMHz(int kHz) {
-		return String.format(Locale.ENGLISH, "%5.1f", kHz / 1000.);
+		return String.format(Locale.ENGLISH, "%5.2f", kHz / 1000.);
 	}
 
 	public static String getTimeStringBySeconds(int seconds) {

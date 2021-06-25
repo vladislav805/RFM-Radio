@@ -3,10 +3,14 @@ package com.vlad805.fmradio.service.fm.implementation;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.SparseArray;
+import android.widget.Toast;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
 
@@ -102,6 +106,17 @@ public abstract class AbstractFMController {
 		});
 	}
 
+	protected abstract void applyPreferenceImpl(String key, String value);
+
+	/**
+	 * Apply preference
+	 * @param key Preference key from C.PrefKey
+	 * @param value Value as string
+	 */
+	public final void applyPreference(String key, String value) {
+		applyPreferenceImpl(key, value);
+	}
+
 	/**
 	 * Check binary for exists and fresh
 	 */
@@ -133,7 +148,20 @@ public abstract class AbstractFMController {
 
 	public final void enable() {
 		fireEvent(C.Event.ENABLING);
-		enableImpl(result -> fireEvent(C.Event.ENABLED));
+		enableImpl(result -> {
+			setupTunerByPreferences();
+			fireEvent(C.Event.ENABLED);
+		});
+	}
+
+	public void setupTunerByPreferences() {
+		Log.e("AFMC_STBP", "call");
+
+		final boolean isRdsEnabled = Storage.getPrefBoolean(context, C.PrefKey.RDS_ENABLE, true);
+		Log.e("AFMC_STBP", isRdsEnabled ? "sev+" : "sev-");
+		applyPreference(C.PrefKey.RDS_ENABLE, isRdsEnabled ? "1" : "0");
+
+
 	}
 
 	/**
@@ -216,6 +244,12 @@ public abstract class AbstractFMController {
 
 			fireEvent(C.Event.HW_SEEK_COMPLETE, bundle);
 		});
+	}
+
+	protected abstract void setPowerModeImpl(final String mode);
+
+	public void setPowerMode(final String mode) {
+		setPowerModeImpl(mode);
 	}
 
 	/**

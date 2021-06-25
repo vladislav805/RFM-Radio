@@ -13,6 +13,7 @@ import android.util.Log;
 import android.widget.Toast;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.preference.PreferenceManager;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -141,6 +142,17 @@ public class FMService extends Service implements FMEventCallback {
 				break;
 			}
 
+			case C.Command.POWER_MODE: {
+				mFmController.setPowerMode(intent.getStringExtra(C.Key.POWER_MODE));
+				break;
+			}
+
+			case C.Command.RELOAD_PREFERENCES: {
+				Log.i("FMService", "cmd RELOAD PREF");
+				mFmController.setupTunerByPreferences();
+				break;
+			}
+
 			case C.Command.RECORD_START: {
 				if (mAudioService instanceof IAudioRecordable) {
 					IAudioRecordable audioRecord = (IAudioRecordable) mAudioService;
@@ -235,7 +247,7 @@ public class FMService extends Service implements FMEventCallback {
 	 * @return FMAudioService instance
 	 */
 	private FMAudioService getPreferredAudioService() {
-		final int id = Storage.getPrefInt(this, C.Key.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
+		final int id = Storage.getPrefInt(this, C.PrefKey.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
 
 		switch (id) {
 			case FMAudioService.SERVICE_LIGHT: {
@@ -254,7 +266,7 @@ public class FMService extends Service implements FMEventCallback {
 	 * @return Tuner driver
 	 */
 	private AbstractFMController getPreferredTunerDriver() {
-		final int id = Storage.getPrefInt(this, C.Key.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+		final int id = Storage.getPrefInt(this, C.PrefKey.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
 
 		switch (id) {
 			case AbstractFMController.DRIVER_QUALCOMM: {
@@ -641,6 +653,7 @@ public class FMService extends Service implements FMEventCallback {
 
 			sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
 			sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
+			sendIntEventIfExistsAndDiff(bundle, C.Key.PTY, C.Event.UPDATE_PTY);
 			sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
 
 			last = bundle;
@@ -670,4 +683,12 @@ public class FMService extends Service implements FMEventCallback {
 			mFavoriteList.put(station.getFrequency(), station.getTitle());
 		}
 	}
+
+	private final SharedPreferences.OnSharedPreferenceChangeListener onPreferencesChanged = new SharedPreferences.OnSharedPreferenceChangeListener() {
+		@Override
+		public void onSharedPreferenceChanged(final SharedPreferences sp, final String key) {
+			Log.e("SPOSPCLFMS", "changed pref "+ key);
+			mFmController.setupTunerByPreferences();
+		}
+	};
 }

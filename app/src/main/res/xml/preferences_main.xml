@@ -8,18 +8,6 @@
 				android:defaultValue="0"
 				android:title="@string/pref_tuner_driver"
 				android:icon="@drawable/ic_tuner_driver"/>
-		<SwitchPreferenceCompat
-				android:key="tuner_rds"
-				android:defaultValue="true"
-				android:title="@string/pref_tuner_rds_enable"
-				android:summaryOn="@string/pref_tuner_rds_enabled"
-				android:summaryOff="@string/pref_tuner_rds_disabled"
-				android:enabled="false"
-				android:icon="@drawable/ic_rds"/>
-		<Preference
-				android:key="tuner_rds_description"
-				android:enabled="false"
-				android:summary="@string/pref_tuner_rds_description" />
 		<EditTextPreference
 				android:key="tuner_antenna"
 				android:defaultValue="0"
@@ -27,14 +15,37 @@
 				android:enabled="false"
 				android:dialogMessage="@string/pref_tuner_antenna_message"
 				android:icon="@drawable/ic_antenna"/>
-		<SwitchPreferenceCompat
-				android:key="tuner_step"
-				android:defaultValue="true"
-				android:title="@string/pref_tuner_step"
-				android:summaryOn="@string/pref_tuner_step_100kHz"
-				android:summaryOff="@string/pref_tuner_step_50kHz"
+		<ListPreference
+				android:key="tuner_region"
+				android:defaultValue="0"
+				android:title="@string/pref_tuner_region" />
+		<ListPreference
+				android:key="tuner_spacing"
+				android:defaultValue="0"
+				android:title="@string/pref_tuner_spacing"
 				android:enabled="false"
 				android:icon="@drawable/ic_step_freq"/>
+		<SwitchPreferenceCompat
+				android:key="tuner_power_mode"
+				android:defaultValue="false"
+				android:title="@string/pref_tuner_power_mode"
+				android:summaryOn="@string/pref_tuner_power_mode_low"
+				android:summaryOff="@string/pref_tuner_power_mode_normal" />
+	</PreferenceCategory>
+	<PreferenceCategory
+			android:key="rds"
+			android:title="@string/pref_header_rds">
+		<Preference
+				android:key="tuner_rds_description"
+				android:enabled="false"
+				android:summary="@string/pref_tuner_rds_description" />
+		<SwitchPreferenceCompat
+				android:key="rds_enable"
+				android:defaultValue="true"
+				android:title="@string/pref_tuner_rds_enable"
+				android:summaryOn="@string/pref_tuner_rds_enabled"
+				android:summaryOff="@string/pref_tuner_rds_disabled"
+				android:icon="@drawable/ic_rds"/>
 	</PreferenceCategory>
 	<PreferenceCategory
 			android:key="audio"
