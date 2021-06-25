@@ -56,7 +56,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	@Override
-	public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
 		setPreferencesFromResource(R.xml.preferences_main, rootKey);
 
 		final Preference ver = findPreference("pref_info_version");

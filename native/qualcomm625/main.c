@@ -12,27 +12,20 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include "fmhalapis.h"
-#include "fmsrv.h"
+#include "fm_wrap.h"
+#include "ctl_server.h"
+#include "fm_ctl.h"
 
-srv_response api_fetch(char* request);
+response_t api_handler(char* request);
 
-#define MK_INIT          "init"
-#define MK_ENABLE        "enable"
-#define MK_DISABLE       "disable"
-#define MK_SET_FREQUENCY "setfreq"
 #define MK_GET_RSSI      "getrssi"
 #define MK_SET_STEREO    "setstereo"
-#define MK_HW_SEEK       "seekhw"
 #define MK_SET_MUTE      "setmute"
 #define MK_SEARCH        "search"
-#define MK_JUMP          "jump"
 #define MK_HW_SCAN       "scan"
-#define MK_TEST          "test"
-#define MK_EXIT          "exit"
 
 #define CD_OK 0
-#define CD_ERR -1
+#define CD_ERR (-1)
 
 #define RSP_OK "ok"
 #define RSP_ERR_NO_ARG      "ERR_IVD_FRQ"
@@ -74,111 +67,225 @@ char** args_parse(char* cmd) {
 	return token;
 }
 
-struct fm_config {
-  int antenna;
-  int port_client;
-  int port_server;
-  enum channel_space_type spacing;
-} fm_config;
+typedef void (*handler_function) (response_t*, char**);
 
-srv_response api_fetch(char* request) {
+/**
+ * Initialize FM device
+ */
+void handler_open(response_t* response, char** args) {
+    response->code = fm_command_open();
+    response->data = RSP_OK;
+}
+
+/**
+ * Enable receiver
+ */
+void handler_enable(response_t* response, char** args) {
+    // Config for enable
+    fm_config_data cfg_data = {
+            .band = FM_RX_US_EUROPE,
+            .emphasis = FM_RX_EMP75,
+            .spacing = FM_RX_SPACE_100KHZ,
+            .rds_system = FM_RX_RDS_SYSTEM,
+            .bandlimits = {
+                    .lower_limit = FREQ_LOWER,
+                    .upper_limit = FREQ_UPPER,
+            },
+    };
+
+    // Call to receiver enable with config
+    response->code = fm_command_prepare(&cfg_data);
+    response->data = RSP_OK;
+
+    fm_command_set_mute_mode(FM_RX_NO_MUTE);
+}
+
+/**
+ * Disable receiver
+ */
+void handler_disable(response_t* response, char** args) {
+    response->code = fm_command_disable();
+    response->data = RSP_OK;
+}
+
+/**
+ * Set current frequency
+ */
+void handler_set_frequency(response_t* response, char** args) {
+    if (args[1] == NULL) {
+        response->code = 1;
+        response->data = RSP_ERR_NO_ARG;
+        return;
+    }
+
+    uint32 freq = atoi(args[1]); // NOLINT(cert-err34-c)
+    fm_cmd_status_t ret = fm_command_tune_frequency(freq);
+    response->code = ret;
+    response->data = RSP_OK;
+}
+
+void handler_jump(response_t* response, char** args) {
+    // TODO: spacing instead 100 kHz
+    uint32 direction = str_equals(args[1], "1") ? 100 : -100;
+
+    response->code = fm_command_tune_frequency_by_delta(direction);
+
+    char res[8];
+    sprintf(res, "%d", fm_command_get_tuned_frequency());
+    response->data = res;
+}
+
+void handler_seek(response_t* response, char** args) {
+    uint8 direction = str_equals(args[1], "1") ? 1 : 0;
+
+    fm_search_stations cfg_data = {
+            .search_dir = direction,
+            .search_mode = SEEK,
+            .dwell_period = 0x07
+    };
+
+    response->code = fm_receiver_search_station_seek(SEEK, direction, 7);
+
+    /*char response[8];
+    sprintf(response, "%d", fm_get_current_frequency_cached());*/
+    response->data = RSP_OK;
+    response->code = FM_CMD_SUCCESS;
+}
+
+void handler_power_mode(response_t* response, char** args) {
+    power_mode_t mode = str_equals(args[1], "low")
+            ? FM_RX_POWER_MODE_LOW
+            : FM_RX_POWER_MODE_NORMAL;
+
+    fm_receiver_set_power_mode(mode);
+
+    response->data = RSP_OK;
+    response->code = FM_CMD_SUCCESS;
+}
+
+void handler_rds_toggle(response_t* response, char** args) {
+    rds_system_t system = str_equals(args[1], "1")
+                        ? FM_RX_RDS_SYSTEM
+                        : FM_RX_NO_RDS_SYSTEM;
+
+    fm_command_setup_rds(system);
+
+    response->data = RSP_OK;
+    response->code = FM_CMD_SUCCESS;
+}
+
+
+/**
+ * Hash for endpoint name
+ * @param name Endpoint name
+ * @return Hash
+ */
+uint32 hash_name_endpoint(char* name) {
+    uint32 result = 0;
+    uint8 length = strlen(name);
+
+    for (uint8 i = 0; i < length; ++i) {
+        result += (uint) name[i];
+    }
+
+    return result;
+}
+
+typedef struct {
+    char* name;
+    uint32 hash;
+    void (*handler)(response_t*, char**);
+} api_endpoint;
+
+static api_endpoint endpoints[] = {
+        {
+            .name = "init",
+            .handler = handler_open,
+        },
+        {
+            .name = "enable",
+            .handler = handler_enable,
+        },
+        {
+            .name = "disable",
+            .handler = handler_disable,
+        },
+        {
+            .name = "setfreq",
+            .handler = handler_set_frequency,
+        },
+        {
+            .name = "jump",
+            .handler = handler_jump,
+        },
+        {
+            .name = "seekhw",
+            .handler = handler_seek,
+        },
+        {
+            .name = "power_mode",
+            .handler = handler_power_mode,
+        },
+        {
+            .name = "rds_toggle",
+            .handler = handler_rds_toggle,
+        },
+        /*
+        {
+            .name = "setstereo",
+            .handler = handler_stereo,
+        }
+        */
+};
+
+static const uint8 endpoints_len = sizeof(endpoints) / sizeof(api_endpoint);
+
+response_t api_handler(char* request) {
+    // Parse request to string array
 	char** ar = args_parse(request);
-	char* cmd = ar[0];
 
-	srv_response* res = malloc(sizeof(srv_response));
+	// First element in array - name of command (always exists at least one element)
+	char* command = ar[0];
+
+	// Hash of command
+	uint8 command_hash = hash_name_endpoint(command);
+
+	// Allocate memory for response
+	response_t* res = malloc(sizeof(response_t));
 
 	res->code = CD_ERR;
 	res->data = RSP_ERR_UNKNOWN;
 
-	if (str_equals(cmd, MK_GET_RSSI)) {
-		fm_station_params_available config;
-		fm_cmd_status_type ret = fm_receiver_current_parameters_get(&config);
+	// Needle endpoint
+	api_endpoint* found = NULL;
 
-		if (ret == FM_CMD_FAILURE) {
-			res->code = CD_ERR;
-			res->data = "0";
-			goto __ret;
-		}
+	// Find endpoint
+	for (uint8 i = 0; i < endpoints_len; ++i) {
+	    api_endpoint endpoint = endpoints[i];
 
-		char response[6];
+	    if (str_equals(endpoint.name, command)) {
+	        printf("Found endpoint '%s'\n", endpoint.name);
+            found = &endpoint;
+	        break;
+	    }
+	}
 
-		sprintf(response, "%d", config.rssi);
+	// Command not found
+	if (found != NULL) {
+        found->handler(res, ar);
+	} else {
+	    printf("Unknown endpoint '%s' (%d)\n", command, command_hash);
+	}
 
-		res->code = ret;
-		res->data = response;
-	} else if (str_equals(cmd, MK_INIT)) {
-		res->code = fm_receiver_open();
-		res->data = RSP_OK;
-	} else if (str_equals(cmd, MK_ENABLE)) {
-		fm_config_data cfg_data = {
-			.band = FM_RX_US_EUROPE,
-			.emphasis = FM_RX_EMP50,
-			.spacing = FM_RX_SPACE_50KHZ,
-			.rds_system = FM_RX_RDS_SYSTEM,
-			.bandlimits = {
-				.lower_limit = FREQ_LOWER,
-				.upper_limit = FREQ_UPPER
-			}
-		};
+	return *res;
 
-		res->code = fm_receiver_enable(&cfg_data);
-		res->data = RSP_OK;
 
-		SetMuteModeReceiver(FM_RX_NO_MUTE);
-	} else if (str_equals(cmd, MK_DISABLE)) {
-		res->code = fm_receiver_disable();
-		res->data = RSP_OK;
-	} else if (str_equals(ar[0], MK_SET_FREQUENCY)) {
-		if (ar[1] == NULL) {
-			res->code = 1;
-			res->data = RSP_ERR_NO_ARG;
-			goto __ret;
-		}
-		uint32 freq = atoi(ar[1]); // NOLINT(cert-err34-c)
-		fm_cmd_status_type ret = fm_receiver_frequency_set(freq);
-		res->code = ret;
-		res->data = RSP_OK;
-	} else if (str_equals(ar[0], MK_HW_SEEK)) {
-		uint8 direction = str_equals(ar[1], "1") ? 1 : 0;
 
-		fm_search_stations cfg_data = {
-			.search_dir = direction,
-			.search_mode = SEEK,
-			.dwell_period = 0x07
-		};
+/*
+	if (str_equals(ar[0], MK_HW_SEEK)) {
 
-		res->code = SearchStationsReceiver(cfg_data);
-
-		char response[8];
-		sprintf(response, "%d", fm_get_current_frequency_cached());
-		res->data = response;
-	} else if (str_equals(ar[0], MK_JUMP)) {
-		uint32 direction = str_equals(ar[1], "1") ? 100 : -100;
-
-		res->code = fm_receiver_jump_by_delta_frequency(direction);
-
-		char response[8];
-		sprintf(response, "%d", fm_get_current_frequency_cached());
-		res->data = response;
-	} else if (str_equals(cmd, MK_SET_STEREO)) {
-		res->code = SetStereoModeReceiver(FM_RX_STEREO);
-
-		fm_station_params_available config;
-		fm_cmd_status_type ret = fm_receiver_current_parameters_get(&config);
-
-		if (ret == FM_CMD_FAILURE) {
-			res->code = CD_ERR;
-			res->data = "0";
-			goto __ret;
-		}
-
-		char response[6];
-
-		sprintf(response, "%d", config.audmode);
-
-		res->data = response;
 	} else if (str_equals(ar[0], MK_SET_MUTE)) {
-		mute_type type = -1;
+		mute_t type = -1;
 		switch (ar[1][0]) {
 			case VAR_MUTE_NONE: type = FM_RX_NO_MUTE; break;
 			case VAR_MUTE_LEFT: type = FM_RX_MUTE_LEFT; break;
@@ -192,40 +299,49 @@ srv_response api_fetch(char* request) {
 			goto __ret;
 		}
 
-		res->code = SetMuteModeReceiver(type);
+		res->code = fm_receiver_set_mute(type);
 		res->data = RSP_OK;
-	} else if (str_equals(cmd, MK_SEARCH)) {
+	} else if (str_equals(command, MK_SEARCH)) {
 		fm_search_list_stations liststationparams;
 
 		liststationparams.search_mode = SCAN_FOR_STRONG;
 		liststationparams.search_dir = 0x00;
 		liststationparams.srch_list_max = 20;
 		liststationparams.program_type = 0x00;
-		fm_cmd_status_type ret = SearchStationListReceiver(liststationparams);
+		fm_cmd_status_t ret = fm_receiver_search_station_list(liststationparams);
 
 		res->code = CD_OK;
 		res->data = ret ? RSP_OK : RSP_ERR_UNKNOWN;
-	} else if (str_equals(cmd, MK_TEST)) {
+	} else if (str_equals(command, MK_TEST)) {
 		res->code = CD_OK;
 		char str[20] = {0};
 		sprintf(str, "Version %s", VERSION);
 		res->data = str;
-	} else if (str_equals(cmd, MK_EXIT)) {
+	} else if (str_equals(command, MK_EXIT)) {
 		res->code = CD_OK;
 		res->data = RSP_OK;
 	}
 
-__ret:
-	return *res;
+__ret:*/
+
 }
 
 int main(int argc, char *argv[]) {
-	printf("FM binary root v%s\nAuthor: vladislav805\n", VERSION);
+	printf("FM binary root v%s [%s %s]\nAuthor: vladislav805\n", VERSION, __DATE__, __TIME__);
 
-	fm_config.antenna = 0;
+	// Make hash codes for each endpoint
+	for (uint8 i = 0; i < endpoints_len; ++i) {
+	    api_endpoint* endpoint = &endpoints[i];
+	    endpoint->hash = hash_name_endpoint(endpoint->name);
+	    printf("Endpoint %s has hash %d\n", endpoint->name, endpoint->hash);
+	}
+
+	// TODO: pick up in settings
+/*	fm_config.antenna = 0;
 	fm_config.port_client = CS_PORT;
 	fm_config.port_server = CS_PORT_SRV;
-	fm_config.spacing = FM_RX_SPACE_50KHZ;
+	fm_config.spacing = FM_RX_SPACE_100KHZ;
+	fm_config.band_type = FM_RX_US_EUROPE;*/
 
-	init_server(&api_fetch);
+	init_server(&api_handler);
 }

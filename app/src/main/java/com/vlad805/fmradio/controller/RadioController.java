@@ -7,6 +7,7 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.Direction;
+import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.service.FMService;
 
 /**
@@ -67,6 +68,16 @@ public class RadioController {
 		send(C.Command.HW_SEEK, bundle);
 	}
 
+	public void setPowerMode(final PowerMode mode) {
+		final Bundle bundle = new Bundle();
+		bundle.putString(C.Key.POWER_MODE, mode.getValue());
+		send(C.Command.POWER_MODE, bundle);
+	}
+
+	public void reloadPreferences() {
+		send(C.Command.RELOAD_PREFERENCES);
+	}
+
 	public void disable() {
 		send(C.Command.DISABLE);
 	}
@@ -89,6 +100,7 @@ public class RadioController {
 				C.Event.FREQUENCY_SET,
 				C.Event.UPDATE_PS,
 				C.Event.UPDATE_RT,
+				C.Event.UPDATE_PTY,
 				C.Event.UPDATE_RSSI,
 				C.Event.UPDATE_STEREO,
 				C.Event.SEARCH_DONE,

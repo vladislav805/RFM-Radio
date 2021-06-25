@@ -2,6 +2,7 @@ package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
 import android.os.Build;
+import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
@@ -105,9 +106,22 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 	protected void launchImpl(final Callback<Void> callback) {
 		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
+		mCommandPoll.toggle(true);
 		startServerListener();
 		final Request request = new Request("init", 1500).onResponse(data -> callback.onResult(null));
 		sendCommand(request);
+	}
+
+	@Override
+	protected void applyPreferenceImpl(final String key, final String value) {
+		switch (key) {
+			case C.PrefKey.RDS_ENABLE: {
+				sendCommand(new Request("rds_toggle " + value));
+				break;
+			}
+
+			// case C.PrefKey.
+		}
 	}
 
 	@Override
@@ -128,6 +142,7 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 	@Override
 	protected void disableImpl(final Callback<Void> callback) {
 		sendCommand(new Request("disable", 5000).onResponse(result -> callback.onResult(null)));
+		mCommandPoll.toggle(false);
 	}
 
 	private int frequency;
@@ -161,6 +176,11 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 	}
 
 	@Override
+	protected void setPowerModeImpl(final String mode) {
+		sendCommand(new Request("power_mode " + mode));
+	}
+
+	@Override
 	public void setMute(final MuteState state, final Callback<Void> callback) {
 
 	}
@@ -183,7 +203,14 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 		OutputStream out;
 		try {
 			in = context.getAssets().open(fromAssetPath);
-			new File(toPath).createNewFile();
+
+			final File targetPath = new File(toPath);
+
+			if (targetPath.exists()) {
+				targetPath.delete();
+			}
+
+			targetPath.createNewFile();
 			out = new FileOutputStream(toPath);
 
 			byte[] buffer = new byte[1024];

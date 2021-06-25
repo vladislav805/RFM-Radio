@@ -19,15 +19,11 @@ public final class Storage {
 	}
 
 	public static void reloadPrefs(final Context ctx) {
-		mPrefs = PreferenceManager.getDefaultSharedPreferences(ctx);
+		// mPrefs = PreferenceManager.getDefaultSharedPreferences(ctx);
 	}
 
 	private static SharedPreferences getPrefs(final Context ctx) {
-		if (mPrefs == null) {
-			reloadPrefs(ctx);
-		}
-
-		return mPrefs;
+		return PreferenceManager.getDefaultSharedPreferences(ctx);
 	}
 
 	public static int getPrefInt(final Context ctx, final String key, final int defaultValue) {

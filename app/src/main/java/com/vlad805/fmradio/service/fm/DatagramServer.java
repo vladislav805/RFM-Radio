@@ -35,6 +35,7 @@ public class DatagramServer extends Thread {
 	private static final int EVT_SEEK_COMPLETE = 8;
 	private static final int EVT_STEREO = 9;
 	private static final int EVT_SEARCH_DONE = 10;
+	private static final int EVT_UPDATE_PTY = 11;
 
 	public DatagramServer(final int port) throws IOException {
 		mDatagramSocketServer = new DatagramSocket(port);
@@ -127,7 +128,7 @@ public class DatagramServer extends Thread {
 
 			case EVT_UPDATE_RT: {
 				action = C.Event.UPDATE_RT;
-				bundle.putString(C.Key.RT, data);
+				bundle.putString(C.Key.RT, data.trim().replaceAll("\n", " "));
 				break;
 			}
 
@@ -155,6 +156,14 @@ public class DatagramServer extends Thread {
 
 				action = C.Event.UPDATE_STEREO;
 				bundle.putBoolean(C.Key.STEREO_MODE, mode.equals("1"));
+				break;
+			}
+
+			case EVT_UPDATE_PTY: {
+				action = C.Event.UPDATE_PTY;
+				final int pty = Utils.parseInt(data);
+
+				bundle.putInt(C.Key.PTY, pty);
 				break;
 			}
 

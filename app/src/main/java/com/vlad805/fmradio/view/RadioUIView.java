@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.widget.*;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioController;
 
 /**
@@ -20,6 +21,7 @@ public class RadioUIView extends LinearLayout {
 	private HorizontalScrollView mSeekWrap;
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
+	private TextView mProgramType;
 
 	/**
 	 * Current frequency
@@ -31,7 +33,7 @@ public class RadioUIView extends LinearLayout {
 	 */
 	private static final int BAND_LOW = 87500;
 	private static final int BAND_HIGH = 108000;
-	private static final int BAND_STEP = 100;
+	private static final int BAND_STEP = 50;
 
 	public RadioUIView(Context context) {
 		super(context);
@@ -54,8 +56,9 @@ public class RadioUIView extends LinearLayout {
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
 		mSeek = findViewById(R.id.frequency_seek);
+		mProgramType = findViewById(R.id.program_type_value);
 
-		Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
+		final Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
 		mFrequencyView.setTypeface(font);
 
 		mSeek.setMinMaxValue(BAND_LOW, BAND_HIGH, BAND_STEP);
@@ -81,15 +84,19 @@ public class RadioUIView extends LinearLayout {
 		scrollSeekBar();
 	}
 
-	public final void setRdsPs(String ps) {
+	public final void setRdsPs(final String ps) {
 		mRdsPs.setText(ps);
 	}
 
-	public final void setRdsRt(String rt) {
+	public final void setRdsRt(final String rt) {
 		mRdsRt.setText(rt);
 	}
 
-	private void onUserClickOnFrequency(int kHz) {
+	public final void setRdsProgramType(final int type) {
+		mProgramType.setText(UtilsLocalization.getProgramType(type));
+	}
+
+	private void onUserClickOnFrequency(final int kHz) {
 		if (mkHz == kHz) {
 			return;
 		}
@@ -99,12 +106,12 @@ public class RadioUIView extends LinearLayout {
 		setFrequency(kHz);
 	}
 
-	private SeekBar.OnSeekBarChangeListener mOnSeekFrequencyChanged = new SeekBar.OnSeekBarChangeListener() {
+	private final SeekBar.OnSeekBarChangeListener mOnSeekFrequencyChanged = new SeekBar.OnSeekBarChangeListener() {
 
 		private int current;
 
 		@Override
-		public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+		public void onProgressChanged(final SeekBar seekBar, final int progress, final boolean fromUser) {
 			if (!fromUser) {
 				return;
 			}

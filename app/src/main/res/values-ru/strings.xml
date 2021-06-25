@@ -72,9 +72,7 @@
 	<string name="pref_tuner_rds_disabled">Не показывать RDS</string>
 	<string name="pref_tuner_rds_enable">Включить RDS</string>
 	<string name="pref_tuner_rds_enabled">Показывать данные RDS такие как PS и RT</string>
-	<string name="pref_tuner_step">Шаг</string>
-	<string name="pref_tuner_step_100kHz">100 кГц</string>
-	<string name="pref_tuner_step_50kHz">50 кГц</string>
+	<string name="pref_tuner_spacing">Шаг</string>
 	<string name="progress_init">Пожалуйста, подождите…\nИнициализация…\nВерсия %s</string>
 	<string name="progress_installing">Установка драйвера…</string>
 	<string name="progress_launching">Запуск…</string>

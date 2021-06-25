@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
@@ -70,6 +71,11 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 	}
 
 	@Override
+	protected void applyPreferenceImpl(String key, String value) {
+		Log.d(TAG, "applyPref " + key + " = " + value);
+	}
+
+	@Override
 	protected void killImpl(final Callback<Void> callback) {
 		String command = String.format("killall %s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
@@ -78,6 +84,7 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 
 	@Override
 	protected void enableImpl(final Callback<Void> callback) {
+		mCommandPoll.toggle(true);
 		//noinspection CodeBlock2Expr
 		sendCommand(new Request("s radio_nop start", 100).onResponse(v0 -> {
 			sendCommand(new Request("s tuner_state start", 5000).onResponse(v1 -> callback.onResult(null)));
@@ -87,6 +94,7 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 	@Override
 	protected void disableImpl(final Callback<Void> callback) {
 		sendCommand(new Request("s tuner_state stop", 5000).onResponse(v -> callback.onResult(null)));
+		mCommandPoll.toggle(false);
 	}
 
 	@Override
@@ -138,6 +146,11 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 		final Request request = new Request("s tuner_scan_state " + toDirection(direction), 15000);
 		request.onResponse(res -> callback.onResult(Utils.parseInt(res)));
 		sendCommand(request);
+	}
+
+	@Override
+	protected void setPowerModeImpl(String mode) {
+		// not supported
 	}
 
 	@Override

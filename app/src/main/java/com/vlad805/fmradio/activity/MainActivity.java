@@ -21,6 +21,7 @@ import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.enums.Direction;
+import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -86,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 		// On small screens, the elements overlap each other
 		// By removing reflection, you can give room for elements
-		DisplayMetrics dm = new DisplayMetrics();
+		final DisplayMetrics dm = new DisplayMetrics();
 		getWindowManager().getDefaultDisplay().getMetrics(dm);
 
 		if (dm.heightPixels < 800) {
@@ -133,6 +134,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	@Override
+	protected void onPause() {
+		super.onPause();
+
+		if (Storage.getPrefBoolean(this, C.PrefKey.TUNER_POWER_MODE, false)) {
+			mRadioController.setPowerMode(PowerMode.LOW);
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+
+		mRadioController.setPowerMode(PowerMode.NORMAL);
+	}
+
+	@Override
 	protected void onDestroy() {
 		unregisterReceiver(mRadioEventReceiver);
 
@@ -172,7 +189,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		mViewRssiIcon = findViewById(R.id.rssi_icon);
 		mViewStereoMode = findViewById(R.id.stereo_mono);
 
-		int[] ids = {
+		final int[] ids = {
 				R.id.ctl_toggle,
 				R.id.ctl_go_down,
 				R.id.ctl_go_up,
@@ -187,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	@Override
-	public void onClick(View view) {
+	public void onClick(final View view) {
 		switch (view.getId()) {
 			case R.id.ctl_toggle:
 				setEnabledToggleButton(false);
@@ -243,7 +260,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	@Override
-	public void onFavoriteClick(FavoriteStation station) {
+	public void onFavoriteClick(final FavoriteStation station) {
 		mRadioController.setFrequency(station.getFrequency());
 	}
 
@@ -343,34 +360,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 				final int kHz = intent.getIntExtra(C.Key.FREQUENCY, -1);
 				mFrequencyInfo.setFrequency(kHz);
-				String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
+				final String str = getString(R.string.player_event_frequency_changed, kHz / 1000f);
 				mToast.text(str).show();
 
 				mFrequencyInfo.setRdsPs("");
 				mFrequencyInfo.setRdsRt("");
+				mFrequencyInfo.setRdsProgramType(0);
 				mViewRssi.setText("?");
 				break;
 			}
 
-			case C.Event.UPDATE_PS:
-				String ps = intent.getStringExtra(C.Key.PS);
+			case C.Event.UPDATE_PS: {
+				final String ps = intent.getStringExtra(C.Key.PS);
 				mFrequencyInfo.setRdsPs(ps);
 				break;
+			}
 
-			case C.Event.UPDATE_RT:
-				String rt = intent.getStringExtra(C.Key.RT);
+			case C.Event.UPDATE_RT: {
+				final String rt = intent.getStringExtra(C.Key.RT);
 				mFrequencyInfo.setRdsRt(rt);
 				break;
+			}
+
+			case C.Event.UPDATE_PTY: {
+				final int pty = intent.getIntExtra(C.Key.PTY, -1);
+				mFrequencyInfo.setRdsProgramType(pty);
+				break;
+			}
 
 			case C.Event.UPDATE_RSSI: {
-				int rssi = intent.getIntExtra(C.Key.RSSI, -1);
+				final int rssi = intent.getIntExtra(C.Key.RSSI, -1);
 				mViewRssi.setText(getString(R.string.main_rssi_db, rssi));
 				setRssiIcon(rssi);
 				break;
 			}
 
 			case C.Event.UPDATE_STEREO: {
-				boolean isStereo = intent.getBooleanExtra(C.Key.STEREO_MODE, false);
+				final boolean isStereo = intent.getBooleanExtra(C.Key.STEREO_MODE, false);
 				mViewStereoMode.setImageResource(isStereo ? R.drawable.ic_stereo : R.drawable.ic_mono);
 				break;
 			}
@@ -439,8 +465,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				R.id.favorite_list
 		};
 
-		for (int id : ids) {
-			View v = findViewById(id);
+		for (final int id : ids) {
+			final View v = findViewById(id);
 			v.setAlpha(state ? 1f : .5f);
 			v.setEnabled(state);
 		}

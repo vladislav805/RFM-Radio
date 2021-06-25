@@ -16,6 +16,7 @@ public class Poll {
 	private final Queue<Request> queue;
 	private DatagramSocket socket;
 	private InetAddress endpoint;
+	private boolean enabled;
 
 	public Poll(final LaunchConfig config) {
 		this.config = config;
@@ -28,6 +29,14 @@ public class Poll {
 		}
 	}
 
+	public void toggle(final boolean state) {
+		enabled = state;
+
+		if (!state) {
+			queue.clear();
+		}
+	}
+
 	private void createSocket() {
 		try {
 			this.socket = new DatagramSocket(0);
@@ -37,6 +46,10 @@ public class Poll {
 	}
 
 	public void send(final Request request) {
+		if (!enabled) {
+			return;
+		}
+
 		queue.offer(request);
 
 		if (queue.size() == 1) {
@@ -78,12 +91,11 @@ public class Poll {
 				final String res = new String(buf, 0, length, StandardCharsets.UTF_8);
 
 				command.fire(res);
-
-				queue.remove();
 			} catch (Throwable e) {
 				e.printStackTrace();
 				Log.i("QCL", "FAILED: attempt for request [" + command + "]");
 			} finally {
+				queue.remove();
 				if (!queue.isEmpty()) {
 					next();
 				}

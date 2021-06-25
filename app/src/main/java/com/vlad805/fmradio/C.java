@@ -32,6 +32,7 @@ final public class C {
 		public static final String SEARCH_DONE = BASE + "SEARCH_DONE";
 		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
 		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";
+		public static final String UPDATE_PTY = BASE + "UPDATE_PTY";
 
 		public static final String RECORD_STARTED = BASE + "RECORD_STARTED";
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
@@ -54,7 +55,9 @@ final public class C {
 		public static final String SEARCH = "search";
 		public static final String RECORD_START = "record_start";
 		public static final String RECORD_STOP = "record_stop";
+		public static final String POWER_MODE = "power_mode";
 		public static final String KILL = "kill";
+		public static final String RELOAD_PREFERENCES = "reload_preferences";
 	}
 
 	public static final class Key {
@@ -64,14 +67,14 @@ final public class C {
 		public static final String RT = "rt";
 		public static final String STEREO_MODE = "stereo_mode";
 		public static final String MUTE = "mute";
+		public static final String PTY = "pty";
 
 		public static final String SEEK_HW_DIRECTION = "seek_hw_direction";
 		public static final String JUMP_DIRECTION = "jump_direction";
 
+		public static final String POWER_MODE = "power_mode";
+
 		public static final String STATION_LIST = "station_list";
-		public static final String AUDIO_SERVICE = "audio_service";
-		public static final String TUNER_DRIVER = "tuner_driver";
-		public static final String AUDIO_SOURCE = "audio_source";
 		public static final String MESSAGE = "message";
 		public static final String STAGE = "stage_ctl";
 		public static final String SIZE = "size";
@@ -85,6 +88,14 @@ final public class C {
 		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String RDS_ENABLE = "rds_enable";
+
+		public static final String TUNER_DRIVER = "tuner_driver";
+		public static final String TUNER_ANTENNA = "tuner_antenna";
+		public static final String TUNER_POWER_MODE = "tuner_power_mode";
+
+		public static final String AUDIO_SERVICE = "audio_service";
+		public static final String AUDIO_SOURCE = "audio_source";
+
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
