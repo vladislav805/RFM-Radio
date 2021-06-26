@@ -128,10 +128,21 @@
     </string>
 	<string name="main_error_launching_title">Fatal error</string>
     <string name="pref_header_rds">RDS (Radio Data System)</string>
-    <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power
-    </string>
-	<string name="pref_tuner_power_mode_normal">Power saving is disabled when the app is in the background</string>
+    <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power.</string>
+	<string name="pref_tuner_power_mode_normal">Power saving is disabled.</string>
 	<string name="pref_tuner_power_mode">Power saving</string>
 	<string name="pref_tuner_region">Region / band</string>
+    <string name="pref_warning_applying_only_after_restart">Attention! These changes will apply only after full restart
+        the app.</string>
+    <string name="pref_tuner_stereo">Stereo</string>
+	<string name="pref_tuner_stereo_on">Use stereo if available</string>
+	<string name="pref_tuner_stereo_off">Always mono</string>
+    <string name="donation_window_title">I\'ve sorry, but...</string>
+    <string name="donation_window_donate">Donate</string>
+	<string name="donation_window_later">Ask later</string>
+	<string name="donation_window_never">Never ask</string>
+	<string name="donation_window_message">RFM-Radio is an open source project that is free and voluntarily developed
+		by one person.\nIf you are interested in the future development of the project or just want to say \"thank you\",
+		you can donate a small amount in various ways.</string>
 
 </resources>

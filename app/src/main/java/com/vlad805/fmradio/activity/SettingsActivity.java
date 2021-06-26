@@ -1,19 +1,13 @@
 package com.vlad805.fmradio.activity;
 
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MenuItem;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.preference.PreferenceManager;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.fragments.PreferencesFragment;
 
-public class SettingsActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
-	private RadioController mController;
+public class SettingsActivity extends AppCompatActivity {
 
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
@@ -30,16 +24,6 @@ public class SettingsActivity extends AppCompatActivity implements SharedPrefere
 		if (ab != null) {
 			ab.setDisplayHomeAsUpEnabled(true);
 		}
-
-		mController = new RadioController(this);
-
-		PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(this);
-	}
-
-	@Override
-	protected void onDestroy() {
-		PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(this);
-		super.onDestroy();
 	}
 
 	@Override
@@ -78,19 +62,5 @@ public class SettingsActivity extends AppCompatActivity implements SharedPrefere
 			}
 		}
 		return false;
-	}
-
-	@Override
-	public void onSharedPreferenceChanged(final SharedPreferences sp, final String key) {
-		if (inArray(key, sGentleSettings)) {
-			final Intent intent = new Intent().putExtra("changed", true);
-			setResult(RESULT_OK, intent);
-		}
-
-		Log.i("SA_OSPC", "key = " + key);
-		if (inArray(key, sDynamicSettings)) {
-
-			mController.reloadPreferences();
-		}
 	}
 }

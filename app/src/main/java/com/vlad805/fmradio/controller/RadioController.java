@@ -74,10 +74,6 @@ public class RadioController {
 		send(C.Command.POWER_MODE, bundle);
 	}
 
-	public void reloadPreferences() {
-		send(C.Command.RELOAD_PREFERENCES);
-	}
-
 	public void disable() {
 		send(C.Command.DISABLE);
 	}

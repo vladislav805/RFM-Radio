@@ -6,14 +6,12 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
-import androidx.preference.PreferenceManager;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -24,15 +22,21 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.Spirit3AudioService;
-import com.vlad805.fmradio.service.fm.*;
-import com.vlad805.fmradio.service.fm.implementation.Empty;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.IFMEventPoller;
+import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
+import com.vlad805.fmradio.service.fm.implementation.Empty;
 import com.vlad805.fmradio.service.fm.implementation.QualCommLegacy;
 import com.vlad805.fmradio.service.fm.implementation.Spirit3Impl;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.recording.RecordService;
+import net.grandcentrix.tray.AppPreferences;
+import net.grandcentrix.tray.core.OnTrayPreferenceChangeListener;
+import net.grandcentrix.tray.core.TrayItem;
 
 import java.io.File;
 import java.util.*;
@@ -41,7 +45,7 @@ import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 @SuppressWarnings({"deprecation", "unused"})
-public class FMService extends Service implements FMEventCallback {
+public class FMService extends Service implements FMEventCallback, OnTrayPreferenceChangeListener {
 	private static final String TAG = "FMS";
 	public static final int NOTIFICATION_ID = 1027;
 	public static final int NOTIFICATION_RECORD_ID = 1029;
@@ -56,7 +60,7 @@ public class FMService extends Service implements FMEventCallback {
 	private AbstractFMController mFmController;
 	private FMAudioService mAudioService;
 	private PlayerReceiver mStatusReceiver;
-	private SharedPreferences mStorage;
+	private AppPreferences mStorage;
 	private Timer mTimer;
 	private boolean mNeedRecreateNotification = true;
 	private boolean mRecordingNow = false;
@@ -74,6 +78,8 @@ public class FMService extends Service implements FMEventCallback {
 
 		mStatusReceiver = new PlayerReceiver();
 		mStorage = Storage.getInstance(this);
+
+		mStorage.registerOnTrayPreferenceChangeListener(this);
 
 		if (mFmController instanceof IFMEventListener) {
 			((IFMEventListener) mFmController).setEventListener(this);
@@ -144,12 +150,6 @@ public class FMService extends Service implements FMEventCallback {
 
 			case C.Command.POWER_MODE: {
 				mFmController.setPowerMode(intent.getStringExtra(C.Key.POWER_MODE));
-				break;
-			}
-
-			case C.Command.RELOAD_PREFERENCES: {
-				Log.i("FMService", "cmd RELOAD PREF");
-				mFmController.setupTunerByPreferences();
 				break;
 			}
 
@@ -231,6 +231,8 @@ public class FMService extends Service implements FMEventCallback {
 			unregisterReceiver(mStatusReceiver);
 			mStatusReceiver = null;
 		}
+
+		mStorage.unregisterOnTrayPreferenceChangeListener(this);
 
 		stopForeground(true);
 	}
@@ -342,6 +344,18 @@ public class FMService extends Service implements FMEventCallback {
 		mFmController.setFrequency(stations.get(currentPosition).getFrequency());
 	}
 
+	@Override
+	public void onTrayPreferenceChanged(final Collection<TrayItem> changed) {
+		final String[] keys = new String[changed.size()];
+
+		int i = 0;
+		for (final TrayItem item : changed) {
+			keys[i++] = item.key();
+		}
+
+		this.mFmController.setupTunerByPreferences(keys);
+	}
+
 	/**
 	 * Event listener
 	 */
@@ -384,7 +398,7 @@ public class FMService extends Service implements FMEventCallback {
 
 				case C.Event.FREQUENCY_SET: {
 					int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-					mStorage.edit().putInt(C.PrefKey.LAST_FREQUENCY, frequency).apply();
+					mStorage.put(C.PrefKey.LAST_FREQUENCY, frequency);
 					updateNotification();
 					break;
 				}
@@ -626,8 +640,6 @@ public class FMService extends Service implements FMEventCallback {
 		), Toast.LENGTH_LONG).show();
 	}
 
-
-
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
@@ -655,6 +667,7 @@ public class FMService extends Service implements FMEventCallback {
 			sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
 			sendIntEventIfExistsAndDiff(bundle, C.Key.PTY, C.Event.UPDATE_PTY);
 			sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
+			sendStringEventIfExistsAndDiff(bundle, C.Key.RT, C.Event.UPDATE_RT); // was skipped, why?
 
 			last = bundle;
 		}
@@ -683,12 +696,4 @@ public class FMService extends Service implements FMEventCallback {
 			mFavoriteList.put(station.getFrequency(), station.getTitle());
 		}
 	}
-
-	private final SharedPreferences.OnSharedPreferenceChangeListener onPreferencesChanged = new SharedPreferences.OnSharedPreferenceChangeListener() {
-		@Override
-		public void onSharedPreferenceChanged(final SharedPreferences sp, final String key) {
-			Log.e("SPOSPCLFMS", "changed pref "+ key);
-			mFmController.setupTunerByPreferences();
-		}
-	};
 }

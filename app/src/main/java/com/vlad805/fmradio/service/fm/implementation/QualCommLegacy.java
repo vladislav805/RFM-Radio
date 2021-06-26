@@ -96,7 +96,7 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 			}
 		}
 
-		Storage.getInstance(context).edit().putInt(C.PrefKey.BINARY_VERSION, BuildConfig.VERSION_CODE).apply();
+		Storage.getInstance(context).put(C.PrefKey.BINARY_VERSION, BuildConfig.VERSION_CODE);
 
 		Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
 		callback.onResult(null);
@@ -120,7 +120,19 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 				break;
 			}
 
-			// case C.PrefKey.
+			case C.PrefKey.TUNER_SPACING: {
+				sendCommand(new Request("set_spacing " + value));
+				break;
+			}
+
+			case C.PrefKey.TUNER_REGION: {
+				sendCommand(new Request("set_region " + value));
+				break;
+			}
+
+			case C.PrefKey.TUNER_STEREO: {
+				sendCommand(new Request("set_stereo " + value));
+			}
 		}
 	}
 

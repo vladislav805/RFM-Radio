@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import androidx.annotation.StringRes;
 import androidx.appcompat.app.AlertDialog;
@@ -79,8 +80,12 @@ public class Utils {
 		}
 	}
 
-	public static String getMHz(int kHz) {
-		return String.format(Locale.ENGLISH, "%5.2f", kHz / 1000.);
+	public static String getMHz(final int kHz) {
+		return getMHz(kHz, 1);
+	}
+
+	public static String getMHz(final int kHz, final int precision) {
+		return String.format(Locale.ENGLISH, "%5." + precision + "f", kHz / 1000.);
 	}
 
 	public static String getTimeStringBySeconds(int seconds) {
@@ -137,5 +142,10 @@ public class Utils {
 
 	public static void uiThread(final Runnable run) {
 		new Handler(Looper.getMainLooper()).post(run);
+	}
+
+	public static String getCountryISO(final Context context) {
+		final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+		return tm.getNetworkCountryIso();
 	}
 }

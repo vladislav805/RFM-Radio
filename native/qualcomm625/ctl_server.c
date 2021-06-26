@@ -3,7 +3,6 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <errno.h>
 #include "ctl_server.h"
 #include "fmcommon.h"
 
@@ -13,14 +12,14 @@
  * @return
  */
 int init_server(fm_srv_callback request_callback) {
-	printf("starting server...");
+	printf("server          : starting server...\n");
 
 	// Create socket
 	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
 	// Если не удалось слушать порт (например, он уже занят)
 	if (sockfd < 0) {
-		printf("socket init failed\n");
+		printf("server          : socket init failed\n");
 		return -1;
 	}
 
@@ -36,7 +35,7 @@ int init_server(fm_srv_callback request_callback) {
 
 	// Bind socket to port
 	if (bind(sockfd, (struct sockaddr*) &srv_addr, srv_len) < 0) {
-		printf("Bind error\n");
+		printf("server          : bind error\n");
 		return -2;
 	}
 
@@ -47,7 +46,7 @@ int init_server(fm_srv_callback request_callback) {
 	size_t res_len;
 	char buf[CS_BUF];
 
-	printf("server started\n");
+	printf("server          : started\n");
 
 	const char* exit = "exit";
 
@@ -61,11 +60,11 @@ int init_server(fm_srv_callback request_callback) {
 		cmd_len = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *) &cli_addr, &cli_len);
 
 		if (cmd_len < 0) {
-			printf("recvfrom error\n");
+			printf("server          : recvfrom error\n");
 			continue;
 		}
 
-		printf("client received data [%s]\n", buf);
+		printf("server          : client received `%s`\n", buf);
 
 		if (strcmp(buf, exit) == 0) {
 			working = FALSE;
@@ -76,20 +75,17 @@ int init_server(fm_srv_callback request_callback) {
 		res_len = strlen(res.data) * sizeof(char) + 1;
 
 		// Send response after execute callback
-		rcv_len = sendto(sockfd, res.data, res_len, 0, (struct sockaddr *) &cli_addr, cli_len);
+		//rcv_len =
+		sendto(sockfd, res.data, res_len, 0, (struct sockaddr*) &cli_addr, cli_len);
 
-		if (rcv_len < 0) {
-			printf("\n");
-		}
-
-		printf("sent %zd bytes.\n", rcv_len);
+		// printf("sent %zd bytes.\n", rcv_len);
 
 		//free(&res.data);
 	}
 
 	// Close socket
 	close(sockfd);
-	printf("exited\n");
+	printf("server          : closed\n");
 	return 0;
 }
 
@@ -115,7 +111,7 @@ boolean send_interruption_info(int evt, char* message) {
 	// Open connection
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
-		printf("socket < 0\n");
+		printf("evt_send: socket < 0\n");
 		return FALSE;
 	}
 

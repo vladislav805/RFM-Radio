@@ -24,7 +24,7 @@ public class FrequencySeekView extends SeekBar {
 
 	private int mValueMin = 0;
 	private int mValueMax = 100;
-	private int mStep = 10;
+	private int mSpacing = 10;
 
 	public FrequencySeekView(final Context context) {
 		super(context);
@@ -78,21 +78,21 @@ public class FrequencySeekView extends SeekBar {
 		mValueMin = minValue;
 	}
 
-	public void setStep(final int step) {
-		mStep = step;
+	public void setSpacing(final int spacing) {
+		mSpacing = spacing;
 	}
 
 	/**
 	 * Change edges
 	 * @param minValue Lower frequency in kHz
 	 * @param maxValue Higher frequency in kHz
-	 * @param step Step in kHz
+	 * @param spacing Spacing in kHz
 	 */
-	public void setMinMaxValue(final int minValue, final int maxValue, final int step) {
+	public void setMinMaxValue(final int minValue, final int maxValue, final int spacing) {
 		setMinValue(minValue);
 		setMaxValue(maxValue);
-		setStep(step);
-		setMax((mValueMax - mValueMin) / mStep);
+		setSpacing(spacing);
+		setMax((mValueMax - mValueMin) / mSpacing);
 	}
 
 	private int sp2px(final float spValue) {
@@ -106,7 +106,7 @@ public class FrequencySeekView extends SeekBar {
 	 * @return Frequency in kHz
 	 */
 	public int fixProgress(final int progress) {
-		return progress * mStep + mValueMin;
+		return progress * mSpacing + mValueMin;
 	}
 
 	/**
@@ -115,8 +115,8 @@ public class FrequencySeekView extends SeekBar {
 	 */
 	@Override
 	public synchronized void setProgress(final int kHz) {
-		if (mStep != 0) {
-			super.setProgress((kHz - mValueMin) / mStep);
+		if (mSpacing != 0) {
+			super.setProgress((kHz - mValueMin) / mSpacing);
 		}
 	}
 
@@ -140,7 +140,7 @@ public class FrequencySeekView extends SeekBar {
 		final int deltaX = getPaddingLeft();
 
 		// Computed width of interval between dashes of frequencies
-		final float viewInterval = viewWidth / ((mValueMax - mValueMin) * 1f / mStep);
+		final float viewInterval = viewWidth / ((mValueMax - mValueMin) * 1f / mSpacing);
 
 		// y-coordinate, end of short stick relative to the top
 		final int baseYShort = paddingTop + 25;
@@ -161,10 +161,10 @@ public class FrequencySeekView extends SeekBar {
 		canvas.drawLine(deltaX, paddingTop, getWidth() - getPaddingRight(), paddingTop, mTrait);
 
 		// For each 100 kHz ...
-		for (int i = 0; i <= (mValueMax - mValueMin) / mStep; ++i) {
+		for (int i = 0; i <= (mValueMax - mValueMin) / mSpacing; ++i) {
 
 			// kHz frequency for current iteration
-			final int kHz = mValueMin + i * mStep;
+			final int kHz = mValueMin + i * mSpacing;
 
 			// X coordinate for current iteration
 			final float x = deltaX + viewInterval * i;

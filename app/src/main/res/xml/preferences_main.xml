@@ -3,28 +3,6 @@
 	<PreferenceCategory
 			android:key="tuner"
 			android:title="@string/pref_header_tuner">
-		<ListPreference
-				android:key="tuner_driver"
-				android:defaultValue="0"
-				android:title="@string/pref_tuner_driver"
-				android:icon="@drawable/ic_tuner_driver"/>
-		<EditTextPreference
-				android:key="tuner_antenna"
-				android:defaultValue="0"
-				android:title="@string/pref_tuner_antenna"
-				android:enabled="false"
-				android:dialogMessage="@string/pref_tuner_antenna_message"
-				android:icon="@drawable/ic_antenna"/>
-		<ListPreference
-				android:key="tuner_region"
-				android:defaultValue="0"
-				android:title="@string/pref_tuner_region" />
-		<ListPreference
-				android:key="tuner_spacing"
-				android:defaultValue="0"
-				android:title="@string/pref_tuner_spacing"
-				android:enabled="false"
-				android:icon="@drawable/ic_step_freq"/>
 		<SwitchPreferenceCompat
 				android:key="tuner_power_mode"
 				android:defaultValue="false"
@@ -39,13 +17,6 @@
 				android:key="tuner_rds_description"
 				android:enabled="false"
 				android:summary="@string/pref_tuner_rds_description" />
-		<SwitchPreferenceCompat
-				android:key="rds_enable"
-				android:defaultValue="true"
-				android:title="@string/pref_tuner_rds_enable"
-				android:summaryOn="@string/pref_tuner_rds_enabled"
-				android:summaryOff="@string/pref_tuner_rds_disabled"
-				android:icon="@drawable/ic_rds"/>
 	</PreferenceCategory>
 	<PreferenceCategory
 			android:key="audio"
@@ -117,7 +88,7 @@
 				android:summary="@string/pref_recording_show_notify_summary"
 				android:icon="@drawable/ic_info"/>
 	</PreferenceCategory>
-	<PreferenceCategory
+	<!--PreferenceCategory
 			android:key="info"
 			android:title="@string/pref_header_info">
 		<Preference
@@ -131,41 +102,10 @@
 					android:data="http://4pda.ru/forum/index.php?showtopic=543819&amp;st=570#entry76841416" />
 		</Preference>
 		<Preference
-				android:key="info_links_github"
-				android:title="@string/pref_info_link_github"
-				android:summary="@string/pref_info_link_github_summary"
-				android:icon="@drawable/ic_github">
-			<intent
-					android:action="android.intent.action.VIEW"
-					android:data="https://github.com/vladislav805/RFM-Radio" />
-		</Preference>
-		<Preference
-				android:key="info_links_telegram"
-				android:title="@string/pref_info_link_telegram"
-				android:summary="@string/pref_info_link_telegram_summary"
-				android:icon="@drawable/ic_telegram">
-			<intent
-					android:action="android.intent.action.VIEW"
-					android:data="https://t.me/RFMRadioApp" />
-		</Preference>
-		<Preference
-				android:key="info_links_site"
-				android:title="@string/pref_info_link_site"
-				android:summary="@string/pref_info_link_site_summary"
-				android:icon="@drawable/ic_web">
-			<intent
-					android:action="android.intent.action.VIEW"
-					android:data="http://rfm.velu.ga/?ref=app" />
-		</Preference>
-		<Preference
 				android:id="@+id/pref_info_author_vv"
 				android:key="pref_info_author_vv"
 				android:title="@string/pref_info_contributors_title"
 				android:summary="@string/pref_info_contributors_content"
 				android:icon="@drawable/ic_developer"/>
-		<Preference
-				android:id="@+id/pref_info_version"
-				android:key="pref_info_version"
-				android:title="@string/pref_info_version_title"/>
-	</PreferenceCategory>
+	</PreferenceCategory-->
 </PreferenceScreen>

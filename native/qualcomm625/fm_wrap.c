@@ -45,7 +45,7 @@ static char *qsoc_poweron_path = NULL;
 volatile boolean is_power_on_completed = FALSE;
 
 #define CHECK_EXEC_LAST_COMMAND(X,Y) if (ret == FALSE) {\
-    printf("%s: failed to set %s, exit code = %d", X, Y, ret);\
+    printf("%.*s: failed to set %s, exit code = %d\n", 16, X, Y, ret);\
     return FM_CMD_FAILURE;\
 }
 
@@ -88,14 +88,14 @@ boolean process_radio_event(uint8 event_buf) {
 
     switch (event_buf) {
         case TAVARUA_EVT_RADIO_READY: {
-            printf("FM enabled\n");
+            printf("fw_proc_event   : FM enabled\n");
             fm_storage.state = RX;
             send_interruption_info(EVT_ENABLED, "enabled");
             break;
         }
 
         case TAVARUA_EVT_RADIO_DISABLED: {
-            printf("FM disabled\n");
+            printf("fw_proc_event   : FM disabled\n");
             fm_storage.state = OFF;
             fm_receiver_close();
             pthread_exit(NULL);
@@ -113,7 +113,7 @@ boolean process_radio_event(uint8 event_buf) {
 
             fm_storage.rssi = 0;
 
-            printf("Event tuned success, frequency: %d\n", fm_storage.frequency);
+            printf("fw_proc_event   : tuned to frequency %d\n", fm_storage.frequency);
 
             // Notify client about tune
             send_interruption_info(EVT_FREQUENCY_SET, int_to_string(fm_storage.frequency));
@@ -125,85 +125,81 @@ boolean process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_SEEK_COMPLETE: {
             fm_storage.frequency = fm_receiver_get_tuned_frequency();
 
-            printf("Seek complete to frequency: %d\n", fm_storage.frequency);
+            printf("fw_proc_event   : seek complete to frequency %d\n", fm_storage.frequency);
             send_interruption_info(EVT_SEEK_COMPLETE, int_to_string(fm_storage.frequency));
             break;
         }
 
         case TAVARUA_EVT_SCAN_NEXT: {
-            printf("Event scan next, frequency: %d\n", fm_receiver_get_tuned_frequency());
+            printf("fw_proc_event   : event scan next, frequency %d\n", fm_receiver_get_tuned_frequency());
             break;
         }
 
         case TAVARUA_EVT_NEW_RAW_RDS:
-            printf("New RAW RDS\n");
+            printf("fw_proc_event   : new RAW RDS\n");
             // extract_rds_af_list();
             break;
 
         case TAVARUA_EVT_NEW_RT_RDS: {
-            print("Received RT\n");
             ret = extract_radio_text(&fm_storage.rds);
             send_interruption_info(EVT_UPDATE_RT, fm_storage.rds.radio_text);
             break;
         }
 
         case TAVARUA_EVT_NEW_PS_RDS: {
-            print("Received PS\n");
             ret = extract_program_service(&fm_storage.rds);
             send_interruption_info(EVT_UPDATE_PS, fm_storage.rds.program_name);
             send_interruption_info(EVT_UPDATE_PROGRAM_TYPE, int_to_string(fm_storage.rds.program_type));
-            print3("====> Event: %s %d\n", int_to_string(fm_storage.rds.program_type), fm_storage.rds.program_type);
             break;
         }
 
         case TAVARUA_EVT_ERROR: {
-            print("Received Error\n");
+            print("fw_proc_event   : received error\n");
             break;
         }
 
         case TAVARUA_EVT_BELOW_TH: {
-            print("Event below th\n");
+            print("fw_proc_event   : event below th\n");
             fm_storage.avail = FM_SERVICE_NOT_AVAILABLE;
             break;
         }
 
         case TAVARUA_EVT_ABOVE_TH: {
-            print("Event above th\n");
+            print("fw_proc_event   : event above th\n");
             fm_storage.avail = FM_SERVICE_AVAILABLE;
             break;
         }
 
         case TAVARUA_EVT_STEREO: {
-            print("Received Stereo Mode\n");
+            print("fw_proc_event   : stereo mode\n");
             fm_storage.stereo_type = FM_RX_STEREO;
             send_interruption_info(EVT_STEREO, "1");
             break;
         }
 
         case TAVARUA_EVT_MONO: {
-            print("Received Mono Mode\n");
+            print("fw_proc_event   : mono mode\n");
             fm_storage.stereo_type = FM_RX_MONO;
             send_interruption_info(EVT_STEREO, "0");
             break;
         }
 
         case TAVARUA_EVT_RDS_AVAIL:
-            print("Received RDS Available\n");
+            print("fw_proc_event   : RDS available\n");
             // fm_global_params.rds_sync_status = FM_RDS_SYNCED;
             break;
 
         case TAVARUA_EVT_RDS_NOT_AVAIL:
-            print("Received RDS NOT Available\n");
+            print("fw_proc_event   : RDS not available\n");
             // fm_global_params.rds_sync_status = FM_RDS_NOT_SYNCED;
             break;
 
         case TAVARUA_EVT_NEW_SRCH_LIST:
-            print("Received new search list\n");
+            print("fw_proc_event   : received new search list\n");
             // make_search_station_list(fd_radio);
             break;
 
         case TAVARUA_EVT_NEW_AF_LIST:
-            print("Received new AF List\n");
             extract_rds_af_list();
             break;
 
@@ -222,7 +218,7 @@ boolean process_radio_event(uint8 event_buf) {
  * Thread to perform a continuous read on the radio handle for events
  */
 void* interrupt_thread(__attribute__((unused)) void* ignore) {
-    print("Starting FM event listener\n");
+    print("fw_continue_th  : continue thread started\n");
 
     // Temporary buffer
     uint8 buf[128] = {0};
@@ -255,7 +251,7 @@ void* interrupt_thread(__attribute__((unused)) void* ignore) {
     }
 exit:
 
-    print("FM listener thread exited\n");
+    print("fw_continue_th  : continue thread exited\n");
     return NULL;
 }
 
@@ -270,7 +266,7 @@ exit:
  * Thread for polling signal strength
  */
 void *fm_thread_rssi(__attribute__((unused)) void *ptr) {
-    print("Starting RSSI listener\n");
+    print("fw_rssi_th      : start RSSI thread\n");
 
     int errors = 0;
 
@@ -281,7 +277,7 @@ void *fm_thread_rssi(__attribute__((unused)) void *ptr) {
         }
     }
 
-    print("RSSI listener thread exited\n");
+    print("fw_rssi_th      : RSSI thread exited\n");
     return NULL;
 }
 
@@ -291,13 +287,12 @@ void *fm_thread_rssi(__attribute__((unused)) void *ptr) {
  * @return FM command status
  */
 fm_cmd_status_t fm_command_open() {
-    print("fm_receiver_open: call\n");
     int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
 
-    print2("fm_receiver_open: setprop exit code %d\n", exit_code);
+    print2("fw_cmd_open     : setprop exit code %d\n", exit_code);
 
     if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
-        print("fm_receiver_open: found radio-iris-transport.ko, insmod it\n");
+        print("fw_cmd_open     : found radio-iris-transport.ko, insmod it\n");
         system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
     }
 
@@ -306,7 +301,6 @@ fm_cmd_status_t fm_command_open() {
     uint16 attempt;
     int init_success = 0;
 
-    print("fm_receiver_open: loop hw.fm.init\n");
 
     for (attempt = 0; attempt < 600; ++attempt) {
         __system_property_get("hw.fm.init", value);
@@ -319,20 +313,20 @@ fm_cmd_status_t fm_command_open() {
     }
 
     if (init_success) {
-        print2("fm_receiver_open: init success after %d attempts\n", attempt + 1);
+        print2("fw_cmd_open     : init success after %d attempts\n", attempt + 1);
     } else {
-        print2("fm_receiver_open: init failed after %d attempts, exiting...\n", attempt);
+        print2("fw_cmd_open     : init failed after %d attempts, exiting...\n", attempt);
         return FM_CMD_FAILURE;
     }
 
     wait(500);
 
-    print("fm_receiver_open: open /dev/radio0...\n");
+    print("fw_cmd_open     : open /dev/radio0...\n");
 
     boolean ret = fm_receiver_open();
 
     if (ret == FALSE) {
-        print("fm_receiver_open: failed to open fd_radio\n");
+        print("fw_cmd_open    : failed to open fd_radio\n");
         return FM_CMD_FAILURE;
     }
 
@@ -347,27 +341,25 @@ fm_cmd_status_t fm_command_open() {
  * Initiates a soc patch download.
  */
 fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
-    print("fm_command_prepare: call\n");
-
     uint32 ret;
     char version_str[40] = {'\0'};
     struct v4l2_capability cap = {};
 
-    print("fm_command_prepare: read the driver versions...\n");
+    print("fw_cmd_prepare  : read the driver versions...\n");
 
     // Read the driver version
     ret = fm_receiver_query_capabilities(&cap);
 
-    print3("fm_command_prepare: VIDIOC_QUERYCAP returns: ret=%d; version=0x%d\n", ret, cap.version);
+    print3("fw_cmd_prepare  : VIDIOC_QUERYCAP returns: ret=%d; version=0x%x\n", ret, cap.version);
 
     if (ret == TRUE) {
-        print2("fm_command_prepare: driver version (same as chip id): 0x%x\n", cap.version);
+        print2("fw_cmd_prepare  : driver version (same as chip id): 0x%x\n", cap.version);
 
         // Convert the integer to string
         ret = snprintf(version_str, sizeof(version_str), "%d", cap.version);
 
         if (ret >= sizeof(version_str)) {
-            print("fm_command_prepare: version check failed\n");
+            print("fw_cmd_prepare  : version check failed\n");
             fm_receiver_close();
             return FM_CMD_FAILURE;
         }
@@ -376,19 +368,19 @@ fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
         __system_property_set("hw.fm.version", version_str);
 #endif
 
-        print2("fm_command_prepare: hw.fm.version = %s\n", version_str);
+        print2("fw_cmd_prepare  : hw.fm.version = %s\n", version_str);
 
         asprintf(&qsoc_poweron_path, "fm_qsoc_patches %d 0", cap.version);
 
         if (qsoc_poweron_path != NULL) {
-            print2("fm_command_prepare: qsoc_onpath = %s\n", qsoc_poweron_path);
+            print2("fw_cmd_prepare  : qsoc_onpath = %s\n", qsoc_poweron_path);
         }
     } else {
-        print("fm_command_prepare: ioctl failed\n");
+        print("fw_cmd_prepare  : ioctl failed\n");
         return FM_CMD_FAILURE;
     }
 
-    print("fm_command_prepare: opened receiver successfully\n");
+    print("fw_cmd_prepare  : opened receiver successfully\n");
     return fm_command_setup_receiver(config_ptr);
 }
 
@@ -408,7 +400,7 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     } else if (!is_rome_chip()) {
         ret = system(qsoc_poweron_path);
         if (ret != 0) {
-            print2("fm_command_prepare Failed to download patches = %d\n", ret);
+            print2("fw_setup_recei  : failed to download patches = %d\n", ret);
             return FM_CMD_FAILURE;
         }
     }
@@ -427,7 +419,7 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
 
     // If cannot set state, finish
     if (ret == FALSE) {
-        print2("fm_command_prepare Failed to set Radio State = %d\n", ret);
+        print2("fw_setup_recei  : failed to set radio state = %d\n", ret);
         fm_receiver_close();
         return FM_CMD_FAILURE;
     }
@@ -436,19 +428,18 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     // set_v4l2_ctrl(fd_radio, V4L2_CID_TUNE_POWER_LEVEL, 7);
 
     // Emphasis (50/75 kHz)
-    print2("Emphasis: %d\n", cfg->emphasis);
+    print2("fw_setup_recei  : emphasis = %d\n", cfg->emphasis);
     ret = fm_receiver_set_emphasis(cfg->emphasis);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change emphasis");
 
     // Spacing (50/100/200kHz)
-    print2("Spacing: %d\n", cfg->spacing);
+    print2("fw_setup_recei  : spacing = %d\n", cfg->spacing);
     ret = fm_receiver_set_spacing(cfg->spacing);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change channel spacing");
 
     // Set band and range frequencies
     ret = fm_receiver_set_band(cfg->band);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change band and limit frequencies");
-
 
 
     // Set antenna
@@ -471,7 +462,7 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS system");
 
     // RDS system standard
-    print2("fm_command_setup_rds: RDS system: %d\n", system);
+    print2("fw_cmd_set_rds  : RDS system = %d\n", system);
 
 
     // If RDS enabled
@@ -487,7 +478,7 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
         uint8 rds_group_mask = ((rds_mask & 0xC7) & 0x07) << 3;
         // int psAllVal = ;
 
-        print2("RdsOptions: %x\n", rds_group_mask);
+        print2("fw_cmd_set_rds  : rds_options: %x\n", rds_group_mask);
 
         ret = fm_receiver_set_rds_group_options(/*rds_group_mask*/ 0xff); // 255 OK
         CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS group options");
@@ -507,7 +498,7 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
     } else {
         ret = fm_receiver_set_ps_all(0x0f); // ???
         if (ret == FALSE) {
-            print("fm_command_prepare Failed to set RDS on\n");
+            print("fw_cmd_set_rds  : failed to set RDS ps all\n");
             return FM_CMD_FAILURE;
         }
     }
@@ -520,20 +511,20 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
  * Close the handle to /dev/radio0 V4L2 device.
  */
 fm_cmd_status_t fm_command_disable() {
-    print("fm_receiver_disable: call\n");
+    print("fw_cmd_disable  : call\n");
 
     // Wait till the previous ON sequence has completed
     if (is_power_on_completed != TRUE) {
-        print("fm_receiver_disable: already disabled\n");
+        print("fw_cmd_disable  : already disabled\n");
         return FM_CMD_FAILURE;
     }
 
-    print("fm_receiver_disable: set state = 0...\n");
+    print("fw_cmd_disable  : set state = 0...\n");
 
     boolean ret = fm_receiver_set_state(OFF);
 
     if (ret == FALSE) {
-        print("fm_receiver_disable: failed to set fm off");
+        print("fw_cmd_disable  : failed to set fm off");
         return FM_CMD_FAILURE;
     }
 
@@ -541,7 +532,7 @@ fm_cmd_status_t fm_command_disable() {
     __system_property_set("ctl.stop", "fm_dl");
 #endif
 
-    print("fm_receiver_disable: successfully");
+    print("fw_cmd_disable  : successfully");
 
     return FM_CMD_SUCCESS;
 }
@@ -551,17 +542,16 @@ fm_cmd_status_t fm_command_disable() {
  * Tune to specified frequency.
  */
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency) {
-    print2("fm_command_tune_frequency: call with freq = %d\n", frequency);
+    print2("fw_cmd_set_freq : call with freq = %d\n", frequency);
 
-    print("fm_command_tune_frequency: ioctl...\n");
     boolean ret = fm_receiver_set_tuned_frequency(frequency);
 
     if (ret == FALSE) {
-        print("fm_command_tune_frequency: failed\n");
+        print("fw_cmd_set_freq : failed\n");
         return FM_CMD_FAILURE;
     }
 
-    print("fm_command_tune_frequency: successfully\n");
+    print("fw_cmd_set_freq : successfully\n");
 
     return FM_CMD_SUCCESS;
 }
@@ -597,19 +587,13 @@ fm_cmd_status_t fm_command_set_mute_mode(mute_t mode) {
     int ret = fm_receiver_set_mute_mode(mode);
 
     if (ret == TRUE) {
-        print("SetMuteMode Success\n");
+        print("fw_cmd_set_mute : successfully\n");
         return FM_CMD_SUCCESS;
     }
 
     return FM_CMD_FAILURE;
 }
 
-/**
- * fm_receiver_set_stereo_mode
- * PFAL specific routine to configure the FM receiver's Audio mode on the
- * frequency tuned
- * @return FM command status
- */
 fm_cmd_status_t fm_command_set_stereo_mode(stereo_t is_stereo) {
     return fm_receiver_set_stereo_mode(is_stereo);
 }

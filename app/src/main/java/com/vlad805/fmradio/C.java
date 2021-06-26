@@ -57,7 +57,6 @@ final public class C {
 		public static final String RECORD_STOP = "record_stop";
 		public static final String POWER_MODE = "power_mode";
 		public static final String KILL = "kill";
-		public static final String RELOAD_PREFERENCES = "reload_preferences";
 	}
 
 	public static final class Key {
@@ -90,8 +89,12 @@ final public class C {
 		public static final String RDS_ENABLE = "rds_enable";
 
 		public static final String TUNER_DRIVER = "tuner_driver";
-		public static final String TUNER_ANTENNA = "tuner_antenna";
+		public static final String TUNER_REGION = "tuner_region";
+		public static final String TUNER_SPACING = "tuner_spacing";
+
 		public static final String TUNER_POWER_MODE = "tuner_power_mode";
+		public static final String TUNER_ANTENNA = "tuner_antenna";
+
 
 		public static final String AUDIO_SERVICE = "audio_service";
 		public static final String AUDIO_SOURCE = "audio_source";
@@ -101,7 +104,8 @@ final public class C {
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
 		public static final String RECORDING_MODE = "recording_mode";
 		public static final String BINARY_VERSION = "bin_version";
-	}
+		public static final String TUNER_STEREO = "tuner_stereo";
+    }
 
 	public static final class PrefDefaultValue {
 		public static final int LAST_FREQUENCY = 87500;
@@ -112,10 +116,13 @@ final public class C {
 
 		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
 		public static final int TUNER_DRIVER = AbstractFMController.DRIVER_QUALCOMM;
+		public static final int TUNER_REGION = 1;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_MODE = 0;
-	}
+		public static final int TUNER_SPACING = 2;
+		public static final int TUNER_ANTENNA = 0;
+    }
 
 	private C() {}
 
