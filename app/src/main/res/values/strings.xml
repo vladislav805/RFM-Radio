@@ -89,7 +89,7 @@
 	<string name="pref_notification_show_ps_enabled">If the station is transmitting PS, it will be shown in the notification</string>
 	<string name="pref_notification_show_ps_disabled">The name from the favorites will be displayed as station name</string>
 	<string name="pref_notification_show_ps">Show PS in title</string>
-	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)</string>
+	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)\nAF - Alternative Frequencies (list of frequencies on which the same station is broadcasting in neighboring regions )\nPTY - Program TYpe (genre of station)</string>
 	<string name="pref_header_recording">Recording</string>
 	<string name="pref_recording_path_title">Directory for saving</string>
 	<string name="pref_recording_path_value" translatable="false">RFM/recording/$y-$m-$d</string>
@@ -137,12 +137,13 @@
     <string name="pref_tuner_stereo">Stereo</string>
 	<string name="pref_tuner_stereo_on">Use stereo if available</string>
 	<string name="pref_tuner_stereo_off">Always mono</string>
-    <string name="donation_window_title">I\'ve sorry, but...</string>
+    <string name="donation_window_title">I\'ve sorry, but…</string>
     <string name="donation_window_donate">Donate</string>
 	<string name="donation_window_later">Ask later</string>
 	<string name="donation_window_never">Never ask</string>
 	<string name="donation_window_message">RFM-Radio is an open source project that is free and voluntarily developed
 		by one person.\nIf you are interested in the future development of the project or just want to say \"thank you\",
 		you can donate a small amount in various ways.</string>
+    <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
 
 </resources>

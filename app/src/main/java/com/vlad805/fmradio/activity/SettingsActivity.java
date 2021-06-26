@@ -1,14 +1,19 @@
 package com.vlad805.fmradio.activity;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.MenuItem;
+import android.widget.Toast;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.fragments.PreferencesFragment;
 
 public class SettingsActivity extends AppCompatActivity {
-
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -36,31 +41,38 @@ public class SettingsActivity extends AppCompatActivity {
 		return super.onOptionsItemSelected(item);
 	}
 
-	private static final String[] sGentleSettings = {
-			"tuner_driver",
-			"tuner_rds",
-			"tuner_antenna",
-			"tuner_spacing",
-			"tuner_region",
-			"tuner_power_mode",
-			"audio_service",
-			"audio_source",
-			"recording_mode",
-			"app_auto_startup",
-	};
+	@Override
+	protected void onResume() {
+		super.onResume();
 
-	private static final String[] sDynamicSettings = {
-			"rds_enable",
-			"tuner_spacing",
-			"tuner_region",
-	};
+		final IntentFilter filter = new IntentFilter();
+		filter.addAction(C.Event.ERROR_INVALID_ANTENNA);
 
-	private boolean inArray(final String needle, final String[] where) {
-		for (final String str : where) {
-			if (str.equals(needle)) {
-				return true;
+		registerReceiver(mEventListener, filter);
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+
+		unregisterReceiver(mEventListener);
+	}
+
+	private final BroadcastReceiver mEventListener = new BroadcastReceiver() {
+		@Override
+		public void onReceive(final Context context, final Intent intent) {
+			final String action = intent.getAction();
+
+			if (action == null) {
+				return;
+			}
+
+			switch (action) {
+				case C.Event.ERROR_INVALID_ANTENNA: {
+					Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
+					break;
+				}
 			}
 		}
-		return false;
-	}
+	};
 }

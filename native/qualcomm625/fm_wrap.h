@@ -7,7 +7,7 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system);
 fm_cmd_status_t fm_command_disable();
 
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency);
-fm_cmd_status_t fm_command_tune_frequency_by_delta(uint32 delta_khz);
+fm_cmd_status_t fm_command_tune_frequency_by_delta(uint8 direction);
 uint32 fm_command_get_tuned_frequency();
 
 fm_cmd_status_t fm_command_set_mute_mode(mute_t mode);

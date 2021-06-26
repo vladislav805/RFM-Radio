@@ -40,6 +40,8 @@ final public class C {
 
 		public static final String FAVORITE_LIST_CHANGED = BASE + "FAVORITE_LIST_CHANGED";
 
+		public static final String ERROR_INVALID_ANTENNA = BASE + "ERROR_INVALID_ANTENNA";
+
 		public static final String KILLED = BASE + "KILLED";
 	}
 
@@ -114,14 +116,18 @@ final public class C {
 		public static final boolean APP_AUTO_STARTUP = false;
 		public static final boolean RDS_ENABLE = true;
 
-		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
 		public static final int TUNER_DRIVER = AbstractFMController.DRIVER_QUALCOMM;
 		public static final int TUNER_REGION = 1;
+		public static final int TUNER_SPACING = 2;
+		public static final int TUNER_ANTENNA = 0;
+		public static final boolean TUNER_STEREO = true;
+		public static final boolean TUNER_POWER_MODE = false;
+
+		public static final int AUDIO_SERVICE = FMAudioService.SERVICE_LIGHT;
+		public static final int AUDIO_SOURCE = 0;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_MODE = 0;
-		public static final int TUNER_SPACING = 2;
-		public static final int TUNER_ANTENNA = 0;
     }
 
 	private C() {}

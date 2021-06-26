@@ -72,7 +72,7 @@ boolean set_v4l2_ctrl(uint32 id, int32 value) {
     int32 err = ioctl(fd_radio, VIDIOC_S_CTRL, &control);
 
     if (err < 0) {
-        printf("v4l2_s          : failed for control = 0x%x, value = %d, err = %d\n", control.id, value, err);
+        printf("    v4l2_error @@@  failed for control = 0x%x, value = %d, err = %d\n", control.id, value, err);
         return FALSE;
     }
 
@@ -171,7 +171,6 @@ boolean fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
     freq_struct.type = V4L2_TUNER_RADIO;
     freq_struct.frequency = khz_to_tunefreq(frequency_khz);
 
-
     int32 err = ioctl(fd_radio, VIDIOC_S_FREQUENCY, &freq_struct);
 
     if (err < 0) {
@@ -241,6 +240,13 @@ boolean fm_receiver_set_power_mode(power_mode_t mode) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_LP_MODE, mode);
 }
 
+/**
+ * Sets the mono/stereo mode of the FM device.
+ *
+ * This command allows the user to set the mono/stereo mode
+ * of the FM device. Using this function, the user can allow
+ * mono/stereo mixing or force the reception of mono audio only.
+ */
 boolean fm_receiver_set_stereo_mode(stereo_t mode) {
     if (fd_radio < 0) {
         return FALSE;
@@ -261,12 +267,11 @@ boolean fm_receiver_set_stereo_mode(stereo_t mode) {
 }
 
 boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell_period) {
-    int err, i;
-    struct v4l2_control control;
+    int err;
 
     boolean ret;
 
-    print("fm_receiver_search_stations\n");
+    print("fr_seek_search  : search\n");
 
     if (fd_radio < 0) {
         return FALSE;
@@ -274,13 +279,13 @@ boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dw
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, mode);
     if (ret == FALSE) {
-        print("fm_receiver_search_stations failed \n");
+        print("fr_seek_search  : set SRCHMODE failed\n");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SCANDWELL, dwell_period);
     if (ret == FALSE) {
-        print("fm_receiver_search_stations failed \n");
+        print("fr_seek_search  : set SCANDWELL failed\n");
         return FALSE;
     }
 
@@ -290,11 +295,11 @@ boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dw
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hw_seek);
 
     if (err < 0) {
-        print("fm_receiver_search_stations failed \n");
+        print("fr_seek_search  : search failed\n");
         return FALSE;
     }
 
-    print("fm_receiver_search_stations<\n");
+    print("fr_seek_search  : successfully\n");
     return TRUE;
 }
 

@@ -1,0 +1,8 @@
+<!-- drawable/lightning_bolt.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+        android:height="24dp"
+        android:width="24dp"
+        android:viewportWidth="24"
+        android:viewportHeight="24">
+    <path android:fillColor="#ffffff" android:pathData="M11 15H6L13 1V9H18L11 23V15Z" />
+</vector>

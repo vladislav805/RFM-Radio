@@ -28,7 +28,7 @@ import com.vlad805.fmradio.service.fm.IFMEventPoller;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
-import com.vlad805.fmradio.service.fm.implementation.QualCommLegacy;
+import com.vlad805.fmradio.service.fm.implementation.QualcommLegacy;
 import com.vlad805.fmradio.service.fm.implementation.Spirit3Impl;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.RecordLameService;
@@ -272,7 +272,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
 		switch (id) {
 			case AbstractFMController.DRIVER_QUALCOMM: {
-				return new QualCommLegacy(new QualCommLegacy.Config(), this);
+				return new QualcommLegacy(new QualcommLegacy.Config(), this);
 			}
 
 			case AbstractFMController.DRIVER_EMPTY: {
