@@ -33,28 +33,10 @@ import static com.vlad805.fmradio.Utils.uiThread;
  */
 public class PreferencesFragment extends PreferenceFragmentCompat implements Preference.OnPreferenceClickListener {
 
-	private static final SparseArray<String> mAudioSource;
-	private static final SparseArray<String> mRecordMode;
 	private ProgressDialog mProgress;
 	private AppPreferences mPreferences;
 
-	static {
-		mAudioSource = new SparseArray<>();
-		mAudioSource.put(0, "0, DEFAULT");
-	 	mAudioSource.put(1, "1, MIC");
-	 	mAudioSource.put(2, "2, VOICE_UPLINK");
-		mAudioSource.put(3, "3, VOICE_DOWNLINK");
-	 	mAudioSource.put(4, "6, VOICE_CALL");
-		mAudioSource.put(5, "5, CAMCORDER");
-		mAudioSource.put(6, "6, VOICE_RECOGNITION");
-	 	mAudioSource.put(7, "7, VOICE_COMMUNICATION");
-		mAudioSource.put(8, "8, REMOTE_SUBMIX");
-	 	mAudioSource.put(1998, "1998, FM");
 
-		mRecordMode = new SparseArray<>();
-		mRecordMode.put(0, "WAV PCM 16bit (raw, large size)");
-		mRecordMode.put(1, "MP3 192kbps (compressed, small size)");
-	}
 
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
@@ -65,15 +47,15 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		makeTunerCategoryPreferences(context, screen);
 		makeRdsCategoryPreferences(context, screen);
+		makeAudioCategoryPreferences(context, screen);
 		makeInfoCategoryPreferences(context, screen);
 
 		setPreferenceScreen(screen);
 
-		/*setNumberMessageAndProvider("tuner_antenna", InputType.TYPE_CLASS_NUMBER);
-		setNumberMessageAndProvider("recording_directory", InputType.TYPE_CLASS_TEXT);
+		/*setNumberMessageAndProvider("recording_directory", InputType.TYPE_CLASS_TEXT);
 		setNumberMessageAndProvider("recording_filename", InputType.TYPE_CLASS_TEXT);
 
-		setListProviderAndEntries("audio_service", FMAudioService.sService);
+
 		setListProviderAndEntries("audio_source", mAudioSource);
 		setListProviderAndEntries("recording_mode", mRecordMode);*/
 	}
@@ -116,7 +98,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference region = new ListPreference(context);
 		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
-		region.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_REGION));
+		region.setDefaultValue(C.PrefDefaultValue.TUNER_REGION);
 		setListProviderAndEntries(region, Vars.sTunerRegions);
 		region.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.TUNER_REGION, Utils.parseInt((String) newValue));
@@ -127,7 +109,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference spacing = new ListPreference(context);
 		populatePreference(spacing, C.PrefKey.TUNER_SPACING, R.string.pref_tuner_spacing, R.drawable.ic_step_freq);
-		spacing.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_SPACING));
+		spacing.setDefaultValue(C.PrefDefaultValue.TUNER_SPACING);
 		setListProviderAndEntries(spacing, Vars.sTunerSpacing);
 		spacing.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.TUNER_SPACING, Utils.parseInt((String) newValue));
@@ -138,7 +120,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final SwitchPreference stereo = new SwitchPreference(context);
 		populatePreference(stereo, C.PrefKey.TUNER_STEREO, R.string.pref_tuner_stereo, 0);
-		stereo.setDefaultValue(true);
+		stereo.setDefaultValue(C.PrefDefaultValue.TUNER_STEREO);
 		stereo.setSummaryOn(R.string.pref_tuner_stereo_on);
 		stereo.setSummaryOff(R.string.pref_tuner_stereo_off);
 		stereo.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -153,12 +135,34 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		antenna.setDefaultValue(C.PrefDefaultValue.TUNER_ANTENNA);
 		setNumberMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
 		antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
+		antenna.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_ANTENNA, Utils.parseInt((String) newValue));
+			return true;
+		});
 		category.addPreference(antenna);
+
+
+		final SwitchPreference power = new SwitchPreference(context);
+		populatePreference(power, C.PrefKey.TUNER_POWER_MODE, R.string.pref_tuner_power_mode, R.drawable.ic_power);
+		power.setDefaultValue(C.PrefDefaultValue.TUNER_POWER_MODE);
+		power.setSummaryOn(R.string.pref_tuner_power_mode_low);
+		power.setSummaryOff(R.string.pref_tuner_power_mode_normal);
+		power.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_POWER_MODE, (boolean) newValue);
+			return true;
+		});
+		category.addPreference(power);
 	}
 
 	private void makeRdsCategoryPreferences(final Context context, final PreferenceScreen screen) {
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_rds, "rds");
 		screen.addPreference(category);
+
+		final Preference description = new Preference(context);
+		description.setKey("tuner_rds_description");
+		description.setSummary(R.string.pref_tuner_rds_description);
+		description.setEnabled(false);
+		category.addPreference(description);
 
 		final SwitchPreference enable = new SwitchPreference(context);
 		populatePreference(enable, C.PrefKey.RDS_ENABLE, R.string.pref_tuner_rds_enable, R.drawable.ic_rds);
@@ -170,7 +174,34 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			return true;
 		});
 		category.addPreference(enable);
+	}
 
+	private void makeAudioCategoryPreferences(final Context context, final PreferenceScreen screen) {
+		final PreferenceCategory category = makeCategory(context, R.string.pref_header_audio, "audio");
+		screen.addPreference(category);
+
+		final ListPreference service = new ListPreference(context);
+		populatePreference(service, C.PrefKey.AUDIO_SERVICE, R.string.pref_audio_service, R.drawable.ic_audio_service);
+		service.setDefaultValue(C.PrefDefaultValue.AUDIO_SERVICE);
+		setListProviderAndEntries(service, Vars.sAudioService);
+		service.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.AUDIO_SERVICE, Utils.parseInt((String) newValue));
+			warnApplyPreferenceOnlyAfterRestartApp();
+			return true;
+		});
+		category.addPreference(service);
+
+
+		final ListPreference source = new ListPreference(context);
+		populatePreference(source, C.PrefKey.AUDIO_SOURCE, R.string.pref_audio_source, R.drawable.ic_audio_source);
+		source.setDefaultValue(C.PrefDefaultValue.AUDIO_SOURCE);
+		setListProviderAndEntries(source, Vars.sAudioSource);
+		source.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.AUDIO_SOURCE, Utils.parseInt((String) newValue));
+			warnApplyPreferenceOnlyAfterRestartApp();
+			return true;
+		});
+		category.addPreference(source);
 	}
 
 	private void makeInfoCategoryPreferences(final Context context, final PreferenceScreen screen) {
@@ -205,16 +236,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(version);
 
 	}
-
-
-
-
-
-
-
-
-
-
 
 	private void setNumberMessageAndProvider(final EditTextPreference preference, final int type) {
 		preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) EditTextPreference::getText);

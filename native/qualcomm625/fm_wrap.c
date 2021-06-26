@@ -457,6 +457,10 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
 fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
     int ret;
 
+    // RDS enable
+    ret = fm_receiver_set_rds_state(system != FM_RX_NO_RDS_SYSTEM);
+    CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "enable RDS");
+
     //
     ret = fm_receiver_set_rds_system(system);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS system");
@@ -464,13 +468,8 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
     // RDS system standard
     print2("fw_cmd_set_rds  : RDS system = %d\n", system);
 
-
     // If RDS enabled
     if (system != FM_RX_NO_RDS_SYSTEM) {
-
-        // RDS enable
-        ret = fm_receiver_set_rds_state(TRUE);
-        CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "enable RDS");
 
         int32 rds_mask = fm_receiver_get_rds_group_options();
 
@@ -557,15 +556,23 @@ fm_cmd_status_t fm_command_tune_frequency(uint32 frequency) {
 }
 
 /**
- * Part 4.2. Set frequency by delta_khz (current = 104000 kHz, delta_khz = 100 kHz, expect = 104100 kHz).
- * @param delta_khz Delta in kHz (50/100/200).
+ * Part 4.2. Set frequency by delta (current = 104000 kHz, delta = 100 kHz, expect = 104100 kHz).
+ * @param direction Direction of delta
  */
-fm_cmd_status_t fm_command_tune_frequency_by_delta(uint32 delta_khz) {
+fm_cmd_status_t fm_command_tune_frequency_by_delta(uint8 direction) {
     // Current
     uint32 current_frequency_khz = fm_receiver_get_tuned_frequency();
 
+    int32 delta;
+
+    switch (fm_storage.space_type) {
+        case FM_RX_SPACE_200KHZ: delta = 200; break;
+        case FM_RX_SPACE_100KHZ: delta = 100; break;
+        case FM_RX_SPACE_50KHZ: delta = 50; break;
+    }
+
     // Required
-    uint32 need_frequency_khz = current_frequency_khz + delta_khz;
+    uint32 need_frequency_khz = current_frequency_khz + (delta * direction);
 
     // Change
     return fm_receiver_set_tuned_frequency(need_frequency_khz);

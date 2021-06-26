@@ -144,28 +144,54 @@ public abstract class AbstractFMController {
 	}
 
 	public void setupTunerByPreferences(final String[] changed) {
-		for (final String item : changed) {
-			switch (item) {
+		for (final String key : changed) {
+			String value = null;
+			switch (key) {
 				case C.PrefKey.RDS_ENABLE: {
-					final boolean isRdsEnabled = Storage.getPrefBoolean(context, C.PrefKey.RDS_ENABLE, true);
-					applyPreference(C.PrefKey.RDS_ENABLE, isRdsEnabled ? "1" : "0");
+					final boolean isRdsEnabled = Storage.getPrefBoolean(context, key, true);
+					value = isRdsEnabled ? "1" : "0";
 					break;
 				}
 
 				case C.PrefKey.TUNER_REGION: {
-					final int band = Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
-					applyPreference(C.PrefKey.TUNER_REGION, String.valueOf(band));
+					final int band = Storage.getPrefInt(context, key, C.PrefDefaultValue.TUNER_REGION);
+					value = String.valueOf(band);
+					break;
+				}
+
+				case C.PrefKey.TUNER_STEREO: {
+					final boolean stereo = Storage.getPrefBoolean(context, key, C.PrefDefaultValue.TUNER_STEREO);
+					value =  stereo ? "1" : "0";
+					break;
+				}
+
+				case C.PrefKey.TUNER_SPACING: {
+					final int spacing = Storage.getPrefInt(context, key, C.PrefDefaultValue.TUNER_SPACING);
+					applyPreference(key, String.valueOf(spacing));
+
+					// Important! After changing the spacing, stereo/mode is reset to mono.
+					final boolean stereo = Storage.getPrefBoolean(context, C.PrefKey.TUNER_STEREO, C.PrefDefaultValue.TUNER_STEREO);
+					applyPreference(C.PrefKey.TUNER_STEREO, stereo ? "1" : "0");
+					break;
+				}
+
+				case C.PrefKey.TUNER_ANTENNA: {
+					final int region = Storage.getPrefInt(context, key, C.PrefDefaultValue.TUNER_ANTENNA);
+					value = String.valueOf(region);
+					break;
+				}
+
+				case C.PrefKey.TUNER_POWER_MODE: {
+					final boolean isLowPower = Storage.getPrefBoolean(context, key, C.PrefDefaultValue.TUNER_POWER_MODE);
+					value = isLowPower ? "low" : "normal";
 					break;
 				}
 			}
+
+			if (value != null) {
+				applyPreference(key, value);
+			}
 		}
-
-
-
-
-
-		/*final int spacing = Storage.getPrefInt(context, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
-		applyPreference(C.PrefKey.TUNER_SPACING, String.valueOf(spacing));*/
 	}
 
 	/**

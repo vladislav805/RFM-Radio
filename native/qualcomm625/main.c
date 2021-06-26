@@ -28,8 +28,10 @@ response_t api_handler(char* request);
 #define CD_ERR (-1)
 
 #define RSP_OK "ok"
-#define RSP_ERR_NO_ARG      "ERR_IVD_FRQ"
-#define RSP_ERR_UNKNOWN     "ERR_UNK_CMD"
+#define RSP_ERR_NO_ARG          "ERR_IVD_FRQ"
+#define RSP_ERR_UNKNOWN         "ERR_UNK_CMD"
+#define RSP_ERR_INVALID_ANTENNA "ERR_UNV_ANT"
+#define RSP_ERR_CANT_SET_REGION "ERR_CNS_REG"
 #define RSP_ERR_INVALID_ARG "ERR_INVLARG"
 
 #define VAR_MUTE_NONE  '0'
@@ -125,8 +127,7 @@ void handler_set_frequency(response_t* response, char** args) {
 }
 
 void handler_jump(response_t* response, char** args) {
-    // TODO: spacing instead 100 kHz
-    uint32 direction = str_equals(args[1], "1") ? 100 : -100;
+    uint32 direction = str_equals(args[1], "1") ? 1 : -1;
 
     response->code = fm_command_tune_frequency_by_delta(direction);
 
@@ -137,12 +138,6 @@ void handler_jump(response_t* response, char** args) {
 
 void handler_seek(response_t* response, char** args) {
     uint8 direction = str_equals(args[1], "1") ? 1 : 0;
-
-    fm_search_stations cfg_data = {
-            .search_dir = direction,
-            .search_mode = SEEK,
-            .dwell_period = 0x07
-    };
 
     response->code = fm_receiver_search_station_seek(SEEK, direction, 7);
 
@@ -183,6 +178,21 @@ void handler_stereo(response_t* response, char** args) {
     response->code = FM_CMD_SUCCESS;
 }
 
+void handler_set_antenna(response_t* response, char** args) {
+    uint8 antenna = atoi(args[1]);
+
+    response->code = fm_receiver_set_antenna(antenna);
+    response->data = response->code == TRUE ? RSP_OK : RSP_ERR_INVALID_ANTENNA;
+}
+
+
+void handler_set_region(response_t* response, char** args) {
+    radio_band_t region = (uint8) atoi(args[1]);
+
+    response->code = fm_receiver_set_band(region);
+    response->data = response->code == TRUE ? RSP_OK : RSP_ERR_CANT_SET_REGION;
+}
+
 
 /**
  * Hash for endpoint name
@@ -208,40 +218,48 @@ typedef struct {
 
 static api_endpoint endpoints[] = {
         {
-            .name = "init",
-            .handler = handler_open,
+                .name = "init",
+                .handler = handler_open,
         },
         {
-            .name = "enable",
-            .handler = handler_enable,
+                .name = "enable",
+                .handler = handler_enable,
         },
         {
-            .name = "disable",
-            .handler = handler_disable,
+                .name = "disable",
+                .handler = handler_disable,
         },
         {
-            .name = "setfreq",
-            .handler = handler_set_frequency,
+                .name = "setfreq",
+                .handler = handler_set_frequency,
         },
         {
-            .name = "jump",
-            .handler = handler_jump,
+                .name = "jump",
+                .handler = handler_jump,
         },
         {
-            .name = "seekhw",
-            .handler = handler_seek,
+                .name = "seekhw",
+                .handler = handler_seek,
         },
         {
-            .name = "power_mode",
-            .handler = handler_power_mode,
+                .name = "power_mode",
+                .handler = handler_power_mode,
         },
         {
-            .name = "rds_toggle",
-            .handler = handler_rds_toggle,
+                .name = "rds_toggle",
+                .handler = handler_rds_toggle,
         },
         {
-            .name = "set_stereo",
-            .handler = handler_stereo,
+                .name = "set_stereo",
+                .handler = handler_stereo,
+        },
+        {
+                .name = "set_antenna",
+                .handler = handler_set_antenna,
+        },
+        {
+                .name = "set_region",
+                .handler = handler_set_region,
         },
 };
 
@@ -280,7 +298,7 @@ response_t api_handler(char* request) {
 	if (found != NULL) {
         found->handler(res, ar);
 	} else {
-	    printf("main_api_hand   : unknown endpoint '%s'\n", command, command_hash);
+	    printf("main_api_hand   : unknown endpoint '%s'\n", command);
 	}
 
 	return *res;

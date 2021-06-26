@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * vlad805 (c) 2020
  */
-public class QualCommLegacy extends AbstractFMController implements IFMEventListener {
+public class QualcommLegacy extends AbstractFMController implements IFMEventListener {
 	public static class Config extends LaunchConfig {
 		@Override
 		public int getClientPort() {
@@ -35,7 +35,7 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 	private FMEventCallback mEventCallback;
 	private final Poll mCommandPoll;
 
-	public QualCommLegacy(final LaunchConfig config, final Context context) {
+	public QualcommLegacy(final LaunchConfig config, final Context context) {
 		super(config, context);
 
 		mCommandPoll = new Poll(config);
@@ -132,6 +132,21 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 
 			case C.PrefKey.TUNER_STEREO: {
 				sendCommand(new Request("set_stereo " + value));
+				break;
+			}
+
+			case C.PrefKey.TUNER_ANTENNA: {
+				sendCommand(new Request("set_antenna " + value).onResponse(str -> {
+					if (str.startsWith("ERR_UNV_ANT")) {
+						fireEvent(C.Event.ERROR_INVALID_ANTENNA);
+					}
+				}));
+				break;
+			}
+
+			case C.PrefKey.TUNER_POWER_MODE: {
+				sendCommand(new Request("power_mode " + value));
+				break;
 			}
 		}
 	}
@@ -141,7 +156,8 @@ public class QualCommLegacy extends AbstractFMController implements IFMEventList
 		if (mServer != null) {
 			mServer.closeServer();
 		}
-		String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
+
+		final String command = String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName());
 		Utils.shell(command, true);
 		callback.onResult(null);
 	}

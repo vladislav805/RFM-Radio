@@ -1,38 +1,6 @@
 <PreferenceScreen
 		xmlns:android="http://schemas.android.com/apk/res/android">
 	<PreferenceCategory
-			android:key="tuner"
-			android:title="@string/pref_header_tuner">
-		<SwitchPreferenceCompat
-				android:key="tuner_power_mode"
-				android:defaultValue="false"
-				android:title="@string/pref_tuner_power_mode"
-				android:summaryOn="@string/pref_tuner_power_mode_low"
-				android:summaryOff="@string/pref_tuner_power_mode_normal" />
-	</PreferenceCategory>
-	<PreferenceCategory
-			android:key="rds"
-			android:title="@string/pref_header_rds">
-		<Preference
-				android:key="tuner_rds_description"
-				android:enabled="false"
-				android:summary="@string/pref_tuner_rds_description" />
-	</PreferenceCategory>
-	<PreferenceCategory
-			android:key="audio"
-			android:title="@string/pref_header_audio">
-		<ListPreference
-				android:key="audio_service"
-				android:defaultValue="0"
-				android:title="@string/pref_audio_service"
-				android:icon="@drawable/ic_audio_service"/>
-		<ListPreference
-				android:key="audio_source"
-				android:title="@string/pref_audio_source"
-				android:defaultValue="0"
-				android:icon="@drawable/ic_audio_source"/>
-	</PreferenceCategory>
-	<PreferenceCategory
 			android:key="app"
 			android:title="@string/pref_header_app">
 		<SwitchPreferenceCompat

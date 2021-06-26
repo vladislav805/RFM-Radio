@@ -17,14 +17,6 @@ public abstract class FMAudioService {
 	public static final int SERVICE_LIGHT = 0;
 	public static final int SERVICE_SPIRIT3 = 1;
 
-	public static final SparseArray<String> sService;
-
-	static {
-		sService = new SparseArray<>();
-		sService.put(SERVICE_LIGHT, "Lightweight audio service");
-		sService.put(SERVICE_SPIRIT3, "Audio service from Spirit3");
-	}
-
 	protected AudioManager mAudioManager;
 
 	protected int mSampleRate = 44100; // Default = 8000 (Max with AMR)

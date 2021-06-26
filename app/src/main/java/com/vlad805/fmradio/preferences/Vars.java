@@ -3,6 +3,8 @@ package com.vlad805.fmradio.preferences;
 import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 
+import static com.vlad805.fmradio.service.audio.FMAudioService.SERVICE_LIGHT;
+import static com.vlad805.fmradio.service.audio.FMAudioService.SERVICE_SPIRIT3;
 import static com.vlad805.fmradio.service.fm.implementation.AbstractFMController.*;
 
 /**
@@ -12,6 +14,11 @@ public class Vars {
     public static final SparseArray<String> sTunerDrivers;
     public static final SparseArray<String> sTunerRegions;
     public static final SparseArray<String> sTunerSpacing;
+
+    public static final SparseArray<String> sAudioSource;
+    public static final SparseArray<String> sRecordMode;
+    public static final SparseArray<String> sAudioService;
+
 
     static {
         sTunerDrivers = new SparseArray<>();
@@ -31,5 +38,25 @@ public class Vars {
         sTunerSpacing.put(BandUtils.SPACING_50kHz, "50 kHz");
         sTunerSpacing.put(BandUtils.SPACING_100kHz, "100 kHz");
         sTunerSpacing.put(BandUtils.SPACING_200kHz, "200 kHz");
+
+        sAudioSource = new SparseArray<>();
+        sAudioSource.put(0, "0, DEFAULT");
+        sAudioSource.put(1, "1, MIC");
+        sAudioSource.put(2, "2, VOICE_UPLINK");
+        sAudioSource.put(3, "3, VOICE_DOWNLINK");
+        sAudioSource.put(4, "6, VOICE_CALL");
+        sAudioSource.put(5, "5, CAMCORDER");
+        sAudioSource.put(6, "6, VOICE_RECOGNITION");
+        sAudioSource.put(7, "7, VOICE_COMMUNICATION");
+        sAudioSource.put(8, "8, REMOTE_SUBMIX");
+        sAudioSource.put(1998, "1998, FM");
+
+        sRecordMode = new SparseArray<>();
+        sRecordMode.put(0, "WAV PCM 16bit (raw, large size)");
+        sRecordMode.put(1, "MP3 192kbps (compressed, small size)");
+
+        sAudioService = new SparseArray<>();
+        sAudioService.put(SERVICE_LIGHT, "Lightweight audio service");
+        sAudioService.put(SERVICE_SPIRIT3, "Audio service from Spirit3");
     }
 }

@@ -57,7 +57,7 @@
 	<string name="pref_notification_show_ps">Показывать PS в заголовке</string>
 	<string name="pref_notification_show_ps_disabled">В заголовке уведомления будет отображаться название станции из избранного</string>
 	<string name="pref_notification_show_ps_enabled">В заголовке уведомления будет отображаться PS (если радиостанция его предоставляет), в противном случае, название из избранного</string>
-	<string name="pref_tuner_rds_description">RDS - Radio Data System (Система Радио Данных)\nОтображение связанной с радио информации, передаваемой радиостанциями.\nPS - Program Service (обычно название радиостанции)\nRT - Radio Text (обычно передается название текущего трека или информация о радиостанции)</string>
+	<string name="pref_tuner_rds_description">RDS - Radio Data System (Система Радио Данных)\nОтображение связанной с радио информации, передаваемой радиостанциями.\nPS - Program Service (обычно название радиостанции)\nRT - Radio Text (обычно передается название текущего трека или информация о радиостанции)\nAF - Alternative Frequencies (список частот, на которых вещает эта же станция в соседних регионах)\nPTY - Program TYpe (жанр радиостанции)</string>
 	<string name="pref_recording_convert_summary">WAV - сырая запись/большой файл, MP3 - сжатая запись/маленький файл</string>
 	<string name="pref_recording_convert_title">Формат записи</string>
 	<string name="pref_recording_name_title">Название файла</string>
@@ -110,7 +110,7 @@
 	<string name="pref_tuner_stereo">Стерео</string>
 	<string name="pref_tuner_stereo_on">Воспроизводить стерео, когда доступно</string>
 	<string name="pref_tuner_stereo_off">Всегда воспроизводить моно</string>
-	<string name="donation_window_title">Простите, извините...</string>
+	<string name="donation_window_title">Простите, извините…</string>
 	<string name="donation_window_donate">Пожертвовать</string>
 	<string name="donation_window_later">Позже</string>
 	<string name="donation_window_never">Никогда не спрашивать</string>
