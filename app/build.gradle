@@ -74,4 +74,5 @@ dependencies {
     implementation 'androidx.preference:preference:1.1.0'
     implementation 'androidx.media:media:1.1.0'
     implementation 'com.github.naman14:TAndroidLame:1.1'
+    implementation 'net.grandcentrix.tray:tray:0.12.0'
 }

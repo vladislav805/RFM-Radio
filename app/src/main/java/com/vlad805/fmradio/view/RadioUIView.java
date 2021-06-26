@@ -3,12 +3,17 @@ package com.vlad805.fmradio.view;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.ViewGroup;
 import android.widget.*;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.preferences.BandUtils;
+import net.grandcentrix.tray.AppPreferences;
 
 /**
  * vlad805 (c) 2019
@@ -22,29 +27,36 @@ public class RadioUIView extends LinearLayout {
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
 	private TextView mProgramType;
+	private BandUtils.BandLimit mBandLimits;
+	private int mSpacing;
+	private final AppPreferences mPreferences;
 
 	/**
 	 * Current frequency
 	 */
-	private int mkHz = BAND_LOW;
+	private int mkHz;
 
-	/**
-	 * Settings
-	 */
-	private static final int BAND_LOW = 87500;
-	private static final int BAND_HIGH = 108000;
-	private static final int BAND_STEP = 50;
-
-	public RadioUIView(Context context) {
+	public RadioUIView(final Context context) {
 		super(context);
+
+		mPreferences = new AppPreferences(getContext());
 
 		init();
 	}
 
-	public RadioUIView(Context context, AttributeSet attrs) {
+	public RadioUIView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 
+		mPreferences = new AppPreferences(getContext());
+
 		init();
+	}
+
+	@Override
+	protected void onWindowVisibilityChanged(int visibility) {
+		super.onWindowVisibilityChanged(visibility);
+
+		this.reloadPreferences();
 	}
 
 	private void init() {
@@ -61,8 +73,26 @@ public class RadioUIView extends LinearLayout {
 		final Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
 		mFrequencyView.setTypeface(font);
 
-		mSeek.setMinMaxValue(BAND_LOW, BAND_HIGH, BAND_STEP);
+		reloadPreferences();
+		mkHz = mBandLimits.lower;
+	}
+
+	private void reloadPreferences() {
+		final int regionPref = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+		final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+
+		mBandLimits = BandUtils.getBandLimit(regionPref);
+		mSpacing = BandUtils.getSpacing(spacingPref);
+
+		mSeek.setMinMaxValue(mBandLimits.lower, mBandLimits.upper, mSpacing);
 		mSeek.setOnSeekBarChangeListener(mOnSeekFrequencyChanged);
+
+		final float seekWidthDp = (mBandLimits.upper - mBandLimits.lower) / 10.67f;
+		final int seekWidthPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, seekWidthDp, getResources().getDisplayMetrics());
+
+		final ViewGroup.LayoutParams lp = mSeek.getLayoutParams();
+		lp.width = seekWidthPx;
+		mSeek.setLayoutParams(lp);
 	}
 
 	public void hideReflection() {
@@ -75,7 +105,9 @@ public class RadioUIView extends LinearLayout {
 	 */
 	public final void setFrequency(int kHz) {
 		mkHz = kHz;
-		mFrequencyView.setText(Utils.getMHz(kHz));
+		final int spacing = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+
+		mFrequencyView.setText(Utils.getMHz(kHz, spacing == BandUtils.SPACING_50kHz ? 2 : 1));
 
 		mSeek.setProgress(kHz);
 
@@ -122,7 +154,7 @@ public class RadioUIView extends LinearLayout {
 			 * Android 5.1 (Sony Xperia L at least) progress contains value from
 			 * seekBar.getProgress(), that was already fixed
 			 */
-			if (curr > BAND_HIGH) {
+			if (curr > mBandLimits.upper) {
 				curr /= 1000;
 			}
 
@@ -149,8 +181,8 @@ public class RadioUIView extends LinearLayout {
 	 */
 	private void scrollSeekBar() {
 		final int deltaPadding = mSeek.getPaddingLeft() + mSeek.getPaddingRight();
-		final int bandLength = (BAND_HIGH - BAND_LOW) / BAND_STEP;
-		final int ticksFromStart = (mkHz - BAND_LOW) / BAND_STEP;
+		final int bandLength = (mBandLimits.upper - mBandLimits.lower) / mSpacing;
+		final int ticksFromStart = (mkHz - mBandLimits.lower) / mSpacing;
 
 		final int viewWidth = mSeek.getWidth() - deltaPadding;
 		final float viewInterval = viewWidth * 1f / bandLength;

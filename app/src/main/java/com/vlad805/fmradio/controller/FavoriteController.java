@@ -1,11 +1,11 @@
 package com.vlad805.fmradio.controller;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
 import com.vlad805.fmradio.models.FavoriteStation;
+import net.grandcentrix.tray.AppPreferences;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +23,7 @@ import java.util.List;
  */
 public class FavoriteController extends JSONFile<FavoriteFile> {
 	private List<FavoriteStation> mList;
-	private final SharedPreferences mStorage;
+	private final AppPreferences mStorage;
 
 	private static final String KEY_CURRENT_LIST = "favorites_list_current";
 	private static final String KEY_JSON_ITEMS = "items";
@@ -70,11 +70,11 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new FileNotFoundException("setCurrentFavoriteList: not found list with name '" + name + "'; full path = " + file.getAbsolutePath());
 		}
 
-		mStorage.edit().putString(KEY_CURRENT_LIST, name).apply();
+		mStorage.put(KEY_CURRENT_LIST, name);
 		reload();
 	}
 
-	/**
+	/**+
 	 * Returns favorite stations in list of current list
 	 * @return Stations in list
 	 */

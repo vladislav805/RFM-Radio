@@ -146,8 +146,6 @@ void handler_seek(response_t* response, char** args) {
 
     response->code = fm_receiver_search_station_seek(SEEK, direction, 7);
 
-    /*char response[8];
-    sprintf(response, "%d", fm_get_current_frequency_cached());*/
     response->data = RSP_OK;
     response->code = FM_CMD_SUCCESS;
 }
@@ -169,6 +167,17 @@ void handler_rds_toggle(response_t* response, char** args) {
                         : FM_RX_NO_RDS_SYSTEM;
 
     fm_command_setup_rds(system);
+
+    response->data = RSP_OK;
+    response->code = FM_CMD_SUCCESS;
+}
+
+void handler_stereo(response_t* response, char** args) {
+    stereo_t mode = str_equals(args[1], "1")
+                        ? FM_RX_STEREO
+                        : FM_RX_MONO;
+
+    fm_command_set_stereo_mode(mode);
 
     response->data = RSP_OK;
     response->code = FM_CMD_SUCCESS;
@@ -230,12 +239,10 @@ static api_endpoint endpoints[] = {
             .name = "rds_toggle",
             .handler = handler_rds_toggle,
         },
-        /*
         {
-            .name = "setstereo",
+            .name = "set_stereo",
             .handler = handler_stereo,
-        }
-        */
+        },
 };
 
 static const uint8 endpoints_len = sizeof(endpoints) / sizeof(api_endpoint);
@@ -264,7 +271,6 @@ response_t api_handler(char* request) {
 	    api_endpoint endpoint = endpoints[i];
 
 	    if (str_equals(endpoint.name, command)) {
-	        printf("Found endpoint '%s'\n", endpoint.name);
             found = &endpoint;
 	        break;
 	    }
@@ -274,7 +280,7 @@ response_t api_handler(char* request) {
 	if (found != NULL) {
         found->handler(res, ar);
 	} else {
-	    printf("Unknown endpoint '%s' (%d)\n", command, command_hash);
+	    printf("main_api_hand   : unknown endpoint '%s'\n", command, command_hash);
 	}
 
 	return *res;
@@ -333,7 +339,6 @@ int main(int argc, char *argv[]) {
 	for (uint8 i = 0; i < endpoints_len; ++i) {
 	    api_endpoint* endpoint = &endpoints[i];
 	    endpoint->hash = hash_name_endpoint(endpoint->name);
-	    printf("Endpoint %s has hash %d\n", endpoint->name, endpoint->hash);
 	}
 
 	// TODO: pick up in settings

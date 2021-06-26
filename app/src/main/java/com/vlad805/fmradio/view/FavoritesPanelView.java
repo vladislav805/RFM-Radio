@@ -13,6 +13,7 @@ import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.adapter.FavoritePanelAdapter;
+import net.grandcentrix.tray.AppPreferences;
 
 import java.util.List;
 
@@ -28,6 +29,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	private FavoritePanelAdapter mAdapter;
 	private OnFavoriteClick mClickListener;
 	private FavoriteController mController;
+	private final AppPreferences mPreferences;
 
 	private boolean mIsLocked = false;
 
@@ -39,13 +41,17 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	public FavoritesPanelView(final Context context) {
 		super(context);
 
-		init();
+		mPreferences = new AppPreferences(context);
+
+		init(context);
 	}
 
 	public FavoritesPanelView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 
-		init();
+		mPreferences = new AppPreferences(context);
+
+		init(context);
 	}
 
 	/**
@@ -63,20 +69,26 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		if (force) {
 			mController.reload();
 		}
+
 		mStations = mController.getStationsInCurrentList();
 		mAdapter.setList(mStations);
 	}
 
-	private void init() {
-		final LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
+	private void init(final Context context) {
+		final LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(
+				context,
+				LinearLayoutManager.HORIZONTAL,
+				false
+		);
+
 		setLayoutManager(horizontalLayoutManager);
 
-		mAdapter = new FavoritePanelAdapter(getContext());
+		mAdapter = new FavoritePanelAdapter(context);
 		setAdapter(mAdapter);
 
-		addOnItemTouchListener(new RecyclerItemClickListener(getContext(), this, this));
+		addOnItemTouchListener(new RecyclerItemClickListener(context, this, this));
 
-		mController = new FavoriteController(getContext());
+		mController = new FavoriteController(context);
 		load();
 	}
 

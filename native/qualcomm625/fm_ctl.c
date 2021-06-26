@@ -13,31 +13,30 @@
 #    define V4L2_CID_PRIVATE_BASE                  0x8000000
 #endif
 
-#define V4L2_CID_PRIVATE_TAVARUA_SRCHMODE      (V4L2_CID_PRIVATE_BASE + 1)
-#define V4L2_CID_PRIVATE_TAVARUA_SCANDWELL     (V4L2_CID_PRIVATE_BASE + 2)
-#define V4L2_CID_PRIVATE_TAVARUA_SRCHON        (V4L2_CID_PRIVATE_BASE + 3)
-#define V4L2_CID_PRIVATE_TAVARUA_STATE         (V4L2_CID_PRIVATE_BASE + 4)
-#define V4L2_CID_PRIVATE_TAVARUA_TRANSMIT_MODE (V4L2_CID_PRIVATE_BASE + 5)
-#define V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_MASK (V4L2_CID_PRIVATE_BASE + 6)
-#define V4L2_CID_PRIVATE_TAVARUA_REGION        (V4L2_CID_PRIVATE_BASE + 7)
-#define V4L2_CID_PRIVATE_TAVARUA_SIGNAL_TH     (V4L2_CID_PRIVATE_BASE + 8)
-#define V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY      (V4L2_CID_PRIVATE_BASE + 9)
-#define V4L2_CID_PRIVATE_TAVARUA_SRCH_PI       (V4L2_CID_PRIVATE_BASE + 10)
-#define V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT      (V4L2_CID_PRIVATE_BASE + 11)
-#define V4L2_CID_PRIVATE_TAVARUA_EMPHASIS      (V4L2_CID_PRIVATE_BASE + 12)
-#define V4L2_CID_PRIVATE_TAVARUA_RDS_STD       (V4L2_CID_PRIVATE_BASE + 13)
-#define V4L2_CID_PRIVATE_TAVARUA_SPACING       (V4L2_CID_PRIVATE_BASE + 14)
-#define V4L2_CID_PRIVATE_TAVARUA_RDSON         (V4L2_CID_PRIVATE_BASE + 15)
-#define V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC (V4L2_CID_PRIVATE_BASE + 16)
-#define V4L2_CID_PRIVATE_TAVARUA_LP_MODE       (V4L2_CID_PRIVATE_BASE + 17)
-#define V4L2_CID_PRIVATE_TAVARUA_RDSD_BUF      (V4L2_CID_PRIVATE_BASE + 19)
+#define V4L2_CID_PRIVATE_TAVARUA_SRCHMODE      (V4L2_CID_PRIVATE_BASE + 1)  // 0x8000001
+#define V4L2_CID_PRIVATE_TAVARUA_SCANDWELL     (V4L2_CID_PRIVATE_BASE + 2)  // 0x8000002
+#define V4L2_CID_PRIVATE_TAVARUA_SRCHON        (V4L2_CID_PRIVATE_BASE + 3)  // 0x8000003
+#define V4L2_CID_PRIVATE_TAVARUA_STATE         (V4L2_CID_PRIVATE_BASE + 4)  // 0x8000004
+#define V4L2_CID_PRIVATE_TAVARUA_TRANSMIT_MODE (V4L2_CID_PRIVATE_BASE + 5)  // 0x8000005
+#define V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_MASK (V4L2_CID_PRIVATE_BASE + 6)  // 0x8000006
+#define V4L2_CID_PRIVATE_TAVARUA_REGION        (V4L2_CID_PRIVATE_BASE + 7)  // 0x8000007
+#define V4L2_CID_PRIVATE_TAVARUA_SIGNAL_TH     (V4L2_CID_PRIVATE_BASE + 8)  // 0x8000008
+#define V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY      (V4L2_CID_PRIVATE_BASE + 9)  // 0x8000009
+#define V4L2_CID_PRIVATE_TAVARUA_SRCH_PI       (V4L2_CID_PRIVATE_BASE + 10) // 0x800000a
+#define V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT      (V4L2_CID_PRIVATE_BASE + 11) // 0x800000b
+#define V4L2_CID_PRIVATE_TAVARUA_EMPHASIS      (V4L2_CID_PRIVATE_BASE + 12) // 0x800000c
+#define V4L2_CID_PRIVATE_TAVARUA_RDS_STD       (V4L2_CID_PRIVATE_BASE + 13) // 0x800000d
+#define V4L2_CID_PRIVATE_TAVARUA_SPACING       (V4L2_CID_PRIVATE_BASE + 14) // 0x800000e
+#define V4L2_CID_PRIVATE_TAVARUA_RDSON         (V4L2_CID_PRIVATE_BASE + 15) // 0x800000f
+#define V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC (V4L2_CID_PRIVATE_BASE + 16) // 0x8000010
+#define V4L2_CID_PRIVATE_TAVARUA_LP_MODE       (V4L2_CID_PRIVATE_BASE + 17) // 0x8000011
+#define V4L2_CID_PRIVATE_TAVARUA_RDSD_BUF      (V4L2_CID_PRIVATE_BASE + 19) // 0x8000013
 #define V4L2_CID_PRIVATE_TAVARUA_AF_JUMP       (V4L2_CID_PRIVATE_BASE + 27)
 #define V4L2_CID_PRIVATE_TAVARUA_SET_AUDIO_PATH (V4L2_CID_PRIVATE_BASE + 41)
 #define V4L2_CID_PRIVATE_RSSI_TH               (V4L2_CID_PRIVATE_BASE + 62)
 
 #define V4L2_CID_PRIVATE_TAVARUA_ANTENNA       (V4L2_CID_PRIVATE_BASE + 18)
 #define V4L2_CID_PRIVATE_TAVARUA_PSALL         (V4L2_CID_PRIVATE_BASE + 20)
-
 
 
 #define RDS_GROUP_RT  1 << 0
@@ -66,25 +65,27 @@ boolean set_v4l2_ctrl(uint32 id, int32 value) {
     }
 
     struct v4l2_control control = {};
-    int err;
+
     control.value = value;
     control.id = id;
 
-    err = ioctl(fd_radio, VIDIOC_S_CTRL, &control);
+    int32 err = ioctl(fd_radio, VIDIOC_S_CTRL, &control);
+
     if (err < 0) {
-        print2("set_v4l2_ctrl failed for control = 0x%x\n", control.id);
+        printf("v4l2_s          : failed for control = 0x%x, value = %d, err = %d\n", control.id, value, err);
         return FALSE;
     }
+
     return TRUE;
 }
 
 boolean fm_receiver_open() {
     fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
 
-    printf("fm_receiver_open: fd_radio = %d\n", fd_radio);
+    printf("fr_open         : fd_radio = %d\n", fd_radio);
 
     if (fd_radio < 0) {
-        printf("fm_receiver_open: failed to open fd_radio, exit code = %d\n", fd_radio);
+        printf("fr_open         : failed to open fd_radio, exit code = %d\n", fd_radio);
         return FALSE;
     }
 
@@ -133,10 +134,10 @@ uint8 fm_receiver_get_rds_group_options() {
     struct v4l2_control control;
     control.id = V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC;
 
-    uint32 ret = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
+    uint32 err = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
 
-    if (ret < 0) {
-        print2("fm_receiver_enable Failed to set RDS group  = %d\n", ret);
+    if (err < 0) {
+        print2("fr_g_rds_grp_opt: failed to set RDS group err = %d\n", err);
         return 0;
     }
 
@@ -174,7 +175,7 @@ boolean fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
     int32 err = ioctl(fd_radio, VIDIOC_S_FREQUENCY, &freq_struct);
 
     if (err < 0) {
-        print2("fm_receiver_set_tuned_frequency: failed, exit code = %d", err);
+        print2("fr_set_freq     : failed, exit code = %d\n", err);
         return FALSE;
     }
 
@@ -195,6 +196,7 @@ uint32 fm_receiver_get_tuned_frequency() {
     if (err == 0) {
         return tunefreq_to_khz(freq_struct.frequency);
     } else {
+        print2("fr_             : failed to set tuned frequency, err = %d\n", err);
         return 0;
     }
 }
@@ -252,7 +254,7 @@ boolean fm_receiver_set_stereo_mode(stereo_t mode) {
     int32 ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
 
     if (ret < 0) {
-        print2("fm_receiver_set_stereo_mode failed, ret = %d\n", ret);
+        print2("fr_s_stereo_mode: failed, ret = %d\n", ret);
     }
 
     return ret == 0;
@@ -338,9 +340,10 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index) {
     err = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
 
     if (err < 0) {
-        printf("ioctl failed with error = %d\n", err);
+        printf("fr_v4l2_read    : ioctl read 0x%x failed, err = %d\n", index, err);
         return -1;
     }
+
     return v4l2_buf.bytesused;
 }
 
@@ -378,9 +381,7 @@ boolean extract_program_service(fm_rds_storage* storage) {
     memcpy(storage->program_name, &buf[5], ps_services_len);
     storage->program_name[ps_services_len] = '\0';
 
-    print2("ProgramId: %d\n", storage->program_id);
-    print2("ProgramType: %d\n", storage->program_type);
-    print2("ProgramServiceName: %s\n", storage->program_name);
+    printf("fr_extr_ps      : prgid=%d, pty=%d, ps=`%s`\n", storage->program_id, storage->program_type, storage->program_name);
 
     return TRUE;
 }
@@ -413,7 +414,7 @@ boolean extract_radio_text(fm_rds_storage* storage) {
 
     memset(storage->radio_text, 0x0, 64);
     memcpy(storage->radio_text, &buf[5], radio_text_length);
-    printf("RadioText: %s\n", storage->radio_text);
+    printf("fr_extr_rt      : rt=`%s`\n", storage->radio_text);
 
     return TRUE;
 }
@@ -429,17 +430,17 @@ boolean extract_rds_af_list() {
         return FALSE;
     }
 
-    printf("=============== AF ============\n");
-
     // buf[4] | (buf[5] << 8)
     // buf[6] = count of frequencies
     // buf[($index * 4) + 6 + (1...4)] with shift = one frequency (uint32)
     uint8 af_size = buf[6] & 0xff;
 
     if (af_size <= 0 || af_size > 25) {
-        printf("AF invalid: %d , %d\n", buf[4], buf[4] & 0xff);
+        printf("fr_extr_af_list : AF invalid: %d , %d\n", buf[4], buf[4] & 0xff);
         return FALSE;
     }
+
+    printf("fr_extr_af_list : ");
 
     for (int i = 0; i < af_size; ++i) {
         uint8 shift = 6 + i * 4;
@@ -450,11 +451,10 @@ boolean extract_rds_af_list() {
                 ((buf[shift + 3] & 0xFF) << 16) |
                 ((buf[shift + 4] & 0xFF) << 24);
 
-        printf("af[%d] = %d\n", i, freq);
+        printf("%d ", freq);
     }
 
-
-    printf("=============== END AF ============\n");
+    printf("\n");
 
     return TRUE;
 }

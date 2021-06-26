@@ -1,29 +1,19 @@
 package com.vlad805.fmradio;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import androidx.preference.PreferenceManager;
+import net.grandcentrix.tray.AppPreferences;
 
 /**
  * vlad805 (c) 2019
  */
 public final class Storage {
-	private static SharedPreferences mShared;
-	private static SharedPreferences mPrefs;
+	private static AppPreferences mPreferences;
 
-	public static SharedPreferences getInstance(final Context ctx) {
-		if (mShared == null) {
-			mShared = ctx.getSharedPreferences(C.DEFAULT_PREFERENCES, Context.MODE_PRIVATE);
+	public static AppPreferences getInstance(final Context ctx) {
+		if (mPreferences == null) {
+			mPreferences = new AppPreferences(ctx.getApplicationContext());
 		}
-		return mShared;
-	}
-
-	public static void reloadPrefs(final Context ctx) {
-		// mPrefs = PreferenceManager.getDefaultSharedPreferences(ctx);
-	}
-
-	private static SharedPreferences getPrefs(final Context ctx) {
-		return PreferenceManager.getDefaultSharedPreferences(ctx);
+		return mPreferences;
 	}
 
 	public static int getPrefInt(final Context ctx, final String key, final int defaultValue) {
@@ -32,12 +22,12 @@ public final class Storage {
 	}
 
 	public static String getPrefString(final Context ctx, final String key, final String defaultValue) {
-		final String val = getPrefs(ctx).getString(key, defaultValue);
+		final String val = getInstance(ctx).getString(key, defaultValue);
 		return val != null ? val : defaultValue;
 	}
 
 	public static boolean getPrefBoolean(final Context ctx, final String key, final boolean defaultValue) {
-		return getPrefs(ctx).getBoolean(key, defaultValue);
+		return getInstance(ctx).getBoolean(key, defaultValue);
 	}
 
 	private Storage() {

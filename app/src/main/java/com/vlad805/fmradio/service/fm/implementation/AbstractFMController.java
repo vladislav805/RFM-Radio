@@ -3,11 +3,7 @@ package com.vlad805.fmradio.service.fm.implementation;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Log;
-import android.util.SparseArray;
-import android.widget.Toast;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
@@ -23,18 +19,6 @@ public abstract class AbstractFMController {
 	public static final int DRIVER_QUALCOMM = 0;
 	public static final int DRIVER_SPIRIT3 = 1;
 	public static final int DRIVER_EMPTY = 999;
-
-	public static final SparseArray<String> sDrivers;
-
-	static {
-		sDrivers = new SparseArray<>();
-		sDrivers.put(DRIVER_QUALCOMM, "QualComm V4L2 service");
-		sDrivers.put(DRIVER_SPIRIT3, "QualComm V4L2 service from Spirit3 (installed spirit3 required)");
-
-		if (BuildConfig.DEBUG) {
-			sDrivers.put(DRIVER_EMPTY, "Test service (empty)");
-		}
-	}
 
 	public interface Callback<T> {
 		void onResult(T result);
@@ -149,19 +133,39 @@ public abstract class AbstractFMController {
 	public final void enable() {
 		fireEvent(C.Event.ENABLING);
 		enableImpl(result -> {
-			setupTunerByPreferences();
+			setupTunerByPreferences(new String[] {
+					C.PrefKey.RDS_ENABLE,
+					/*C.PrefKey.TUNER_REGION,
+					C.PrefKey.TUNER_SPACING,
+					C.PrefKey.TUNER_STEREO,*/
+			});
 			fireEvent(C.Event.ENABLED);
 		});
 	}
 
-	public void setupTunerByPreferences() {
-		Log.e("AFMC_STBP", "call");
+	public void setupTunerByPreferences(final String[] changed) {
+		for (final String item : changed) {
+			switch (item) {
+				case C.PrefKey.RDS_ENABLE: {
+					final boolean isRdsEnabled = Storage.getPrefBoolean(context, C.PrefKey.RDS_ENABLE, true);
+					applyPreference(C.PrefKey.RDS_ENABLE, isRdsEnabled ? "1" : "0");
+					break;
+				}
 
-		final boolean isRdsEnabled = Storage.getPrefBoolean(context, C.PrefKey.RDS_ENABLE, true);
-		Log.e("AFMC_STBP", isRdsEnabled ? "sev+" : "sev-");
-		applyPreference(C.PrefKey.RDS_ENABLE, isRdsEnabled ? "1" : "0");
+				case C.PrefKey.TUNER_REGION: {
+					final int band = Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+					applyPreference(C.PrefKey.TUNER_REGION, String.valueOf(band));
+					break;
+				}
+			}
+		}
 
 
+
+
+
+		/*final int spacing = Storage.getPrefInt(context, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+		applyPreference(C.PrefKey.TUNER_SPACING, String.valueOf(spacing));*/
 	}
 
 	/**

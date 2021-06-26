@@ -16,11 +16,11 @@ import com.vlad805.fmradio.models.FavoriteStation;
  * Station view holder in recycler view in favorite manager
  */
 public class FavoriteHolder extends RecyclerView.ViewHolder implements View.OnTouchListener, ItemTouchHelperViewHolder {
-	private TextView mFrequency;
-	private TextView mTitle;
-	private ImageView mHandle;
+	private final TextView mFrequency;
+	private final TextView mTitle;
+	private final ImageView mHandle;
 
-	private OnDragListener mListener;
+	private final OnDragListener mListener;
 
 	private static final int BG_COLOR_DEFAULT = Color.TRANSPARENT;
 	private static final int BG_COLOR_MOVING = Color.argb(128, 128, 128, 128);

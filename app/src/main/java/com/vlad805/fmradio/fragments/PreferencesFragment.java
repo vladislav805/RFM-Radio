@@ -7,17 +7,17 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.util.SparseArray;
 import android.widget.Toast;
+import androidx.annotation.DrawableRes;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AlertDialog;
-import androidx.preference.EditTextPreference;
-import androidx.preference.ListPreference;
-import androidx.preference.Preference;
-import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.*;
 import com.vlad805.fmradio.BuildConfig;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.helper.ProgressDialog;
-import com.vlad805.fmradio.service.audio.FMAudioService;
-import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
+import com.vlad805.fmradio.preferences.Vars;
+import net.grandcentrix.tray.AppPreferences;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -36,6 +36,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	private static final SparseArray<String> mAudioSource;
 	private static final SparseArray<String> mRecordMode;
 	private ProgressDialog mProgress;
+	private AppPreferences mPreferences;
 
 	static {
 		mAudioSource = new SparseArray<>();
@@ -57,53 +58,189 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
-		setPreferencesFromResource(R.xml.preferences_main, rootKey);
+		final Context context = Objects.requireNonNull(getContext());
+		mPreferences = new AppPreferences(context);
 
-		final Preference ver = findPreference("pref_info_version");
-		if (ver != null) {
-			ver.setSummary(String.format(Locale.ENGLISH, "v%s (build %d / %s)", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.BUILD_TYPE));
-			ver.setOnPreferenceClickListener(this);
-		}
+		final PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(context);
 
-		setNumberMessageAndProvider("tuner_antenna", InputType.TYPE_CLASS_NUMBER);
+		makeTunerCategoryPreferences(context, screen);
+		makeRdsCategoryPreferences(context, screen);
+		makeInfoCategoryPreferences(context, screen);
+
+		setPreferenceScreen(screen);
+
+		/*setNumberMessageAndProvider("tuner_antenna", InputType.TYPE_CLASS_NUMBER);
 		setNumberMessageAndProvider("recording_directory", InputType.TYPE_CLASS_TEXT);
 		setNumberMessageAndProvider("recording_filename", InputType.TYPE_CLASS_TEXT);
 
-		setListProviderAndEntries("tuner_driver", AbstractFMController.sDrivers);
 		setListProviderAndEntries("audio_service", FMAudioService.sService);
 		setListProviderAndEntries("audio_source", mAudioSource);
-		setListProviderAndEntries("recording_mode", mRecordMode);
+		setListProviderAndEntries("recording_mode", mRecordMode);*/
 	}
 
-	private void setNumberMessageAndProvider(final String key, final int type) {
-		EditTextPreference preference = findPreference(key);
+	private PreferenceCategory makeCategory(final Context context, final @StringRes int title, final String key) {
+		final PreferenceCategory category = new PreferenceCategory(context);
+		category.setKey(key);
+		category.setTitle(title);
+		return category;
+	}
 
-		if (preference != null) {
-			preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) EditTextPreference::getText);
-			preference.setOnBindEditTextListener(editText -> editText.setInputType(type));
+	private void populatePreference(final Preference pref, final String key, final @StringRes int title, final @DrawableRes int icon) {
+		pref.setKey(key);
+		pref.setTitle(title);
+
+		if (pref instanceof DialogPreference) {
+			((DialogPreference) pref).setDialogTitle(title);
+		}
+
+		if (icon != 0) {
+			pref.setIcon(icon);
 		}
 	}
 
-	private void setListProviderAndEntries(final String key, final SparseArray<String> entries) {
-		ListPreference lp = findPreference(key);
-		if (lp != null) {
-			final List<String> keys = new ArrayList<>();
-			final List<String> values = new ArrayList<>();
+	private void makeTunerCategoryPreferences(final Context context, final PreferenceScreen screen) {
+		final PreferenceCategory category = makeCategory(context, R.string.pref_header_tuner, "tuner");
+		screen.addPreference(category);
 
-			for (int i = 0; i < entries.size(); ++i) {
-				final int k = entries.keyAt(i);
+		final ListPreference driver = new ListPreference(context);
+		populatePreference(driver, C.PrefKey.TUNER_DRIVER, R.string.pref_tuner_driver, R.drawable.ic_tuner_driver);
+		driver.setDefaultValue(C.PrefDefaultValue.TUNER_DRIVER);
+		setListProviderAndEntries(driver, Vars.sTunerDrivers);
+		driver.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_DRIVER, Utils.parseInt((String) newValue));
+			warnApplyPreferenceOnlyAfterRestartApp();
+			return true;
+		});
+		category.addPreference(driver);
 
-				keys.add(String.valueOf(k));
-				values.add(entries.get(k));
+
+		final ListPreference region = new ListPreference(context);
+		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
+		region.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_REGION));
+		setListProviderAndEntries(region, Vars.sTunerRegions);
+		region.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_REGION, Utils.parseInt((String) newValue));
+			return true;
+		});
+		category.addPreference(region);
+
+
+		final ListPreference spacing = new ListPreference(context);
+		populatePreference(spacing, C.PrefKey.TUNER_SPACING, R.string.pref_tuner_spacing, R.drawable.ic_step_freq);
+		spacing.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_SPACING));
+		setListProviderAndEntries(spacing, Vars.sTunerSpacing);
+		spacing.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_SPACING, Utils.parseInt((String) newValue));
+			return true;
+		});
+		category.addPreference(spacing);
+
+
+		final SwitchPreference stereo = new SwitchPreference(context);
+		populatePreference(stereo, C.PrefKey.TUNER_STEREO, R.string.pref_tuner_stereo, 0);
+		stereo.setDefaultValue(true);
+		stereo.setSummaryOn(R.string.pref_tuner_stereo_on);
+		stereo.setSummaryOff(R.string.pref_tuner_stereo_off);
+		stereo.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_STEREO, (boolean) newValue);
+			return true;
+		});
+		category.addPreference(stereo);
+
+
+		final EditTextPreference antenna = new EditTextPreference(context);
+		populatePreference(antenna, C.PrefKey.TUNER_ANTENNA, R.string.pref_tuner_antenna, R.drawable.ic_antenna);
+		antenna.setDefaultValue(C.PrefDefaultValue.TUNER_ANTENNA);
+		setNumberMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
+		antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
+		category.addPreference(antenna);
+	}
+
+	private void makeRdsCategoryPreferences(final Context context, final PreferenceScreen screen) {
+		final PreferenceCategory category = makeCategory(context, R.string.pref_header_rds, "rds");
+		screen.addPreference(category);
+
+		final SwitchPreference enable = new SwitchPreference(context);
+		populatePreference(enable, C.PrefKey.RDS_ENABLE, R.string.pref_tuner_rds_enable, R.drawable.ic_rds);
+		enable.setDefaultValue(true);
+		enable.setSummaryOn(R.string.pref_tuner_rds_enabled);
+		enable.setSummaryOff(R.string.pref_tuner_rds_disabled);
+		enable.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.RDS_ENABLE, (boolean) newValue);
+			return true;
+		});
+		category.addPreference(enable);
+
+	}
+
+	private void makeInfoCategoryPreferences(final Context context, final PreferenceScreen screen) {
+		final PreferenceCategory category = makeCategory(context, R.string.pref_header_info, "info");
+		screen.addPreference(category);
+
+		final Preference github = new Preference(context);
+		populatePreference(github, "info_links_github", R.string.pref_info_link_github, R.drawable.ic_github);
+		github.setSummary(R.string.pref_info_link_github_summary);
+		github.setOnPreferenceClickListener(this);
+		category.addPreference(github);
+
+
+		final Preference telegram = new Preference(context);
+		populatePreference(telegram, "info_links_telegram", R.string.pref_info_link_telegram, R.drawable.ic_telegram);
+		telegram.setSummary(R.string.pref_info_link_telegram_summary);
+		telegram.setOnPreferenceClickListener(this);
+		category.addPreference(telegram);
+
+
+		final Preference site = new Preference(context);
+		populatePreference(site, "info_links_site", R.string.pref_info_link_site, R.drawable.ic_web);
+		site.setSummary(R.string.pref_info_link_site_summary);
+		site.setOnPreferenceClickListener(this);
+		category.addPreference(site);
+
+
+		final Preference version = new Preference(context);
+		populatePreference(version, "pref_info_version", R.string.pref_info_version_title, 0);
+		version.setSummary(String.format(Locale.ENGLISH, "v%s (build %d / %s)", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.BUILD_TYPE));
+		version.setOnPreferenceClickListener(this);
+		category.addPreference(version);
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+	private void setNumberMessageAndProvider(final EditTextPreference preference, final int type) {
+		preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) EditTextPreference::getText);
+		preference.setOnBindEditTextListener(editText -> editText.setInputType(type));
+	}
+
+	private void setListProviderAndEntries(final ListPreference lp, final SparseArray<String> entries) {
+		final List<String> keys = new ArrayList<>();
+		final List<String> values = new ArrayList<>();
+
+		for (int i = 0; i < entries.size(); ++i) {
+			final int k = entries.keyAt(i);
+
+			keys.add(String.valueOf(k));
+			values.add(entries.get(k));
+		}
+
+		lp.setSummaryProvider((Preference.SummaryProvider<ListPreference>) s -> {
+			int id = entries.indexOfKey(Utils.parseInt(s.getValue()));
+			if (id < 0) {
+				id = 0;
 			}
-
-			lp.setSummaryProvider((Preference.SummaryProvider<ListPreference>) s -> {
-				final int id = entries.indexOfKey(Utils.parseInt(s.getValue()));
-				return entries.valueAt(id);
-			});
-			lp.setEntries(values.toArray(new String[0]));
-			lp.setEntryValues(keys.toArray(new String[0]));
-		}
+			return entries.valueAt(id);
+		});
+		lp.setEntries(values.toArray(new String[0]));
+		lp.setEntryValues(keys.toArray(new String[0]));
 	}
 
 	@Override
@@ -113,14 +250,39 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 				checkVersion();
 				break;
 			}
+
+			case "info_links_site": {
+				final Intent intent = new Intent(Intent.ACTION_VIEW);
+				intent.setData(Uri.parse("https://rfm.velu.ga/?ref=app&hl=" + Utils.getCountryISO(Objects.requireNonNull(getContext()))));
+				startActivity(intent);
+				return true;
+			}
+
+			case "info_links_telegram": {
+				final Intent intent = new Intent(Intent.ACTION_VIEW);
+				intent.setData(Uri.parse("https://t.me/RFMRadioApp"));
+				startActivity(intent);
+				return true;
+			}
+
+			case "info_links_github": {
+				final Intent intent = new Intent(Intent.ACTION_VIEW);
+				intent.setData(Uri.parse("https://github.com/vladislav805/RFM-Radio"));
+				startActivity(intent);
+				return true;
+			}
 		}
 		return false;
+	}
+
+	private void warnApplyPreferenceOnlyAfterRestartApp() {
+		Toast.makeText(getContext(), R.string.pref_warning_applying_only_after_restart, Toast.LENGTH_LONG).show();
 	}
 
 	private void checkVersion() {
 		final Context ctx = getContext();
 		mProgress = ProgressDialog.create(ctx).text(R.string.pref_version_check_progress).show();
-		new Thread(() -> fetch("http://rfm.velu.ga/app_version.json", json -> {
+		new Thread(() -> fetch("https://rfm.velu.ga/app_version.json", json -> {
 			mProgress.hide();
 
 			final JSONObject latest = json.optJSONObject("latest");
