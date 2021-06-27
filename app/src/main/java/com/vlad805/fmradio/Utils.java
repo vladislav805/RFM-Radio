@@ -1,11 +1,14 @@
 package com.vlad805.fmradio;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 import androidx.appcompat.app.AlertDialog;
 import org.json.JSONException;
@@ -16,7 +19,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -113,31 +118,54 @@ public class Utils {
 		}
 	}
 
-	public static void fetch(final String urlString, FetchCallback callback) {
+	public static boolean isInternetAvailable() {
 		try {
-			final URL url = new URL(urlString);
-			final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			connection.setRequestMethod("GET");
-			connection.setReadTimeout(10000);
-			connection.setConnectTimeout(15000);
-			connection.setDoOutput(true);
-			connection.connect();
+			final InetAddress address = InetAddress.getByName("www.google.com");
 
-			final BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
-			final StringBuilder sb = new StringBuilder();
-
-			String line;
-			while ((line = br.readLine()) != null) {
-				sb.append(line).append("\n");
-			}
-			br.close();
-
-			final JSONObject json = new JSONObject(sb.toString());
-
-			callback.onSuccess(json);
-		} catch (IOException | JSONException e) {
-			callback.onError(e);
+			//noinspection EqualsBetweenInconvertibleTypes
+			return address != null && !address.equals("");
+		} catch (final UnknownHostException e) {
+			// Log error
 		}
+		return false;
+	}
+
+	public static void fetch(final String urlString, final FetchCallback callback) {
+		// Create new thread, cause requests to network not allowed in main thread (UI thread)
+		new Thread(() -> {
+			// Check if Internet available
+			if (!isInternetAvailable()) {
+				uiThread(() -> callback.onError(new Error("No Internet connection")));
+				return;
+			}
+
+			try {
+				final URL url = new URL(urlString);
+				final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+				connection.setRequestMethod("GET");
+				connection.setReadTimeout(10000);
+				connection.setConnectTimeout(15000);
+				connection.setDoOutput(true);
+				connection.connect();
+
+				final BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
+				final StringBuilder sb = new StringBuilder();
+
+				String line;
+				while ((line = br.readLine()) != null) {
+					sb.append(line).append("\n");
+				}
+				br.close();
+
+				final JSONObject json = new JSONObject(sb.toString());
+
+				// Return result to main/UI thread
+				uiThread(() -> callback.onSuccess(json));
+			} catch (final IOException | JSONException e) {
+				// Return error to main/UI thread
+				uiThread(() -> callback.onError(e));
+			}
+		}).start();
 	}
 
 	public static void uiThread(final Runnable run) {
@@ -145,7 +173,28 @@ public class Utils {
 	}
 
 	public static String getCountryISO(final Context context) {
-		final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-		return tm.getNetworkCountryIso();
+		try {
+			final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+			final String simCountry = tm.getSimCountryIso();
+
+			// SIM country code is available
+			if (simCountry != null && simCountry.length() == 2) {
+				return simCountry.toLowerCase(Locale.US);
+			} else if (tm.getPhoneType() != TelephonyManager.PHONE_TYPE_CDMA) { // device is not 3G (would be unreliable)
+				String networkCountry = tm.getNetworkCountryIso();
+				if (networkCountry != null && networkCountry.length() == 2) { // network country code is available
+					return networkCountry.toLowerCase(Locale.US);
+				}
+			}
+		} catch (Exception ignored) {
+		}
+
+		return null;
+	}
+
+	public static void browseUrl(final Context context, @NonNull final String url) {
+		final Intent intent = new Intent(Intent.ACTION_VIEW);
+		intent.setData(Uri.parse(url));
+		context.startActivity(intent);
 	}
 }

@@ -16,7 +16,7 @@ public class Vars {
     public static final SparseArray<String> sTunerSpacing;
 
     public static final SparseArray<String> sAudioSource;
-    public static final SparseArray<String> sRecordMode;
+    public static final SparseArray<String> sRecordFormat;
     public static final SparseArray<String> sAudioService;
 
 
@@ -51,9 +51,9 @@ public class Vars {
         sAudioSource.put(8, "8, REMOTE_SUBMIX");
         sAudioSource.put(1998, "1998, FM");
 
-        sRecordMode = new SparseArray<>();
-        sRecordMode.put(0, "WAV PCM 16bit (raw, large size)");
-        sRecordMode.put(1, "MP3 192kbps (compressed, small size)");
+        sRecordFormat = new SparseArray<>();
+        sRecordFormat.put(0, "WAV PCM 16bit (raw, large size)");
+        sRecordFormat.put(1, "MP3 192kbps (compressed, small size)");
 
         sAudioService = new SparseArray<>();
         sAudioService.put(SERVICE_LIGHT, "Lightweight audio service");

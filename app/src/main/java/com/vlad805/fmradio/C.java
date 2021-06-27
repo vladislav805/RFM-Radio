@@ -104,7 +104,7 @@ final public class C {
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
-		public static final String RECORDING_MODE = "recording_mode";
+		public static final String RECORDING_FORMAT = "recording_mode";
 		public static final String BINARY_VERSION = "bin_version";
 		public static final String TUNER_STEREO = "tuner_stereo";
     }
