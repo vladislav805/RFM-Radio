@@ -2,7 +2,6 @@ package com.vlad805.fmradio.activity;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -30,11 +29,10 @@ import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.LaunchCounter;
+import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
 import net.grandcentrix.tray.AppPreferences;
-
-import java.util.Objects;
 
 import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
@@ -159,6 +157,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	@Override
+	protected void onStart() {
+		super.onStart();
+
+		startService(new Intent(this, FMService.class).setAction(C.Command.UI_STARTED));
+	}
+
+	@Override
 	protected void onResume() {
 		super.onResume();
 
@@ -229,9 +234,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				final int stage = state.getInt(C.Key.STAGE);
 
 				switch (stage) {
-					case C.FMStage.VOID: {
+					case C.FMStage.IDLE: {
 						mRadioController.setup();
-
 						break;
 					}
 
@@ -463,7 +467,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	private void setEnabledUi(final boolean state) {
-		@IdRes int[] ids = {
+		final @IdRes int[] ids = {
 				R.id.ctl_go_down,
 				R.id.ctl_go_up,
 				R.id.ctl_seek_down,

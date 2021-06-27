@@ -146,7 +146,7 @@ public class RadioController {
 			}
 
 			case C.Event.KILLED: {
-				mState.putInt(C.Key.STAGE, C.FMStage.VOID);
+				mState.putInt(C.Key.STAGE, C.FMStage.IDLE);
 				break;
 			}
 

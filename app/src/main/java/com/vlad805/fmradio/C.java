@@ -59,7 +59,8 @@ final public class C {
 		public static final String RECORD_STOP = "record_stop";
 		public static final String POWER_MODE = "power_mode";
 		public static final String KILL = "kill";
-	}
+		public static final String UI_STARTED = "ui_started";
+    }
 
 	public static final class Key {
 		public static final String FREQUENCY = "frequency";
@@ -142,7 +143,7 @@ final public class C {
 	}
 
 	public static final class FMStage {
-		public static final int VOID = 0;
+		public static final int IDLE = 0;
 		public static final int LAUNCHING = 1;
 		public static final int LAUNCHED = 2;
 		public static final int ENABLING = 3;
