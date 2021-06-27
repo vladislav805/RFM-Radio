@@ -5,21 +5,21 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
-import com.vlad805.fmradio.service.fm.RecordError;
 
 /**
  * vlad805 (c) 2019
  */
 @SuppressWarnings("deprecation")
 public class LightAudioService extends FMAudioService implements IAudioRecordable {
-
+	private static final String TAG = "LAS";
 	private Thread mThread;
 
 	private AudioTrack mAudioTrack;
 	private AudioRecord mAudioRecorder;
-	private IFMRecorder mRecordable;
+	private IFMRecorder mRecorder;
 
 	private boolean mIsActive = false;
 
@@ -68,7 +68,7 @@ public class LightAudioService extends FMAudioService implements IAudioRecordabl
 	}
 
 	private final Runnable mReadWrite = () -> {
-		int bufferSizeInBytes = AudioTrack.getMinBufferSize(
+		final int bufferSize = AudioTrack.getMinBufferSize(
 				mSampleRate,
 				AudioFormat.CHANNEL_IN_STEREO,
 				AudioFormat.ENCODING_PCM_16BIT
@@ -79,7 +79,7 @@ public class LightAudioService extends FMAudioService implements IAudioRecordabl
 				mSampleRate,
 				AudioFormat.CHANNEL_OUT_STEREO,
 				AudioFormat.ENCODING_PCM_16BIT,
-				bufferSizeInBytes,
+				bufferSize,
 				AudioTrack.MODE_STREAM
 		);
 
@@ -88,28 +88,31 @@ public class LightAudioService extends FMAudioService implements IAudioRecordabl
 		mAudioTrack.play();
 
 		int bytes;
-		short[] buffer = new short[bufferSizeInBytes];
+		final short[] buffer = new short[bufferSize];
 
 		while (mIsActive) {
-			bytes = mAudioRecorder.read(buffer, 0, bufferSizeInBytes);
+			bytes = mAudioRecorder.read(buffer, 0, bufferSize);
+
 			if (mIsActive) {
 				mAudioTrack.write(buffer, 0, bytes);
-				if (mRecordable != null) {
-					mRecordable.record(buffer, bytes);
+
+				// If recording enabled, write to recorder
+				if (mRecorder != null) {
+					mRecorder.record(buffer, bytes);
 				}
 			}
 		}
 	};
 
 	@Override
-	public void startRecord(final IFMRecorder driver) throws RecordError {
-		mRecordable = driver;
-		driver.startRecord();
+	public void startRecord(final IFMRecorder recorder) throws RecordError {
+		mRecorder = recorder;
+		recorder.startRecord();
 	}
 
 	@Override
 	public void stopRecord() {
-		mRecordable.stopRecord();
-		mRecordable = null;
+		mRecorder.stopRecord();
+		mRecorder = null;
 	}
 }

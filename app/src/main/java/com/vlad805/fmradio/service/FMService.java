@@ -291,7 +291,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 	 * @return Recorder
 	 */
 	private RecordService getPreferredRecorder() {
-		final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_MODE);
+		final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
 		final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
 
 		switch (mode) {
