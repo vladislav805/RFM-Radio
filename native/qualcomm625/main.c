@@ -1,12 +1,4 @@
-/**
- * FM Test Application
- * Test application for FM V4L2 APIs
- * Copyright (c) 2011 by Qualcomm Technologies, Inc.  All Rights Reserved.
- * Qualcomm Technologies Proprietary and Confidential.
- * @author rakeshk
- */
-
-#define VERSION "0.4.dev"
+#define VERSION "0.6.dev"
 
 #include <stdio.h>
 #include <string.h>
