@@ -1,21 +1,3 @@
-/**
- * https://github.com/carvsdriver/msm8660-common_marla/blob/master/drivers/media/radio/radio-tavarua.c
- * https://github.com/carvsdriver/msm8660-common_marla/blob/master/include/media/tavarua.h
- *
- *
- * https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/drivers/media/radio/radio-iris.c
- *
- * https://source.codeaurora.org/external/gigabyte/qrd-gb-dsds-7225/plain/kernel/drivers/media/radio/radio-tavarua.c
- * https://source.codeaurora.org/external/gigabyte/qrd-gb-dsds-7225/plain/kernel/include/media/tavarua.h
- *
- * https://github.com/SivanLiu/VivoFramework/blob/master/Vivo_y93/src/main/java/qcom/fmradio/FmReceiver.java
- * https://gerrit.pixelexperience.org/plugins/gitiles/vendor_qcom_opensource_fm-commonsys/+/d8b9c56644875bd4180a345c2a67a2d28216c9f6/qcom/fmradio/FmReceiver.java
- * https://gerrit.pixelexperience.org/plugins/gitiles/vendor_qcom_opensource_fm-commonsys/+/d8b9c56644875bd4180a345c2a67a2d28216c9f6/jni/android_hardware_fm.cpp
- *
- * https://tract.media/rds/
- *
- * https://android.googlesource.com/kernel/msm/+/android-msm-bullhead-3.10-marshmallow-dr/drivers/media/radio/radio-tavarua.c
- */
 #include <sys/types.h>
 #include <zconf.h>
 
