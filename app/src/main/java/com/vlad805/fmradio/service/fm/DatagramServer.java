@@ -87,7 +87,7 @@ public class DatagramServer extends Thread {
 
 		int evt = parseInt(code);
 
-		if (BuildConfig.DEBUG) {
+		if (BuildConfig.DEBUG && false) {
 			Log.i("FMELS", "received new event " + code + " = [" + data + "]");
 		}
 

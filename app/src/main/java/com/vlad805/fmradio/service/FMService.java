@@ -64,6 +64,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 	private Timer mTimer;
 	private boolean mNeedRecreateNotification = true;
 	private boolean mRecordingNow = false;
+	private String mLastState = C.Event.PREPARING;
 
 	@Override
 	public void onCreate() {
@@ -207,6 +208,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 			case C.Command.KILL: {
 				stopService(new Intent(this, FMService.class));
 				sendBroadcast(new Intent(C.Event.KILLED));
+				break;
+			}
+
+			case C.Command.UI_STARTED: {
+				sendBroadcast(new Intent(mLastState));
 				break;
 			}
 		}
@@ -374,16 +380,19 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 			switch (intent.getAction()) {
 				case C.Event.INSTALLED: {
 					mRadioController.launch();
+					mLastState = C.Event.INSTALLED;
 					break;
 				}
 
 				case C.Event.LAUNCHED: {
 					mRadioController.enable();
+					mLastState = C.Event.LAUNCHED;
 					break;
 				}
 
 				case C.Event.LAUNCH_FAILED: {
 					kill();
+					mLastState = C.Event.LAUNCH_FAILED;
 					break;
 				}
 
@@ -392,11 +401,13 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 					final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
 					mRadioController.setFrequency(frequency);
 					updateNotification();
+					mLastState = C.Event.ENABLED;
 					break;
 				}
 
 				case C.Event.DISABLED: {
 					mAudioService.stopAudio();
+					mLastState = C.Event.DISABLED;
 					break;
 				}
 
@@ -447,6 +458,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 					mRecordingNow = false;
 					mNeedRecreateNotification = true;
 					mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
+
 					if (intent.getExtras() != null) {
 						showRecorded(intent.getExtras());
 					}
