@@ -68,11 +68,11 @@ configurations.all {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'androidx.core:core:1.6.0-rc01'
-    implementation 'androidx.constraintlayout:constraintlayout:1.1.3' // AppCompat does not support the current theme features
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
     implementation 'androidx.recyclerview:recyclerview:1.2.1'
     implementation 'androidx.annotation:annotation:1.2.0'
-    implementation 'androidx.preference:preference:1.1.0' // broke apk
-    implementation 'androidx.media:media:1.1.0' // broke build
+    implementation 'androidx.preference:preference:1.1.1'
+    implementation 'androidx.media:media:1.3.1'
     implementation 'com.github.naman14:TAndroidLame:1.1'
     implementation 'com.github.atsushi-ageet:tray:0.14.0'
 }
