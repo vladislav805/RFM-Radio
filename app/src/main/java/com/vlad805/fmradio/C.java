@@ -107,6 +107,7 @@ final public class C {
 		public static final String RECORDING_FORMAT = "recording_mode";
 		public static final String BINARY_VERSION = "bin_version";
 		public static final String TUNER_STEREO = "tuner_stereo";
+		// public static final String RECORDING_SAVE_PAST = "recording_save_past";
     }
 
 	public static final class PrefDefaultValue {
@@ -127,8 +128,9 @@ final public class C {
 		public static final int AUDIO_SOURCE = 0;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
-		public static final int RECORDING_MODE = 0;
-    }
+		public static final int RECORDING_FORMAT = 0;
+		public static final boolean RECORDING_SAVE_PAST = false;
+	}
 
 	private C() {}
 

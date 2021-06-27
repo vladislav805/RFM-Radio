@@ -4,7 +4,6 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
-import android.util.SparseArray;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 
@@ -54,7 +53,7 @@ public abstract class FMAudioService {
 	protected AudioRecord getAudioRecorder() {
 		// AUDIO_CHANNEL_IN_FRONT_BACK?
 		try {
-			AudioRecord recorder = new AudioRecord(
+			final AudioRecord recorder = new AudioRecord(
 					mAudioSource,
 					mSampleRate,
 					AudioFormat.CHANNEL_IN_STEREO,

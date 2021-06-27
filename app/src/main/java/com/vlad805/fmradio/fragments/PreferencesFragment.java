@@ -34,7 +34,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
-		final Context context = Objects.requireNonNull(getContext());
+		final Context context = requireContext();
 		mPreferences = new AppPreferences(context);
 
 		final PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(context);
@@ -224,7 +224,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference format = new ListPreference(context);
 		populatePreference(format, C.PrefKey.RECORDING_FORMAT, R.string.pref_recording_format_title, R.drawable.ic_recording_format);
-		format.setDefaultValue(0);
+		format.setDefaultValue(C.PrefDefaultValue.RECORDING_FORMAT);
 		setListProviderAndEntries(format, Vars.sRecordFormat);
 		format.setOnPreferenceChangeListener((preference, newValue) -> {
 			Storage.getInstance(context).put(C.PrefKey.RECORDING_FORMAT, Utils.parseInt((String) newValue));
@@ -234,7 +234,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final SwitchPreferenceCompat notify = new SwitchPreferenceCompat(context);
 		populatePreference(notify, C.PrefKey.RECORDING_SHOW_NOTIFY, R.string.pref_recording_show_notify, R.drawable.ic_info);
-		notify.setDefaultValue(true);
+		notify.setDefaultValue(C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
 		notify.setSummary(R.string.pref_recording_show_notify_summary);
 		notify.setOnPreferenceChangeListener((preference, newValue) -> {
 			Storage.getInstance(context).put(C.PrefKey.RECORDING_SHOW_NOTIFY, (boolean) newValue);
@@ -349,7 +349,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 	@Override
 	public boolean onPreferenceClick(final Preference preference) {
-		final Context context = Objects.requireNonNull(getContext());
+		final Context context = requireContext();
 
 		switch (preference.getKey()) {
 			case "pref_info_version": {
