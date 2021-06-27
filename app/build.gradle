@@ -74,5 +74,5 @@ dependencies {
     implementation 'androidx.preference:preference:1.1.0' // broke apk
     implementation 'androidx.media:media:1.1.0' // broke build
     implementation 'com.github.naman14:TAndroidLame:1.1'
-    implementation 'net.grandcentrix.tray:tray:0.12.0'
+    implementation 'com.github.atsushi-ageet:tray:0.14.0'
 }

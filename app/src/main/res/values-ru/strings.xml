@@ -59,7 +59,7 @@
 	<string name="pref_notification_show_ps_enabled">В заголовке уведомления будет отображаться PS (если радиостанция его предоставляет), в противном случае, название из избранного</string>
 	<string name="pref_tuner_rds_description">RDS - Radio Data System (Система Радио Данных)\nОтображение связанной с радио информации, передаваемой радиостанциями.\nPS - Program Service (обычно название радиостанции)\nRT - Radio Text (обычно передается название текущего трека или информация о радиостанции)\nAF - Alternative Frequencies (список частот, на которых вещает эта же станция в соседних регионах)\nPTY - Program TYpe (жанр радиостанции)</string>
 	<string name="pref_recording_convert_summary">WAV - сырая запись/большой файл, MP3 - сжатая запись/маленький файл</string>
-	<string name="pref_recording_convert_title">Формат записи</string>
+	<string name="pref_recording_format_title">Формат записи</string>
 	<string name="pref_recording_name_title">Название файла</string>
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Доступные переменные:\n$y - год\n$m - месяц\n$d - день в месяце\n$h - час\n$i - минута\n$s - секунда\n$f - часота (например, 103.4 МГц = 1034)\n$r - случайное число из диапазона 10000-99999\nПримеры:\nДиректория: FM/$y-$m-$d -> FM/2020-01-27\nНазвание файла: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav\nКрайне не рекомендуется использовать нелатинские символы</string>
 	<string name="pref_recording_path_title">Директория для сохранения</string>

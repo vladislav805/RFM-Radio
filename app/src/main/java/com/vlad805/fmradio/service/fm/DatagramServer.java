@@ -68,7 +68,6 @@ public class DatagramServer extends Thread {
 				e.printStackTrace();
 			} catch (StopServer e) {
 				mEnabled = false;
-
 			}
 		}
 	}
