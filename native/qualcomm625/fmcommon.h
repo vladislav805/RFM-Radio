@@ -143,71 +143,6 @@ typedef enum {
 } search_t;
 
 /**
- * RDS/RBDS Program Type type.
- */
-typedef uint8 fm_prgm_type;
-
-/**
- * RDS/RBDS Program Identification type.
- */
-typedef uint16 fm_prgmid_type;
-
-/**
- * RDS/RBDS Program Services type.
- */
-typedef char fm_prm_services;
-
-/**
- * RDS/RBDS Radio Text type.
- */
-typedef char fm_radiotext_info;
-
-/**
- * FM Global Paramaters struct.
- */
-typedef struct {
-	/**
-	 * a frequency in kHz the band range
-	 */
-	uint32 current_station_freq;
-
-	uint8 service_available;
-
-	/**
-	 * rssi range from 0-100
-	 */
-	uint8 rssi;
-
-	uint8 stype;
-
-	uint8 rds_sync_status;
-
-	uint8 mute_status;
-
-	uint32 audmode;
-
-	/**
-	 * Program Id
-	 */
-	fm_prgmid_type pgm_id;
-
-	/**
-	 * Program type
-	 */
-	fm_prgm_type pgm_type;
-
-	/**
-	 * Program services Can maximum hold 96
-	 */
-	fm_prm_services pgm_services[96];
-
-	/**
-	 * RT maximum is 64 bytes
-	 */
-	fm_radiotext_info radio_text[64];
-} fm_station_params_available;
-
-/**
  * FM Config Request structure.
  */
 typedef struct fm_config_data {
@@ -259,20 +194,4 @@ typedef struct fm_search_list_stations {
 } fm_search_list_stations;
 
 
-/**
- * FM All Request Union type.
- */
-typedef union fm_cfg_request {
-	fm_config_data cfg_param;
-	uint8 mute_param;
-	uint8 stereo_param;
-	uint32 freq;
-	fm_rds_options rds_options;
-	uint8  power_mode;
-	uint8  signal_threshold;
-	fm_search_stations search_stations_options;
-	fm_search_rds_stations search_rds_stations_options;
-	fm_search_list_stations search_list_stations_options;
-	uint32 rds_group_options;
-} fm_cfg_request;
 #endif

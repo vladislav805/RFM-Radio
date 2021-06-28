@@ -119,7 +119,7 @@ void handler_set_frequency(response_t* response, char** args) {
 }
 
 void handler_jump(response_t* response, char** args) {
-    uint32 direction = str_equals(args[1], "1") ? 1 : -1;
+    signed short direction = str_equals(args[1], "1") ? 1 : -1;
 
     response->code = fm_command_tune_frequency_by_delta(direction);
 
@@ -201,6 +201,13 @@ void handler_search_cancel(response_t* response, char** args) {
     response->data = response->code == TRUE ? RSP_OK : RSP_ERR_UNKNOWN;
 }
 
+void handler_auto_af(response_t* response, char** args) {
+    boolean enable = str_equals(args[1], "1");
+
+    response->code = fm_receiver_toggle_af_jump(enable);
+    response->data = response->code == TRUE ? RSP_OK : RSP_ERR_UNKNOWN;
+}
+
 
 /**
  * Hash for endpoint name
@@ -276,7 +283,11 @@ static api_endpoint endpoints[] = {
         {
                 .name = "search_cancel",
                 .handler = handler_search_cancel,
-        }
+        },
+        {
+                .name = "auto_af",
+                .handler = handler_auto_af,
+        },
 };
 
 static const uint8 endpoints_len = sizeof(endpoints) / sizeof(api_endpoint);

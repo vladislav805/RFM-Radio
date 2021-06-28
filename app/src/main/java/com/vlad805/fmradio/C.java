@@ -10,7 +10,7 @@ import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
  */
 final public class C {
 	public static final class Event {
-        private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
+		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
 		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
 		public static final String PREPARING = BASE + "PREPARING";
@@ -26,12 +26,15 @@ final public class C {
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
 		public static final String UPDATE_RSSI = BASE + "UPDATE_RSSI";
 		public static final String UPDATE_PS = BASE + "UPDATE_PS";
+		public static final String UPDATE_PTY = BASE + "UPDATE_PTY";
+		public static final String UPDATE_PI = BASE + "UPDATE_PI";
 		public static final String UPDATE_RT = BASE + "UPDATE_RT";
+		public static final String UPDATE_AF = BASE + "UPDATE_AF";
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
 		public static final String HW_SEARCH_DONE = BASE + "HW_SEARCH_DONE";
 		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
 		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";
-		public static final String UPDATE_PTY = BASE + "UPDATE_PTY";
+
 
 		public static final String RECORD_STARTED = BASE + "RECORD_STARTED";
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
@@ -66,10 +69,11 @@ final public class C {
 		public static final String RSSI = "rssi";
 		public static final String PS = "ps";
 		public static final String RT = "rt";
+		public static final String PTY = "pty";
+		public static final String PI = "pi";
+
 		public static final String STEREO_MODE = "stereo_mode";
 		public static final String MUTE = "mute";
-		public static final String PTY = "pty";
-
 		public static final String SEEK_HW_DIRECTION = "seek_hw_direction";
 		public static final String JUMP_DIRECTION = "jump_direction";
 
@@ -81,33 +85,37 @@ final public class C {
 		public static final String SIZE = "size";
 		public static final String DURATION = "duration";
 		public static final String PATH = "filename";
+		public static final String FREQUENCIES = "frequencies";
 	}
 
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
-		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
-		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
-		public static final String APP_AUTO_STARTUP = "app_auto_startup";
-		public static final String RDS_ENABLE = "rds_enable";
 
 		public static final String TUNER_DRIVER = "tuner_driver";
 		public static final String TUNER_REGION = "tuner_region";
 		public static final String TUNER_SPACING = "tuner_spacing";
-
 		public static final String TUNER_POWER_MODE = "tuner_power_mode";
 		public static final String TUNER_ANTENNA = "tuner_antenna";
+		public static final String TUNER_STEREO = "tuner_stereo";
 
+		public static final String APP_AUTO_STARTUP = "app_auto_startup";
+
+		public static final String RDS_ENABLE = "rds_enable";
+		public static final String RDS_AUTO_AF = "rds_auto_af";
 
 		public static final String AUDIO_SERVICE = "audio_service";
 		public static final String AUDIO_SOURCE = "audio_source";
+
+		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
+		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
 
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
 		public static final String RECORDING_FORMAT = "recording_mode";
-		public static final String BINARY_VERSION = "bin_version";
-		public static final String TUNER_STEREO = "tuner_stereo";
 		// public static final String RECORDING_SAVE_PAST = "recording_save_past";
+
+		public static final String BINARY_VERSION = "bin_version";
     }
 
 	public static final class PrefDefaultValue {
@@ -129,8 +137,9 @@ final public class C {
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_FORMAT = 0;
-		public static final boolean RECORDING_SAVE_PAST = false;
-	}
+		// public static final boolean RECORDING_SAVE_PAST = false;
+        public static final boolean RDS_AUTO_AF = false;
+    }
 
 	private C() {}
 

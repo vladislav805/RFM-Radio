@@ -21,7 +21,7 @@
 #endif
 
 enum tavarua_evt_t {
-    TAVARUA_EVT_RADIO_READY,
+    TAVARUA_EVT_RADIO_READY = 0,
     TAVARUA_EVT_TUNE_SUCC,
     TAVARUA_EVT_SEEK_COMPLETE,
     TAVARUA_EVT_SCAN_NEXT,
@@ -37,7 +37,9 @@ enum tavarua_evt_t {
     TAVARUA_EVT_RDS_NOT_AVAIL,
     TAVARUA_EVT_NEW_SRCH_LIST,
     TAVARUA_EVT_NEW_AF_LIST,
-    TAVARUA_EVT_RADIO_DISABLED
+    TAVARUA_EVT_RADIO_DISABLED = 18,
+    TAVARUA_EVT_NEW_RT_PLUS = 20,
+    TAVARUA_EVT_NEW_ERT,
 };
 
 static char *qsoc_poweron_path = NULL;
@@ -144,6 +146,7 @@ boolean process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_NEW_PS_RDS: {
             ret = extract_program_service(&fm_storage.rds);
             send_interruption_info(EVT_UPDATE_PS, fm_storage.rds.program_name);
+            send_interruption_info(EVT_UPDATE_PI, int_to_hex_string(fm_storage.rds.program_id));
             send_interruption_info(EVT_UPDATE_PROGRAM_TYPE, int_to_string(fm_storage.rds.program_type));
             break;
         }
@@ -209,7 +212,22 @@ boolean process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_NEW_AF_LIST: {
-            extract_rds_af_list();
+            uint32 list[25];
+            uint8 size = extract_rds_af_list(list);
+
+            char* str = (char*) malloc(sizeof(char) * 5 * size);
+            str[0] = '\0';
+
+            for (int i = 0; i < size; ++i) {
+                printf("%d %d\n", list[i], list[i] / 100);
+                sprintf(str, "%s%04d", str, list[i] / 100);
+            }
+
+            printf("AF LIST = %s\n", str);
+
+            send_interruption_info(EVT_UPDATE_AF, str);
+
+            free(str);
             break;
         }
 
@@ -484,16 +502,20 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
         int32 rds_mask = fm_receiver_get_rds_group_options();
 
         // TODO ????
-        uint8 rds_group_mask = ((rds_mask & 0xC7) & 0x07) << 3;
+        //uint8 rds_group_mask = ((rds_mask & 0xC7) & 0x07) << 3;
         // int psAllVal = ;
 
-        print2("fw_cmd_set_rds  : rds_options: %x\n", rds_group_mask);
+        //print2("fw_cmd_set_rds  : rds_options: %x\n", rds_group_mask);
 
-        ret = fm_receiver_set_rds_group_options(/*rds_group_mask*/ 0xff); // 255 OK
+        uint32 mask = 0xffff;
+
+        print2("fw_cmd_set_rds  : set rds group options = 0x%x\n", mask);
+        ret = fm_receiver_set_rds_group_options(/*rds_group_mask*/ mask); // 0xff OK
         CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS group options");
     }
 
     if (is_rome_chip()) {
+        print("fw_cmd_set_rds  : rds - is rome\n");
         /*ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_MASK, 1);
         if (ret == FALSE) {
             print("Failed to set RDS GRP MASK\n");
@@ -505,7 +527,9 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
             return FM_CMD_FAILURE;
         }*/
     } else {
-        ret = fm_receiver_set_ps_all(0x0f); // ???
+        uint32 ps_all = 0xffff;
+        print2("fw_cmd_set_rds  : rds - isn't rome, set ps all = 0x%x\n", ps_all);
+        ret = fm_receiver_set_ps_all(ps_all); // ???
         if (ret == FALSE) {
             print("fw_cmd_set_rds  : failed to set RDS ps all\n");
             return FM_CMD_FAILURE;
@@ -569,7 +593,7 @@ fm_cmd_status_t fm_command_tune_frequency(uint32 frequency) {
  * Part 4.2. Set frequency by delta (current = 104000 kHz, delta = 100 kHz, expect = 104100 kHz).
  * @param direction Direction of delta
  */
-fm_cmd_status_t fm_command_tune_frequency_by_delta(uint8 direction) {
+fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction) {
     // Current
     uint32 current_frequency_khz = fm_receiver_get_tuned_frequency();
 

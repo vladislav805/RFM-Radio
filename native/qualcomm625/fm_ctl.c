@@ -144,10 +144,25 @@ uint8 fm_receiver_get_rds_group_options() {
     return (uint8) control.value;
 }
 
-boolean fm_receiver_set_rds_group_options(uint8 mask) {
+/**
+ * 0      - nothing
+ * 1 << 0 - RT only
+ * 1 << 1 - ???
+ * 1 << 2 - ???
+ * 1 << 3 - ?
+ * 1 << 4 - PI, PTY, PS
+ * 1 << 5 - PI, PTY, PS
+ * 1 << 6 - RT only
+ * 1 << 7 - PI, PTY, PS
+ * 1 << 8 - ???
+ */
+boolean fm_receiver_set_rds_group_options(uint32 mask) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, mask);
 }
 
+/**
+ *
+ */
 boolean fm_receiver_set_ps_all(uint8 mode) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_PSALL, mode);
 }
@@ -475,11 +490,15 @@ boolean extract_radio_text(fm_rds_storage* storage) {
     return TRUE;
 }
 
-boolean extract_rds_af_list() {
-    const int size = 0xff;
-    uint8 buf[size];
+/**
+ * Extract alternative frequencies list
+ * @param frequencies Array of uint32, with size at least 25
+ * @return Count of frequencies
+ */
+uint8 extract_rds_af_list(uint32* frequencies) {
+    uint8 buf[0xff];
 
-    uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_AF_LIST);
+    const uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_AF_LIST);
 
     if (bytes < 0) {
         return FALSE;
@@ -488,30 +507,32 @@ boolean extract_rds_af_list() {
     // buf[4] | (buf[5] << 8)
     // buf[6] = count of frequencies
     // buf[($index * 4) + 6 + (1...4)] with shift = one frequency (uint32)
-    uint8 af_size = buf[6] & 0xff;
+    const uint8 af_size = buf[6] & 0xff;
 
     if (af_size <= 0 || af_size > 25) {
-        printf("fr_extr_af_list : AF invalid: %d , %d\n", buf[4], buf[4] & 0xff);
+        print3("fr_extr_af_list : AF invalid: %d , %d\n", buf[4], buf[4] & 0xff);
         return FALSE;
     }
 
-    printf("fr_extr_af_list : ");
+    print("fr_extr_af_list : ");
 
     for (int i = 0; i < af_size; ++i) {
         uint8 shift = 6 + i * 4;
 
         uint32 freq =
-                (buf[shift + 1] & 0xFF) |
-                ((buf[shift + 2] & 0xFF) << 8) |
-                ((buf[shift + 3] & 0xFF) << 16) |
-                ((buf[shift + 4] & 0xFF) << 24);
+                (buf[shift + 1] & 0xff) |
+                ((buf[shift + 2] & 0xff) << 8) |
+                ((buf[shift + 3] & 0xff) << 16) |
+                ((buf[shift + 4] & 0xff) << 24);
 
-        printf("%d ", freq);
+        frequencies[i] = freq;
+
+        print2("%d ", freq);
     }
 
-    printf("\n");
+    print("\n");
 
-    return TRUE;
+    return af_size;
 }
 
 /**
