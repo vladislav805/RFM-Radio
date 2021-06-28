@@ -4,12 +4,11 @@ import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
 
 /**
+ * Common constants: names of events and commands, keys of preferences, default values, etc
+ *
  * vlad805 (c) 2019
  */
 final public class C {
-
-	public static final String DEFAULT_PREFERENCES = "default_cfg";
-
 	public static final class Event {
         private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
