@@ -17,7 +17,6 @@ import static com.vlad805.fmradio.Utils.parseInt;
  * vlad805 (c) 2019
  */
 public class DatagramServer extends Thread {
-
 	private final DatagramSocket mDatagramSocketServer;
 	private FMEventCallback mCallback;
 
@@ -145,7 +144,7 @@ public class DatagramServer extends Thread {
 
 				Arrays.sort(res);
 
-				action = C.Event.SEARCH_DONE;
+				action = C.Event.HW_SEARCH_DONE;
 				bundle.putIntArray(C.Key.STATION_LIST, res);
 				break;
 			}

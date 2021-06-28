@@ -199,11 +199,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
 			case C.FM_SET_MUTE:
 				mFM.setMute(MuteState.valueOf(intent.getStringExtra(C.Key.MUTE)), null);
-				break;
-
-			case C.Command.SEARCH:
-				mFM.search(null);
 				break;*/
+
+			case C.Command.HW_SEARCH: {
+				mFmController.hwSearch();
+				break;
+			}
 
 			case C.Command.KILL: {
 				stopService(new Intent(this, FMService.class));

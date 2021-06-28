@@ -185,6 +185,22 @@ void handler_set_region(response_t* response, char** args) {
     response->data = response->code == TRUE ? RSP_OK : RSP_ERR_CANT_SET_REGION;
 }
 
+void handler_hw_search(response_t* response, char** args) {
+    fm_search_list_stations options = {
+            .search_mode = SCAN_FOR_STRONG,
+            .search_dir = 0,
+            .program_type = 0,
+            .srch_list_max = 20,
+    };
+    response->code = fm_receiver_search_station_list(options);
+    response->data = response->code == TRUE ? RSP_OK : RSP_ERR_UNKNOWN;
+}
+
+void handler_search_cancel(response_t* response, char** args) {
+    response->code = fm_receiver_cancel_search();
+    response->data = response->code == TRUE ? RSP_OK : RSP_ERR_UNKNOWN;
+}
+
 
 /**
  * Hash for endpoint name
@@ -253,6 +269,14 @@ static api_endpoint endpoints[] = {
                 .name = "set_region",
                 .handler = handler_set_region,
         },
+        {
+                .name = "searchhw",
+                .handler = handler_hw_search,
+        },
+        {
+                .name = "search_cancel",
+                .handler = handler_search_cancel,
+        }
 };
 
 static const uint8 endpoints_len = sizeof(endpoints) / sizeof(api_endpoint);

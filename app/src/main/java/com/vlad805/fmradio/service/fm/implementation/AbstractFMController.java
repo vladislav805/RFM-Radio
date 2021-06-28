@@ -276,6 +276,12 @@ public abstract class AbstractFMController {
 		});
 	}
 
+    protected abstract void hwSearchImpl();
+
+	public void hwSearch() {
+		hwSearchImpl();
+	}
+
 	protected abstract void setPowerModeImpl(final String mode);
 
 	public void setPowerMode(final String mode) {
@@ -287,11 +293,6 @@ public abstract class AbstractFMController {
 	 * @param state State
 	 */
 	public abstract void setMute(final MuteState state, final Callback<Void> callback);
-
-	/**
-	 * Search stations
-	 */
-	public abstract void search(final Callback<List<Integer>> callback);
 
 	/**
 	 * Broadcast event with arguments

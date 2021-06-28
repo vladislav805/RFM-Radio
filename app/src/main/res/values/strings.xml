@@ -146,5 +146,13 @@
 		you can donate a small amount in various ways.</string>
     <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
     <string name="pref_version_check_error">An error occurred during the request:\n%s</string>
+    <string name="menu_favorite_list_search">Scan for stations</string>
+	<string name="favorite_list_search_confirm_title">Attention!</string>
+	<string name="favorite_list_search_confirm_message">This favorite list will be cleared and replaced by found
+		stations.
+	</string>
+	<string name="favorite_list_search_confirm_continue">Remove and scan</string>
+	<string name="favorite_list_search_confirm_discard">Discard</string>
+	<string name="favorite_list_search_progress">Please, wait... I trying to find stations.</string>
 
 </resources>

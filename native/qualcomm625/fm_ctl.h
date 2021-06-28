@@ -50,6 +50,9 @@ boolean fm_receiver_toggle_af_jump(uint8 enable);
 boolean fm_receiver_set_power_mode(power_mode_t mode);
 boolean fm_receiver_set_stereo_mode(stereo_t mode);
 boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell_period);
+boolean fm_receiver_search_station_list(fm_search_list_stations options);
+boolean fm_receiver_cancel_search();
+
 
 void fm_receiver_close();
 
@@ -57,11 +60,11 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index);
 
 boolean extract_program_service(fm_rds_storage* storage);
 boolean extract_radio_text(fm_rds_storage* storage);
-
-
 boolean extract_rds_af_list();
+uint8 extract_search_station_list(uint32* list);
 
 int32 fm_receiver_get_rssi();
+
 
 
 #endif //FMBIN_FM_CTL_H

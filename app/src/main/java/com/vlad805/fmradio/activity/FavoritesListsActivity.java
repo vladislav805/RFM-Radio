@@ -2,7 +2,10 @@ package com.vlad805.fmradio.activity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -20,12 +23,14 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
+import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.helper.EditTextDialog;
+import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
-import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.OnDragListener;
 import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
 import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
@@ -34,8 +39,11 @@ import java.io.FileNotFoundException;
 import java.util.List;
 
 public class FavoritesListsActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, OnDragListener {
+	private ProgressDialog mProgress;
 	private Menu mMenu;
 	private String mCurrentNameList;
+
+	private RadioController mRadioCtl;
 
 	private FavoriteController mController;
 	private Spinner mSpinner;
@@ -52,6 +60,8 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_favorites_lists);
+
+		mRadioCtl = new RadioController(this);
 
 		mToast = Toast.create(this);
 		initLogic();
@@ -86,10 +96,8 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 			@Override
 			public void onItemClick(final View view, final int position) {
 				final FavoriteStation station = mStationsList.get(position);
-				final Intent intent = new Intent(FavoritesListsActivity.this, FMService.class)
-						.setAction(C.Command.SET_FREQUENCY)
-						.putExtra(C.Key.FREQUENCY, station.getFrequency());
-				startService(intent);
+
+				mRadioCtl.setFrequency(station.getFrequency());
 			}
 
 			@Override
@@ -204,6 +212,11 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				break;
 			}
 
+			case R.id.menu_favorite_search: {
+				searchDialog();
+				break;
+			}
+
 			case android.R.id.home: {
 				finish();
 				break;
@@ -266,6 +279,56 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				.setIcon(android.R.drawable.ic_dialog_alert);
 		dialog.create().show();
 	}
+
+	private void searchDialog() {
+		final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+				.setTitle(R.string.favorite_list_search_confirm_title)
+				.setMessage(R.string.favorite_list_search_confirm_message)
+				.setCancelable(false)
+				.setPositiveButton(R.string.favorite_list_search_confirm_continue, (dlg, buttonId) -> {
+					searchStart();
+				})
+				.setNegativeButton(R.string.favorite_list_search_confirm_discard, (dlg, buttonId) -> {})
+				.setIcon(android.R.drawable.ic_dialog_alert);
+		dialog.create().show();
+	}
+
+	private void searchStart() {
+		mRadioCtl.hwSearch();
+
+		mProgress = ProgressDialog.create(this).text(R.string.favorite_list_search_progress).show();
+
+		registerReceiver(mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
+	}
+
+	private final BroadcastReceiver mSearchDone = new BroadcastReceiver() {
+		@Override
+		public void onReceive(final Context context, final Intent intent) {
+			if (intent == null || intent.getAction() == null) {
+				return;
+			}
+
+			unregisterReceiver(mSearchDone);
+
+			final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
+
+			final List<FavoriteStation> stations = mController.getStationsInCurrentList();
+			stations.clear();
+
+			for (final int kHz : frequencies) {
+				stations.add(new FavoriteStation(kHz, Utils.getMHz(kHz)));
+			}
+
+			mController.save();
+
+			reloadLists();
+			reloadContent();
+
+			if (mProgress != null) {
+				mProgress.hide();
+			}
+		}
+	};
 
 	@Override
 	public void onNothingSelected(AdapterView<?> parent) {}

@@ -74,13 +74,8 @@ fm_current_storage fm_storage = {
 
 
 /**
- * process_radio_event
- * Helper routine to process the radio event read from the V4L2 and performs
- * the corresponding action.
- * Depends on Radio event
- * Updates the Global data structures info entry like frequency, station
- * available, RDS sync status etc.
- * @return TRUE if success, else FALSE
+ * Process the radio event read from the V4L2 and perform the action by Radio event
+ * Updates the global state: frequency, station available, RDS, etc.
  */
 boolean process_radio_event(uint8 event_buf) {
     struct v4l2_frequency freq;
@@ -184,24 +179,39 @@ boolean process_radio_event(uint8 event_buf) {
             break;
         }
 
-        case TAVARUA_EVT_RDS_AVAIL:
+        case TAVARUA_EVT_RDS_AVAIL: {
             print("fw_proc_event   : RDS available\n");
             // fm_global_params.rds_sync_status = FM_RDS_SYNCED;
             break;
+        }
 
-        case TAVARUA_EVT_RDS_NOT_AVAIL:
+        case TAVARUA_EVT_RDS_NOT_AVAIL: {
             print("fw_proc_event   : RDS not available\n");
             // fm_global_params.rds_sync_status = FM_RDS_NOT_SYNCED;
             break;
+        }
 
-        case TAVARUA_EVT_NEW_SRCH_LIST:
+        case TAVARUA_EVT_NEW_SRCH_LIST: {
             print("fw_proc_event   : received new search list\n");
-            // make_search_station_list(fd_radio);
-            break;
+            uint32 list[25];
+            uint8 stations = extract_search_station_list(list);
 
-        case TAVARUA_EVT_NEW_AF_LIST:
+            char str[5 * stations];
+
+            for (int i = 0; i < stations; ++i) {
+                sprintf(str, "%s%04d", str, list[i] / 100);
+            }
+
+            printf("SEARCH LIST = %s\n", str);
+
+            send_interruption_info(EVT_SEARCH_DONE, str);
+            break;
+        }
+
+        case TAVARUA_EVT_NEW_AF_LIST: {
             extract_rds_af_list();
             break;
+        }
 
         default: {
             printf("Unknown event RDS: %d\n", event_buf);
@@ -758,132 +768,4 @@ fm_cmd_status_t fm_receiver_search_rds_stations(fm_search_rds_stations options) 
     print("fm_receiver_search_rds_stations<\n");
     return FM_CMD_SUCCESS;
 }
-
-/ **
- * Returns a frequency List of the searched stations.
- *
- * This method retrieves the results of the {@link
- * #searchStationList}. This method should be called when the
- * FmRxEvSearchListComplete is invoked.
- *
- * @return An array of integers that corresponds to the frequency of the searched Stations
- * /
-fm_cmd_status_t fm_receiver_search_station_list(fm_search_list_stations options) {
-    int i, err;
-    boolean ret;
-    struct v4l2_hw_freq_seek hwseek;
-
-    hwseek.type = V4L2_TUNER_RADIO;
-    print("fm_receiver_search_station_list>\n");
-    if (fd_radio < 0) {
-        return FM_CMD_NO_RESOURCES;
-    }
-
-    ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, options.search_mode);
-    if (ret == FALSE) {
-        print("fm_receiver_search_station_list 1 failed\n");
-        return FM_CMD_FAILURE;
-    }
-
-    ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT, options.srch_list_max);
-    if (ret == FALSE) {
-        print("fm_receiver_search_station_list 2 failed\n");
-        return FM_CMD_FAILURE;
-    }
-
-    ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY, options.program_type);
-    if (ret == FALSE) {
-        print("fm_receiver_search_station_list 3 failed\n");
-        return FM_CMD_FAILURE;
-    }
-
-    hwseek.seek_upward = options.search_dir;
-    err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hwseek);
-
-    if (err < 0) {
-        print("fm_receiver_search_station_list 4 failed\n");
-        return FM_CMD_FAILURE;
-    }
-
-    print("fm_receiver_search_station_list<\n");
-    return FM_CMD_SUCCESS;
-}
-
-
-
-/ **
- * PFAL specific routine to cancel the ongoing search operation
- * @return FM command status
- * /
-fm_cmd_status_t fm_receiver_cancel_search() {
-    struct v4l2_control control;
-    boolean ret;
-
-    if (fd_radio < 0) {
-        return FM_CMD_NO_RESOURCES;
-    }
-    ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_SRCHON, 0);
-    if (ret == FALSE) {
-        return FM_CMD_FAILURE;
-    }
-    return FM_CMD_SUCCESS;
-}
-
-/ **
- * make_search_station_list
- * Helper routine to extract the list of good stations from the V4L2 buffer
- * @return NONE, If list is non empty then it prints the stations available
- * /
-void make_search_station_list(int fd) {
-    int freq = 0;
-    int i = 0;
-    int station_num;
-    float real_freq = 0;
-    int *stationList;
-    uint8 sList[100] = {0};
-    int tmpFreqByte1 = 0;
-    int tmpFreqByte2 = 0;
-    float lowBand;
-    struct v4l2_tuner tuner;
-
-    tuner.index = 0;
-    ioctl(fd, VIDIOC_G_TUNER, &tuner);
-    lowBand = (float) khz_to_tunefreq(tuner.rangelow);
-
-    printf("lowBand %f\n", lowBand);
-
-    if (read_data_from_v4l2(sList, TAVARUA_BUF_SRCH_LIST) < 0) {
-        printf("Data read from v4l2 failed\n");
-        return;
-    }
-
-    station_num = (int) sList[0];
-    stationList = (int*) malloc(sizeof(int) * (station_num + 1));
-    printf("station_num: %d\n", station_num);
-
-    if (stationList == NULL) {
-        printf("make_search_station_list: failed to allocate memory\n");
-        return;
-    }
-
-    char *res = malloc(sizeof(char) * 4 * station_num);
-
-    for (i = 0; i < station_num; i++) {
-        tmpFreqByte1 = sList[i * 2 + 1] & 0xFF;
-        tmpFreqByte2 = sList[i * 2 + 2] & 0xFF;
-        freq = (tmpFreqByte1 & 0x03) << 8;
-        freq |= tmpFreqByte2;
-        //printf(" freq: %d\n", freq);
-        real_freq = (float) (freq * 0.05) + lowBand;
-        //printf(" real_freq: %f\n", real_freq);
-        stationList[i] = (int) (real_freq * 1000);
-        printf(" make_search_station_list: %d\n", stationList[i]);
-
-        sprintf(res, "%s%04d", res, stationList[i] / 100);
-    }
-
-    send_interruption_info(EVT_SEARCH_DONE, res);
-
-    free(stationList);
-    free(res);
-}*/
+*/
