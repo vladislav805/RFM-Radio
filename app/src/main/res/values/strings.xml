@@ -135,4 +135,5 @@
     <string name="pref_tuner_rds_auto_af">Automatic jump by AF</string>
 	<string name="pref_tuner_rds_auto_afenabled">When the signal deteriorates and there are alternative frequencies of the radio station, the tuner will automatically switch to the frequency with the best quality</string>
 	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
+	<string name="menu_speaker">Toggle speaker</string>
 </resources>

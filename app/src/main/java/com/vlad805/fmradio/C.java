@@ -62,6 +62,7 @@ final public class C {
 		public static final String POWER_MODE = "power_mode";
 		public static final String KILL = "kill";
 		public static final String UI_STARTED = "ui_started";
+		public static final String SPEAKER_STATE = "speaker_state";
     }
 
 	public static final class Key {
@@ -86,7 +87,7 @@ final public class C {
 		public static final String DURATION = "duration";
 		public static final String PATH = "filename";
 		public static final String FREQUENCIES = "frequencies";
-	}
+    }
 
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
