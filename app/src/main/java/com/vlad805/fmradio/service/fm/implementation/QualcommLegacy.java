@@ -13,6 +13,7 @@ import com.vlad805.fmradio.service.fm.communication.Poll;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -214,8 +215,8 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 	}
 
 	@Override
-	public void search(final Callback<List<Integer>> callback) {
-
+	public void hwSearchImpl() {
+		sendCommand(new Request("searchhw", 60000));
 	}
 
 	/**

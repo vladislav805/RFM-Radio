@@ -254,8 +254,7 @@ typedef struct fm_search_rds_stations {
 typedef struct fm_search_list_stations {
 	search_t search_mode;
 	uint8 search_dir;
-	uint32 srch_list_max;
-	/**< Maximum number of stations that can be returned from a search. */
+	uint8 srch_list_max;
 	uint8 program_type;
 } fm_search_list_stations;
 

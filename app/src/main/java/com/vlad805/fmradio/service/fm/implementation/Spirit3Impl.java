@@ -149,17 +149,17 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 	}
 
 	@Override
-	protected void setPowerModeImpl(String mode) {
+	protected void hwSearchImpl() {
+
+	}
+
+	@Override
+	protected void setPowerModeImpl(final String mode) {
 		// not supported
 	}
 
 	@Override
 	public void setMute(final MuteState state, final Callback<Void> callback) {
-
-	}
-
-	@Override
-	public void search(final Callback<List<Integer>> callback) {
 
 	}
 

@@ -303,6 +303,57 @@ boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dw
     return TRUE;
 }
 
+/**
+ * Launch search by stations
+ */
+boolean fm_receiver_search_station_list(fm_search_list_stations options) {
+    int err;
+    boolean ret;
+    struct v4l2_hw_freq_seek hwseek;
+
+    hwseek.type = V4L2_TUNER_RADIO;
+    print("fm_receiver_search_station_list>\n");
+    if (fd_radio < 0) {
+        return FALSE;
+    }
+
+    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, options.search_mode);
+    if (ret == FALSE) {
+        print("fm_receiver_search_station_list 1 failed\n");
+        return FALSE;
+    }
+
+    ret = set_v4l2_ctrl( V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT, options.srch_list_max);
+    if (ret == FALSE) {
+        print("fm_receiver_search_station_list 2 failed\n");
+        return FALSE;
+    }
+
+    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY, options.program_type);
+    if (ret == FALSE) {
+        print("fm_receiver_search_station_list 3 failed\n");
+        return FALSE;
+    }
+
+    hwseek.seek_upward = options.search_dir;
+    err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hwseek);
+
+    if (err < 0) {
+        print("fm_receiver_search_station_list 4 failed\n");
+        return FALSE;
+    }
+
+    print("fm_receiver_search_station_list<\n");
+    return TRUE;
+}
+
+/**
+ * Cancel the ongoing search
+ */
+boolean fm_receiver_cancel_search() {
+    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHON, 0);
+}
+
 
 
 
@@ -424,7 +475,6 @@ boolean extract_radio_text(fm_rds_storage* storage) {
     return TRUE;
 }
 
-
 boolean extract_rds_af_list() {
     const int size = 0xff;
     uint8 buf[size];
@@ -465,6 +515,76 @@ boolean extract_rds_af_list() {
 }
 
 /**
+ * Extract the list of stations that woa found
+ * @return Count of stations
+ */
+uint8 extract_search_station_list(uint32* list) {
+    uint32 station_count;
+
+    // Parts of frequency
+    uint8 freq_upper = 0;
+    uint8 freq_lower = 0;
+
+    // Offset from lower limit frequency in 50 kHz
+    uint32 freq;
+
+    // Real frequency
+    uint32 real_freq;
+
+    // Temporary buffer
+    uint8 buf[100] = {0};
+
+    // Lower limit for computation real frequency
+    uint32 lower_limit;
+
+    // Get lower limit from tuner
+    struct v4l2_tuner tuner;
+    tuner.index = 0;
+    ioctl(fd_radio, VIDIOC_G_TUNER, &tuner);
+    lower_limit = tunefreq_to_khz(tuner.rangelow);
+
+    printf("fr_extr_srch_stl: lower_limit = %d\n", lower_limit);
+
+    // Read buffer
+    uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_SRCH_LIST);
+
+    if (bytes < 0) {
+        printf("fr_extr_srch_stl: read failed\n");
+        return 0;
+    }
+
+    // First byte is count of found stations
+    station_count = (int) buf[0];
+
+    /**
+     * | buf[1]  | buf[2]  |
+     * |.... ....|.... ....|
+     * |1111 1111|         | <- upper
+     * |         |1111 1111| <- lower
+     * |0000 0011|1111 1111| <- freq
+     *
+     * freq is offset from lower limit - "1" mean 50 kHz (0.05 MHz)
+     * For example, if lower limit = 87500 (in kHz):
+     * 0 means offset 0 kHz
+     * 1 means offset 50 kHz
+     * 10 means offset 500 kHz (0.5 MHz)
+     */
+
+    for (int i = 0; i < station_count; i++) {
+        freq_upper = buf[i * 2 + 1] & 0xff; // upper part
+        freq_lower = buf[i * 2 + 2] & 0xff; // lower part
+        freq = ((freq_upper & 0x03) << 8) | freq_lower; // make offset from lower limit
+
+        // kHz = lower + (freq * 50), where: lower = lower_limit in kHz; freq = variable from code
+        list[i] = lower_limit + (freq * 50);
+    }
+
+    return station_count;
+}
+
+
+
+/**
  * Returns the signal strength of the currently tuned station
  *
  * This method returns the signal strength of the currently
@@ -483,5 +603,3 @@ int32 fm_receiver_get_rssi() {
         return -1;
     }
 }
-
-

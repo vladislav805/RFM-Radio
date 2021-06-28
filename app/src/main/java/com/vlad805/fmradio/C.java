@@ -11,7 +11,7 @@ final public class C {
 	public static final String DEFAULT_PREFERENCES = "default_cfg";
 
 	public static final class Event {
-		private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
+        private static final String BASE = BuildConfig.APPLICATION_ID + ".action.EVT_";
 
 		public static final String ERROR_OCCURRED = BASE + "ERROR_OCCURRED";
 		public static final String PREPARING = BASE + "PREPARING";
@@ -29,7 +29,7 @@ final public class C {
 		public static final String UPDATE_PS = BASE + "UPDATE_PS";
 		public static final String UPDATE_RT = BASE + "UPDATE_RT";
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
-		public static final String SEARCH_DONE = BASE + "SEARCH_DONE";
+		public static final String HW_SEARCH_DONE = BASE + "HW_SEARCH_DONE";
 		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
 		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";
 		public static final String UPDATE_PTY = BASE + "UPDATE_PTY";
@@ -54,7 +54,7 @@ final public class C {
 		public static final String NOTIFICATION_SEEK = "notification_seek";
 		public static final String SET_FREQUENCY = "set_frequency";
 		public static final String JUMP = "jump";
-		public static final String SEARCH = "search";
+		public static final String HW_SEARCH = "hw_search";
 		public static final String RECORD_START = "record_start";
 		public static final String RECORD_STOP = "record_stop";
 		public static final String POWER_MODE = "power_mode";

@@ -7,6 +7,7 @@ import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.LaunchConfig;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -104,6 +105,11 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 	}
 
 	@Override
+	protected void hwSearchImpl() {
+		Log.d(TAG, "hwSearch");
+	}
+
+	@Override
 	protected void setPowerModeImpl(String mode) {
 		Log.d(TAG, "setPowerMode " + mode);
 	}
@@ -111,11 +117,6 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 	@Override
 	public void setMute(final MuteState state, final Callback<Void> callback) {
 		Log.d(TAG, "setMute " + state);
-	}
-
-	@Override
-	public void search(final Callback<List<Integer>> callback) {
-		Log.d(TAG, "search");
 	}
 
 	private void sleep(final int ms) {
