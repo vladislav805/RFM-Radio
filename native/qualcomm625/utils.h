@@ -6,6 +6,7 @@
 void wait(int ms);
 
 char* int_to_string(uint32 val);
+char* int_to_hex_string(uint32 val);
 
 uint32 tunefreq_to_khz(uint32 freq);
 uint32 khz_to_tunefreq(uint32 freq);

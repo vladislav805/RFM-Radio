@@ -636,13 +636,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 		final int size = extras.getInt(C.Key.SIZE);
 		final int duration = extras.getInt(C.Key.DURATION);
 		final String path = extras.getString(C.Key.PATH);
-		final String file = new File(path).getName();
+		final File file = new File(path);
+		final String filename = file.getName();
 
 		if (needNotification) {
 			final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
 					.setSmallIcon(R.drawable.ic_radio)
 					.setContentTitle(getString(R.string.app_name))
-					.setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, file))
+					.setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, filename))
 					.setPriority(NotificationCompat.PRIORITY_LOW)
 					.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
 
@@ -651,7 +652,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
 		Toast.makeText(this, getString(
 				R.string.toast_record_ended,
-				file,
+				filename,
 				size / 1024f / 1024f,
 				getTimeStringBySeconds(duration)
 		), Toast.LENGTH_LONG).show();

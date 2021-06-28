@@ -1,9 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-	<!-- General -->
 	<string name="app_name">RFM Radio</string>
 	<string name="nil" translatable="false">null</string>
-
-	<!-- Main Activity -->
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
 	<string name="progress_init">Please, wait… Initializing… Version %s</string>
 	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
@@ -18,16 +15,12 @@
 	<string name="progress_searching">Searching…</string>
 	<string name="progress_stopping">Stopping…</string>
 	<string name="main_rssi_db">%d dB</string>
-
-	<!-- Main Activity menu -->
 	<string name="menu_stop">Stop</string>
 	<string name="menu_settings">Settings</string>
 	<string name="menu_open_list">Station list</string>
 	<string name="menu_record">Record</string>
 	<string name="menu_about">About</string>
 	<string name="menu_open_list_favorites">Favorites</string>
-
-	<!-- Favorite stations panel -->
 	<string name="popup_preset_add">Add</string>
 	<string name="popup_preset_rename">Rename</string>
 	<string name="popup_preset_replace">Replace</string>
@@ -37,16 +30,8 @@
 	<string name="popup_station_rename">Rename</string>
 	<string name="popup_station_remove">Remove</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>
-
-	<!-- Station list (currently doesn't used) -->
-	<string name="station_list_search">Search…</string>
-	<string name="station_list_search_message">Please, wait…</string>
-
-	<!-- About activity -->
 	<string name="about_version" translatable="false">v%s</string>
 	<string name="about_author">Vladislav Veluga © 2020–2021</string>
-
-	<!-- Favorite lists activity -->
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
@@ -54,8 +39,6 @@
 	<string name="favorite_list_create_error_invalid_name">Invalid name. Only A–Z, a–z, \'–\', \'_\' and 0–9 can be used.</string>
 	<string name="favorite_list_remove_title">Confirmation</string>
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
-
-	<!-- Preference activity -->
 	<string name="pref_activity_title">Settings</string>
 	<string name="pref_header_tuner">Tuner</string>
 	<string name="pref_header_audio">Audio</string>
@@ -110,8 +93,6 @@
 	<string name="pref_version_check_need_update_content">Latest app version: v%1$s (%2$d)\nInstalled app version: %3$s (v%4$d)\n\nUpdates:\n%5$s\n\nOpen the release page to download the installer?</string>
 	<string name="pref_version_check_need_update_ok">Update</string>
 	<string name="pref_version_check_fresh_ok">Well</string>
-
-	<!-- Notification & service -->
 	<string name="notification_mhz">%.1f MHz | %d dB</string>
 	<string name="service_record_unsupported">Recording not supported by this driver.</string>
 	<string name="notification_recording">Recording: %s (%.1f MB)</string>
@@ -122,10 +103,7 @@
 	<string name="pref_notification_seek_by_favorites">Navigate through favorites</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Using the arrows in the notification, jump to the prev/next favorite</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Use the arrows in the notification to search for the prev/next station</string>
-    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work. Try
-        changing the tuner in settings and restarting the app. If nothing has changed, then this means that the
-        application is not supported on this device or on this operating system.
-    </string>
+    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work. Try changing the tuner in settings and restarting the app. If nothing has changed, then this means that the application is not supported on this device or on this operating system.</string>
 	<string name="main_error_launching_title">Fatal error</string>
     <string name="pref_header_rds">RDS (Radio Data System)</string>
     <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power.</string>
@@ -153,6 +131,8 @@
 	</string>
 	<string name="favorite_list_search_confirm_continue">Remove and scan</string>
 	<string name="favorite_list_search_confirm_discard">Discard</string>
-	<string name="favorite_list_search_progress">Please, wait... I trying to find stations.</string>
-
+	<string name="favorite_list_search_progress">Please, wait… I trying to find stations.</string>
+    <string name="pref_tuner_rds_auto_af">Automatic jump by AF</string>
+	<string name="pref_tuner_rds_auto_afenabled">When the signal deteriorates and there are alternative frequencies of the radio station, the tuner will automatically switch to the frequency with the best quality</string>
+	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
 </resources>

@@ -35,6 +35,8 @@ public class DatagramServer extends Thread {
 	private static final int EVT_STEREO = 9;
 	private static final int EVT_SEARCH_DONE = 10;
 	private static final int EVT_UPDATE_PTY = 11;
+	private static final int EVT_UPDATE_PI = 12;
+	private static final int EVT_UPDATE_AF = 14;
 
 	public DatagramServer(final int port) throws IOException {
 		mDatagramSocketServer = new DatagramSocket(port);
@@ -159,9 +161,32 @@ public class DatagramServer extends Thread {
 
 			case EVT_UPDATE_PTY: {
 				action = C.Event.UPDATE_PTY;
-				final int pty = Utils.parseInt(data);
 
-				bundle.putInt(C.Key.PTY, pty);
+				bundle.putInt(C.Key.PTY, Utils.parseInt(data));
+				break;
+			}
+
+			case EVT_UPDATE_PI: {
+				action = C.Event.UPDATE_PI;
+
+				bundle.putString(C.Key.PI, data);
+				break;
+			}
+
+			case EVT_UPDATE_AF: {
+				final String frequencies = data.trim();
+				final int lengthKHz = 4;
+				final int count = frequencies.length() / lengthKHz;
+
+				final int[] res = new int[count];
+
+				for (int i = 0; i < count; ++i) {
+					int start = i * lengthKHz;
+					res[i] = Utils.parseInt(frequencies.substring(start, start + lengthKHz)) * 100;
+				}
+
+				action = C.Event.UPDATE_AF;
+				bundle.putIntArray(C.Key.FREQUENCIES, res);
 				break;
 			}
 

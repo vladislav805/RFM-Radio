@@ -82,8 +82,6 @@
 	<string name="seek_down">Поиск назад</string>
 	<string name="seek_up">Поиск вперёд</string>
 	<string name="service_record_unsupported">Запись эфира не поддерживается этим драйвером.</string>
-	<string name="station_list_search">Поиск…</string>
-	<string name="station_list_search_message">Пожалуйста, подождите…</string>
 	<string name="toast_record_ended">Запись %1$s сохранена\nРазмер: %2$.1f МБ\nДлительность: %3$s</string>
 	<string name="toggle_play_pause">Старт</string>
 	<string name="toolbar_favorite_title">Избранное</string>

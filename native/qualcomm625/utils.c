@@ -23,6 +23,11 @@ char* int_to_string(uint32 val) {
     return tmp;
 }
 
+char* int_to_hex_string(uint32 val) {
+    snprintf(tmp, 31, "%x", val);
+    return tmp;
+}
+
 /**
  * Multiplying factor to convert to Radio frequency
  * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,

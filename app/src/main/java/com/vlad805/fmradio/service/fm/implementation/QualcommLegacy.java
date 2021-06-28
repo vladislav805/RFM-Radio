@@ -2,7 +2,6 @@ package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
 import android.os.Build;
-import android.util.Log;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
@@ -13,8 +12,6 @@ import com.vlad805.fmradio.service.fm.communication.Poll;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * vlad805 (c) 2020
@@ -147,6 +144,11 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 
 			case C.PrefKey.TUNER_POWER_MODE: {
 				sendCommand(new Request("power_mode " + value));
+				break;
+			}
+
+			case C.PrefKey.RDS_AUTO_AF: {
+				sendCommand(new Request("auto_af " + value));
 				break;
 			}
 		}

@@ -186,6 +186,12 @@ public abstract class AbstractFMController {
 					value = isLowPower ? "low" : "normal";
 					break;
 				}
+
+				case C.PrefKey.RDS_AUTO_AF: {
+					final boolean enabled = Storage.getPrefBoolean(context, key, C.PrefDefaultValue.RDS_AUTO_AF);
+					value = enabled ? "1" : "0";
+					break;
+				}
 			}
 
 			if (value != null) {

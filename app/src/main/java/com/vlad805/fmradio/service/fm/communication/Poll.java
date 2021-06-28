@@ -95,8 +95,8 @@ public class Poll {
 				e.printStackTrace();
 				Log.i("QCL", "FAILED: attempt for request [" + command + "]");
 			} finally {
-				queue.remove();
 				if (!queue.isEmpty()) {
+					queue.remove();
 					next();
 				}
 			}

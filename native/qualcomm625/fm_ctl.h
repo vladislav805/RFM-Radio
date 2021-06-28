@@ -39,7 +39,7 @@ boolean fm_receiver_set_rds_state(boolean enable);
 boolean fm_receiver_set_band(radio_band_t band);
 boolean fm_receiver_set_rds_system(rds_system_t system);
 uint8 fm_receiver_get_rds_group_options();
-boolean fm_receiver_set_rds_group_options(uint8 options);
+boolean fm_receiver_set_rds_group_options(uint32 options);
 boolean fm_receiver_set_ps_all(uint8 mode);
 boolean fm_receiver_set_antenna(uint8 antenna);
 boolean fm_receiver_query_capabilities(struct v4l2_capability* cap);
@@ -60,7 +60,7 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index);
 
 boolean extract_program_service(fm_rds_storage* storage);
 boolean extract_radio_text(fm_rds_storage* storage);
-boolean extract_rds_af_list();
+uint8 extract_rds_af_list(uint32* list);
 uint8 extract_search_station_list(uint32* list);
 
 int32 fm_receiver_get_rssi();

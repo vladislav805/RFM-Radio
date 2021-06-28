@@ -166,6 +166,17 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			return true;
 		});
 		category.addPreference(enable);
+
+		final SwitchPreference autoAf = new SwitchPreference(context);
+		populatePreference(autoAf, C.PrefKey.RDS_AUTO_AF, R.string.pref_tuner_rds_auto_af, R.drawable.ic_rds);
+		autoAf.setDefaultValue(C.PrefDefaultValue.RDS_AUTO_AF);
+		autoAf.setSummaryOn(R.string.pref_tuner_rds_auto_afenabled);
+		autoAf.setSummaryOff(R.string.pref_tuner_rds_auto_af_disabled);
+		autoAf.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.RDS_AUTO_AF, (boolean) newValue);
+			return true;
+		});
+		category.addPreference(autoAf);
 	}
 
 	private void makeAudioCategoryPreferences(final Context context, final PreferenceScreen screen) {
