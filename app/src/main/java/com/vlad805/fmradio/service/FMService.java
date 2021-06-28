@@ -18,6 +18,7 @@ import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.FMAudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
@@ -214,6 +215,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
 			case C.Command.UI_STARTED: {
 				sendBroadcast(new Intent(mLastState));
+				break;
+			}
+
+			case C.Command.SPEAKER_STATE: {
+				Audio.toggleThroughSpeaker();
 				break;
 			}
 		}

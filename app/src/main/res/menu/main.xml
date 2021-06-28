@@ -19,16 +19,13 @@
 				app:showAsAction="ifRoom"/>
 
 		<item
-				android:id="@+id/menu_list"
-				android:title="@string/menu_open_list"
-				android:icon="@drawable/ic_list"
-				android:visible="false"
-				app:showAsAction="ifRoom"/>
-
-		<item
 				android:id="@+id/menu_settings"
 				android:title="@string/menu_settings"
 				android:icon="@drawable/ic_settings"/>
+
+		<item
+				android:id="@+id/menu_speaker"
+				android:title="@string/menu_speaker" />
 
 		<item
 				android:id="@+id/menu_about"

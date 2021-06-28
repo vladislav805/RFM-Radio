@@ -318,6 +318,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.menu_record:
 				mRadioController.record(true);
 				break;
+
+			case R.id.menu_speaker: {
+				startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
+				break;
+			}
 		}
 
 		return super.onOptionsItemSelected(item);
@@ -494,6 +499,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		if (mMenu != null) {
 			mMenu.findItem(R.id.menu_stop).setEnabled(state);
 			mMenu.findItem(R.id.menu_record).setEnabled(state);
+			mMenu.findItem(R.id.menu_speaker).setEnabled(state);
 		}
 	}
 
