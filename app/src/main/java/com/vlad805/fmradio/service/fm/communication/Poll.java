@@ -1,7 +1,7 @@
 package com.vlad805.fmradio.service.fm.communication;
 
 import android.util.Log;
-import com.vlad805.fmradio.service.fm.LaunchConfig;
+import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -12,13 +12,13 @@ import java.util.Queue;
  * vlad805 (c) 2020
  */
 public class Poll {
-	private final LaunchConfig config;
+	private final LaunchBinaryConfig config;
 	private final Queue<Request> queue;
 	private DatagramSocket socket;
 	private InetAddress endpoint;
 	private boolean enabled;
 
-	public Poll(final LaunchConfig config) {
+	public Poll(final LaunchBinaryConfig config) {
 		this.config = config;
 		this.queue = new LinkedList<>();
 
@@ -72,7 +72,7 @@ public class Poll {
 
 				socket.setSoTimeout(command.getTimeout());
 
-				final DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), endpoint, config.getClientPort());
+				final DatagramPacket dps = new DatagramPacket(command.bytes(), command.size(), endpoint, config.clientPort);
 
 				socket.send(dps);
 

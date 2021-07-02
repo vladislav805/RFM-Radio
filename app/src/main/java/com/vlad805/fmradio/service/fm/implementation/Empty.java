@@ -5,22 +5,17 @@ import android.util.Log;
 import com.vlad805.fmradio.enums.MuteState;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
-import com.vlad805.fmradio.service.fm.LaunchConfig;
-
-import java.util.Arrays;
-import java.util.List;
+import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 
 /**
  * vlad805 (c) 2020
  */
 public class Empty extends AbstractFMController implements IFMEventListener {
 	private static transient final String TAG = "FMCE";
+	private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(1111, 1111);
 
-	public static class Config extends LaunchConfig {
-	}
-
-	public Empty(final LaunchConfig config, final Context context) {
-		super(config, context);
+	public Empty(final Context context) {
+		super(CONFIG, context);
 	}
 
 	@Override
@@ -82,12 +77,6 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 		Log.d(TAG, "setFrequency: " + kHz);
 		sleep(200);
 		callback.onResult(kHz);
-	}
-
-	@Override
-	protected void getSignalStretchImpl(final Callback<Integer> result) {
-		Log.d(TAG, "getSignalStretch");
-		result.onResult(777);
 	}
 
 	@Override

@@ -8,9 +8,7 @@ import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.fm.LaunchConfig;
-
-import java.util.List;
+import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 
 /**
  * vlad805 (c) 2020
@@ -27,10 +25,10 @@ public abstract class AbstractFMController {
 		}
 	}
 
-	protected final LaunchConfig config;
+	protected final LaunchBinaryConfig config;
 	protected final Context context;
 
-	public AbstractFMController(final LaunchConfig config, final Context context) {
+	public AbstractFMController(final LaunchBinaryConfig config, final Context context) {
 		this.config = config;
 		this.context = context;
 	}
@@ -97,7 +95,7 @@ public abstract class AbstractFMController {
 	 * @param key Preference key from C.PrefKey
 	 * @param value Value as string
 	 */
-	public final void applyPreference(String key, String value) {
+	public final void applyPreference(final String key, final String value) {
 		applyPreferenceImpl(key, value);
 	}
 
@@ -135,9 +133,10 @@ public abstract class AbstractFMController {
 		enableImpl(result -> {
 			setupTunerByPreferences(new String[] {
 					C.PrefKey.RDS_ENABLE,
-					/*C.PrefKey.TUNER_REGION,
+					C.PrefKey.TUNER_REGION,
 					C.PrefKey.TUNER_SPACING,
-					C.PrefKey.TUNER_STEREO,*/
+					C.PrefKey.TUNER_STEREO,
+					C.PrefKey.TUNER_ANTENNA,
 			});
 			fireEvent(C.Event.ENABLED);
 		});
@@ -223,12 +222,6 @@ public abstract class AbstractFMController {
 			fireEvent(C.Event.FREQUENCY_SET, bundle);
 		});
 	}
-
-	/**
-	 * Returns RSSI
-	 * TODO: range of value?
-	 */
-	protected abstract void getSignalStretchImpl(final Callback<Integer> result);
 
 	/**
 	 * Jump to -0.1 MHz or +0.1 MHz

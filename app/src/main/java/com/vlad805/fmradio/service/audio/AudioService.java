@@ -10,30 +10,34 @@ import com.vlad805.fmradio.Storage;
 import static com.vlad805.fmradio.Utils.sleep;
 
 /**
+ * Audio service (in two versions: Lightweight and Spirit2) records sound from
+ * a specific source (unavailable for playback through speakers) and outputs it
+ * to a regular audio output (headphones or speaker).
  * vlad805 (c) 2019
  */
-public abstract class FMAudioService {
+public abstract class AudioService {
 	public static final int SERVICE_LIGHT = 0;
 	public static final int SERVICE_SPIRIT3 = 1;
 
-	protected AudioManager mAudioManager;
+	// Android AudioManager
+	protected final AudioManager mAudioManager;
 
 	protected int mSampleRate = 44100; // Default = 8000 (Max with AMR)
 	protected int mBufferSize = 16384;
 	protected int mAudioSource = 1998;
 
-	public FMAudioService(Context context) {
+	public AudioService(Context context) {
 		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
 		mAudioSource = Storage.getPrefInt(context, C.PrefKey.AUDIO_SOURCE, mAudioSource);
 	}
 
 	/**
-	 * Start audio
+	 * Start recording audio from a specific source and write to normal audio output
 	 */
 	public abstract void startAudio();
 
 	/**
-	 * Stop audio
+	 * Stop redirecting audio
 	 */
 	public abstract void stopAudio();
 

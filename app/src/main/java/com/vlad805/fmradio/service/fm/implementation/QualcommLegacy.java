@@ -17,26 +17,16 @@ import java.io.*;
  * vlad805 (c) 2020
  */
 public class QualcommLegacy extends AbstractFMController implements IFMEventListener {
-	public static class Config extends LaunchConfig {
-		@Override
-		public int getClientPort() {
-			return 2112;
-		}
-
-		@Override
-		public int getServerPort() {
-			return 2113;
-		}
-	}
+	private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(2112, 2113);
 
 	private DatagramServer mServer;
 	private FMEventCallback mEventCallback;
 	private final Poll mCommandPoll;
 
-	public QualcommLegacy(final LaunchConfig config, final Context context) {
-		super(config, context);
+	public QualcommLegacy(final Context context) {
+		super(CONFIG, context);
 
-		mCommandPoll = new Poll(config);
+		mCommandPoll = new Poll(CONFIG);
 	}
 
 	public void setEventListener(final FMEventCallback callback) {
@@ -62,7 +52,7 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 
 	@Override
 	public boolean isObsolete() {
-		return Storage.getInstance(context).getInt(C.PrefKey.BINARY_VERSION, 0) < BuildConfig.VERSION_CODE;
+		return true; // Storage.getInstance(context).getInt(C.PrefKey.BINARY_VERSION, 0) < BuildConfig.VERSION_CODE;
 	}
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
@@ -186,11 +176,6 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 	}
 
 	@Override
-	protected void getSignalStretchImpl(final Callback<Integer> callback) {
-		sendCommand(new Request("getrssi").onResponse(data -> callback.onResult(Utils.parseInt(-0xff + data))));
-	}
-
-	@Override
 	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
 		sendCommand(new Request("jump " + direction, 1500).onResponse(data -> {
 			frequency = Utils.parseInt(data);
@@ -284,7 +269,7 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 			if (mServer != null) {
 				mServer.closeServer();
 			}
-			mServer = new DatagramServer(config.getServerPort());
+			mServer = new DatagramServer(config.serverPort);
 			mServer.setCallback(mEventCallback);
 			mServer.start();
 		} catch (IOException e) {

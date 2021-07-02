@@ -1,10 +1,11 @@
 package com.vlad805.fmradio.controller;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
@@ -14,168 +15,116 @@ import com.vlad805.fmradio.service.FMService;
  * vlad805 (c) 2020
  */
 public class RadioController {
-	private final Context mContext;
-	private final Bundle mState;
+    private final Context mContext;
+    private final TunerState mState;
+    private BroadcastReceiver mTunerStateUpdater;
 
-	public RadioController(final Context context) {
-		mContext = context;
-		mState = new Bundle();
-	}
+    public RadioController(final Context context) {
+        mContext = context;
+        mState = new TunerState();
+    }
 
-	public final Bundle getState() {
-		return mState;
-	}
+    public void requestForCurrentState(@Nullable final TunerStateUpdater.TunerStateListener callback) {
+        getCurrentState(state -> {
+            mState.setStatus(state.getStatus());
+            mState.setFrequency(state.getFrequency());
+            mState.setStereo(state.isStereo());
+            mState.setPs(state.getPs());
 
-	private void send(final String action) {
-		send(action, new Bundle());
-	}
+            if (callback != null) {
+                callback.onStateUpdated(mState, TunerStateUpdater.SET_STATUS | TunerStateUpdater.SET_FREQUENCY | TunerStateUpdater.SET_INITIAL);
+            }
+        });
+    }
 
-	private void send(final String action, final Bundle bundle) {
-		mContext.startService(new Intent(mContext, FMService.class).setAction(action).putExtras(bundle));
-	}
+    public void registerForUpdates(TunerStateUpdater.TunerStateListener callback) {
+        mTunerStateUpdater = new TunerStateUpdater(mState, callback);
+        mContext.registerReceiver(mTunerStateUpdater, TunerStateUpdater.sFilter);
+    }
 
-	public void setup() {
-		send(C.Command.SETUP);
-	}
+    public void unregisterForUpdates() {
+        if (mTunerStateUpdater != null) {
+            mContext.unregisterReceiver(mTunerStateUpdater);
+        }
+    }
 
-	public void launch() {
-		send(C.Command.LAUNCH);
-	}
+    public TunerState getState() {
+        return mState;
+    }
 
-	public void kill() {
-		send(C.Command.KILL);
-	}
+    private void send(final String action) {
+        send(action, new Bundle());
+    }
 
-	public void enable() {
-		send(C.Command.ENABLE);
-	}
+    private void send(final String action, final Bundle bundle) {
+        mContext.startService(new Intent(mContext, FMService.class).setAction(action).putExtras(bundle));
+    }
 
-	public void setFrequency(final int kHz) {
-		final Bundle bundle = new Bundle();
-		bundle.putInt(C.Key.FREQUENCY, kHz);
-		send(C.Command.SET_FREQUENCY, bundle);
-	}
+    public void setup() {
+        send(C.Command.INSTALL);
+    }
 
-	public void jump(final Direction direction) {
-		final Bundle bundle = new Bundle();
-		bundle.putInt(C.Key.JUMP_DIRECTION, direction.getValue());
-		send(C.Command.JUMP, bundle);
-	}
+    public void launch() {
+        send(C.Command.LAUNCH);
+    }
 
-	public void hwSeek(final Direction direction) {
-		final Bundle bundle = new Bundle();
-		bundle.putInt(C.Key.SEEK_HW_DIRECTION, direction.getValue());
-		send(C.Command.HW_SEEK, bundle);
-	}
+    public void kill() {
+        send(C.Command.KILL);
+    }
 
-	public void setPowerMode(final PowerMode mode) {
-		final Bundle bundle = new Bundle();
-		bundle.putString(C.Key.POWER_MODE, mode.getValue());
-		send(C.Command.POWER_MODE, bundle);
-	}
+    public void enable() {
+        send(C.Command.ENABLE);
+    }
 
-	public void hwSearch() {
-		send(C.Command.HW_SEARCH);
-	}
+    public void setFrequency(final int kHz) {
+        final Bundle bundle = new Bundle();
+        bundle.putInt(C.Key.FREQUENCY, kHz);
+        send(C.Command.SET_FREQUENCY, bundle);
+    }
 
-	public void disable() {
-		send(C.Command.DISABLE);
-	}
+    public void jump(final Direction direction) {
+        final Bundle bundle = new Bundle();
+        bundle.putInt(C.Key.JUMP_DIRECTION, direction.getValue());
+        send(C.Command.JUMP, bundle);
+    }
 
-	public void record(final boolean state) {
-		send(state ? C.Command.RECORD_START : C.Command.RECORD_STOP);
-	}
+    public void hwSeek(final Direction direction) {
+        final Bundle bundle = new Bundle();
+        bundle.putInt(C.Key.SEEK_HW_DIRECTION, direction.getValue());
+        send(C.Command.HW_SEEK, bundle);
+    }
 
-	public static final IntentFilter sFilter;
+    public void setPowerMode(final PowerMode mode) {
+        final Bundle bundle = new Bundle();
+        bundle.putString(C.Key.POWER_MODE, mode.getValue());
+        send(C.Command.POWER_MODE, bundle);
+    }
 
-	static {
-		final String[] events = {
-				C.Event.INSTALLING,
-				C.Event.INSTALLED,
-				C.Event.LAUNCHING,
-				C.Event.LAUNCHED,
-				C.Event.ENABLING,
-				C.Event.ENABLED,
+    public void hwSearch() {
+        send(C.Command.HW_SEARCH);
+    }
 
-				C.Event.FREQUENCY_SET,
-				C.Event.UPDATE_PS,
-				C.Event.UPDATE_RT,
-				C.Event.UPDATE_PTY,
-				C.Event.UPDATE_RSSI,
-				C.Event.UPDATE_STEREO,
-				C.Event.HW_SEARCH_DONE,
-				C.Event.JUMP_COMPLETE,
-				C.Event.HW_SEEK_COMPLETE,
+    public void disable() {
+        send(C.Command.DISABLE);
+    }
 
-				C.Event.RECORD_STARTED,
-				C.Event.RECORD_TIME_UPDATE,
-				C.Event.RECORD_ENDED,
+    public void record(final boolean state) {
+        send(state ? C.Command.RECORD_START : C.Command.RECORD_STOP);
+    }
 
-				C.Event.DISABLING,
-				C.Event.DISABLED,
-				C.Event.KILLED
-		};
+    public interface CurrentStateListener {
+        void onCurrentStateReady(final TunerState state);
+    }
 
-		sFilter = new IntentFilter();
+    public void getCurrentState(final CurrentStateListener listener) {
+        mContext.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(final Context context, final Intent intent) {
+                listener.onCurrentStateReady(intent.getParcelableExtra(C.Key.STATE));
+                mContext.unregisterReceiver(this);
+            }
+        }, new IntentFilter(C.Event.CURRENT_STATE));
 
-		for (String event : events) {
-			sFilter.addAction(event);
-		}
-	}
-
-	public void onEvent(@NonNull final Intent intent) {
-		if (intent.getAction() == null) {
-			return;
-		}
-
-		switch (intent.getAction()) {
-			case C.Event.INSTALLED: {
-				mState.putString(C.Key.MESSAGE, "Binary is ready");
-				break;
-			}
-
-			case C.Event.LAUNCHED: {
-				mState.putString(C.Key.MESSAGE, "Ready for enable");
-				break;
-			}
-
-			case C.Event.ENABLED: {
-				mState.putInt(C.Key.STAGE, C.FMStage.ENABLED);
-				break;
-			}
-
-			case C.Event.DISABLED: {
-				mState.putInt(C.Key.STAGE, C.FMStage.LAUNCHED);
-				break;
-			}
-
-			case C.Event.KILLED: {
-				mState.putInt(C.Key.STAGE, C.FMStage.IDLE);
-				break;
-			}
-
-			case C.Event.FREQUENCY_SET: {
-				int frequency = intent.getIntExtra(C.Key.FREQUENCY, 1);
-				mState.putInt(C.Key.FREQUENCY, frequency);
-				break;
-			}
-
-			case C.Event.UPDATE_PS: {
-				String ps = intent.getStringExtra(C.Key.PS);
-				mState.putString(C.Key.PS, ps);
-				break;
-			}
-
-			case C.Event.UPDATE_RT: {
-				String rt = intent.getStringExtra(C.Key.RT);
-				mState.putString(C.Key.RT, rt);
-				break;
-			}
-
-			case C.Event.UPDATE_RSSI: {
-				mState.putInt(C.Key.RSSI, intent.getIntExtra(C.Key.RSSI, 0));
-				break;
-			}
-		}
-	}
+        send(C.Command.REQUEST_CURRENT_STATE);
+    }
 }
