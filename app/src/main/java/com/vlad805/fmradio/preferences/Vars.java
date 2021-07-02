@@ -3,8 +3,8 @@ package com.vlad805.fmradio.preferences;
 import android.util.SparseArray;
 import com.vlad805.fmradio.BuildConfig;
 
-import static com.vlad805.fmradio.service.audio.FMAudioService.SERVICE_LIGHT;
-import static com.vlad805.fmradio.service.audio.FMAudioService.SERVICE_SPIRIT3;
+import static com.vlad805.fmradio.service.audio.AudioService.SERVICE_LIGHT;
+import static com.vlad805.fmradio.service.audio.AudioService.SERVICE_SPIRIT3;
 import static com.vlad805.fmradio.service.fm.implementation.AbstractFMController.*;
 
 /**

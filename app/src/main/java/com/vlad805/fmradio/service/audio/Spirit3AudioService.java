@@ -12,7 +12,7 @@ import static com.vlad805.fmradio.Utils.sleep;
  * vlad805 (c) 2019
  */
 @SuppressWarnings("deprecation")
-public class Spirit3AudioService extends FMAudioService {
+public class Spirit3AudioService extends AudioService {
 
 	private static final int mBufferSizeInBytes = 4096;
 

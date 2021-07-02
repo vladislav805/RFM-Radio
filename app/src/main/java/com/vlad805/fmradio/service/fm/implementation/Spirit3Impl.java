@@ -13,7 +13,6 @@ import com.vlad805.fmradio.service.fm.communication.Poll;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.File;
-import java.util.List;
 
 /**
  * vlad805 (c) 2020
@@ -21,18 +20,14 @@ import java.util.List;
 public class Spirit3Impl extends AbstractFMController implements IFMEventPoller {
 	private static final String TAG = "S3I";
 
-	public static class Config extends LaunchConfig {
-		@Override
-		public int getClientPort() {
-			return 2122;
-		}
-	}
+	private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(2122, 0);
 
 	private final Poll mCommandPoll;
 
-	public Spirit3Impl(final LaunchConfig config, final Context context) {
-		super(config, context);
-		mCommandPoll = new Poll(config);
+	public Spirit3Impl(final Context context) {
+		super(CONFIG, context);
+
+		mCommandPoll = new Poll(CONFIG);
 	}
 
 	/**
@@ -116,15 +111,6 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 		}
 
 		return -0xff + rssi;
-	}
-
-	@Override
-	public void getSignalStretchImpl(final Callback<Integer> callback) {
-		sendCommand(cmdTunerRssi.onResponse(sRssi -> {
-			int rssi = Utils.parseInt(sRssi);
-
-			callback.onResult(fixRssi(rssi));
-		}));
 	}
 
 	private String toDirection(int direction) {

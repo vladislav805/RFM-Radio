@@ -13,7 +13,7 @@ import com.vlad805.fmradio.service.recording.IFMRecorder;
  * vlad805 (c) 2019
  */
 @SuppressWarnings("deprecation")
-public class LightAudioService extends FMAudioService implements IAudioRecordable {
+public class LightAudioService extends AudioService implements IAudioRecordable {
 	private static final String TAG = "LAS";
 	private Thread mThread;
 
