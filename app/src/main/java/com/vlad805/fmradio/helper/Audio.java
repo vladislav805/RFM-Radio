@@ -49,12 +49,12 @@ public class Audio {
         return -1;
     }
 
-    public static void toggleThroughSpeaker() {
-        final int current = getForceUse();
+    public static boolean isForceSpeakerNow() {
+        return getForceUse() == FORCE_SPEAKER;
+    }
 
-        final boolean isNoneNow = current != FORCE_SPEAKER;
-
-        if (isNoneNow) {
+    public static void toggleThroughSpeaker(final boolean enableSpeaker) {
+        if (enableSpeaker) {
             setForceUse(FORCE_SPEAKER);
         } else {
             setForceUse(FORCE_NONE);
