@@ -254,7 +254,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
-                Audio.toggleThroughSpeaker();
+                // Now state
+                final boolean isSpeaker = Audio.isForceSpeakerNow();
+                // Change state
+                Audio.toggleThroughSpeaker(!isSpeaker);
+                // Inform
+                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
                 break;
             }
         }
@@ -741,10 +746,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         }
 
         private void sendStringEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
-            if (
-                    last.containsKey(key) && now.containsKey(key) &&
-                            !Objects.equals(last.getString(key), now.get(key))
-            ) {
+            if (last.containsKey(key) && now.containsKey(key) && !Objects.equals(last.getString(key), now.get(key))) {
                 sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
             }
         }

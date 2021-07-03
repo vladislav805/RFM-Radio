@@ -7,9 +7,15 @@ import android.content.IntentFilter;
 import com.vlad805.fmradio.C;
 
 /**
+ * Broadcast receiver, which, according to updates received from the tuner, changes
+ * the object of tuner state
  * vlad805 (c) 2021
  */
 public class TunerStateUpdater extends BroadcastReceiver {
+    /**
+     * Bit masks, the sums of which explain what has changed in the object after
+     * a certain event
+     */
     public static final int SET_STATUS = 1;
     public static final int SET_FREQUENCY = 1 << 1;
     public static final int SET_PS = 1 << 2;
@@ -156,6 +162,9 @@ public class TunerStateUpdater extends BroadcastReceiver {
         }
     }
 
+    /**
+     * Common filters for catching most events
+     */
     public static final IntentFilter sFilter;
 
     static {

@@ -40,6 +40,8 @@ final public class C {
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
 		public static final String RECORD_ENDED = BASE + "RECORD_ENDED";
 
+		public static final String CHANGE_SPEAKER_MODE = BASE + "CHANGE_SPEAKER_MODE";
+
 		public static final String FAVORITE_LIST_CHANGED = BASE + "FAVORITE_LIST_CHANGED";
 		public static final String CURRENT_STATE = BASE + "CURRENT_STATE";
 
@@ -82,13 +84,12 @@ final public class C {
 		public static final String POWER_MODE = "power_mode";
 
 		public static final String STATION_LIST = "station_list";
-		public static final String MESSAGE = "message";
-		public static final String STAGE = "stage_ctl";
 		public static final String SIZE = "size";
 		public static final String DURATION = "duration";
 		public static final String PATH = "filename";
 		public static final String FREQUENCIES = "frequencies";
 		public static final String STATE = "state";
+		public static final String IS_SPEAKER = "is_speaker";
     }
 
 	public static final class PrefKey {
