@@ -16,30 +16,38 @@ import com.vlad805.fmradio.service.FMService;
  */
 public class RadioController {
     private final Context mContext;
-    private final TunerState mState;
+    private final RadioState mState;
     private BroadcastReceiver mTunerStateUpdater;
 
     public RadioController(final Context context) {
         mContext = context;
-        mState = new TunerState();
+        mState = new RadioState();
     }
 
-    public void requestForCurrentState(@Nullable final TunerStateUpdater.TunerStateListener callback) {
+    public void requestForCurrentState(@Nullable final RadioStateUpdater.TunerStateListener callback) {
         getCurrentState(state -> {
             mState.setStatus(state.getStatus());
             mState.setFrequency(state.getFrequency());
             mState.setStereo(state.isStereo());
             mState.setPs(state.getPs());
+            mState.setRecording(state.isRecording());
+            mState.setRecordingStarted(state.getRecordingStarted());
 
             if (callback != null) {
-                callback.onStateUpdated(mState, TunerStateUpdater.SET_STATUS | TunerStateUpdater.SET_FREQUENCY | TunerStateUpdater.SET_INITIAL);
+                final int mode =
+                        RadioStateUpdater.SET_STATUS |
+                        RadioStateUpdater.SET_FREQUENCY |
+                        RadioStateUpdater.SET_INITIAL |
+                        RadioStateUpdater.SET_RECORDING;
+
+                callback.onStateUpdated(mState, mode);
             }
         });
     }
 
-    public void registerForUpdates(TunerStateUpdater.TunerStateListener callback) {
-        mTunerStateUpdater = new TunerStateUpdater(mState, callback);
-        mContext.registerReceiver(mTunerStateUpdater, TunerStateUpdater.sFilter);
+    public void registerForUpdates(RadioStateUpdater.TunerStateListener callback) {
+        mTunerStateUpdater = new RadioStateUpdater(mState, callback);
+        mContext.registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
     }
 
     public void unregisterForUpdates() {
@@ -48,7 +56,7 @@ public class RadioController {
         }
     }
 
-    public TunerState getState() {
+    public RadioState getState() {
         return mState;
     }
 
@@ -113,7 +121,7 @@ public class RadioController {
     }
 
     public interface CurrentStateListener {
-        void onCurrentStateReady(final TunerState state);
+        void onCurrentStateReady(final RadioState state);
     }
 
     public void getCurrentState(final CurrentStateListener listener) {

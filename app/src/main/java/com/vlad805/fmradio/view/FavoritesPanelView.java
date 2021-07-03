@@ -9,11 +9,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.controller.FavoriteController;
+import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.adapter.FavoritePanelAdapter;
-import net.grandcentrix.tray.AppPreferences;
 
 import java.util.List;
 
@@ -23,25 +23,16 @@ import java.util.List;
 public class FavoritesPanelView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
 	public static final int MENU_REMOVE = 100;
 	public static final int MENU_RENAME = 101;
-	public static final int MENU_REPLACE = 103;
 
 	protected List<FavoriteStation> mStations;
 	private FavoritePanelAdapter mAdapter;
-	private OnFavoriteClick mClickListener;
 	private FavoriteController mController;
-	private final AppPreferences mPreferences;
+	private final RadioController mRadioController;
 
 	private boolean mIsLocked = false;
 
-	public interface OnFavoriteClick {
-		void onFavoriteClick(final FavoriteStation station);
-		int getCurrentFrequencyForAddFavorite();
-	}
-
 	public FavoritesPanelView(final Context context) {
-		super(context);
-
-		mPreferences = new AppPreferences(context);
+		this(context, null);
 
 		init(context);
 	}
@@ -49,7 +40,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	public FavoritesPanelView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 
-		mPreferences = new AppPreferences(context);
+		mRadioController = new RadioController(context);
 
 		init(context);
 	}
@@ -99,30 +90,35 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 */
 	@Override
 	public void onItemClick(final View view, final int position) {
+		// Nothing to do if control is locked
 		if (mIsLocked) {
 			return;
 		}
 
+		// Check for valid index of clicked station (or +1 if we need create one)
 		final int size = mStations.size();
-		boolean isExists = position < size;
 
-		if (mClickListener == null) {
+		// If position of clicked item in range 0..size, then it station
+		// and we need tune to this frequency
+		if (position < size) {
+			final FavoriteStation station = mStations.get(position);
+			mRadioController.setFrequency(station.getFrequency());
 			return;
 		}
 
-		if (isExists) {
-			FavoriteStation station = mStations.get(position);
-			mClickListener.onFavoriteClick(station);
-			return;
-		}
-
+		// If position of clicked item is next from last station, then we
+		// want create station
 		if (position == size) {
-			new EditTextDialog(getContext(), "", title -> {
-				FavoriteStation station = new FavoriteStation(mClickListener.getCurrentFrequencyForAddFavorite(), title);
-				mStations.add(station);
-				mAdapter.notifyItemInserted(position);
-				onFavoriteListUpdated();
-			}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
+			// request current radio state
+			mRadioController.requestForCurrentState((state, mode) -> {
+				// open edit window
+				new EditTextDialog(getContext(), "", title -> {
+					FavoriteStation station = new FavoriteStation(state.getFrequency(), title);
+					mStations.add(station);
+					mAdapter.notifyItemInserted(position);
+					onFavoriteListUpdated();
+				}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
+			});
 		}
 	}
 
@@ -146,19 +142,21 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 
 		popupMenu.setOnMenuItemClickListener(item -> {
 			switch (item.getItemId()) {
-				case MENU_REMOVE:
+				case MENU_REMOVE: {
 					mStations.remove(station);
 					mAdapter.notifyItemRemoved(position);
 					onFavoriteListUpdated();
 					break;
+				}
 
-				case MENU_RENAME:
+				case MENU_RENAME: {
 					new EditTextDialog(getContext(), station.getTitle(), title -> {
 						station.setTitle(title);
 						mAdapter.notifyItemChanged(position);
 						onFavoriteListUpdated();
 					}).setTitle(R.string.popup_station_create).open();
 					break;
+				}
 			}
 			return true;
 		});
@@ -171,14 +169,6 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 */
 	public void onFavoriteListUpdated() {
 		mController.save();
-	}
-
-	/**
-	 * Set callback for click by favorite item
-	 * @param listener Listener
-	 */
-	public void setOnFavoriteClick(final OnFavoriteClick listener) {
-		mClickListener = listener;
 	}
 
 	@Override

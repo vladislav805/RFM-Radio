@@ -127,7 +127,7 @@ public abstract class RecordService implements IFMRecorder {
                 mBufferOutStream.close();
                 mBufferOutStream = null;
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
 
@@ -136,7 +136,7 @@ public abstract class RecordService implements IFMRecorder {
                 mFileOutStream.close();
                 mFileOutStream = null;
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
 

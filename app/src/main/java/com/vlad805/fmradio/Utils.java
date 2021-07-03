@@ -35,13 +35,15 @@ public class Utils {
 	 * https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxInstaller.java#L179
 	 */
 	public static String determineArch() {
-		for (String androidArch : Build.SUPPORTED_ABIS) {
+		for (final String androidArch : Build.SUPPORTED_ABIS) {
 			switch (androidArch) {
-				case "arm64-v8a":
+				case "arm64-v8a": {
 					return "aarch64";
+				}
 
-				case "armeabi-v7a":
+				case "armeabi-v7a": {
 					return "armv7a";
+				}
 			}
 		}
 		throw new RuntimeException("Unable to determine arch from Build.SUPPORTED_ABIS = " + Arrays.toString(Build.SUPPORTED_ABIS));
@@ -53,34 +55,34 @@ public class Utils {
 	 * @param su true, if root needed
 	 * @return exit code
 	 */
-	public static int shell(String cmd, boolean su) {
+	public static int shell(final String cmd, final boolean su) {
 		try {
 			Log.d("Shell", cmd);
-			String prefix = su ? "su" : "sh";
-			Process p = Runtime.getRuntime().exec(prefix);
-			DataOutputStream os = new DataOutputStream(p.getOutputStream());
+			final String prefix = su ? "su" : "sh";
+			final Process p = Runtime.getRuntime().exec(prefix);
+			final DataOutputStream os = new DataOutputStream(p.getOutputStream());
 			os.writeBytes(cmd + "\n");
 			os.writeBytes("exit\n");
 			os.flush();
 			return p.waitFor();
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 		return -1;
 	}
 
-	public static void sleep(int ms) {
+	public static void sleep(final int ms) {
 		try {
 			Thread.sleep(ms);
-		} catch (InterruptedException e) {
+		} catch (final InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public static int parseInt(String s) {
+	public static int parseInt(final String s) {
 		try {
 			return Integer.parseInt(s);
-		} catch (NumberFormatException e) {
+		} catch (final NumberFormatException e) {
 			return Integer.MAX_VALUE;
 		}
 	}
@@ -93,7 +95,7 @@ public class Utils {
 		return String.format(Locale.ENGLISH, "%5." + precision + "f", kHz / 1000.);
 	}
 
-	public static String getTimeStringBySeconds(int seconds) {
+	public static String getTimeStringBySeconds(final long seconds) {
 		double second = Math.floor(seconds % 60);
 		double minute = Math.floor(seconds / 60f % 60f);
 		long hour = Math.round(Math.floor(seconds / 60f / 60f % 60f));

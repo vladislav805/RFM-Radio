@@ -24,6 +24,7 @@
 				android:icon="@drawable/ic_settings"/>
 
 		<item
+				android:checkable="true"
 				android:id="@+id/menu_speaker"
 				android:title="@string/menu_speaker" />
 

@@ -21,14 +21,13 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.RadioController;
-import com.vlad805.fmradio.controller.TunerState;
-import com.vlad805.fmradio.controller.TunerStateUpdater;
+import com.vlad805.fmradio.controller.RadioState;
+import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
-import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.LaunchCounter;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesPanelView;
@@ -39,7 +38,7 @@ import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 @SuppressLint("NonConstantResourceId")
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, FavoritesPanelView.OnFavoriteClick, TunerStateUpdater.TunerStateListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
     private ProgressDialog mProgress;
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
@@ -55,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private ImageView mRecordIcon;
     private TextView mRecordDuration;
+
+    private RadioState mLastState;
 
     private Menu mMenu;
 
@@ -92,7 +93,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mFrequencyInfo = findViewById(R.id.frequency_info);
 
         mFavoriteList = findViewById(R.id.favorite_list);
-        mFavoriteList.setOnFavoriteClick(this);
 
         mRecordIcon = findViewById(R.id.record_icon);
         mRecordDuration = findViewById(R.id.record_duration);
@@ -212,10 +212,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(final View view) {
         switch (view.getId()) {
+            // Main play/stop button
             case R.id.ctl_toggle: {
-                final TunerState state = mRadioController.getState();
-
-                switch (state.getStatus()) {
+                switch (mRadioController.getState().getStatus()) {
                     case IDLE: {
                         mRadioController.setup();
                         break;
@@ -235,48 +234,47 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
 
-            case R.id.ctl_go_down:
+            case R.id.ctl_go_down: {
                 mRadioController.jump(Direction.DOWN);
                 break;
+            }
 
-            case R.id.ctl_go_up:
+            case R.id.ctl_go_up: {
                 mRadioController.jump(Direction.UP);
                 break;
+            }
 
-            case R.id.ctl_seek_down:
+            case R.id.ctl_seek_down: {
                 mRadioController.hwSeek(Direction.DOWN);
                 showProgress(getString(R.string.progress_searching));
                 break;
+            }
 
-            case R.id.ctl_seek_up:
+            case R.id.ctl_seek_up: {
                 mRadioController.hwSeek(Direction.UP);
                 showProgress(getString(R.string.progress_searching));
                 break;
+            }
 
-            case R.id.favorite_button:
+            case R.id.favorite_button: {
                 startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
                 break;
+            }
 
-            case R.id.record_icon:
+            case R.id.record_icon: {
                 mRadioController.record(false);
                 break;
+            }
         }
-    }
-
-    @Override
-    public void onFavoriteClick(final FavoriteStation station) {
-        mRadioController.setFrequency(station.getFrequency());
-    }
-
-    @Override
-    public int getCurrentFrequencyForAddFavorite() {
-        return mRadioController.getState().getFrequency();
     }
 
     @Override
     public boolean onCreateOptionsMenu(final Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
         mMenu = menu;
+        if (mLastState != null) {
+            updateMenuState();
+        }
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -319,13 +317,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * @param mode Bitmask what was changed
      */
     @Override
-    public void onStateUpdated(final TunerState state, final int mode) {
-        if ((mode & TunerStateUpdater.SET_STATUS) > 0) {
+    public void onStateUpdated(final RadioState state, final int mode) {
+        mLastState = state;
+
+        if ((mode & RadioStateUpdater.SET_STATUS) > 0) {
             handleChangingState(state.getStatus());
             return;
         }
 
-        if ((mode & TunerStateUpdater.SET_FREQUENCY) > 0) {
+        if ((mode & RadioStateUpdater.SET_FREQUENCY) > 0) {
             hideProgress();
 
             mFrequencyInfo.setFrequency(state.getFrequency());
@@ -333,27 +333,42 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             final String str = getString(R.string.player_event_frequency_changed, state.getFrequency() / 1000f);
             mToast.text(str).show();
 
-            mFrequencyInfo.setRdsPs("");
-            mFrequencyInfo.setRdsRt("");
-            mFrequencyInfo.setRdsProgramType(0);
-            mViewRssi.setText("?");
+            mFrequencyInfo.setRadioState(state);
+            mViewRssi.setText("...");
         }
 
-        if ((mode & TunerStateUpdater.SET_PS) > 0) {
-            mFrequencyInfo.setRdsPs(state.getPs());
+        if ((mode & RadioStateUpdater.SET_PS) > 0 || (mode & RadioStateUpdater.SET_RT) > 0) {
+            mFrequencyInfo.setRadioState(state);
         }
 
-        if ((mode & TunerStateUpdater.SET_RT) > 0) {
-            mFrequencyInfo.setRdsRt(state.getRt());
-        }
-
-        if ((mode & TunerStateUpdater.SET_RSSI) > 0) {
+        if ((mode & RadioStateUpdater.SET_RSSI) > 0) {
             setRssiIcon(state.getRssi());
             mViewRssi.setText(getString(R.string.main_rssi_db, state.getRssi()));
         }
 
-        if ((mode & TunerStateUpdater.SET_STEREO) > 0) {
+        if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
             mViewStereoMode.setImageResource(state.isStereo() ? R.drawable.ic_stereo : R.drawable.ic_mono);
+        }
+
+        if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+            final boolean isRecording = state.isRecording();
+
+            setShowRecordingPanel(isRecording);
+            if (mMenu != null) {
+                mMenu.findItem(R.id.menu_record).setEnabled(!isRecording);
+            }
+
+            if (isRecording) {
+                mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
+            }
+        }
+
+        if ((mode & RadioStateUpdater.SET_SPEAKER) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+            final boolean isSpeaker = state.isForceSpeaker();
+
+            if (mMenu != null) {
+                mMenu.findItem(R.id.menu_speaker).setChecked(isSpeaker);
+            }
         }
     }
 
@@ -373,18 +388,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
 
-            case INSTALLED: {
+            case INSTALLED:
+            case LAUNCHED: {
                 showProgress(null);
                 break;
             }
 
             case LAUNCHING: {
                 showProgress(getString(R.string.progress_launching));
-                break;
-            }
-
-            case LAUNCHED: {
-                showProgress(null);
                 break;
             }
 
@@ -402,6 +413,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case ENABLING: {
                 showProgress(getString(R.string.progress_starting));
+                break;
             }
 
             case ENABLED: {
@@ -411,49 +423,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 setPlayingMainPlayButton(true);
                 break;
             }
-        }
-    }
-
-    private void handleEvent(final Intent intent) {
-        if (intent == null || intent.getAction() == null) {
-            return;
-        }
-
-        switch (intent.getAction()) {
-            case C.Event.UPDATE_PTY: {
-                final int pty = intent.getIntExtra(C.Key.PTY, -1);
-                mFrequencyInfo.setRdsProgramType(pty);
-                break;
-            }
-
-            case C.Event.DISABLED: {
-                setEnabledUi(false);
-                hideProgress();
-                // setEnabledToggleButton(true);
-                break;
-            }
-
-            case C.Event.RECORD_STARTED: {
-                setShowRecordingPanel(true);
-                if (mMenu != null) {
-                    mMenu.findItem(R.id.menu_record).setEnabled(false);
-                }
-                break;
-            }
-
-            case C.Event.RECORD_TIME_UPDATE: {
-                mRecordDuration.setText(getTimeStringBySeconds(intent.getIntExtra(C.Key.DURATION, 0)));
-                break;
-            }
-
-            case C.Event.RECORD_ENDED: {
-                setShowRecordingPanel(false);
-                if (mMenu != null) {
-                    mMenu.findItem(R.id.menu_record).setEnabled(true);
-                }
-                break;
-            }
-
         }
     }
 
@@ -490,11 +459,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             v.setEnabled(state);
         }
 
-        if (mMenu != null) {
-            mMenu.findItem(R.id.menu_stop).setEnabled(state);
-            mMenu.findItem(R.id.menu_record).setEnabled(state);
-            mMenu.findItem(R.id.menu_speaker).setEnabled(state);
+        updateMenuState();
+    }
+
+    private void updateMenuState() {
+        if (mMenu == null) {
+            return;
         }
+
+        final boolean state = TunerStatus.ENABLED.equals(mLastState.getStatus());
+
+        mMenu.findItem(R.id.menu_stop).setEnabled(state);
+        mMenu.findItem(R.id.menu_record).setEnabled(state);
+        mMenu.findItem(R.id.menu_speaker).setEnabled(state);
+        mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
     }
 
     private static final @IdRes	int[] SIGNAL_RES_ID = {
@@ -504,7 +482,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             R.drawable.ic_signal_3,
             R.drawable.ic_signal_4,
             R.drawable.ic_signal_5,
-            R.drawable.ic_signal_6
+            R.drawable.ic_signal_6,
     };
 
     private static final int[] SIGNAL_THRESHOLD = {
@@ -514,7 +492,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             -74,
             -62,
             -50,
-            -10
+            -10,
     };
 
     private void setRssiIcon(final int rssi) {
