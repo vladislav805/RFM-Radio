@@ -78,7 +78,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference driver = new ListPreference(context);
 		populatePreference(driver, C.PrefKey.TUNER_DRIVER, R.string.pref_tuner_driver, R.drawable.ic_tuner_driver);
-		driver.setDefaultValue(C.PrefDefaultValue.TUNER_DRIVER);
+		driver.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_DRIVER));
 		setListProviderAndEntries(driver, Vars.sTunerDrivers);
 		driver.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.TUNER_DRIVER, Utils.parseInt((String) newValue));
@@ -90,7 +90,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference region = new ListPreference(context);
 		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
-		region.setDefaultValue(C.PrefDefaultValue.TUNER_REGION);
+		region.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_REGION));
 		setListProviderAndEntries(region, Vars.sTunerRegions);
 		region.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.TUNER_REGION, Utils.parseInt((String) newValue));
@@ -101,7 +101,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference spacing = new ListPreference(context);
 		populatePreference(spacing, C.PrefKey.TUNER_SPACING, R.string.pref_tuner_spacing, R.drawable.ic_step_freq);
-		spacing.setDefaultValue(C.PrefDefaultValue.TUNER_SPACING);
+		spacing.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_SPACING));
 		setListProviderAndEntries(spacing, Vars.sTunerSpacing);
 		spacing.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.TUNER_SPACING, Utils.parseInt((String) newValue));
@@ -124,7 +124,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final EditTextPreference antenna = new EditTextPreference(context);
 		populatePreference(antenna, C.PrefKey.TUNER_ANTENNA, R.string.pref_tuner_antenna, R.drawable.ic_antenna);
-		antenna.setDefaultValue(C.PrefDefaultValue.TUNER_ANTENNA);
+		antenna.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_ANTENNA));
 		setEditTextMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
 		antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
 		antenna.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -185,7 +185,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference service = new ListPreference(context);
 		populatePreference(service, C.PrefKey.AUDIO_SERVICE, R.string.pref_audio_service, R.drawable.ic_audio_service);
-		service.setDefaultValue(C.PrefDefaultValue.AUDIO_SERVICE);
+		service.setDefaultValue(String.valueOf(C.PrefDefaultValue.AUDIO_SERVICE));
 		setListProviderAndEntries(service, Vars.sAudioService);
 		service.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.AUDIO_SERVICE, Utils.parseInt((String) newValue));
@@ -197,7 +197,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference source = new ListPreference(context);
 		populatePreference(source, C.PrefKey.AUDIO_SOURCE, R.string.pref_audio_source, R.drawable.ic_audio_source);
-		source.setDefaultValue(C.PrefDefaultValue.AUDIO_SOURCE);
+		source.setDefaultValue(String.valueOf(C.PrefDefaultValue.AUDIO_SOURCE));
 		setListProviderAndEntries(source, Vars.sAudioSource);
 		source.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.AUDIO_SOURCE, Utils.parseInt((String) newValue));
@@ -213,7 +213,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final EditTextPreference directory = new EditTextPreference(context);
 		populatePreference(directory, C.PrefKey.RECORDING_DIRECTORY, R.string.pref_recording_path_title, R.drawable.ic_directory);
-		directory.setDefaultValue(R.string.pref_recording_path_value);
+		directory.setDefaultValue(getString(R.string.pref_recording_path_value));
 		directory.setDialogMessage(R.string.pref_recording_path_name_description);
 		setEditTextMessageAndProvider(directory, InputType.TYPE_CLASS_TEXT);
 		directory.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -224,7 +224,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final EditTextPreference filename = new EditTextPreference(context);
 		populatePreference(filename, C.PrefKey.RECORDING_FILENAME, R.string.pref_recording_name_title, R.drawable.ic_file_music);
-		filename.setDefaultValue(R.string.pref_recording_name_value);
+		filename.setDefaultValue(getString(R.string.pref_recording_name_value));
 		filename.setDialogMessage(R.string.pref_recording_path_name_description);
 		setEditTextMessageAndProvider(filename, InputType.TYPE_CLASS_TEXT);
 		filename.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -235,7 +235,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		final ListPreference format = new ListPreference(context);
 		populatePreference(format, C.PrefKey.RECORDING_FORMAT, R.string.pref_recording_format_title, R.drawable.ic_recording_format);
-		format.setDefaultValue(C.PrefDefaultValue.RECORDING_FORMAT);
+		format.setDefaultValue(String.valueOf(C.PrefDefaultValue.RECORDING_FORMAT));
 		setListProviderAndEntries(format, Vars.sRecordFormat);
 		format.setOnPreferenceChangeListener((preference, newValue) -> {
 			Storage.getInstance(context).put(C.PrefKey.RECORDING_FORMAT, Utils.parseInt((String) newValue));
