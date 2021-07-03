@@ -16,7 +16,10 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.activity.MainActivity;
-import com.vlad805.fmradio.controller.*;
+import com.vlad805.fmradio.controller.FavoriteController;
+import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.controller.RadioState;
+import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.AudioService;
@@ -71,14 +74,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private boolean mNeedRecreateNotification = true;
     private boolean mRecordingNow = false;
 
-    private TunerState mState;
+    private RadioState mState;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
         // Main state
-        mState = new TunerState();
+        mState = new RadioState();
 
         // Controllers&managers
         mRadioController = new RadioController(this);
@@ -95,7 +98,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         // Broadcast receivers
         mEventReaction = new EventReaction();
-        mTunerStateUpdater = new TunerStateUpdater(mState);
+        mTunerStateUpdater = new RadioStateUpdater(mState);
 
         if (mTunerDriver instanceof IFMEventListener) {
             ((IFMEventListener) mTunerDriver).setEventListener(this);
@@ -103,8 +106,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         reloadFavorite();
 
-        registerReceiver(mTunerStateUpdater, TunerStateUpdater.sFilter);
-        registerReceiver(mEventReaction, TunerStateUpdater.sFilter);
+        registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
+        registerReceiver(mEventReaction, RadioStateUpdater.sFilter);
     }
 
     /**
@@ -600,7 +603,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         return n;
     }
 
-    public Notification updateNotification(final TunerState state) {
+    public Notification updateNotification(final RadioState state) {
         if (mNBuilder == null || mNeedRecreateNotification) {
             mNBuilder = createNotificationBuilder();
             mNeedRecreateNotification = false;

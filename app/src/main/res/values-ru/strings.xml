@@ -119,4 +119,17 @@
 	<string name="pref_tuner_power_mode_low">Когда приложение работает в фоновом режиме, тюнер потребляет меньше
 		энергии.</string>
 	<string name="pref_tuner_power_mode_normal">Энергосбережение отключено.</string>
+	<string name="favorite_list_search_confirm_discard">Отмена</string>
+	<string name="pref_tuner_antenna_error">Ошибка при изменении используемой антенны. Пожалуйста, верните обратно предыдущее значение (обычно 0).</string>
+	<string name="menu_favorite_list_search">Поиск станций</string>
+	<string name="favorite_list_search_confirm_title">Внимание!</string>
+	<string name="favorite_list_search_confirm_message">Список избранного будет очищен и заменен найденными станциями.</string>
+	<string name="favorite_list_search_confirm_continue">Очистить и сканировать</string>
+	<string name="pref_version_check_error">Произошла ошибка во время выполнения запроса: %s</string>
+	<string name="favorite_list_search_progress">Пожалуйста, подождите… Пытаюсь найти станции.</string>
+	<string name="pref_tuner_rds_auto_af">Автоматическое переключение по AF</string>
+	<string name="pref_tuner_rds_auto_afenabled">Когда сигнал ослабевает и радиостанция предоставляет альтернативные частоты, тюнер автоматически переключится на частоту с лучшим качеством приёма.</string>
+	<string name="pref_tuner_rds_auto_af_disabled">Если сигнал ослабевает, то ничего не произойдет. Данные RDS AF будут проигнорированы.
+	</string>
+	<string name="menu_speaker">Выводить звук через динамик</string>
 </resources>

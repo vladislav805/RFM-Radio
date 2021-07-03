@@ -12,6 +12,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.preferences.BandUtils;
 import net.grandcentrix.tray.AppPreferences;
 
@@ -26,7 +27,7 @@ public class RadioUIView extends LinearLayout {
 	private HorizontalScrollView mSeekWrap;
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
-	private TextView mProgramType;
+	private TextView mRdsPty;
 	private BandUtils.BandLimit mBandLimits;
 	private int mSpacing;
 	private final AppPreferences mPreferences;
@@ -68,7 +69,7 @@ public class RadioUIView extends LinearLayout {
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
 		mSeek = findViewById(R.id.frequency_seek);
-		mProgramType = findViewById(R.id.program_type_value);
+		mRdsPty = findViewById(R.id.program_type_value);
 
 		final Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
 		mFrequencyView.setTypeface(font);
@@ -116,16 +117,10 @@ public class RadioUIView extends LinearLayout {
 		scrollSeekBar();
 	}
 
-	public final void setRdsPs(final String ps) {
-		mRdsPs.setText(ps);
-	}
-
-	public final void setRdsRt(final String rt) {
-		mRdsRt.setText(rt);
-	}
-
-	public final void setRdsProgramType(final int type) {
-		mProgramType.setText(UtilsLocalization.getProgramType(type));
+	public final void setRadioState(final RadioState state) {
+		mRdsPs.setText(state.getPs());
+		mRdsRt.setText(state.getRt());
+		mRdsPty.setText(UtilsLocalization.getProgramType(state.getPty()));
 	}
 
 	private void onUserClickOnFrequency(final int kHz) {

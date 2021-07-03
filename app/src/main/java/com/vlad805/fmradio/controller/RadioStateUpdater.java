@@ -11,7 +11,7 @@ import com.vlad805.fmradio.C;
  * the object of tuner state
  * vlad805 (c) 2021
  */
-public class TunerStateUpdater extends BroadcastReceiver {
+public class RadioStateUpdater extends BroadcastReceiver {
     /**
      * Bit masks, the sums of which explain what has changed in the object after
      * a certain event
@@ -24,21 +24,23 @@ public class TunerStateUpdater extends BroadcastReceiver {
     public static final int SET_PTY = 1 << 5;
     public static final int SET_PI = 1 << 6;
     public static final int SET_STEREO = 1 << 7;
+    public static final int SET_RECORDING = 1 << 8;
+    public static final int SET_SPEAKER = 1 << 9;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
-        void onStateUpdated(final TunerState state, final int mode);
+        void onStateUpdated(final RadioState state, final int mode);
     }
 
-    private final TunerState mState;
+    private final RadioState mState;
 
     private final TunerStateListener mCallback;
 
-    public TunerStateUpdater(final TunerState state) {
+    public RadioStateUpdater(final RadioState state) {
         this(state, null);
     }
 
-    public TunerStateUpdater(final TunerState state, final TunerStateListener callback) {
+    public RadioStateUpdater(final RadioState state, final TunerStateListener callback) {
         mState = state;
 
         mCallback = callback;
@@ -63,7 +65,6 @@ public class TunerStateUpdater extends BroadcastReceiver {
 
             case C.Event.INSTALLED: {
                 mState.setStatus(TunerStatus.INSTALLED);
-                mState.setLastAction(action);
                 mode = SET_STATUS;
                 break;
             }
@@ -76,14 +77,12 @@ public class TunerStateUpdater extends BroadcastReceiver {
 
             case C.Event.LAUNCHED: {
                 mState.setStatus(TunerStatus.LAUNCHED);
-                mState.setLastAction(action);
                 mode = SET_STATUS;
                 break;
             }
 
             case C.Event.LAUNCH_FAILED: {
                 mState.setStatus(TunerStatus.FATAL_ERROR);
-                mState.setLastAction(action);
                 mode = SET_STATUS;
                 break;
             }
@@ -96,7 +95,6 @@ public class TunerStateUpdater extends BroadcastReceiver {
 
             case C.Event.ENABLED: {
                 mState.setStatus(TunerStatus.ENABLED);
-                mState.setLastAction(action);
                 mode = SET_STATUS;
                 break;
             }
@@ -109,7 +107,6 @@ public class TunerStateUpdater extends BroadcastReceiver {
 
             case C.Event.DISABLED: {
                 mState.setStatus(TunerStatus.IDLE);
-                mState.setLastAction(action);
                 mode = SET_STATUS;
                 break;
             }
@@ -155,6 +152,32 @@ public class TunerStateUpdater extends BroadcastReceiver {
                 mode = SET_STEREO;
                 break;
             }
+
+            case C.Event.RECORD_STARTED: {
+                mState.setRecording(true);
+                mState.setRecordingStarted(System.currentTimeMillis());
+                mode = SET_RECORDING;
+                break;
+            }
+
+            case C.Event.RECORD_TIME_UPDATE: {
+                mode = SET_RECORDING;
+                break;
+            }
+
+            case C.Event.RECORD_ENDED: {
+                mState.setRecording(false);
+                mState.setRecordingStarted(-1L);
+                mode = SET_RECORDING;
+                break;
+            }
+
+            case C.Event.CHANGE_SPEAKER_MODE: {
+                final boolean isSpeaker = intent.getBooleanExtra(C.Key.IS_SPEAKER, false);
+                mState.setForceSpeaker(isSpeaker);
+                mode = SET_SPEAKER;
+                break;
+            }
         }
 
         if (mCallback != null && mode > 0) {
@@ -185,6 +208,8 @@ public class TunerStateUpdater extends BroadcastReceiver {
                 C.Event.HW_SEARCH_DONE,
                 C.Event.JUMP_COMPLETE,
                 C.Event.HW_SEEK_COMPLETE,
+
+                C.Event.CHANGE_SPEAKER_MODE,
 
                 C.Event.RECORD_STARTED,
                 C.Event.RECORD_TIME_UPDATE,
