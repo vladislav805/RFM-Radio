@@ -80,7 +80,6 @@ fm_current_storage fm_storage = {
  * Updates the global state: frequency, station available, RDS, etc.
  */
 boolean process_radio_event(uint8 event_buf) {
-    struct v4l2_frequency freq;
     boolean ret = TRUE;
 
     switch (event_buf) {
@@ -116,6 +115,8 @@ boolean process_radio_event(uint8 event_buf) {
             send_interruption_info(EVT_FREQUENCY_SET, int_to_string(fm_storage.frequency));
             send_interruption_info(EVT_UPDATE_PS, "");
             send_interruption_info(EVT_UPDATE_RT, "");
+            send_interruption_info(EVT_UPDATE_PTY, "");
+            send_interruption_info(EVT_UPDATE_PI, "");
             break;
         }
 
@@ -147,7 +148,7 @@ boolean process_radio_event(uint8 event_buf) {
             ret = extract_program_service(&fm_storage.rds);
             send_interruption_info(EVT_UPDATE_PS, fm_storage.rds.program_name);
             send_interruption_info(EVT_UPDATE_PI, int_to_hex_string(fm_storage.rds.program_id));
-            send_interruption_info(EVT_UPDATE_PROGRAM_TYPE, int_to_string(fm_storage.rds.program_type));
+            send_interruption_info(EVT_UPDATE_PTY, int_to_string(fm_storage.rds.program_type));
             break;
         }
 
