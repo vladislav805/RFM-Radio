@@ -246,6 +246,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.KILL: {
+                if (mState.isRecording() && mAudioService instanceof IAudioRecordable) {
+                    ((IAudioRecordable) mAudioService).stopRecord();
+                }
+
                 stopService(new Intent(this, FMService.class));
                 sendBroadcast(new Intent(C.Event.KILLED));
                 break;
