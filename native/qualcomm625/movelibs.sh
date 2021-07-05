@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 base_path=../../app/src/main/assets
-arch_list=("aarch64" "armv7a")
+arch_list="aarch64 armv7a"
 
 type=$1
 
@@ -9,7 +9,9 @@ if [[ ! "$type" == "release" ]]; then
     type="debug"
 fi
 
-for arch in "$arch_list"; do
+echo "$arch_list"
+
+for arch in $arch_list; do
     source_file="cmake-build-${type}-android-${arch}/fmbin"
 
     if [[ -f "$source_file" ]]; then
@@ -17,5 +19,7 @@ for arch in "$arch_list"; do
 
         cp -f "$source_file" "$dest_file"
         echo "File $source_file moved to $dest_file"
+    else
+        echo "File $source_file not found"
     fi
 done
