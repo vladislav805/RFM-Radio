@@ -5,14 +5,6 @@ Real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4x
 [<img alt="IzzyRepo" src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" width="176" />](https://apt.izzysoft.de/fdroid/index/apk/com.vlad805.fmradio)
 
 
-## Licence warning
-
-GPL-3.0 licence is used only for the Android application code and the native server, except the native platform specific routines to program the V4L2 driver for FM. The following files are proprietary code and are the property of Qualcomm Technologies, Inc., these files were found in [repo](https://github.com/msm-proprietary/vendor_qcom_proprietary-msm8953/tree/6cafff53eca7f0c28fa9c470b5211423cf47fd40/fm/fmtest):
-* [/native/qualcomm625/fmcommon.h](https://github.com/vladislav805/RFM-Radio/blob/dev/native/qualcomm625/fmcommon.h)
-* [/native/qualcomm625/fmhalapis.h](https://github.com/vladislav805/RFM-Radio/blob/dev/native/qualcomm625/fmhalapis.h)
-* [/native/qualcomm625/fmhalcmds.c](https://github.com/vladislav805/RFM-Radio/blob/dev/native/qualcomm625/fmhalcmds.c)
-
-
 ## Requirements
 
 * To use you need **root** in Android (more emphasis placed on AOSP).
@@ -22,12 +14,11 @@ GPL-3.0 licence is used only for the Android application code and the native ser
 ## Capabilities
 
 * Listening to the radio.
-* Reading RDS - PS and RT.
+* Reading RDS: PS, RT and PTY.
 * Display the signal strength in dB.
-* Radio recording in `.wav` files.
+* Radio recording in `.wav` and `.mp3` files.
 * Saving favorite frequencies with name.
 * Ability to create multiple favorites lists.
-* Automatic search for radio stations.
 
 ## Settings
 ### Tuner
@@ -45,7 +36,7 @@ When this option **is enabled**, the application will display data transmitted f
 
 #### Antenna
 
-Currently unavailable.
+Select an antenna. In most cases: 0 - default, headphones; 1 - internal (bad quality).
 
 
 ### Audio
@@ -93,10 +84,9 @@ To modify the code of the native part of the application, Android NDK headers fi
 ## Disclaimer
 
 The application uses several sources of code:
-1. The proprietary Qualcomm code that was found on GitHub.
-2. Hard-to-piece collected documentation for Tavarua, Iris, I2C, V4L2.
-3. GUI code written by the developer of this application.
-4. If Spirit3 is installed, this application can use its assembled binary file as a driver.
+1. Hard-to-piece collected documentation for Tavarua, Iris, I2C, V4L2.
+2. GUI code written by the developer of this application.
+3. If Spirit3 is installed, this application can use its assembled binary file as a driver.
 
 ### Contributors
 * Vladislav Veluga (@vladislav805) &mdash; developer;
