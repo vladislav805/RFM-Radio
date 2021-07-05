@@ -7,7 +7,10 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.fm.*;
+import com.vlad805.fmradio.service.fm.DatagramServer;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 import com.vlad805.fmradio.service.fm.communication.Poll;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
@@ -52,7 +55,8 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 
 	@Override
 	public boolean isObsolete() {
-		return true; // Storage.getInstance(context).getInt(C.PrefKey.BINARY_VERSION, 0) < BuildConfig.VERSION_CODE;
+		final int binaryVersion = Storage.getInstance(context).getInt(C.PrefKey.BINARY_VERSION, 0);
+		return BuildConfig.DEBUG || binaryVersion < BuildConfig.VERSION_CODE;
 	}
 
 	@SuppressWarnings("ResultOfMethodCallIgnored")
@@ -71,14 +75,14 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 				callback.onError(new Error("Error while copy binary"));
 				return;
 			}
-		} catch (FileNotFoundException e) {
+		} catch (final FileNotFoundException e) {
 			// FileNotFoundException - Text file busy
 			// Throws when binary is launched
 			Utils.shell("killall " + getBinaryPath(), true);
 
 			try {
 				copyBinary();
-			} catch (FileNotFoundException e2) {
+			} catch (final FileNotFoundException e2) {
 				callback.onError(new Error("Error while copy binary after kill busy binary"));
 				return;
 			}
@@ -92,7 +96,7 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 
 	@Override
 	protected void launchImpl(final Callback<Void> callback) {
-		String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
+		final String command = String.format("%s 1>/dev/null 2>/dev/null &", getBinaryPath());
 		Utils.shell(command, true);
 		mCommandPoll.toggle(true);
 		startServerListener();
