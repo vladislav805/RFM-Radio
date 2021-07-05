@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.DisplayMetrics;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -98,15 +97,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mRecordDuration = findViewById(R.id.record_duration);
 
         mRecordIcon.setOnClickListener(this);
-
-        // On small screens, the elements overlap each other
-        // By removing reflection, you can give room for elements
-        final DisplayMetrics dm = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(dm);
-
-        if (dm.heightPixels < 800) {
-            mFrequencyInfo.hideReflection();
-        }
 
         mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY));
 
@@ -441,7 +431,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.ctl_seek_down,
                 R.id.ctl_seek_up,
                 R.id.frequency_mhz,
-                R.id.frequency_mhz_reflection,
                 R.id.frequency_ps,
                 R.id.frequency_rt,
                 R.id.frequency_seek,
