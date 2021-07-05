@@ -6,7 +6,10 @@ import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
-import android.widget.*;
+import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
@@ -20,14 +23,13 @@ import net.grandcentrix.tray.AppPreferences;
  * vlad805 (c) 2019
  */
 public class RadioUIView extends LinearLayout {
-	private TextViewWithSupportReflection mFrequencyView;
-	private ImageView mReflection;
+	private TextViewWithReflection mFrequencyView;
 	private TextView mRdsPs;
 	private TextView mRdsRt;
+	private TextView mRdsPty;
 	private HorizontalScrollView mSeekWrap;
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
-	private TextView mRdsPty;
 	private BandUtils.BandLimit mBandLimits;
 	private int mSpacing;
 	private final AppPreferences mPreferences;
@@ -64,7 +66,6 @@ public class RadioUIView extends LinearLayout {
 		LayoutInflater.from(getContext()).inflate(R.layout.frequency_info, this, true);
 
 		mFrequencyView = findViewById(R.id.frequency_mhz);
-		mReflection = findViewById(R.id.frequency_mhz_reflection);
 		mRdsPs = findViewById(R.id.frequency_ps);
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
@@ -96,10 +97,6 @@ public class RadioUIView extends LinearLayout {
 		mSeek.setLayoutParams(lp);
 	}
 
-	public void hideReflection() {
-		mReflection.setVisibility(GONE);
-	}
-
 	/**
 	 * Calls when frequency has changed externally
 	 * @param kHz Frequency in kHz
@@ -111,8 +108,6 @@ public class RadioUIView extends LinearLayout {
 		mFrequencyView.setText(Utils.getMHz(kHz, spacing == BandUtils.SPACING_50kHz ? 2 : 1));
 
 		mSeek.setProgress(kHz);
-
-		post(() -> mReflection.setImageBitmap(mFrequencyView.getReflection(.9f)));
 
 		scrollSeekBar();
 	}
