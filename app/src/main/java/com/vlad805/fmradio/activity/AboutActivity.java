@@ -9,7 +9,6 @@ import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.R;
 
 public class AboutActivity extends AppCompatActivity {
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -17,7 +16,7 @@ public class AboutActivity extends AppCompatActivity {
 
 		setSupportActionBar(findViewById(R.id.about_toolbar));
 
-		ActionBar ab = getSupportActionBar();
+		final ActionBar ab = getSupportActionBar();
 		if (ab != null) {
 			ab.setDisplayHomeAsUpEnabled(true);
 		}
@@ -26,7 +25,7 @@ public class AboutActivity extends AppCompatActivity {
 	}
 
 	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
+	public boolean onOptionsItemSelected(final MenuItem item) {
 		if (item.getItemId() == android.R.id.home) {
 			finish();
 			return true;
