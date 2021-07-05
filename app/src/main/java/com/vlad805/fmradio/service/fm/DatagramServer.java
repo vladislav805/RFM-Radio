@@ -122,7 +122,7 @@ public class DatagramServer extends Thread {
 
 			case EVT_UPDATE_PS: {
 				action = C.Event.UPDATE_PS;
-				bundle.putString(C.Key.PS, data);
+				bundle.putString(C.Key.PS, data.trim().replaceAll("\n", " "));
 				break;
 			}
 
