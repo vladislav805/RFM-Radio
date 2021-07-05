@@ -70,7 +70,7 @@ public class RadioUIView extends LinearLayout {
 		mRdsRt = findViewById(R.id.frequency_rt);
 		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
 		mSeek = findViewById(R.id.frequency_seek);
-		mRdsPty = findViewById(R.id.program_type_value);
+		mRdsPty = findViewById(R.id.frequency_pty);
 
 		final Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
 		mFrequencyView.setTypeface(font);
