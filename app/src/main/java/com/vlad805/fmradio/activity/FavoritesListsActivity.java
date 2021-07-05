@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.activity;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
@@ -26,6 +27,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
@@ -64,15 +66,9 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		mRadioCtl = new RadioController(this);
 
 		mToast = Toast.create(this);
-		initLogic();
-		initUI();
-	}
-
-	/**
-	 * Create controller for get features controller
-	 */
-	private void initLogic() {
 		mController = new FavoriteController(this);
+
+		initUI();
 	}
 
 	/**
@@ -180,7 +176,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 			setResult(Activity.RESULT_OK, intent);
 
 			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
-		} catch (FileNotFoundException e) {
+		} catch (final FileNotFoundException e) {
 			mToast.text("Not found this list").show();
 		}
 	}
@@ -199,6 +195,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		return super.onPrepareOptionsMenu(menu);
 	}
 
+	@SuppressLint("NonConstantResourceId")
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
@@ -265,6 +262,9 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	}
 
 	private void removeDialog() {
+
+
+
 		final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
 				.setTitle(R.string.favorite_list_remove_title)
 				.setMessage(getString(R.string.favorite_list_remove_message, mCurrentNameList))
@@ -281,16 +281,22 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	}
 
 	private void searchDialog() {
-		final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
-				.setTitle(R.string.favorite_list_search_confirm_title)
-				.setMessage(R.string.favorite_list_search_confirm_message)
-				.setCancelable(false)
-				.setPositiveButton(R.string.favorite_list_search_confirm_continue, (dlg, buttonId) -> {
-					searchStart();
-				})
-				.setNegativeButton(R.string.favorite_list_search_confirm_discard, (dlg, buttonId) -> {})
-				.setIcon(android.R.drawable.ic_dialog_alert);
-		dialog.create().show();
+		mRadioCtl.getCurrentState(state -> {
+			if (state.getStatus() != TunerStatus.ENABLED) {
+				mToast.text(R.string.favorite_list_search_error_tuner_not_enabled).show();
+				return;
+			}
+
+			final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+					.setTitle(R.string.favorite_list_search_confirm_title)
+					.setMessage(R.string.favorite_list_search_confirm_message)
+					.setCancelable(false)
+					.setPositiveButton(R.string.favorite_list_search_confirm_continue, (dlg, buttonId) -> searchStart())
+					.setNegativeButton(R.string.favorite_list_search_confirm_discard, (dlg, buttonId) -> {
+					})
+					.setIcon(android.R.drawable.ic_dialog_alert);
+			dialog.create().show();
+		});
 	}
 
 	private void searchStart() {
