@@ -81,10 +81,6 @@ void handler_enable(response_t* response, char** args) {
             .emphasis = FM_RX_EMP75,
             .spacing = FM_RX_SPACE_100KHZ,
             .rds_system = FM_RX_RDS_SYSTEM,
-            .bandlimits = {
-                    .lower_limit = FREQ_LOWER,
-                    .upper_limit = FREQ_UPPER,
-            },
     };
 
     // Call to receiver enable with config
@@ -385,13 +381,6 @@ int main(int argc, char *argv[]) {
 	    api_endpoint* endpoint = &endpoints[i];
 	    endpoint->hash = hash_name_endpoint(endpoint->name);
 	}
-
-	// TODO: pick up in settings
-/*	fm_config.antenna = 0;
-	fm_config.port_client = CS_PORT;
-	fm_config.port_server = CS_PORT_SRV;
-	fm_config.spacing = FM_RX_SPACE_100KHZ;
-	fm_config.band_type = FM_RX_US_EUROPE;*/
 
 	init_server(&api_handler);
 }

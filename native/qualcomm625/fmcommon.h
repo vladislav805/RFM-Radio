@@ -149,9 +149,7 @@ typedef struct fm_config_data {
 	uint8 band;
 	emphasis_t emphasis;
 	channel_space_t spacing;
-	boolean rds_enable;
 	rds_system_t rds_system;
-	band_limit_freq bandlimits;
 } fm_config_data;
 
 /**
