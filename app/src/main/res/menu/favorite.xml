@@ -12,6 +12,7 @@
 			android:title="@string/menu_favorite_list_remove"
 			android:icon="@drawable/ic_favorite_list_remove" />
 	<item
+			android:visible="false"
 			android:id="@+id/menu_favorite_search"
 			android:title="@string/menu_favorite_list_search"
 			android:icon="@drawable/ic_search" />

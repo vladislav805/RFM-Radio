@@ -112,18 +112,22 @@ boolean fm_receiver_set_band(radio_band_t band) {
     band_limit_freq limits = {};
     make_frequency_limit_by_band(band, &limits);
 
-    int ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_REGION, band);
-
-    if (ret < 0) {
-        return FALSE;
-    }
+    int ret;
 
     struct v4l2_tuner tuner;
     tuner.index = 0;
     tuner.signal = 0;
     tuner.rangelow = khz_to_tunefreq(limits.lower_limit);
     tuner.rangehigh = khz_to_tunefreq(limits.upper_limit);
-    return ioctl(fd_radio, VIDIOC_S_TUNER, &tuner) == 0;
+    ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
+
+    if (ret < 0) {
+        return FALSE;
+    }
+
+    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_REGION, band);
+
+    return ret == 0;
 }
 
 boolean fm_receiver_set_rds_system(rds_system_t system) {
@@ -538,19 +542,22 @@ uint8 extract_rds_af_list(uint32* frequencies) {
 /**
  * Extract the list of stations that woa found
  * @return Count of stations
+ *
+ * Эта хуйня перестала работать в самый последний момент просто ХУЙ ПОЙМИ почему.
+ * Точнее, как сказать... Не хуй пойми почему, а потому что lower_limit с какого-то чёрта
+ * возвращается нулём. Хотя, возвращаемые значения тоже не похожи на частоты, которые я видел в самом начале.
+ * Периодически при установке band'а происходит ошибка. А если она происходит во время инициализации приложения
+ * (сервера) то вообще всё вываливается в Segmentation Fault. Короче, ниебацца веселье.
  */
 uint8 extract_search_station_list(uint32* list) {
     uint32 station_count;
 
     // Parts of frequency
-    uint8 freq_upper = 0;
-    uint8 freq_lower = 0;
+    uint8 freq_upper;
+    uint8 freq_lower;
 
     // Offset from lower limit frequency in 50 kHz
     uint32 freq;
-
-    // Real frequency
-    uint32 real_freq;
 
     // Temporary buffer
     uint8 buf[100] = {0};
@@ -577,6 +584,8 @@ uint8 extract_search_station_list(uint32* list) {
     // First byte is count of found stations
     station_count = (int) buf[0];
 
+    printf("fr_extr_srch_stl: found stations = %d\n", station_count);
+
     /**
      * | buf[1]  | buf[2]  |
      * |.... ....|.... ....|
@@ -595,6 +604,8 @@ uint8 extract_search_station_list(uint32* list) {
         freq_upper = buf[i * 2 + 1] & 0xff; // upper part
         freq_lower = buf[i * 2 + 2] & 0xff; // lower part
         freq = ((freq_upper & 0x03) << 8) | freq_lower; // make offset from lower limit
+
+        printf("fr_extr_srch_stl: station[%d] = %d\n", i, freq);
 
         // kHz = lower + (freq * 50), where: lower = lower_limit in kHz; freq = variable from code
         list[i] = lower_limit + (freq * 50);

@@ -467,8 +467,8 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change channel spacing");
 
     // Set band and range frequencies
-    ret = fm_receiver_set_band(cfg->band);
-    CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change band and limit frequencies");
+    //ret = fm_receiver_set_band(cfg->band);
+    //CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change band and limit frequencies");
 
 
     // Set antenna
