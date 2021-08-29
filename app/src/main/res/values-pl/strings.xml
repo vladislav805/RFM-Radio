@@ -1,0 +1,140 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+	<string name="app_name">RFM Radio</string>
+	<string name="nil" translatable="false">null</string>
+	<string name="main_activity_label" translatable="false">RFM Radio</string>
+	<string name="progress_init">Prosze, czekać… Inicjowanie… Wersja: %s</string>
+	<string name="player_event_frequency_changed">Częstotliwość zmieniona na %5.1f MHz</string>
+	<string name="toggle_play_pause">Graj</string>
+	<string name="jump_up">Przeskocz</string>
+	<string name="seek_up">Szukaj</string>
+	<string name="jump_down">Przeskocz do tyłu</string>
+	<string name="seek_down">Szukaj w dół</string>
+	<string name="progress_installing">Instalowanie pliku binarnego…</string>
+	<string name="progress_launching">Startowanie…</string>
+	<string name="progress_starting">Włączanie tunera…</string>
+	<string name="progress_searching">Szukanie…</string>
+	<string name="progress_stopping">Zatrzymywanie…</string>
+	<string name="main_rssi_db">%d dB</string>
+	<string name="menu_stop">Zatrzymaj</string>
+	<string name="menu_settings">Ustawienia</string>
+	<string name="menu_open_list">Lista stacji</string>
+	<string name="menu_record">Nagraj</string>
+	<string name="menu_about">O aplikacji</string>
+	<string name="menu_open_list_favorites">Ulubione</string>
+	<string name="popup_preset_add">Dodaj</string>
+	<string name="popup_preset_rename">Zmień nazwę</string>
+	<string name="popup_preset_replace">Zastąp</string>
+	<string name="popup_preset_remove">Usuń</string>
+	<string name="popup_station_create">Stwórz</string>
+	<string name="popup_station_create_hint">Nazwa stacji…</string>
+	<string name="popup_station_rename">Zmień nazwę</string>
+	<string name="popup_station_remove">Usuń</string>
+	<string name="favorite_list_item_add" translatable="false">+</string>
+	<string name="about_version" translatable="false">v%s</string>
+	<string name="about_author">Vladislav Veluga © 2020–2021</string>
+	<string name="menu_favorite_list_create">Stwórz listę</string>
+	<string name="menu_favorite_list_remove">Usuń listę</string>
+	<string name="popup_favorite_list_create">Stwórz ulubioną listę</string>
+	<string name="favorite_list_create_error_already_exists">Lista z taką nazwą już istnieje</string>
+	<string name="favorite_list_create_error_invalid_name">Nieprawidłowa nazwa. Tylko A–Z, a–z, \'–\', \'_\' i 0–9 mogą być użyte.</string>
+	<string name="favorite_list_remove_title">Potwierdzenie</string>
+	<string name="favorite_list_remove_message">Czy jesteś pewien, że chcesz usunąć tą listę \'%s\'?</string>
+	<string name="pref_activity_title">Ustawienia</string>
+	<string name="pref_header_tuner">Tuner</string>
+	<string name="pref_header_audio">Audio</string>
+	<string name="pref_header_app">Aplikacja</string>
+	<string name="pref_header_info">Info</string>
+	<string name="pref_tuner_spacing">Spacjowanie</string>
+	<string name="pref_tuner_rds_enable">Aktywuj RDS</string>
+	<string name="pref_tuner_rds_enabled">Pokaż RDS takie jak serwis programowy i tekst radiowy</string>
+	<string name="pref_tuner_rds_disabled">Nie pokazuj RDS</string>
+	<string name="pref_audio_source">Źródło dźwięku</string>
+	<string name="pref_app_auto_startup">Autostart</string>
+	<string name="pref_app_auto_startup_enabled">Rozpocznij odtwarzanie dźwięku natychmiast po uruchomieniu aplikacji</string>
+	<string name="pref_auto_startup_disabled">Odtwarzanie dźwięku należy uruchomić ręcznie</string>
+	<string name="pref_header_info_links">Linki</string>
+	<string name="pref_header_info_authors">Autorzy</string>
+	<string name="pref_info_link_4pda">Temat 4pda</string>
+	<string name="pref_info_link_4pda_summary">Temat o tej aplikacji na forum rosyjskojęzycznym</string>
+	<string name="pref_info_link_github">Repozytorium GitHub</string>
+	<string name="pref_info_link_github_summary">Repozytorium z kodem dla tej aplikacji. Projekt jest OpenSource</string>
+	<string name="pref_info_contributors_title">Współtwórcy</string>
+	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)\nAndus - translator (Polish)</string>
+	<string name="pref_info_link_telegram">Kanał Telegram</string>
+	<string name="pref_info_link_telegram_summary">Publikuje nowości i nowe wydania aplikacji</string>
+	<string name="pref_tuner_driver">Sterownik tunera</string>
+	<string name="pref_tuner_antenna">Antena</string>
+	<string name="pref_tuner_antenna_message">Domyślnie jest to \'0\'.\nNa niektórych urządzeniach Sony jest \'1\'.</string>
+	<string name="pref_tuner_audio_source_message">0 - domyślnie\n1998 - \'new\' Źródło FM</string>
+	<string name="pref_audio_service">Serwis Audio</string>
+	<string name="toolbar_favorite_title">Ulubione</string>
+	<string name="pref_header_notifications">Powiadomienia</string>
+	<string name="pref_notification_show_ps_enabled">Jeśli stacja nadaje PS, zostanie to pokazane w powiadomieniu</string>
+	<string name="pref_notification_show_ps_disabled">Nazwa z ulubionych będzie wyświetlana jako nazwa stacji</string>
+	<string name="pref_notification_show_ps">Pokaż PS w tytule</string>
+	<string name="pref_tuner_rds_description">RDS - System danych radiowych\nWyświetlanie informacji związanych z radiem nadawanych przez stacje radiowe.\nPS – Usługa programowa (zwykle nazwa stacji)\nRT – Tekst radiowy (zwykle nazwa bieżącego utworu, informacje o stacji)\nAF – Częstotliwości alternatywne (lista częstotliwości, na których nadaje ta sama stacja w sąsiednich regionach )\nPTY - TYP programu (gatunek stacji)</string>
+	<string name="pref_header_recording">Nagrywanie</string>
+	<string name="pref_recording_path_title">Katalog do zapisywania</string>
+	<string name="pref_recording_path_value" translatable="false">RFM/nagranie/$y-$m-$d</string>
+	<string name="pref_recording_name_title">Nazwa pliku</string>
+	<string name="pref_recording_name_value" translatable="false">FM-$h$i$s-$f</string>
+	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nPrzykład:\nKatalog: FM/$y-$m-$d -> FM/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
+	<string name="pref_recording_format_title">Format Nagrywania</string>
+	<string name="pref_recording_convert_summary">WAV - surowe/duże audio, MP3 - skompresowane/małe</string>
+	<string name="pref_recording_show_notify">Pokaż Powiadomienia</string>
+	<string name="pref_recording_show_notify_summary">Pod koniec nagrania wyświetl informacje o zapisanym pliku</string>
+	<string name="pref_info_version_title">Wersja</string>
+	<string name="pref_info_link_site">Strona Aplikacji</string>
+	<string name="pref_info_link_site_summary" translatable="false">rfm.velu.ga</string>
+	<string name="pref_version_check_progress">Sprawdzanie Aktualizacji…</string>
+	<string name="pref_version_check_fresh_title">Jest OK!</string>
+	<string name="pref_version_check_fresh_content">The latest version is installed. No update required.</string>
+	<string name="pref_version_check_need_update_title">Update available</string>
+	<string name="pref_version_check_need_update_content">Latest app version: v%1$s (%2$d)\nInstalled app version: %3$s (v%4$d)\n\nUpdates:\n%5$s\n\nOpen the release page to download the installer?</string>
+	<string name="pref_version_check_need_update_ok">Update</string>
+	<string name="pref_version_check_fresh_ok">Well</string>
+	<string name="notification_mhz">%.1f MHz | %d dB</string>
+	<string name="service_record_unsupported">Recording not supported by this driver.</string>
+	<string name="notification_recording">Recording: %s (%.1f MB)</string>
+	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
+	<string name="toast_record_ended">Record saved as %1$s\nSize: %2$.1f MB\nDuration: %3$s</string>
+	<string name="main_warning_pref_changed_title">Attention!</string>
+	<string name="main_warning_pref_changed_content">To apply some settings that you changed, you need to completely restart the application:\n1. Stop the tuner (shutdown button at the top)\n2. Close and swipe the application out of multitasking\n3. Launch the application.</string>
+	<string name="pref_notification_seek_by_favorites">Navigate through favorites</string>
+	<string name="pref_notification_seek_by_favorites_enabled">Using the arrows in the notification, jump to the prev/next favorite</string>
+	<string name="pref_notification_seek_by_favorites_disabled">Use the arrows in the notification to search for the prev/next station</string>
+    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work. Try changing the tuner in settings and restarting the app. If nothing has changed, then this means that the application is not supported on this device or on this operating system.</string>
+	<string name="main_error_launching_title">Fatal error</string>
+    <string name="pref_header_rds">RDS (Radio Data System)</string>
+    <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power.</string>
+	<string name="pref_tuner_power_mode_normal">Power saving is disabled.</string>
+	<string name="pref_tuner_power_mode">Power saving</string>
+	<string name="pref_tuner_region">Region / band</string>
+    <string name="pref_warning_applying_only_after_restart">Attention! These changes will apply only after full restart
+        the app.</string>
+    <string name="pref_tuner_stereo">Stereo</string>
+	<string name="pref_tuner_stereo_on">Use stereo if available</string>
+	<string name="pref_tuner_stereo_off">Always mono</string>
+    <string name="donation_window_title">I\'ve sorry, but…</string>
+    <string name="donation_window_donate">Donate</string>
+	<string name="donation_window_later">Ask later</string>
+	<string name="donation_window_never">Never ask</string>
+	<string name="donation_window_message">RFM-Radio is an open source project that is free and voluntarily developed
+		by one person.\nIf you are interested in the future development of the project or just want to say \"thank you\",
+		you can donate a small amount in various ways.</string>
+    <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
+    <string name="pref_version_check_error">An error occurred during the request: %s</string>
+    <string name="menu_favorite_list_search">Scan for stations</string>
+	<string name="favorite_list_search_confirm_title">Attention!</string>
+	<string name="favorite_list_search_confirm_message">This favorite list will be cleared and replaced by found stations.</string>
+	<string name="favorite_list_search_confirm_continue">Remove and scan</string>
+	<string name="favorite_list_search_confirm_discard">Discard</string>
+	<string name="favorite_list_search_progress">Please, wait… I trying to find stations.</string>
+    <string name="pref_tuner_rds_auto_af">Automatic jump by AF</string>
+	<string name="pref_tuner_rds_auto_afenabled">When the signal deteriorates and there are alternative frequencies of
+		the radio station, the tuner will automatically switch to the frequency with the best quality.
+	</string>
+	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
+	<string name="menu_speaker">Play through speaker</string>
+    <string name="favorite_list_search_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+</resources>
