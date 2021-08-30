@@ -91,4 +91,5 @@ The application uses several sources of code:
 ### Contributors
 * Vladislav Veluga (@vladislav805) &mdash; developer;
 * Mike Reid (@mikereidis) &mdash; developer of Spirit 1/2;
-* Konstantin Manaev (@SoSlowMan) &mdash; translator (English).
+* Konstantin Manaev (@SoSlowMan) &mdash; translator (English);
+* Andus (@AndusDEV) &mdash; translator (Polish).
