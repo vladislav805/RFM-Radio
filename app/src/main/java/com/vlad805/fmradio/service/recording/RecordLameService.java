@@ -55,6 +55,14 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	 */
 	@Override
 	protected void onFinishRecording() {
-		mLame.close();
+		try {
+			/**
+			 * @see {@link https://github.com/vladislav805/RFM-Radio/issues/82}
+			 */
+			Thread.sleep(500);
+			mLame.close();
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
