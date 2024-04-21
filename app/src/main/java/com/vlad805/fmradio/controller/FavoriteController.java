@@ -47,6 +47,8 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			files[i] = files[i].replace(JSON_EXT, "");
 		}
 
+		Arrays.sort(files);
+
 		return Arrays.asList(files);
 	}
 
