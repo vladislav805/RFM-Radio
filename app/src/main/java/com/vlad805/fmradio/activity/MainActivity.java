@@ -321,7 +321,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mViewRssi.setText("...");
         }
 
-        if ((mode & RadioStateUpdater.SET_PS) > 0 || (mode & RadioStateUpdater.SET_RT) > 0) {
+        if (
+            (mode & RadioStateUpdater.SET_PS) > 0 ||
+            (mode & RadioStateUpdater.SET_RT) > 0 ||
+            (mode & RadioStateUpdater.SET_PTY) > 0
+        ) {
             mFrequencyInfo.setRadioState(state);
         }
 
