@@ -463,7 +463,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
     }
 
-    private static final @IdRes	int[] SIGNAL_RES_ID = {
+    private static final int[] SIGNAL_RES_ID = {
             R.drawable.ic_signal_0,
             R.drawable.ic_signal_1,
             R.drawable.ic_signal_2,
