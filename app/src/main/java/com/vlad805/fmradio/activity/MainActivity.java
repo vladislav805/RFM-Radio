@@ -76,6 +76,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mRadioController = new RadioController(this);
         mRadioController.requestForCurrentState(this);
+        mRadioController.registerForUpdates(this);
+        mRadioController.setPowerMode(PowerMode.NORMAL);
 
         initUserInterface();
         initLogic();
@@ -134,22 +136,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
+    protected void onDestroy() {
+        super.onDestroy();
 
         mRadioController.unregisterForUpdates();
 
         if (Storage.getPrefBoolean(this, C.PrefKey.TUNER_POWER_MODE, false)) {
             mRadioController.setPowerMode(PowerMode.LOW);
         }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        mRadioController.registerForUpdates(this);
-        mRadioController.setPowerMode(PowerMode.NORMAL);
     }
 
     @Override
