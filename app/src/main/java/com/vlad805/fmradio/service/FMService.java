@@ -54,6 +54,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     public static final int NOTIFICATION_RECORD_ID = 1029;
     private static final String CHANNEL_ID = "default_channel";
     private static final String CHANNEL_RECORD_ID = "record_channel";
+    private static final String CHANNEL_RECORDING_ID = "recording_channel";
 
     private NotificationCompat.Builder mNBuilder;
     private NotificationManagerCompat mNotificationManager;
@@ -670,7 +671,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                         .setAction(C.Command.RECORD_STOP),
                 0
         );
-        NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
+        NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORDING_ID)
                 .setSmallIcon(R.drawable.ic_record_on)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.notification_recording, getTimeStringBySeconds(duration), size / 1024f / 1024f))
