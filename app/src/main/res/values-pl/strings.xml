@@ -31,7 +31,7 @@
 	<string name="popup_station_remove">Usuń</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>
 	<string name="about_version" translatable="false">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2020–2021</string>
+	<string name="about_author">Vladislav Veluga © 2020–2024</string>
 	<string name="menu_favorite_list_create">Stwórz listę</string>
 	<string name="menu_favorite_list_remove">Usuń listę</string>
 	<string name="popup_favorite_list_create">Stwórz ulubioną listę</string>

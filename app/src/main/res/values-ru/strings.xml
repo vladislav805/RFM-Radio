@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 	<string name="app_name">RFM Radio</string>
-	<string name="about_author">Владислав Велюга © 2020–2021</string>
+	<string name="about_author">Владислав Велюга © 2020–2024</string>
 	<string name="favorite_list_create_error_already_exists">Список избранного с таким именем уже существует</string>
 	<string name="favorite_list_create_error_invalid_name">Неверное имя. Можно использовать только A-Z, a-z, \'-\', \'_\' и цифры.</string>
 	<string name="favorite_list_remove_message">Вы уверены, что хотите удалить список \'%s\'?</string>
