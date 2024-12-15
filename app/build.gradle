@@ -7,7 +7,8 @@ def versionPatch = 1
 def dev = false
 
 android {
-    compileSdkVersion 28
+    compileSdk 34
+    namespace "com.vlad805.fmradio"
 
     defaultConfig {
         //noinspection GroovyAssignabilityCheck
@@ -29,6 +30,10 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     //noinspection GroovyMissingReturnStatement
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -37,14 +42,12 @@ android {
 
     productFlavors {
     }
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
 
     //noinspection GroovyMissingReturnStatement
-    lintOptions {
-        checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
-        abortOnError false
-    }
 
     applicationVariants.all { variant ->
         variant.outputs.all {
