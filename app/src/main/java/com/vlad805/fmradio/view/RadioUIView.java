@@ -6,8 +6,8 @@ import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import com.vlad805.fmradio.C;
@@ -27,7 +27,7 @@ public class RadioUIView extends LinearLayout {
 	private TextView mRdsPs;
 	private TextView mRdsRt;
 	private TextView mRdsPty;
-	private HorizontalScrollView mSeekWrap;
+	private ScrollView mSeekWrap;
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
 	private BandUtils.BandLimit mBandLimits;
@@ -170,16 +170,16 @@ public class RadioUIView extends LinearLayout {
 	 * Center the scrollview for seekbar so that the red line is centered
 	 */
 	private void scrollSeekBar() {
-		final int deltaPadding = mSeek.getPaddingLeft() + mSeek.getPaddingRight();
+		final int deltaPadding = mSeek.getPaddingTop() + mSeek.getPaddingBottom();
 		final int bandLength = (mBandLimits.upper - mBandLimits.lower) / mSpacing;
 		final int ticksFromStart = (mkHz - mBandLimits.lower) / mSpacing;
 
-		final int viewWidth = mSeek.getWidth() - deltaPadding;
+		final int viewWidth = mSeek.getHeight() - deltaPadding;
 		final float viewInterval = viewWidth * 1f / bandLength;
 
-		final int halfScreen = mSeekWrap.getWidth() / 2;
+		final int halfScreen = mSeekWrap.getHeight() / 2;
 
-		final int x = (int) (viewInterval * ticksFromStart - halfScreen + mSeek.getPaddingLeft());
-		mSeekWrap.smoothScrollTo(x, 0);
+		final int y = (int) (viewInterval * ticksFromStart - halfScreen + mSeek.getPaddingTop());
+		mSeekWrap.smoothScrollTo( 0, y);
 	}
 }

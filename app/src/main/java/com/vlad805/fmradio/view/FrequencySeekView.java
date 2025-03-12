@@ -2,11 +2,16 @@ package com.vlad805.fmradio.view;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.widget.SeekBar;
+
+import com.vlad805.fmradio.R;
 
 import java.util.Locale;
 
@@ -26,6 +31,8 @@ public class FrequencySeekView extends SeekBar {
 	private int mValueMax = 100;
 	private int mSpacing = 10;
 
+	private int mWidthPx;
+
 	public FrequencySeekView(final Context context) {
 		super(context);
 		init();
@@ -37,7 +44,8 @@ public class FrequencySeekView extends SeekBar {
 	}
 
 	private void init() {
-		final float dpi = getResources().getDisplayMetrics().density;
+		final Resources resources = getResources();
+		final float dpi = resources.getDisplayMetrics().density;
 
 		mTrait = new Paint();
 		mTrait.setColor(Color.GRAY);
@@ -46,15 +54,16 @@ public class FrequencySeekView extends SeekBar {
 
 		mFrequency0 = new Paint();
 		mFrequency0.setColor(Color.WHITE);
-		mFrequency0.setTextSize(sp2px(22));
-		mFrequency0.setTextAlign(Paint.Align.CENTER);
+		mFrequency0.setTextSize(resources.getDimensionPixelSize(R.dimen.seek_frequency_frequency_text_0));
+		mFrequency0.setTextAlign(Paint.Align.RIGHT);
+		mFrequency0.setTypeface(Typeface.MONOSPACE);
 		mFrequency0.setAntiAlias(true);
 
 		mFrequency5 = new Paint();
 		mFrequency5.setColor(Color.LTGRAY);
-		mFrequency5.setTextSize(sp2px(12));
-		mFrequency5.setTextAlign(Paint.Align.CENTER);
-		mFrequency5.setColor(Color.LTGRAY);
+		mFrequency5.setTextSize(resources.getDimensionPixelSize(R.dimen.seek_frequency_frequency_text_5));
+		mFrequency5.setTextAlign(Paint.Align.RIGHT);
+		mFrequency5.setTypeface(Typeface.MONOSPACE);
 		mFrequency5.setAntiAlias(true);
 
 		mCurrentLine = new Paint();
@@ -67,7 +76,13 @@ public class FrequencySeekView extends SeekBar {
 		mStationLine.setStrokeWidth(dpi);
 		mStationLine.setStyle(Paint.Style.STROKE);
 
+		mWidthPx = resources.getDimensionPixelOffset(R.dimen.seek_frequency_height);
+
 		invalidate();
+	}
+
+	protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+		super.onSizeChanged(h, w, oldH, oldW);
 	}
 
 	private void setMaxValue(final int maxValue) {
@@ -95,11 +110,6 @@ public class FrequencySeekView extends SeekBar {
 		setMax((mValueMax - mValueMin) / mSpacing);
 	}
 
-	private int sp2px(final float spValue) {
-		final float fontScale = getResources().getDisplayMetrics().scaledDensity;
-		return (int) (spValue * fontScale + 0.5f);
-	}
-
 	/**
 	 * Returns current frequency
 	 * @param progress Value by SeekBar
@@ -107,6 +117,13 @@ public class FrequencySeekView extends SeekBar {
 	 */
 	public int fixProgress(final int progress) {
 		return progress * mSpacing + mValueMin;
+	}
+
+	@Override
+	protected synchronized void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // noinspection SuspiciousNameCombination
+        super.onMeasure(heightMeasureSpec, widthMeasureSpec);
+		setMeasuredDimension(getMeasuredHeight(), getMeasuredWidth());
 	}
 
 	/**
@@ -131,34 +148,32 @@ public class FrequencySeekView extends SeekBar {
 
 	@Override
 	protected void onDraw(final Canvas canvas) {
-		final int paddingTop = 0;
+		// Because SeekView is rotated
+		final int height = getHeight();
 
-		// Width of view
-		final int viewWidth = getWidth() - getPaddingRight() - getPaddingLeft();
+		// Height of view
+		final int viewHeight = height - getPaddingBottom() - getPaddingTop();
 
 		// Padding from left side
-		final int deltaX = getPaddingLeft();
+		final int deltaY = getPaddingTop();
 
 		// Computed width of interval between dashes of frequencies
-		final float viewInterval = viewWidth / ((mValueMax - mValueMin) * 1f / mSpacing);
+		final float viewInterval = viewHeight / ((mValueMax - mValueMin) * 1f / mSpacing);
 
-		// y-coordinate, end of short stick relative to the top
-		final int baseYShort = paddingTop + 25;
+		// x-coordinate, end of short stick relative to the right
+		final int baseXShort = 25;
 
-		// y-coordinate, end of long dash relative to the top
-		final int baseYLong = paddingTop + 60;
+		// x-coordinate, end of long dash relative to the right
+		final int baseXLong = 60;
 
-		// y-coordinate, position of label .0 relative to the top
-		final int baseYText0 = baseYLong + 5 + (int) mFrequency0.getTextSize();
+		// x-coordinate, position of label .0 relative to the right
+		final int baseXText = mWidthPx - baseXLong - 5;
 
-		// y-coordinate, position of label .5 relative to the top
-		final int baseYText5 = baseYLong + 5 + (int) mFrequency5.getTextSize();
+		final float baseYText0 = mFrequency0.getTextSize() / 2;
+		final float baseYText5 = mFrequency5.getTextSize() / 2;
 
 		// Selected kHz
 		final int kHzCurrent = getProgress();
-
-		// Draw horizontal line
-		canvas.drawLine(deltaX, paddingTop, getWidth() - getPaddingRight(), paddingTop, mTrait);
 
 		// For each 100 kHz ...
 		for (int i = 0; i <= (mValueMax - mValueMin) / mSpacing; ++i) {
@@ -166,8 +181,8 @@ public class FrequencySeekView extends SeekBar {
 			// kHz frequency for current iteration
 			final int kHz = mValueMin + i * mSpacing;
 
-			// X coordinate for current iteration
-			final float x = deltaX + viewInterval * i;
+			// Y coordinate for current iteration
+			final float y = deltaY + viewInterval * i;
 
 			// The presence of the current frequency in the list of stations
 			final boolean hasStation = false; // mStations != null && mStations.contains(kHz);
@@ -184,26 +199,51 @@ public class FrequencySeekView extends SeekBar {
 			// If .0 MHz or .5 MHz
 			if (kHz % 500 == 0) {
 				// Draw long dash
-				canvas.drawLine(x, paddingTop, x, baseYLong, colorTrait);
+				canvas.drawLine(
+						mWidthPx - baseXLong,
+						y,
+						mWidthPx,
+						y,
+						colorTrait
+				);
 
-				canvas.drawText(MHz, x,
-					isRoundMHz ? baseYText0 : baseYText5,
-					isRoundMHz ? mFrequency0 : mFrequency5
+				canvas.drawText(
+						MHz,
+						baseXText,
+						y + (isRoundMHz ? baseYText0 : baseYText5) - 6,
+						isRoundMHz ? mFrequency0 : mFrequency5
 				);
 			} else {
 				// Others dashes are short
-				canvas.drawLine(x, paddingTop, x, baseYShort, colorTrait);
+				canvas.drawLine(
+						mWidthPx - baseXShort,
+						y,
+						mWidthPx,
+						y,
+						colorTrait
+				);
 			}
 
 			// If selected frequency equals current iterate, draw red line
 			if (kHzCurrent == kHz) {
-				canvas.drawLine(x, 0, x, getHeight(), mCurrentLine);
+				canvas.drawLine(0, y, mWidthPx, y, mCurrentLine);
 			}
 		}
 
+		canvas.rotate(90);
+		canvas.translate(0, -height);
 		super.onDraw(canvas);
 	}
-/*
+
+	@SuppressLint("ClickableViewAccessibility")
+    @Override
+	public boolean onTouchEvent(MotionEvent event) {
+		event.setLocation(event.getY(), event.getX());
+
+		return super.onTouchEvent(event);
+	}
+
+	/*
 	/**
 	 * List of stations, that will be draw
 	 * /
