@@ -28,7 +28,6 @@
 		<item name="android:fontFamily">monospace</item>
 		<item name="android:textSize">20sp</item>
 		<item name="android:gravity">center_horizontal</item>
-		<item name="android:padding">10dp</item>
 	</style>
 
 	<style name="RDS_RT">
