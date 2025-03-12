@@ -27,6 +27,7 @@ public class RadioUIView extends LinearLayout {
 	private TextView mRdsPs;
 	private TextView mRdsRt;
 	private TextView mRdsPty;
+	private TextView mRdsPi;
 	private ScrollView mSeekWrap;
 	private FrequencySeekView mSeek;
 	private RadioController mRadioController;
@@ -71,6 +72,7 @@ public class RadioUIView extends LinearLayout {
 		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
 		mSeek = findViewById(R.id.frequency_seek);
 		mRdsPty = findViewById(R.id.frequency_pty);
+		mRdsPi = findViewById(R.id.frequency_pi);
 
 		final Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
 		mFrequencyView.setTypeface(font);
@@ -116,6 +118,7 @@ public class RadioUIView extends LinearLayout {
 		mRdsPs.setText(state.getPs());
 		mRdsRt.setText(state.getRt());
 		mRdsPty.setText(UtilsLocalization.getProgramType(state.getPty()));
+		mRdsPi.setText(state.getPi() != null ? state.getPi() : "");
 	}
 
 	private void onUserClickOnFrequency(final int kHz) {

@@ -212,4 +212,16 @@
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/frequency_rt"
 		tools:text="Program Type" />
+
+	<TextView
+		android:id="@+id/frequency_pi"
+		style="@style/RDS_PTY"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginEnd="16dp"
+		app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"
+		app:layout_constraintTop_toTopOf="@+id/frequency_ps"
+		reflect:layout_constraintEnd_toStartOf="@+id/frequency_seek_wrap"
+		reflect:layout_constraintTop_toBottomOf="@+id/frequency_rt"
+		tools:text="7777" />
 </androidx.constraintlayout.widget.ConstraintLayout>
