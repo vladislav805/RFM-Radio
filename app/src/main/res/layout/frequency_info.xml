@@ -17,7 +17,7 @@
 		android:layout_marginEnd="16dp"
 		android:paddingBottom="14dp"
 		android:textAlignment="viewEnd"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
+		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
 		reflect:reflectHeightMultiple="0.52"
@@ -34,7 +34,7 @@
 		android:textAlignment="textStart"
 		android:lines="2"
 		android:textIsSelectable="true"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
+		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/frequency_ps"
 		tools:text="RT" />
@@ -72,7 +72,7 @@
 		android:background="?android:selectableItemBackgroundBorderless"
 		android:contentDescription="@string/toggle_play_pause"
 		android:src="@drawable/ic_play"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
+		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/frequency_rt" />
 
@@ -98,7 +98,7 @@
 		android:contentDescription="@string/seek_up"
 		android:src="@drawable/ic_seek_up"
 		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
+		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintTop_toTopOf="@+id/ctl_toggle" />
 
 	<ImageView
@@ -110,14 +110,6 @@
 		android:src="@drawable/ic_mono"
 		app:layout_constraintStart_toStartOf="@+id/frequency_mhz"
 		app:layout_constraintTop_toTopOf="@+id/frequency_mhz" />
-
-	<com.vlad805.fmradio.view.FrequencyBarView
-		android:id="@+id/frequency_seek"
-		android:layout_width="@dimen/seek_frequency_width"
-		android:layout_height="0dp"
-		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintTop_toTopOf="parent" />
 
 	<TextView
 		android:id="@+id/frequency_ps"
@@ -186,7 +178,8 @@
 		android:textIsSelectable="true"
 		app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"
 		app:layout_constraintTop_toTopOf="@+id/frequency_ps"
-		reflect:layout_constraintEnd_toStartOf="@+id/frequency_seek"
+		reflect:layout_constraintEnd_toEndOf="parent"
 		reflect:layout_constraintTop_toBottomOf="@+id/frequency_rt"
 		tools:text="7777" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

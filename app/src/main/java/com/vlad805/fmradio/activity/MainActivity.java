@@ -24,22 +24,28 @@ import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
+import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesPanelView;
+import com.vlad805.fmradio.view.FrequencyBarView;
 import com.vlad805.fmradio.view.RadioUIView;
-import net.grandcentrix.tray.AppPreferences;
 
 import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
+
+import net.grandcentrix.tray.AppPreferences;
 
 @SuppressLint("NonConstantResourceId")
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
     private ProgressDialog mProgress;
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
+    private FrequencyBarView mSeek;
     private FavoritesPanelView mFavoriteList;
 
     private RadioController mRadioController;
+
+    private AppPreferences mPreferences;
 
     private ImageButton mCtlToggle;
 
@@ -53,8 +59,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private Menu mMenu;
 
-    private AppPreferences mPreferences;
-
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
 
@@ -65,10 +69,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mToast = Toast.create(this);
 
-        mPreferences = new AppPreferences(this);
-
         setSupportActionBar(findViewById(R.id.main_toolbar));
 
+        mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);
         mRadioController.requestForCurrentState(this);
         mRadioController.registerForUpdates(this);
@@ -86,9 +89,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mFavoriteList = findViewById(R.id.favorite_list);
 
+        mSeek = findViewById(R.id.frequency_seek);
+
         mRecordDuration = findViewById(R.id.record_duration);
 
-        mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY));
+        final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+        mFrequencyInfo.setFrequency(kHz);
+        mSeek.setFrequency(kHz);
 
         initClickableButtons();
     }
@@ -104,8 +111,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             setEnabledUi(false);
         }
-
-        mFrequencyInfo.setRadioController(mRadioController);
     }
 
     private void showProgress(final String text) {
@@ -121,6 +126,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mProgress.hide();
             mProgress = null;
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        reloadPreferences();
     }
 
     @Override
@@ -273,6 +285,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mCtlToggle.setEnabled(enabled);
     }
 
+    private void reloadPreferences() {
+        final int regionPref = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+        final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+
+        final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref);
+        final int spacing = BandUtils.getSpacing(spacingPref);
+
+        mSeek.setMinMaxValue(bandLimit.lower, bandLimit.upper, spacing);
+        mSeek.setOnFrequencyChangeListener(mOnFrequencyChanged);
+    }
+
+    private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
+        @Override
+        public void onChanged(final int kHz) {
+            if (mRadioController.getState().getFrequency() == kHz) {
+                return;
+            }
+
+            mRadioController.setFrequency(kHz);
+        }
+    };
+
     /**
      * Called when the state of the tuner changes
      * @param state State object
@@ -291,6 +325,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             hideProgress();
 
             mFrequencyInfo.setFrequency(state.getFrequency());
+
+            mSeek.setFrequency(state.getFrequency());
 
             final String str = getString(R.string.player_event_frequency_changed, state.getFrequency() / 1000f);
             mToast.text(str).show();
