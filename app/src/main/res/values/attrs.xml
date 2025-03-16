@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="reflect">
-        <attr name="reflectHeightMultiple" format="float" />
+    <declare-styleable name="TextViewWithReflection">
+        <attr name="reflectionHeightMultiple" format="float" />
+        <attr name="reflectionPadding" format="integer" />
     </declare-styleable>
 </resources>
