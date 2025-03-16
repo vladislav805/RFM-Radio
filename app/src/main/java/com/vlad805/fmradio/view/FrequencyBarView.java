@@ -5,7 +5,9 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
@@ -28,6 +30,7 @@ public class FrequencyBarView extends View {
 	private Paint mFrequency5;
 	private Paint mRedLine;
 	private Paint mStationLine;
+	private Paint mShadowPaint;
 
 	private GestureDetector gestureDetector;
 
@@ -52,6 +55,7 @@ public class FrequencyBarView extends View {
 	private OnFrequencyChangedListener mOnFrequencyChangeListener;
 
 	private static final int CHANGE_THRESHOLD = 400;
+	private static final int SHADOW_LENGTH = 20;
 
 	public interface OnFrequencyChangedListener {
 		void onChanged(int kHz);
@@ -103,6 +107,14 @@ public class FrequencyBarView extends View {
 		mStationLine.setColor(Color.YELLOW);
 		mStationLine.setStrokeWidth(dpi);
 		mStationLine.setStyle(Paint.Style.STROKE);
+
+		mShadowPaint = new Paint();
+		mShadowPaint.setShader(new LinearGradient(
+				0, 0,
+				SHADOW_LENGTH, 0,
+				0xFF111111, 0x00000000,
+				Shader.TileMode.CLAMP
+		));
 
 		mWidth = resources.getDimensionPixelOffset(R.dimen.seek_frequency_width);
 
@@ -288,6 +300,9 @@ public class FrequencyBarView extends View {
 
 		// Red line on middle
 		canvas.drawLine(0, mVirtualMiddle, mWidth, mVirtualMiddle, mRedLine);
+
+		// Shadow
+		canvas.drawRect(0, 0, SHADOW_LENGTH, getHeight(), mShadowPaint);
 
 		super.onDraw(canvas);
 	}

@@ -10,7 +10,7 @@
 	<dimen name="seek_frequency_padding_start">15dp</dimen>
 	<dimen name="seek_frequency_padding_end">35dp</dimen>
 	<!-- Sizes of SeekBar -->
-	<dimen name="seek_frequency_width">90dp</dimen>
+	<dimen name="seek_frequency_width">75dp</dimen>
 	<!-- Frequency numbers -->
 	<dimen name="seek_frequency_frequency_text_0">20sp</dimen>
 	<dimen name="seek_frequency_frequency_text_5">12sp</dimen>
