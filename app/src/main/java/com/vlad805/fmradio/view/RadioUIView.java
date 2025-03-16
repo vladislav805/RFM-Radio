@@ -3,12 +3,8 @@ package com.vlad805.fmradio.view;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -28,12 +24,10 @@ public class RadioUIView extends LinearLayout {
 	private TextView mRdsRt;
 	private TextView mRdsPty;
 	private TextView mRdsPi;
-	private ScrollView mSeekWrap;
-	private FrequencySeekView mSeek;
+	private FrequencyBarView mSeek;
 	private RadioController mRadioController;
 	private BandUtils.BandLimit mBandLimits;
-	private int mSpacing;
-	private final AppPreferences mPreferences;
+    private final AppPreferences mPreferences;
 
 	/**
 	 * Current frequency
@@ -69,7 +63,6 @@ public class RadioUIView extends LinearLayout {
 		mFrequencyView = findViewById(R.id.frequency_mhz);
 		mRdsPs = findViewById(R.id.frequency_ps);
 		mRdsRt = findViewById(R.id.frequency_rt);
-		mSeekWrap = findViewById(R.id.frequency_seek_wrap);
 		mSeek = findViewById(R.id.frequency_seek);
 		mRdsPty = findViewById(R.id.frequency_pty);
 		mRdsPi = findViewById(R.id.frequency_pi);
@@ -86,17 +79,10 @@ public class RadioUIView extends LinearLayout {
 		final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
 
 		mBandLimits = BandUtils.getBandLimit(regionPref);
-		mSpacing = BandUtils.getSpacing(spacingPref);
+        final int spacing = BandUtils.getSpacing(spacingPref);
 
-		mSeek.setMinMaxValue(mBandLimits.lower, mBandLimits.upper, mSpacing);
-		mSeek.setOnSeekBarChangeListener(mOnSeekFrequencyChanged);
-
-		final float seekWidthDp = (mBandLimits.upper - mBandLimits.lower) / 10.67f;
-		final int seekWidthPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, seekWidthDp, getResources().getDisplayMetrics());
-
-		final ViewGroup.LayoutParams lp = mSeek.getLayoutParams();
-		lp.width = seekWidthPx;
-		mSeek.setLayoutParams(lp);
+		mSeek.setMinMaxValue(mBandLimits.lower, mBandLimits.upper, spacing);
+		mSeek.setOnFrequencyChangeListener(mOnFrequencyChanged);
 	}
 
 	/**
@@ -109,9 +95,7 @@ public class RadioUIView extends LinearLayout {
 
 		mFrequencyView.setText(Utils.getMHz(kHz, spacing == BandUtils.SPACING_50kHz ? 2 : 1));
 
-		mSeek.setProgress(kHz);
-
-		scrollSeekBar();
+		mSeek.setFrequency(kHz);
 	}
 
 	public final void setRadioState(final RadioState state) {
@@ -121,68 +105,20 @@ public class RadioUIView extends LinearLayout {
 		mRdsPi.setText(state.getPi() != null ? state.getPi() : "");
 	}
 
-	private void onUserClickOnFrequency(final int kHz) {
-		if (mkHz == kHz) {
-			return;
-		}
-
-		mRadioController.setFrequency(kHz);
-
-		setFrequency(kHz);
-	}
-
-	private final SeekBar.OnSeekBarChangeListener mOnSeekFrequencyChanged = new SeekBar.OnSeekBarChangeListener() {
-
-		private int current;
-
+	private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
 		@Override
-		public void onProgressChanged(final SeekBar seekBar, final int progress, final boolean fromUser) {
-			if (!fromUser) {
+		public void onChanged(final int kHz) {
+			if (mkHz == kHz) {
 				return;
 			}
 
-			int curr = seekBar.getProgress();
+			mRadioController.setFrequency(kHz);
 
-			/*
-			 * Android 5.1 (Sony Xperia L at least) progress contains value from
-			 * seekBar.getProgress(), that was already fixed
-			 */
-			if (curr > mBandLimits.upper) {
-				curr /= 1000;
-			}
-
-			current = curr;
-
-			onUserClickOnFrequency(current);
-		}
-
-		@Override
-		public void onStartTrackingTouch(SeekBar seekBar) { }
-
-		@Override
-		public void onStopTrackingTouch(SeekBar seekBar) {
-			onUserClickOnFrequency(current);
+			setFrequency(kHz);
 		}
 	};
 
 	public void setRadioController(final RadioController controller) {
 		mRadioController = controller;
-	}
-
-	/**
-	 * Center the scrollview for seekbar so that the red line is centered
-	 */
-	private void scrollSeekBar() {
-		final int deltaPadding = mSeek.getPaddingTop() + mSeek.getPaddingBottom();
-		final int bandLength = (mBandLimits.upper - mBandLimits.lower) / mSpacing;
-		final int ticksFromStart = (mkHz - mBandLimits.lower) / mSpacing;
-
-		final int viewWidth = mSeek.getHeight() - deltaPadding;
-		final float viewInterval = viewWidth * 1f / bandLength;
-
-		final int halfScreen = mSeekWrap.getHeight() / 2;
-
-		final int y = (int) (viewInterval * ticksFromStart - halfScreen + mSeek.getPaddingTop());
-		mSeekWrap.smoothScrollTo( 0, y);
 	}
 }

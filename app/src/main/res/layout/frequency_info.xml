@@ -17,7 +17,7 @@
 		android:layout_marginEnd="16dp"
 		android:paddingBottom="14dp"
 		android:textAlignment="viewEnd"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek_wrap"
+		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
 		reflect:reflectHeightMultiple="0.52"
@@ -32,33 +32,36 @@
 		android:layout_marginTop="8dp"
 		android:layout_marginEnd="16dp"
 		android:textAlignment="textStart"
-		android:lines="1"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek_wrap"
+		android:lines="2"
+		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/frequency_ps"
 		tools:text="RT" />
 
 	<ImageButton
-			android:id="@+id/ctl_seek_down"
-			android:src="@drawable/ic_seek_down"
-			android:layout_width="@dimen/ctl_size_seek"
-			android:layout_height="@dimen/ctl_size_seek"
-			android:background="?android:selectableItemBackgroundBorderless"
-			android:contentDescription="@string/seek_down"
-			app:layout_constraintEnd_toStartOf="@+id/ctl_go_down"
-			app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
-			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
+		android:id="@+id/ctl_seek_down"
+		android:layout_width="@dimen/ctl_size_seek"
+		android:layout_height="@dimen/ctl_size_seek"
+		android:layout_marginStart="16dp"
+		android:background="?android:selectableItemBackgroundBorderless"
+		android:contentDescription="@string/seek_down"
+		android:src="@drawable/ic_seek_down"
+		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="@+id/ctl_toggle" />
 
 	<ImageButton
-			android:id="@+id/ctl_go_down"
-			android:src="@drawable/ic_go_down"
-			android:layout_width="@dimen/ctl_size_jump"
-			android:layout_height="@dimen/ctl_size_jump"
-			android:background="?android:selectableItemBackgroundBorderless"
-			android:contentDescription="@string/jump_down"
-			app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
-			app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
-			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
+		android:id="@+id/ctl_go_down"
+		android:layout_width="@dimen/ctl_size_jump"
+		android:layout_height="@dimen/ctl_size_jump"
+		android:background="?android:selectableItemBackgroundBorderless"
+		android:contentDescription="@string/jump_down"
+		android:src="@drawable/ic_go_down"
+		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
+		app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
+		app:layout_constraintStart_toEndOf="@+id/ctl_seek_down"
+		app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
+		app:layout_constraintVertical_bias="0.0" />
 
 	<ImageButton
 		android:id="@+id/ctl_toggle"
@@ -68,66 +71,52 @@
 		android:background="?android:selectableItemBackgroundBorderless"
 		android:contentDescription="@string/toggle_play_pause"
 		android:src="@drawable/ic_play"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek_wrap"
+		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/frequency_rt" />
 
 	<ImageButton
-			android:id="@+id/ctl_go_up"
-			android:src="@drawable/ic_go_up"
-			android:layout_width="@dimen/ctl_size_jump"
-			android:layout_height="@dimen/ctl_size_jump"
-			android:background="?android:selectableItemBackgroundBorderless"
-			android:contentDescription="@string/jump_up"
-			app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
-			app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
-			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
+		android:id="@+id/ctl_go_up"
+		android:layout_width="@dimen/ctl_size_jump"
+		android:layout_height="@dimen/ctl_size_jump"
+		android:background="?android:selectableItemBackgroundBorderless"
+		android:contentDescription="@string/jump_up"
+		android:src="@drawable/ic_go_up"
+		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
+		app:layout_constraintEnd_toStartOf="@+id/ctl_seek_up"
+		app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
+		app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
+		app:layout_constraintVertical_bias="0.0" />
 
 	<ImageButton
-			android:id="@+id/ctl_seek_up"
-			android:src="@drawable/ic_seek_up"
-			android:layout_width="@dimen/ctl_size_seek"
-			android:layout_height="@dimen/ctl_size_seek"
-			android:background="?android:selectableItemBackgroundBorderless"
-			android:contentDescription="@string/seek_up"
-			app:layout_constraintStart_toEndOf="@+id/ctl_go_up"
-			app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
-			app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"/>
+		android:id="@+id/ctl_seek_up"
+		android:layout_width="@dimen/ctl_size_seek"
+		android:layout_height="@dimen/ctl_size_seek"
+		android:layout_marginEnd="16dp"
+		android:background="?android:selectableItemBackgroundBorderless"
+		android:contentDescription="@string/seek_up"
+		android:src="@drawable/ic_seek_up"
+		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
+		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
+		app:layout_constraintTop_toTopOf="@+id/ctl_toggle" />
 
 	<ImageView
 		android:id="@+id/stereo_mono"
 		style="@style/ControlIcon"
 		android:layout_width="@dimen/icon_size"
 		android:layout_height="@dimen/icon_size"
-		android:layout_marginStart="16dp"
 		android:contentDescription="@string/nil"
 		android:src="@drawable/ic_mono"
 		app:layout_constraintStart_toStartOf="@+id/frequency_mhz"
 		app:layout_constraintTop_toTopOf="@+id/frequency_mhz" />
 
-	<ScrollView
-		android:id="@+id/frequency_seek_wrap"
-		android:layout_width="@dimen/seek_frequency_height"
+	<com.vlad805.fmradio.view.FrequencyBarView
+		android:id="@+id/frequency_seek"
+		android:layout_width="@dimen/seek_frequency_width"
 		android:layout_height="0dp"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintTop_toTopOf="parent">
-
-		<LinearLayout
-			android:layout_width="match_parent"
-			android:layout_height="@dimen/seek_frequency_width"
-			android:orientation="horizontal">
-
-			<com.vlad805.fmradio.view.FrequencySeekView
-				android:id="@+id/frequency_seek"
-				style="@style/FrequencySeekBar"
-				android:layout_width="match_parent"
-				android:layout_height="@dimen/seek_frequency_width"
-				android:paddingTop="@dimen/seek_frequency_padding_start"
-				android:paddingBottom="@dimen/seek_frequency_padding_end"
-				android:thumbTint="@android:color/transparent" />
-		</LinearLayout>
-	</ScrollView>
+		app:layout_constraintTop_toTopOf="parent" />
 
 	<TextView
 		android:id="@+id/frequency_ps"
@@ -149,9 +138,9 @@
 		android:scaleType="fitCenter"
 		android:src="@drawable/ic_record_press"
 		android:visibility="gone"
+		app:layout_constraintBottom_toBottomOf="@+id/frequency_mhz"
 		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek_wrap"
-		app:layout_constraintTop_toTopOf="@+id/frequency_mhz"
+		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
 		tools:visibility="visible" />
 
 		<TextView
@@ -173,23 +162,22 @@
 		style="@style/ControlIcon"
 		android:layout_width="@dimen/icon_size"
 		android:layout_height="@dimen/icon_size"
-		android:layout_marginStart="16dp"
 		android:layout_marginTop="8dp"
 		android:contentDescription="@string/nil"
 		android:src="@drawable/ic_signal_unknown"
 		app:layout_constraintStart_toStartOf="@+id/frequency_mhz"
 		app:layout_constraintTop_toBottomOf="@+id/stereo_mono" />
+
 	<TextView
-			android:id="@+id/rssi_value"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="8dp"
-			android:fontFamily="monospace"
-			android:gravity="center_vertical"
-			tools:text="-70 dB"
-			app:layout_constraintTop_toBottomOf="@+id/rssi_icon"
-			app:layout_constraintStart_toStartOf="@+id/rssi_icon"
-			app:layout_constraintEnd_toEndOf="@+id/rssi_icon"/>
+		android:id="@+id/rssi_value"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="8dp"
+		android:fontFamily="monospace"
+		android:gravity="center_vertical"
+		app:layout_constraintStart_toStartOf="@+id/frequency_mhz"
+		app:layout_constraintTop_toBottomOf="@+id/rssi_icon"
+		tools:text="-70 dB" />
 
 	<TextView
 		android:id="@+id/frequency_pty"
@@ -203,13 +191,13 @@
 
 	<TextView
 		android:id="@+id/frequency_pi"
-		style="@style/RDS_PTY"
+		style="@style/RDS_PS"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:layout_marginEnd="16dp"
 		app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"
 		app:layout_constraintTop_toTopOf="@+id/frequency_ps"
-		reflect:layout_constraintEnd_toStartOf="@+id/frequency_seek_wrap"
+		reflect:layout_constraintEnd_toStartOf="@+id/frequency_seek"
 		reflect:layout_constraintTop_toBottomOf="@+id/frequency_rt"
 		tools:text="7777" />
 </androidx.constraintlayout.widget.ConstraintLayout>
