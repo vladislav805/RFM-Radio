@@ -17,7 +17,7 @@ import java.util.List;
  * vlad805 (c) 2020
  */
 public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-	private static final int MAX_COUNT = 20;
+	private static final int MAX_COUNT = 40;
 
 	private final LayoutInflater mInflater;
 	protected List<FavoriteStation> mList;
