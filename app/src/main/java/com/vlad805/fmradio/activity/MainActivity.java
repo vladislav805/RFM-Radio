@@ -199,7 +199,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     case ENABLED: {
-                        mRadioController.disable();
+                        mRadioController.kill();
                         break;
                     }
                 }
