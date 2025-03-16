@@ -29,8 +29,6 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	private FavoriteController mController;
 	private final RadioController mRadioController;
 
-	private boolean mIsLocked = false;
-
 	public FavoritesPanelView(final Context context) {
 		this(context, null);
 
@@ -85,7 +83,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	@Override
 	public void onItemClick(final View view, final int position) {
 		// Nothing to do if control is locked
-		if (mIsLocked) {
+		if (!isEnabled()) {
 			return;
 		}
 
@@ -123,7 +121,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 */
 	@Override
 	public void onLongItemClick(final View view, final int position) {
-		if (mIsLocked || position >= mStations.size()) {
+		if (!isEnabled() || position >= mStations.size()) {
 			return;
 		}
 
@@ -148,7 +146,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 						station.setTitle(title);
 						mAdapter.notifyItemChanged(position);
 						onFavoriteListUpdated();
-					}).setTitle(R.string.popup_station_create).open();
+					}).setTitle(R.string.popup_station_rename).open();
 					break;
 				}
 			}
@@ -163,17 +161,5 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 */
 	public void onFavoriteListUpdated() {
 		mController.save();
-	}
-
-	@Override
-	public boolean canScrollVertically(int direction) {
-		return !mIsLocked;
-	}
-
-	@Override
-	public void setEnabled(final boolean enabled) {
-		super.setEnabled(enabled);
-
-		mIsLocked = !enabled;
 	}
 }
