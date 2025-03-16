@@ -265,11 +265,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menu_stop:
-                showProgress(getString(R.string.progress_stopping));
-                mRadioController.kill();
-                break;
-
             case R.id.menu_about:
                 startActivity(new Intent(this, AboutActivity.class));
                 break;
@@ -457,7 +452,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         final boolean state = TunerStatus.ENABLED.equals(mLastState.getStatus());
 
-        mMenu.findItem(R.id.menu_stop).setEnabled(state);
         mMenu.findItem(R.id.menu_record).setEnabled(state);
         mMenu.findItem(R.id.menu_speaker).setEnabled(state);
         mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());

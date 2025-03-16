@@ -5,13 +5,6 @@
 	<group
 			android:id="@+id/menu_main">
 		<item
-				android:id="@+id/menu_stop"
-				android:title="@string/menu_stop"
-				android:icon="@drawable/ic_stop"
-				android:enabled="false"
-				app:showAsAction="always"/>
-
-		<item
 				android:id="@+id/menu_record"
 				android:title="@string/menu_record"
 				android:icon="@drawable/ic_record_off"

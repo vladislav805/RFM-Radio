@@ -16,7 +16,6 @@
 	<string name="menu_open_list_favorites">Избранное</string>
 	<string name="menu_record">Запись</string>
 	<string name="menu_settings">Настройки</string>
-	<string name="menu_stop">Завершить работу</string>
 	<string name="notification_mhz">%.1f МГц | %d дБ</string>
 	<string name="notification_recorded">Запись %3$s завершена: %1$s (%2$.1f МБ)</string>
 	<string name="notification_recording">Запись: %s (%.1f МБ)</string>

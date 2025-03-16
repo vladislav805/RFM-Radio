@@ -15,7 +15,6 @@
 	<string name="progress_searching">Szukanie…</string>
 	<string name="progress_stopping">Zatrzymywanie…</string>
 	<string name="main_rssi_db">%d dB</string>
-	<string name="menu_stop">Zatrzymaj</string>
 	<string name="menu_settings">Ustawienia</string>
 	<string name="menu_open_list">Lista stacji</string>
 	<string name="menu_record">Nagraj</string>
