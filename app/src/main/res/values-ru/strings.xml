@@ -101,16 +101,11 @@
         что приложение не поддерживается на этом устройстве или на данной ОС.
     </string>
 	<string name="main_error_launching_title">Критическая ошибка</string>
-	<string name="donation_window_message">RFM-Radio - проект с открытым исходным кодом, который распространяется бесплатно и разрабатывается одним человеком на добровольной основе.\nЕсли Вы заинтересованы в будущем развитии проекта или просто хотите сказать "спасибо", Вы можете пожертвовать небольшую сумму различными способами.</string>
 	<string name="pref_header_rds">RDS (Radio Data System)</string>
 	<string name="pref_tuner_region">Регион</string>
 	<string name="pref_tuner_stereo">Стерео</string>
 	<string name="pref_tuner_stereo_on">Воспроизводить стерео, когда доступно</string>
 	<string name="pref_tuner_stereo_off">Всегда воспроизводить моно</string>
-	<string name="donation_window_title">Простите, извините…</string>
-	<string name="donation_window_donate">Пожертвовать</string>
-	<string name="donation_window_later">Позже</string>
-	<string name="donation_window_never">Никогда не спрашивать</string>
 	<string name="pref_warning_applying_only_after_restart">Внимание! Эта настройка вступит в силу только после полного
 		перезапуска приложения.
 	</string>

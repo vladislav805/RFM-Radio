@@ -114,13 +114,6 @@
     <string name="pref_tuner_stereo">Stereo</string>
 	<string name="pref_tuner_stereo_on">Use stereo if available</string>
 	<string name="pref_tuner_stereo_off">Always mono</string>
-    <string name="donation_window_title">I\'ve sorry, but…</string>
-    <string name="donation_window_donate">Donate</string>
-	<string name="donation_window_later">Ask later</string>
-	<string name="donation_window_never">Never ask</string>
-	<string name="donation_window_message">RFM-Radio is an open source project that is free and voluntarily developed
-		by one person.\nIf you are interested in the future development of the project or just want to say \"thank you\",
-		you can donate a small amount in various ways.</string>
     <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
     <string name="pref_version_check_error">An error occurred during the request: %s</string>
     <string name="menu_favorite_list_search">Scan for stations</string>

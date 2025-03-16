@@ -3,9 +3,7 @@ package com.vlad805.fmradio.activity;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,7 +11,6 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -27,7 +24,6 @@ import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
-import com.vlad805.fmradio.preferences.LaunchCounter;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesPanelView;
 import com.vlad805.fmradio.view.RadioUIView;
@@ -80,10 +76,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         initUserInterface();
         initLogic();
-
-        if (LaunchCounter.checkForDonation(mPreferences)) {
-            new Handler().postDelayed(this::showDonationDialog, 6000);
-        }
     }
 
     /**
@@ -479,25 +471,5 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void setShowRecordingPanel(final boolean state) {
         mRecordDuration.setVisibility(state ? View.VISIBLE : View.GONE);
-    }
-
-    private void showDonationDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.donation_window_title)
-                .setMessage(R.string.donation_window_message)
-                .setPositiveButton(R.string.donation_window_donate, (dialog, which) -> {
-                    dialog.dismiss();
-                    final Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setData(Uri.parse("https://rfm.velu.ga/donate?ref=app&hl=" + Utils.getCountryISO(this)));
-                    startActivity(intent);
-                })
-                .setNegativeButton(R.string.donation_window_later, (dialog, which) -> dialog.dismiss())
-                .setNeutralButton(R.string.donation_window_never, (dialog, which) -> {
-                    dialog.dismiss();
-                    LaunchCounter.setDonationNeverShow(mPreferences);
-                })
-                .setIcon(R.mipmap.ic_launcher)
-                .create()
-                .show();
     }
 }
