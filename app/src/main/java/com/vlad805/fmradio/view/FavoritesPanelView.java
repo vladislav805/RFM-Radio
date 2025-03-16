@@ -5,7 +5,7 @@ import android.util.AttributeSet;
 import android.view.Menu;
 import android.view.View;
 import android.widget.PopupMenu;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.controller.FavoriteController;
@@ -66,13 +66,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	}
 
 	private void init(final Context context) {
-		final LinearLayoutManager horizontalLayoutManager = new LinearLayoutManager(
-				context,
-				LinearLayoutManager.HORIZONTAL,
-				false
-		);
-
-		setLayoutManager(horizontalLayoutManager);
+		setLayoutManager(new GridLayoutManager(getContext(), 2));
 
 		mAdapter = new FavoritePanelAdapter(context);
 		setAdapter(mAdapter);

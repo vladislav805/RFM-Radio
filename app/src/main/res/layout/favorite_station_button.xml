@@ -2,17 +2,24 @@
 <androidx.constraintlayout.widget.ConstraintLayout
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:app="http://schemas.android.com/apk/res-auto"
-		android:layout_width="@dimen/favorite_panel_item_width"
-		android:layout_height="match_parent">
+		xmlns:tools="http://schemas.android.com/tools"
+		android:background="?android:attr/selectableItemBackground"
+		android:clickable="true"
+		android:focusable="true"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content">
+
 	<TextView
-			android:id="@+id/favorite_station_item_button"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:textAppearance="@android:style/TextAppearance.Material.Large"
-			android:layout_marginTop="8dp"
-			android:textAlignment="center"
-			app:layout_constraintEnd_toEndOf="parent"
-			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintBottom_toBottomOf="parent"/>
+		android:id="@+id/favorite_station_item_button"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="8dp"
+		android:layout_marginBottom="8dp"
+		android:textAlignment="center"
+		android:textAppearance="@android:style/TextAppearance.Material.Large"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		tools:text="+" />
 </androidx.constraintlayout.widget.ConstraintLayout>
