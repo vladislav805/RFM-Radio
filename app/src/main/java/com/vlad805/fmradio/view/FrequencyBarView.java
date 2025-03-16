@@ -51,6 +51,8 @@ public class FrequencyBarView extends View {
 
 	private OnFrequencyChangedListener mOnFrequencyChangeListener;
 
+	private static final int CHANGE_THRESHOLD = 400;
+
 	public interface OnFrequencyChangedListener {
 		void onChanged(int kHz);
 	}
@@ -105,24 +107,37 @@ public class FrequencyBarView extends View {
 		mWidth = resources.getDimensionPixelOffset(R.dimen.seek_frequency_width);
 
 		gestureDetector = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
-			private long lastChange;
+			private long lastChangeTime;
 
 			@Override
 			public boolean onDown(@NonNull MotionEvent e) {
-				lastChange = System.currentTimeMillis();
+				lastChangeTime = System.currentTimeMillis();
 				return true;
 			}
 
 			@Override
 			public boolean onScroll(MotionEvent first, @NonNull MotionEvent move, float distanceX, float distanceY) {
-				addOffsetY(distanceY);
-
+				final int currentFrequency = getFrequencyByOffsetY(mOffsetY);
 				final long now = System.currentTimeMillis();
 
-				if (lastChange + 1000 < now) {
-					lastChange = now;
+				addOffsetY(distanceY);
+
+				if (lastChangeTime + CHANGE_THRESHOLD < now && currentFrequency != mValue) {
+					lastChangeTime = now;
 					callListener();
 				}
+
+				return true;
+			}
+
+			@Override
+			public boolean onSingleTapUp(@NonNull MotionEvent e) {
+				if (e.getPointerCount() > 1) {
+					return super.onSingleTapUp(e);
+				}
+
+				addOffsetY(-(mVirtualMiddle - e.getY()));
+				callListener();
 
 				return true;
 			}
@@ -164,6 +179,7 @@ public class FrequencyBarView extends View {
 
 	private void setOffsetY(final float value) {
 		mOffsetY = value;
+		mValue = getFrequencyByOffsetY(mOffsetY);
 
 		invalidate();
 	}
