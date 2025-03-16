@@ -26,5 +26,4 @@
 	<dimen name="ctl_size_seek">48dp</dimen>
 	<dimen name="ctl_size_jump">48dp</dimen>
 	<dimen name="ctl_size_toggle">48dp</dimen>
-    <dimen name="record_icon_size">40dp</dimen>
 </resources>

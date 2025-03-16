@@ -51,7 +51,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ImageView mViewRssiIcon;
     private ImageView mViewStereoMode;
 
-    private ImageView mRecordIcon;
     private TextView mRecordDuration;
 
     private RadioState mLastState;
@@ -95,10 +94,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mFavoriteList = findViewById(R.id.favorite_list);
 
-        mRecordIcon = findViewById(R.id.record_icon);
         mRecordDuration = findViewById(R.id.record_duration);
-
-        mRecordIcon.setOnClickListener(this);
 
         mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY));
 
@@ -244,11 +240,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
                 break;
             }
-
-            case R.id.record_icon: {
-                mRadioController.record(false);
-                break;
-            }
         }
     }
 
@@ -274,7 +265,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.menu_record:
-                mRadioController.record(true);
+                mRadioController.record(!mRadioController.getState().isRecording());
                 break;
 
             case R.id.menu_speaker: {
@@ -318,6 +309,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (
             (mode & RadioStateUpdater.SET_PS) > 0 ||
+            (mode & RadioStateUpdater.SET_PI) > 0 ||
             (mode & RadioStateUpdater.SET_RT) > 0 ||
             (mode & RadioStateUpdater.SET_PTY) > 0
         ) {
@@ -338,7 +330,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             setShowRecordingPanel(isRecording);
             if (mMenu != null) {
-                mMenu.findItem(R.id.menu_record).setEnabled(!isRecording);
+                mMenu.findItem(R.id.menu_record).setIcon(isRecording ? R.drawable.ic_record_press : R.drawable.ic_record);
             }
 
             if (isRecording) {
@@ -430,7 +422,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_seek,
                 R.id.rssi_icon,
                 R.id.rssi_value,
-                R.id.record_icon,
                 R.id.record_duration,
                 R.id.stereo_mono,
                 R.id.favorite_list
@@ -487,9 +478,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void setShowRecordingPanel(final boolean state) {
-        final int visibility = state ? View.VISIBLE : View.GONE;
-        mRecordDuration.setVisibility(visibility);
-        mRecordIcon.setVisibility(visibility);
+        mRecordDuration.setVisibility(state ? View.VISIBLE : View.GONE);
     }
 
     private void showDonationDialog() {
