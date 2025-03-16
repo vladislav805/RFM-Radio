@@ -1,18 +1,15 @@
 package com.vlad805.fmradio;
 
-import android.util.Log;
-
 /**
  * vlad805 (c) 2021
  */
 public class UtilsLocalization {
-
     /**
      * Only Europe
-     * @link https://www.electronics-notes.com/articles/audio-video/broadcast-audio/rds-radio-data-system-pty-codes.php
+     * @link <a href="https://www.electronics-notes.com/articles/audio-video/broadcast-audio/rds-radio-data-system-pty-codes.php">Source</a>
      */
     private static final String[] mProgramTypeName = new String[] {
-            "N/A", // 0
+            "", // 0
             "News", // 1
             "Current affairs", // 2
             "Information", // 3

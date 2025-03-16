@@ -332,7 +332,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mToast.text(str).show();
 
             mFrequencyInfo.setRadioState(state);
-            mViewRssi.setText("...");
+            mViewRssi.setText("");
         }
 
         if (
@@ -345,8 +345,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_RSSI) > 0) {
-            setRssiIcon(state.getRssi());
-            mViewRssi.setText(getString(R.string.main_rssi_db, state.getRssi()));
+            setRssi(state.getRssi());
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
@@ -356,7 +355,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
             final boolean isRecording = state.isRecording();
 
-            setShowRecordingPanel(isRecording);
+            mRecordDuration.setVisibility(isRecording ? View.VISIBLE : View.GONE);
             if (mMenu != null) {
                 mMenu.findItem(R.id.menu_record).setIcon(isRecording ? R.drawable.ic_record_press : R.drawable.ic_record);
             }
@@ -496,16 +495,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             -10,
     };
 
-    private void setRssiIcon(final int rssi) {
+    private void setRssi(final int rssi) {
+        mViewRssi.setText(String.valueOf(rssi));
+
         for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
             if (rssi < SIGNAL_THRESHOLD[i]) {
                 mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
                 break;
             }
         }
-    }
-
-    private void setShowRecordingPanel(final boolean state) {
-        mRecordDuration.setVisibility(state ? View.VISIBLE : View.GONE);
     }
 }
