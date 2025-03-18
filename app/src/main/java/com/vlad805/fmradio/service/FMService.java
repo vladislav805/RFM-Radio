@@ -741,6 +741,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
             sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
             sendIntEventIfExistsAndDiff(bundle, C.Key.PTY, C.Event.UPDATE_PTY);
+            sendStringEventIfExistsAndDiff(bundle, C.Key.PI, C.Event.UPDATE_PI);
             sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
             sendStringEventIfExistsAndDiff(bundle, C.Key.RT, C.Event.UPDATE_RT); // was skipped, why?
 

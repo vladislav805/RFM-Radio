@@ -18,8 +18,8 @@ public final class RadioState implements Parcelable {
     // Frequency in kHz
     private int frequency = 0;
 
-    // PI - Program ID
-    private int pi;
+    // PI - Program ID (hex)
+    private String pi;
 
     // PTY - Program TYpe
     private int pty;
@@ -65,11 +65,11 @@ public final class RadioState implements Parcelable {
         this.frequency = frequency;
     }
 
-    public int getPi() {
+    public String getPi() {
         return pi;
     }
 
-    void setPi(final int pi) {
+    void setPi(final String pi) {
         this.pi = pi;
     }
 
@@ -144,7 +144,7 @@ public final class RadioState implements Parcelable {
     protected RadioState(final Parcel in) {
         status = (TunerStatus) in.readValue(TunerStatus.class.getClassLoader());
         frequency = in.readInt();
-        pi = in.readInt();
+        pi = in.readString();
         pty = in.readInt();
         ps = in.readString();
         rt = in.readString();
@@ -164,7 +164,7 @@ public final class RadioState implements Parcelable {
     public void writeToParcel(final Parcel dest, int flags) {
         dest.writeValue(status);
         dest.writeInt(frequency);
-        dest.writeInt(pi);
+        dest.writeString(pi);
         dest.writeInt(pty);
         dest.writeString(ps);
         dest.writeString(rt);

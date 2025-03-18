@@ -17,9 +17,9 @@ import java.util.List;
  * vlad805 (c) 2020
  */
 public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-	private static final int MAX_COUNT = 20;
+	private static final int MAX_COUNT = 40;
 
-	private LayoutInflater mInflater;
+	private final LayoutInflater mInflater;
 	protected List<FavoriteStation> mList;
 
 	private static final int TYPE_STATION = 0;
@@ -82,8 +82,8 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 	}
 
 	public static class ViewHolder extends RecyclerView.ViewHolder {
-		private TextView frequency;
-		private TextView title;
+		private final TextView frequency;
+		private final TextView title;
 
 		private ViewHolder(View root) {
 			super(root);
@@ -92,22 +92,22 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 			title = root.findViewById(R.id.favorite_panel_item_title);
 		}
 
-		public void populate(FavoriteStation station) {
+		public void populate(final FavoriteStation station) {
 			frequency.setText(Utils.getMHz(station.getFrequency()).trim());
 			title.setText(station.getTitle());
 		}
 	}
 
 	public static class ViewHolderButton extends RecyclerView.ViewHolder {
-		private TextView content;
+		private final TextView content;
 
-		private ViewHolderButton(View root) {
+		private ViewHolderButton(final View root) {
 			super(root);
 
 			content = root.findViewById(R.id.favorite_station_item_button);
 		}
 
-		public void setContent(String text) {
+		public void setContent(final String text) {
 			content.setText(text);
 		}
 	}

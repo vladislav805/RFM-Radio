@@ -15,7 +15,6 @@
 	<string name="progress_searching">Searching…</string>
 	<string name="progress_stopping">Stopping…</string>
 	<string name="main_rssi_db">%d dB</string>
-	<string name="menu_stop">Stop</string>
 	<string name="menu_settings">Settings</string>
 	<string name="menu_open_list">Station list</string>
 	<string name="menu_record">Record</string>
@@ -31,7 +30,7 @@
 	<string name="popup_station_remove">Remove</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>
 	<string name="about_version" translatable="false">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2020–2024</string>
+	<string name="about_author">Vladislav Veluga © 2020–2025</string>
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
@@ -115,13 +114,6 @@
     <string name="pref_tuner_stereo">Stereo</string>
 	<string name="pref_tuner_stereo_on">Use stereo if available</string>
 	<string name="pref_tuner_stereo_off">Always mono</string>
-    <string name="donation_window_title">I\'ve sorry, but…</string>
-    <string name="donation_window_donate">Donate</string>
-	<string name="donation_window_later">Ask later</string>
-	<string name="donation_window_never">Never ask</string>
-	<string name="donation_window_message">RFM-Radio is an open source project that is free and voluntarily developed
-		by one person.\nIf you are interested in the future development of the project or just want to say \"thank you\",
-		you can donate a small amount in various ways.</string>
     <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
     <string name="pref_version_check_error">An error occurred during the request: %s</string>
     <string name="menu_favorite_list_search">Scan for stations</string>

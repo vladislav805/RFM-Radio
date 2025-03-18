@@ -142,7 +142,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
             }
 
             case C.Event.UPDATE_PI: {
-                mState.setPi(intent.getIntExtra(C.Key.PI, 0));
+                mState.setPi(intent.getStringExtra(C.Key.PI));
                 mode = SET_PI;
                 break;
             }
@@ -203,6 +203,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 C.Event.UPDATE_PS,
                 C.Event.UPDATE_RT,
                 C.Event.UPDATE_PTY,
+                C.Event.UPDATE_PI,
                 C.Event.UPDATE_RSSI,
                 C.Event.UPDATE_STEREO,
                 C.Event.HW_SEARCH_DONE,

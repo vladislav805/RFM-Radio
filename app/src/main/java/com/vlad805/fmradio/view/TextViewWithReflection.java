@@ -9,10 +9,6 @@ import android.view.View;
 import android.widget.TextView;
 import com.vlad805.fmradio.R;
 
-/**
- * Copied from https://github.com/Dean1990/ReflectTextView
- */
-@SuppressWarnings("deprecation")
 @SuppressLint("AppCompatCustomView")
 public class TextViewWithReflection extends TextView {
 	private final Paint mPaintEmpty = new Paint();
@@ -23,9 +19,7 @@ public class TextViewWithReflection extends TextView {
 	// The height multiple of the reflection
 	private float mReflectHeightMultiple = 0.5f;
 
-	// Y-axis offset, because the reflection height multiple is set to less than 1,
-	// there will be offset, showing part of the reflection
-	private float mOffsetY;
+	private int mReflectPadding = 0;
 
 	public TextViewWithReflection(final Context context, final AttributeSet attrs) {
 		this(context, attrs, 0);
@@ -36,46 +30,25 @@ public class TextViewWithReflection extends TextView {
 
 		mPaintEmpty.setAlpha(128);
 
-		final TypedArray a = context
-				.getTheme()
-				.obtainStyledAttributes(attrs, R.styleable.reflect, defStyleAttr, 0);
+		try (final TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.TextViewWithReflection, defStyleAttr, 0)) {
+			final int n = a.getIndexCount();
 
-		final int n = a.getIndexCount();
+			for (int i = 0; i < n; ++i) {
+				final int attr = a.getIndex(i);
 
-		for (int i = 0; i < n; ++i) {
-			final int attr = a.getIndex(i);
-
-			if (attr == R.styleable.reflect_reflectHeightMultiple) {// The height multiple of the reflection [0-1]
-				mReflectHeightMultiple = a.getFloat(attr, 1f);
-
-				if (mReflectHeightMultiple < 0) {
-					mReflectHeightMultiple = 0;
-				} else if (mReflectHeightMultiple > 1) {
-					mReflectHeightMultiple = 1;
+				if (attr == R.styleable.TextViewWithReflection_reflectionHeightMultiple) {// The height multiple of the reflection [0-1]
+					final float value = a.getFloat(attr, mReflectHeightMultiple);
+					mReflectHeightMultiple = Math.min(1, Math.max(0, value));
+				} else if (attr == R.styleable.TextViewWithReflection_reflectionPadding) {
+					mReflectPadding = a.getInt(attr, mReflectPadding);
 				}
 			}
 		}
-
-		a.recycle();
 
 		mMatrix = new Matrix();
 		mMatrix.preScale(1, -1);
 
 		setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-	}
-
-	@SuppressLint("DrawAllocation")
-	@Override
-	protected void onMeasure(final int widthMeasureSpec, final int heightMeasureSpec)
-	{
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-
-		final int temp = (int) (getMeasuredHeight() - (getLineHeight() - getTextSize()) / 2);
-		mOffsetY = temp - temp * mReflectHeightMultiple;
-		setMeasuredDimension(
-				getMeasuredWidth(),
-				Math.round(temp * 2 - mOffsetY)
-		);
 	}
 
 	/**
@@ -95,26 +68,28 @@ public class TextViewWithReflection extends TextView {
 
 		final Bitmap originalImage = getDrawingCache();
 
+		final int baseline = getBaseline();
+
 		@SuppressLint("DrawAllocation")
 		final Bitmap reflectionImage = Bitmap.createBitmap(
 				originalImage,
 				0,
 				0,
 				Math.min(width, originalImage.getWidth()),
-				height,
+				baseline,
 				mMatrix,
 				false
 		);
 
 		// Draw reflection
-		canvas.drawBitmap(reflectionImage, 0, mOffsetY, mPaintEmpty);
+		canvas.drawBitmap(reflectionImage, 0, baseline + mReflectPadding, mPaintEmpty);
 
 		if (mPaint == null) {
 			mPaint = new Paint();
 
 			// The effect of the shadow can be set according to your needs
 			final LinearGradient shader = new LinearGradient(
-			        0, (height + mOffsetY) / 2,
+			        0, (height * mReflectHeightMultiple + baseline) / 2,
                     0, height,
                     Color.BLACK,
                     Color.TRANSPARENT,
@@ -124,7 +99,7 @@ public class TextViewWithReflection extends TextView {
 			mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
 		}
 
-		canvas.drawRect(0, (height + mOffsetY) / 2, width, height, mPaint);
+		canvas.drawRect(0, (height * mReflectHeightMultiple + baseline) / 2, width, height, mPaint);
 	}
 
 	@Override

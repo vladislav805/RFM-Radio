@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 	<string name="app_name">RFM Radio</string>
-	<string name="about_author">Владислав Велюга © 2020–2024</string>
+	<string name="about_author">Владислав Велюга © 2020–2025</string>
 	<string name="favorite_list_create_error_already_exists">Список избранного с таким именем уже существует</string>
 	<string name="favorite_list_create_error_invalid_name">Неверное имя. Можно использовать только A-Z, a-z, \'-\', \'_\' и цифры.</string>
 	<string name="favorite_list_remove_message">Вы уверены, что хотите удалить список \'%s\'?</string>
@@ -16,7 +16,6 @@
 	<string name="menu_open_list_favorites">Избранное</string>
 	<string name="menu_record">Запись</string>
 	<string name="menu_settings">Настройки</string>
-	<string name="menu_stop">Завершить работу</string>
 	<string name="notification_mhz">%.1f МГц | %d дБ</string>
 	<string name="notification_recorded">Запись %3$s завершена: %1$s (%2$.1f МБ)</string>
 	<string name="notification_recording">Запись: %s (%.1f МБ)</string>
@@ -102,16 +101,11 @@
         что приложение не поддерживается на этом устройстве или на данной ОС.
     </string>
 	<string name="main_error_launching_title">Критическая ошибка</string>
-	<string name="donation_window_message">RFM-Radio - проект с открытым исходным кодом, который распространяется бесплатно и разрабатывается одним человеком на добровольной основе.\nЕсли Вы заинтересованы в будущем развитии проекта или просто хотите сказать "спасибо", Вы можете пожертвовать небольшую сумму различными способами.</string>
 	<string name="pref_header_rds">RDS (Radio Data System)</string>
 	<string name="pref_tuner_region">Регион</string>
 	<string name="pref_tuner_stereo">Стерео</string>
 	<string name="pref_tuner_stereo_on">Воспроизводить стерео, когда доступно</string>
 	<string name="pref_tuner_stereo_off">Всегда воспроизводить моно</string>
-	<string name="donation_window_title">Простите, извините…</string>
-	<string name="donation_window_donate">Пожертвовать</string>
-	<string name="donation_window_later">Позже</string>
-	<string name="donation_window_never">Никогда не спрашивать</string>
 	<string name="pref_warning_applying_only_after_restart">Внимание! Эта настройка вступит в силу только после полного
 		перезапуска приложения.
 	</string>

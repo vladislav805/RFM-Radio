@@ -3,9 +3,7 @@ package com.vlad805.fmradio.activity;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,7 +11,6 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -27,23 +24,28 @@ import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
-import com.vlad805.fmradio.preferences.LaunchCounter;
+import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesPanelView;
+import com.vlad805.fmradio.view.FrequencyBarView;
 import com.vlad805.fmradio.view.RadioUIView;
-import net.grandcentrix.tray.AppPreferences;
 
 import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
+
+import net.grandcentrix.tray.AppPreferences;
 
 @SuppressLint("NonConstantResourceId")
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
     private ProgressDialog mProgress;
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
+    private FrequencyBarView mSeek;
     private FavoritesPanelView mFavoriteList;
 
     private RadioController mRadioController;
+
+    private AppPreferences mPreferences;
 
     private ImageButton mCtlToggle;
 
@@ -51,14 +53,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ImageView mViewRssiIcon;
     private ImageView mViewStereoMode;
 
-    private ImageView mRecordIcon;
     private TextView mRecordDuration;
 
     private RadioState mLastState;
 
     private Menu mMenu;
-
-    private AppPreferences mPreferences;
 
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
@@ -70,10 +69,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mToast = Toast.create(this);
 
-        mPreferences = new AppPreferences(this);
-
         setSupportActionBar(findViewById(R.id.main_toolbar));
 
+        mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);
         mRadioController.requestForCurrentState(this);
         mRadioController.registerForUpdates(this);
@@ -81,10 +79,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         initUserInterface();
         initLogic();
-
-        if (LaunchCounter.checkForDonation(mPreferences)) {
-            new Handler().postDelayed(this::showDonationDialog, 6000);
-        }
     }
 
     /**
@@ -95,12 +89,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mFavoriteList = findViewById(R.id.favorite_list);
 
-        mRecordIcon = findViewById(R.id.record_icon);
+        mSeek = findViewById(R.id.frequency_seek);
+
         mRecordDuration = findViewById(R.id.record_duration);
 
-        mRecordIcon.setOnClickListener(this);
-
-        mFrequencyInfo.setFrequency(Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY));
+        final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+        mFrequencyInfo.setFrequency(kHz);
+        mSeek.setFrequency(kHz);
 
         initClickableButtons();
     }
@@ -116,8 +111,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             setEnabledUi(false);
         }
-
-        mFrequencyInfo.setRadioController(mRadioController);
     }
 
     private void showProgress(final String text) {
@@ -133,6 +126,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mProgress.hide();
             mProgress = null;
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        reloadPreferences();
     }
 
     @Override
@@ -211,7 +211,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     case ENABLED: {
-                        mRadioController.disable();
+                        mRadioController.kill();
                         break;
                     }
                 }
@@ -244,11 +244,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
                 break;
             }
-
-            case R.id.record_icon: {
-                mRadioController.record(false);
-                break;
-            }
         }
     }
 
@@ -265,11 +260,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menu_stop:
-                showProgress(getString(R.string.progress_stopping));
-                mRadioController.kill();
-                break;
-
             case R.id.menu_about:
                 startActivity(new Intent(this, AboutActivity.class));
                 break;
@@ -279,7 +269,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.menu_record:
-                mRadioController.record(true);
+                mRadioController.record(!mRadioController.getState().isRecording());
                 break;
 
             case R.id.menu_speaker: {
@@ -294,6 +284,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void setEnabledToggleButton(final boolean enabled) {
         mCtlToggle.setEnabled(enabled);
     }
+
+    private void reloadPreferences() {
+        final int regionPref = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+        final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+
+        final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref);
+        final int spacing = BandUtils.getSpacing(spacingPref);
+
+        mSeek.setMinMaxValue(bandLimit.lower, bandLimit.upper, spacing);
+        mSeek.setOnFrequencyChangeListener(mOnFrequencyChanged);
+    }
+
+    private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
+        @Override
+        public void onChanged(final int kHz) {
+            if (mRadioController.getState().getFrequency() == kHz) {
+                return;
+            }
+
+            mRadioController.setFrequency(kHz);
+        }
+    };
 
     /**
      * Called when the state of the tuner changes
@@ -314,15 +326,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             mFrequencyInfo.setFrequency(state.getFrequency());
 
+            mSeek.setFrequency(state.getFrequency());
+
             final String str = getString(R.string.player_event_frequency_changed, state.getFrequency() / 1000f);
             mToast.text(str).show();
 
             mFrequencyInfo.setRadioState(state);
-            mViewRssi.setText("...");
+            mViewRssi.setText("");
         }
 
         if (
             (mode & RadioStateUpdater.SET_PS) > 0 ||
+            (mode & RadioStateUpdater.SET_PI) > 0 ||
             (mode & RadioStateUpdater.SET_RT) > 0 ||
             (mode & RadioStateUpdater.SET_PTY) > 0
         ) {
@@ -330,8 +345,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_RSSI) > 0) {
-            setRssiIcon(state.getRssi());
-            mViewRssi.setText(getString(R.string.main_rssi_db, state.getRssi()));
+            setRssi(state.getRssi());
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
@@ -341,9 +355,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
             final boolean isRecording = state.isRecording();
 
-            setShowRecordingPanel(isRecording);
+            mRecordDuration.setVisibility(isRecording ? View.VISIBLE : View.GONE);
             if (mMenu != null) {
-                mMenu.findItem(R.id.menu_record).setEnabled(!isRecording);
+                mMenu.findItem(R.id.menu_record).setIcon(isRecording ? R.drawable.ic_record_press : R.drawable.ic_record);
             }
 
             if (isRecording) {
@@ -435,7 +449,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_seek,
                 R.id.rssi_icon,
                 R.id.rssi_value,
-                R.id.record_icon,
                 R.id.record_duration,
                 R.id.stereo_mono,
                 R.id.favorite_list
@@ -457,7 +470,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         final boolean state = TunerStatus.ENABLED.equals(mLastState.getStatus());
 
-        mMenu.findItem(R.id.menu_stop).setEnabled(state);
         mMenu.findItem(R.id.menu_record).setEnabled(state);
         mMenu.findItem(R.id.menu_speaker).setEnabled(state);
         mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
@@ -483,38 +495,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             -10,
     };
 
-    private void setRssiIcon(final int rssi) {
+    private void setRssi(final int rssi) {
+        mViewRssi.setText(String.valueOf(rssi));
+
         for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
             if (rssi < SIGNAL_THRESHOLD[i]) {
                 mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
                 break;
             }
         }
-    }
-
-    private void setShowRecordingPanel(final boolean state) {
-        final int visibility = state ? View.VISIBLE : View.GONE;
-        mRecordDuration.setVisibility(visibility);
-        mRecordIcon.setVisibility(visibility);
-    }
-
-    private void showDonationDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.donation_window_title)
-                .setMessage(R.string.donation_window_message)
-                .setPositiveButton(R.string.donation_window_donate, (dialog, which) -> {
-                    dialog.dismiss();
-                    final Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setData(Uri.parse("https://rfm.velu.ga/donate?ref=app&hl=" + Utils.getCountryISO(this)));
-                    startActivity(intent);
-                })
-                .setNegativeButton(R.string.donation_window_later, (dialog, which) -> dialog.dismiss())
-                .setNeutralButton(R.string.donation_window_never, (dialog, which) -> {
-                    dialog.dismiss();
-                    LaunchCounter.setDonationNeverShow(mPreferences);
-                })
-                .setIcon(R.mipmap.ic_launcher)
-                .create()
-                .show();
     }
 }
