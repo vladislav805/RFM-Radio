@@ -55,7 +55,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050; // Keep existing codes
 
     private static final int REQUEST_CODE_PERMISSIONS_NOTIFICATIONS = 105;
-    private static final String[] PERMISSIONS_NOTIFICATIONS = {Manifest.permission.POST_NOTIFICATIONS};
+    private static final String POST_NOTIFICATIONS_PERMISSION;
+    static {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            POST_NOTIFICATIONS_PERMISSION = Manifest.permission.POST_NOTIFICATIONS;
+        } else {
+            POST_NOTIFICATIONS_PERMISSION = null; // Set to null on older versions
+        }
+    }
+    // Use the dynamically assigned string or an empty array if null
+    private static final String[] PERMISSIONS_NOTIFICATIONS =
+            (POST_NOTIFICATIONS_PERMISSION != null) ? new String[]{POST_NOTIFICATIONS_PERMISSION} : new String[0];
 
     // --- Permission Strings ---
     // Group needed to start radio playback (Audio capture)
@@ -69,13 +79,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     // Static initializer for permissions that depend on SDK version
     static {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+        // POST_NOTIFICATIONS init moved above
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             PERMISSIONS_RECORD = new String[]{
                     Manifest.permission.RECORD_AUDIO,
-                    Manifest.permission.READ_MEDIA_AUDIO // Needed to potentially *read* recordings later, write is handled by MediaStore
+                    Manifest.permission.READ_MEDIA_AUDIO
             };
             PERMISSIONS_STORAGE_FAVORITES = new String[]{
-                    Manifest.permission.READ_MEDIA_AUDIO // Placeholder, favorites need rework
+                    Manifest.permission.READ_MEDIA_AUDIO
             };
         } else {
             PERMISSIONS_RECORD = new String[]{

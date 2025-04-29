@@ -76,12 +76,9 @@ public class SettingsActivity extends AppCompatActivity {
 				return;
 			}
 
-			switch (action) {
-				case C.Event.ERROR_INVALID_ANTENNA: {
-					Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
-					break;
-				}
-			}
+            if (action.equals(C.Event.ERROR_INVALID_ANTENNA)) {
+                Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
+            }
 		}
 	};
 }

@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.service;
 
 // Add this import
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -44,6 +45,11 @@ import net.grandcentrix.tray.AppPreferences;
 import net.grandcentrix.tray.core.OnTrayPreferenceChangeListener;
 import net.grandcentrix.tray.core.TrayItem;
 
+// Add these imports if not already present
+import android.content.pm.PackageManager;
+import android.Manifest;
+import android.os.Build;
+
 import java.io.File;
 import java.util.*;
 
@@ -79,6 +85,16 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private boolean mRecordingNow = false;
 
     private RadioState mState;
+
+    private boolean hasNotificationPermission() {
+        // POST_NOTIFICATIONS is only needed from Android 13 (API 33) onwards
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            // On older versions, no special permission is needed to post notifications
+            return true;
+        }
+    }
 
     @Override
     public void onCreate() {
@@ -689,6 +705,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     private void updateRecordingNotification(final int duration, final int size) {
+        if (!hasNotificationPermission()) {
+            Log.w(TAG, "Skipping recording notification: POST_NOTIFICATIONS permission not granted.");
+            return; // Don't show notification if permission missing
+        }
+
         final PendingIntent pendingRecordStop = PendingIntent.getService(
                 this,
                 5,
@@ -709,19 +730,36 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 .addAction(R.drawable.ic_record_off, getString(R.string.seek_down), pendingRecordStop)
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0));
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         mNotificationManager.notify(NOTIFICATION_RECORD_ID, n.build());
     }
 
     private void showRecorded(final Bundle extras) {
         final boolean needNotification = Storage.getPrefBoolean(this, C.PrefKey.RECORDING_SHOW_NOTIFY, C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
 
-        final int size = extras.getInt(C.Key.SIZE);
-        final int duration = extras.getInt(C.Key.DURATION);
-        final String path = extras.getString(C.Key.PATH);
-        final File file = new File(path);
-        final String filename = file.getName();
+        // --- FIX: Add permission check before attempting to notify ---
+        if (needNotification && !hasNotificationPermission()) {
+            Log.w(TAG, "Skipping 'recording ended' notification: POST_NOTIFICATIONS permission not granted.");
+            // Proceed with the Toast message below, even if notification can't be shown
+        }
+        // ------------------------------------------------------------
+        else if (needNotification) {
+            // Only build and notify if permission IS granted
+            final int size = extras.getInt(C.Key.SIZE);
+            final int duration = extras.getInt(C.Key.DURATION);
+            final String path = extras.getString(C.Key.PATH);
+            final File file = new File(path);
+            final String filename = file.getName();
 
-        if (needNotification) {
             final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
                     .setSmallIcon(R.drawable.ic_radio)
                     .setContentTitle(getString(R.string.app_name))
@@ -729,9 +767,25 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     .setPriority(NotificationCompat.PRIORITY_LOW)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
 
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
             mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
         }
 
+        // Show the Toast regardless of notification permission
+        final int size = extras.getInt(C.Key.SIZE);
+        final int duration = extras.getInt(C.Key.DURATION);
+        final String path = extras.getString(C.Key.PATH);
+        final File file = new File(path);
+        final String filename = file.getName();
         Toast.makeText(this, getString(
                 R.string.toast_record_ended,
                 filename,
