@@ -1,5 +1,7 @@
 # Real FM Radio [![Releases](https://img.shields.io/github/downloads/vladislav805/RFM-Radio/total)](https://github.com/vladislav805/RFM-Radio/releases/latest)
 
+I think the right way to make radio work in recent android versions is with https://www.apkmirror.com/apk/lineageos/fm-radio-10/fm-radio-10-13-release/fm-radio-13-android-apk-download/ or https://github.com/iusmac/RevampedFMRadio
+
 Updated SDK and requiered premissions to run on android 14 and 15
 
 Real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4xx and 6xx processors (up to 625 and 650).
