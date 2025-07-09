@@ -89,7 +89,7 @@ The application uses several sources of code:
 3. If Spirit3 is installed, this application can use its assembled binary file as a driver.
 
 ### Contributors
-* Vladislav Veluga (@vladislav805) &mdash; developer;
-* Mike Reid (@mikereidis) &mdash; developer of Spirit 1/2;
-* Konstantin Manaev (@SoSlowMan) &mdash; translator (English);
-* Andus (@AndusDEV) &mdash; translator (Polish).
+* Vladislav Veluga ([@vladislav805](https://github.com/vladislav805)) &mdash; developer;
+* Mike Reid ([@mikereidis](https://github.com/mikereidis)) &mdash; developer of Spirit 1/2;
+* Konstantin Manaev ([@SoSlowMan](https://github.com/SoSlowMan)) &mdash; translator (English);
+* Andus ([@AndusDEV](https://github.com/AndusDEV) &mdash; translator (Polish).
