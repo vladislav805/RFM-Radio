@@ -1,11 +1,15 @@
 package com.vlad805.fmradio.service;
 
+// Add this import
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -40,6 +44,11 @@ import com.vlad805.fmradio.service.recording.RecordService;
 import net.grandcentrix.tray.AppPreferences;
 import net.grandcentrix.tray.core.OnTrayPreferenceChangeListener;
 import net.grandcentrix.tray.core.TrayItem;
+
+// Add these imports if not already present
+import android.content.pm.PackageManager;
+import android.Manifest;
+import android.os.Build;
 
 import java.io.File;
 import java.util.*;
@@ -77,6 +86,16 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private RadioState mState;
 
+    private boolean hasNotificationPermission() {
+        // POST_NOTIFICATIONS is only needed from Android 13 (API 33) onwards
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            // On older versions, no special permission is needed to post notifications
+            return true;
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -97,7 +116,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mAudioService = getPreferredAudioService();
         mTunerDriver = getPreferredTunerDriver();
 
-        // Broadcast receivers
+        // Broadcast receivers instances
         mEventReaction = new EventReaction();
         mTunerStateUpdater = new RadioStateUpdater(mState);
 
@@ -107,8 +126,15 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         reloadFavorite();
 
-        registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
-        registerReceiver(mEventReaction, RadioStateUpdater.sFilter);
+        // --- FIX Register Receivers ---
+        IntentFilter stateUpdateFilter = RadioStateUpdater.sFilter; // Use the existing filter
+        ContextCompat.registerReceiver(this, mTunerStateUpdater, stateUpdateFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
+
+        IntentFilter eventReactionFilter = RadioStateUpdater.sFilter; // Can often reuse the same filter if needed
+        // If EventReaction needs different filters, create a new IntentFilter for it.
+        // Example: IntentFilter eventReactionFilter = new IntentFilter(); eventReactionFilter.addAction(...);
+        ContextCompat.registerReceiver(this, mEventReaction, eventReactionFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
+        // ------------------------------
     }
 
     /**
@@ -288,21 +314,22 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         if (mTunerDriver instanceof IFMEventPoller) {
             if (mTimer != null) {
                 mTimer.cancel();
+                mTimer = null; // Clear timer
             }
         }
         mAudioService.stopAudio();
 
         mTunerDriver.kill();
 
-        if (mEventReaction != null) {
-            unregisterReceiver(mEventReaction);
-            mEventReaction = null;
-        }
-
-        if (mTunerStateUpdater != null) {
-            unregisterReceiver(mTunerStateUpdater);
-            mTunerStateUpdater = null;
-        }
+        // Receivers are now unregistered in onDestroy
+        // if (mEventReaction != null) {
+        //    unregisterReceiver(mEventReaction);
+        //    mEventReaction = null;
+        // }
+        // if (mTunerStateUpdater != null) {
+        //     unregisterReceiver(mTunerStateUpdater);
+        //     mTunerStateUpdater = null;
+        // }
 
         mStorage.unregisterOnTrayPreferenceChangeListener(this);
 
@@ -315,8 +342,23 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      */
     @Override
     public void onDestroy() {
-        kill();
+        // --- FIX Unregister Receivers ---
+        try {
+            if (mEventReaction != null) {
+                unregisterReceiver(mEventReaction);
+                mEventReaction = null;
+            }
+            if (mTunerStateUpdater != null) {
+                unregisterReceiver(mTunerStateUpdater);
+                mTunerStateUpdater = null;
+            }
+        } catch (IllegalArgumentException e) {
+            // Ignore if already unregistered
+            Log.w(TAG, "Receiver already unregistered?", e);
+        }
+        // -------------------------------
 
+        kill(); // Ensure kill logic runs *after* unregistering if possible
         super.onDestroy();
     }
 
@@ -541,14 +583,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 this,
                 0,
                 mainIntent,
-                FLAG_UPDATE_CURRENT
+                FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE // Add FLAG_IMMUTABLE
         );
 
         final PendingIntent pendingStop = PendingIntent.getService(
                 this,
                 1,
                 new Intent(this, FMService.class).setAction(C.Command.DISABLE),
-                0
+                PendingIntent.FLAG_IMMUTABLE // Add FLAG_IMMUTABLE (replace 0)
         );
 
         final PendingIntent pendingRec = PendingIntent.getService(
@@ -556,9 +598,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 2,
                 new Intent(this, FMService.class)
                         .setAction(C.Command.RECORD_START),
-                0
+                PendingIntent.FLAG_IMMUTABLE // Add FLAG_IMMUTABLE (replace 0)
         );
-
 
         final PendingIntent pendingSeekDown = PendingIntent.getService(
                 this,
@@ -566,7 +607,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 new Intent(this, FMService.class)
                         .setAction(C.Command.NOTIFICATION_SEEK)
                         .putExtra(C.Key.SEEK_HW_DIRECTION, -1),
-                0
+                PendingIntent.FLAG_IMMUTABLE // Add FLAG_IMMUTABLE (replace 0)
         );
 
         final PendingIntent pendingSeekUp = PendingIntent.getService(
@@ -575,7 +616,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 new Intent(this, FMService.class)
                         .setAction(C.Command.NOTIFICATION_SEEK)
                         .putExtra(C.Key.SEEK_HW_DIRECTION, 1),
-                0
+                PendingIntent.FLAG_IMMUTABLE // Add FLAG_IMMUTABLE (replace 0)
         );
 
         //.setMediaSession(mediaSession.getSessionToken()))
@@ -664,12 +705,17 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     private void updateRecordingNotification(final int duration, final int size) {
+        if (!hasNotificationPermission()) {
+            Log.w(TAG, "Skipping recording notification: POST_NOTIFICATIONS permission not granted.");
+            return; // Don't show notification if permission missing
+        }
+
         final PendingIntent pendingRecordStop = PendingIntent.getService(
                 this,
                 5,
                 new Intent(this, FMService.class)
                         .setAction(C.Command.RECORD_STOP),
-                0
+                PendingIntent.FLAG_IMMUTABLE // Add FLAG_IMMUTABLE (replace 0)
         );
         NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORDING_ID)
                 .setSmallIcon(R.drawable.ic_record_on)
@@ -684,19 +730,36 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 .addAction(R.drawable.ic_record_off, getString(R.string.seek_down), pendingRecordStop)
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0));
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         mNotificationManager.notify(NOTIFICATION_RECORD_ID, n.build());
     }
 
     private void showRecorded(final Bundle extras) {
         final boolean needNotification = Storage.getPrefBoolean(this, C.PrefKey.RECORDING_SHOW_NOTIFY, C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
 
-        final int size = extras.getInt(C.Key.SIZE);
-        final int duration = extras.getInt(C.Key.DURATION);
-        final String path = extras.getString(C.Key.PATH);
-        final File file = new File(path);
-        final String filename = file.getName();
+        // --- FIX: Add permission check before attempting to notify ---
+        if (needNotification && !hasNotificationPermission()) {
+            Log.w(TAG, "Skipping 'recording ended' notification: POST_NOTIFICATIONS permission not granted.");
+            // Proceed with the Toast message below, even if notification can't be shown
+        }
+        // ------------------------------------------------------------
+        else if (needNotification) {
+            // Only build and notify if permission IS granted
+            final int size = extras.getInt(C.Key.SIZE);
+            final int duration = extras.getInt(C.Key.DURATION);
+            final String path = extras.getString(C.Key.PATH);
+            final File file = new File(path);
+            final String filename = file.getName();
 
-        if (needNotification) {
             final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
                     .setSmallIcon(R.drawable.ic_radio)
                     .setContentTitle(getString(R.string.app_name))
@@ -704,9 +767,25 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     .setPriority(NotificationCompat.PRIORITY_LOW)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
 
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
             mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
         }
 
+        // Show the Toast regardless of notification permission
+        final int size = extras.getInt(C.Key.SIZE);
+        final int duration = extras.getInt(C.Key.DURATION);
+        final String path = extras.getString(C.Key.PATH);
+        final File file = new File(path);
+        final String filename = file.getName();
         Toast.makeText(this, getString(
                 R.string.toast_record_ended,
                 filename,

@@ -6,9 +6,23 @@
 	<uses-permission android:name="android.permission.INTERNET"/>
 	<uses-permission android:name="android.permission.RECORD_AUDIO"/>
 	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	<!-- Only request legacy read permission up to Android 12L (API 32) -->
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+		android:maxSdkVersion="32" />
+
+	<!-- Only request legacy write permission up to Android 12L (API 32) -->
+	<!-- Note: For API 30+, this doesn't grant broad write access anyway -->
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+		android:maxSdkVersion="32"
+		tools:ignore="ScopedStorage" /> <!-- Add ignore for ScopedStorage warning -->
+
+	<!-- Request new granular permission for reading audio on Android 13+ -->
+	<!-- Needed IF the app needs to read audio files it didn't create -->
+	<!-- Might not be strictly needed if only managing own files/recordings via MediaStore/app-specific dir -->
+	<uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+
 	<uses-permission android:name="android.permission.READ_PHONE_STATE" />
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
 	<application
 			android:allowBackup="true"
@@ -20,7 +34,8 @@
 			tools:ignore="GoogleAppIndexingWarning">
 		<activity
 				android:name=".activity.MainActivity"
-				android:label="@string/main_activity_label"
+            android:exported="true"
+            android:label="@string/main_activity_label"
 				android:screenOrientation="portrait">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
@@ -38,17 +53,23 @@
 		<service
 				android:name=".service.FMService"
 				android:enabled="true"
-				android:exported="true"
+				android:exported="false"
 				android:label="RFM Main Service"
 				android:process=":service"
-				tools:ignore="ExportedService"/>
+				tools:ignore="ExportedService"
+				android:foregroundServiceType="mediaPlayback"/>
+		<!-- tools:ignore="ExportedService" no longer needed if false -->
 
-		<receiver android:name=".receivers.CallReceiver" android:enabled="true">
+		<receiver android:name=".receivers.CallReceiver" android:enabled="true"
+            android:exported="true">
 			<intent-filter>
 				<action android:name="android.intent.action.PHONE_STATE" />
 				<action android:name="android.intent.action.NEW_OUTGOING_CALL" />
 			</intent-filter>
 		</receiver>
 	</application>
+
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
 </manifest>

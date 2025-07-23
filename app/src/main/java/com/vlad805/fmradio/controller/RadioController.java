@@ -1,5 +1,8 @@
 package com.vlad805.fmradio.controller;
 
+// Add this import at the top
+import androidx.core.content.ContextCompat;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -26,33 +29,64 @@ public class RadioController {
 
     public void requestForCurrentState(@Nullable final RadioStateUpdater.TunerStateListener callback) {
         getCurrentState(state -> {
-            mState.setStatus(state.getStatus());
-            mState.setFrequency(state.getFrequency());
-            mState.setStereo(state.isStereo());
-            mState.setPs(state.getPs());
-            mState.setRecording(state.isRecording());
-            mState.setRecordingStarted(state.getRecordingStarted());
+            if (state != null) { // Add null check for safety
+                mState.setStatus(state.getStatus());
+                mState.setFrequency(state.getFrequency());
+                mState.setStereo(state.isStereo());
+                mState.setPs(state.getPs());
+                mState.setRecording(state.isRecording());
+                mState.setRecordingStarted(state.getRecordingStarted());
+                mState.setForceSpeaker(state.isForceSpeaker()); // Make sure speaker state is included
+                mState.setPi(state.getPi());
+                mState.setPty(state.getPty());
+                mState.setRt(state.getRt());
+                mState.setRssi(state.getRssi());
 
-            if (callback != null) {
-                final int mode =
-                        RadioStateUpdater.SET_STATUS |
-                        RadioStateUpdater.SET_FREQUENCY |
-                        RadioStateUpdater.SET_INITIAL |
-                        RadioStateUpdater.SET_RECORDING;
+                if (callback != null) {
+                    final int mode =
+                            RadioStateUpdater.SET_STATUS |
+                                    RadioStateUpdater.SET_FREQUENCY |
+                                    RadioStateUpdater.SET_INITIAL | // Include initial flag
+                                    RadioStateUpdater.SET_RECORDING |
+                                    RadioStateUpdater.SET_SPEAKER | // Include speaker
+                                    RadioStateUpdater.SET_PS |      // Include RDS fields
+                                    RadioStateUpdater.SET_RT |
+                                    RadioStateUpdater.SET_PI |
+                                    RadioStateUpdater.SET_PTY |
+                                    RadioStateUpdater.SET_RSSI |
+                                    RadioStateUpdater.SET_STEREO;
 
-                callback.onStateUpdated(mState, mode);
+                    callback.onStateUpdated(mState, mode);
+                }
             }
         });
     }
 
     public void registerForUpdates(RadioStateUpdater.TunerStateListener callback) {
         mTunerStateUpdater = new RadioStateUpdater(mState, callback);
-        mContext.registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
+        // Original line that caused the crash:
+        // mContext.registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
+
+        // --- FIX ---
+        // Use ContextCompat version and specify NOT_EXPORTED
+        ContextCompat.registerReceiver(
+                mContext,
+                mTunerStateUpdater,
+                RadioStateUpdater.sFilter,
+                ContextCompat.RECEIVER_NOT_EXPORTED // Specify the receiver is not exported
+        );
+        // -----------
     }
 
     public void unregisterForUpdates() {
         if (mTunerStateUpdater != null) {
-            mContext.unregisterReceiver(mTunerStateUpdater);
+            try { // Add try-catch as unregistering an already unregistered receiver can crash
+                mContext.unregisterReceiver(mTunerStateUpdater);
+                mTunerStateUpdater = null; // Set to null after successful unregister
+            } catch (IllegalArgumentException e) {
+                // Receiver was likely already unregistered, ignore
+                mTunerStateUpdater = null; // Still set to null
+            }
         }
     }
 
@@ -125,13 +159,33 @@ public class RadioController {
     }
 
     public void getCurrentState(final CurrentStateListener listener) {
-        mContext.registerReceiver(new BroadcastReceiver() {
+        BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(final Context context, final Intent intent) {
-                listener.onCurrentStateReady(intent.getParcelableExtra(C.Key.STATE));
-                mContext.unregisterReceiver(this);
+                // Check if the intent and extra are valid
+                if (intent != null && C.Event.CURRENT_STATE.equals(intent.getAction())) {
+                     RadioState receivedState = intent.getParcelableExtra(C.Key.STATE);
+                     if (receivedState != null) {
+                         listener.onCurrentStateReady(receivedState);
+                     } else {
+                         // Handle case where state is null (optional, maybe provide default?)
+                         listener.onCurrentStateReady(new RadioState()); // Or handle error
+                     }
+                }
+                // Always try to unregister to prevent leaks
+                try {
+                    mContext.unregisterReceiver(this);
+                } catch (IllegalArgumentException e) {
+                    // Ignore if already unregistered
+                }
             }
-        }, new IntentFilter(C.Event.CURRENT_STATE));
+        };
+
+        // --- FIX for registerReceiver ---
+        // Use ContextCompat and specify NOT_EXPORTED
+         IntentFilter filter = new IntentFilter(C.Event.CURRENT_STATE);
+         ContextCompat.registerReceiver(mContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+        // --------------------------------
 
         send(C.Command.REQUEST_CURRENT_STATE);
     }

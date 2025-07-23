@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.activity;
 
+import androidx.core.content.ContextCompat;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -48,14 +49,22 @@ public class SettingsActivity extends AppCompatActivity {
 		final IntentFilter filter = new IntentFilter();
 		filter.addAction(C.Event.ERROR_INVALID_ANTENNA);
 
-		registerReceiver(mEventListener, filter);
+		// --- FIX ---
+		ContextCompat.registerReceiver(this, mEventListener, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+		// -----------
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
-
-		unregisterReceiver(mEventListener);
+		// --- FIX ---
+		// Add try-catch for robustness
+		try {
+			unregisterReceiver(mEventListener);
+		} catch (IllegalArgumentException e) {
+			// Ignore if already unregistered
+		}
+		// -----------
 	}
 
 	private final BroadcastReceiver mEventListener = new BroadcastReceiver() {
@@ -67,12 +76,9 @@ public class SettingsActivity extends AppCompatActivity {
 				return;
 			}
 
-			switch (action) {
-				case C.Event.ERROR_INVALID_ANTENNA: {
-					Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
-					break;
-				}
-			}
+            if (action.equals(C.Event.ERROR_INVALID_ANTENNA)) {
+                Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
+            }
 		}
 	};
 }
