@@ -3,16 +3,8 @@
 base_path=../../app/src/main/assets
 arch_list="aarch64 armv7a"
 
-type=$1
-
-if [[ ! "$type" == "release" ]]; then
-    type="debug"
-fi
-
-echo "$arch_list"
-
 for arch in $arch_list; do
-    source_file="cmake-build-${type}-android-${arch}/fmbin"
+    source_file="cmake-build-${arch}/fmbin"
 
     if [[ -f "$source_file" ]]; then
         dest_file="${base_path}/fmbin-${arch}"
@@ -23,3 +15,5 @@ for arch in $arch_list; do
         echo "File $source_file not found"
     fi
 done
+
+ls -lah ../../app/src/main/assets/fmbin-*

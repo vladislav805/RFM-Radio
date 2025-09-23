@@ -79,3 +79,9 @@ dependencies {
     implementation 'com.github.naman14:TAndroidLame:1.1'
     implementation 'com.github.atsushi-ageet:tray:0.14.0'
 }
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
