@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ANDROID_NDK=$ANDROID_HOME/ndk/29.0.14033849/
+# export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14033849/ // 27.3.13750724
 
 function build_abi {
     abi="$1"
@@ -12,7 +12,7 @@ function build_abi {
     pushd "$target_directory"
     cmake \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+        -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=$abi \
         -DANDROID_PLATFORM=android-21 \
         ..
