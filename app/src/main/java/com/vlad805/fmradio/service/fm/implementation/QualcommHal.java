@@ -20,9 +20,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class QualcommFm2Hal extends AbstractFMController implements IFMEventListener {
+public class QualcommHal extends AbstractFMController implements IFMEventListener {
     private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(2112, 2113);
     private static final long DUPLICATE_TUNE_WINDOW_MS = 1500L;
+
+    private static final String[] FM_HELIUM_PATHS = {
+            "/vendor/lib64/fm_helium.so",
+            "/vendor/lib/fm_helium.so",
+            "/system/vendor/lib64/fm_helium.so",
+            "/system/vendor/lib/fm_helium.so",
+            "/system_ext/lib64/fm_helium.so",
+            "/system_ext/lib/fm_helium.so",
+            "/odm/lib64/fm_helium.so",
+            "/odm/lib/fm_helium.so"
+    };
 
     private DatagramServer mServer;
     private FMEventCallback mEventCallback;
@@ -30,7 +41,7 @@ public class QualcommFm2Hal extends AbstractFMController implements IFMEventList
     private int mLastRequestedFrequencyKhz = Integer.MIN_VALUE;
     private long mLastRequestedFrequencyAtMs = 0L;
 
-    public QualcommFm2Hal(final Context context) {
+    public QualcommHal(final Context context) {
         super(CONFIG, context);
         mCommandPoll = new Poll(CONFIG);
     }
@@ -259,5 +270,15 @@ public class QualcommFm2Hal extends AbstractFMController implements IFMEventList
 
     private void sendCommand(final Request request) {
         mCommandPoll.send(request);
+    }
+
+    public static boolean isAbleToWork() {
+        for (final String path : FM_HELIUM_PATHS) {
+            if (new File(path).exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

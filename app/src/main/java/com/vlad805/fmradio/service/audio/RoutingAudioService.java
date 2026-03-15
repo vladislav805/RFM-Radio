@@ -34,8 +34,10 @@ import static com.vlad805.fmradio.helper.Audio.isForceSpeakerNow;
  * FM2/Helium devices route FM audio directly inside audio HAL.
  * No AudioRecord bridge is needed here.
  */
-public class QualcommFm2AudioService extends AudioService implements IAudioRecordable {
+public class RoutingAudioService extends AudioService implements IAudioRecordable {
 	private static final String TAG = "QFm2Audio";
+
+	// Values from @hide Android API
 	private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
 	private static final String PERMISSION_CAPTURE_AUDIO_OUTPUT = "android.permission.CAPTURE_AUDIO_OUTPUT";
@@ -75,7 +77,7 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 		}
 	};
 
-	public QualcommFm2AudioService(final Context context) {
+	public RoutingAudioService(final Context context) {
 		super(context);
 		mContext = context.getApplicationContext();
 	}

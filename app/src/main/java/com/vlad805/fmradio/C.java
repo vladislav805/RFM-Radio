@@ -1,8 +1,5 @@
 package com.vlad805.fmradio;
 
-import com.vlad805.fmradio.service.audio.AudioService;
-import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
-
 /**
  * Common constants: names of events and commands, keys of preferences, default values, etc
  *
@@ -92,7 +89,6 @@ final public class C {
 	public static final class PrefKey {
 		public static final String LAST_FREQUENCY = "frequency_last";
 
-		public static final String TUNER_DRIVER = "tuner_driver";
 		public static final String TUNER_REGION = "tuner_region";
 		public static final String TUNER_SPACING = "tuner_spacing";
 		public static final String TUNER_POWER_MODE = "tuner_power_mode";
@@ -103,9 +99,6 @@ final public class C {
 
 		public static final String RDS_ENABLE = "rds_enable";
 		public static final String RDS_AUTO_AF = "rds_auto_af";
-
-		public static final String AUDIO_SERVICE = "audio_service";
-		public static final String AUDIO_SOURCE = "audio_source";
 
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
 		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
@@ -127,15 +120,11 @@ final public class C {
 		public static final boolean APP_AUTO_STARTUP = false;
 		public static final boolean RDS_ENABLE = true;
 
-		public static final int TUNER_DRIVER = AbstractFMController.DRIVER_QUALCOMM_FM2;
 		public static final int TUNER_REGION = 1;
 		public static final int TUNER_SPACING = 2;
 		public static final int TUNER_ANTENNA = 0;
 		public static final boolean TUNER_STEREO = true;
 		public static final boolean TUNER_POWER_MODE = false;
-
-		public static final int AUDIO_SERVICE = AudioService.SERVICE_LIGHT;
-		public static final int AUDIO_SOURCE = 0;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_FORMAT = 0;

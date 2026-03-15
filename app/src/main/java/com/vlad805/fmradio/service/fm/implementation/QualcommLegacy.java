@@ -282,11 +282,6 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 	}
 
 	public static boolean isAbleToWork() {
-		//noinspection RedundantIfStatement
-		if (!"qcom".equals(Build.HARDWARE) || !new File("/dev/radio0").exists()) {
-			return false;
-		}
-
-		return true;
-	}
+        return "qcom".equals(Build.HARDWARE) && new File("/dev/radio0").exists();
+    }
 }

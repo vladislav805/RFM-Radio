@@ -41,7 +41,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		makeTunerCategoryPreferences(context, screen);
 		makeRdsCategoryPreferences(context, screen);
-		makeAudioCategoryPreferences(context, screen);
 		makeRecordingCategoryPreferences(context, screen);
 		makeApplicationCategoryPreferences(context, screen);
 		makeNotificationsCategoryPreferences(context, screen);
@@ -75,18 +74,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	private void makeTunerCategoryPreferences(final Context context, final PreferenceScreen screen) {
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_tuner, "tuner");
 		screen.addPreference(category);
-
-		final ListPreference driver = new ListPreference(context);
-		populatePreference(driver, C.PrefKey.TUNER_DRIVER, R.string.pref_tuner_driver, R.drawable.ic_tuner_driver);
-		driver.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_DRIVER));
-		setListProviderAndEntries(driver, Vars.sTunerDrivers);
-		driver.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_DRIVER, Utils.parseInt((String) newValue));
-			warnApplyPreferenceOnlyAfterRestartApp();
-			return true;
-		});
-		category.addPreference(driver);
-
 
 		final ListPreference region = new ListPreference(context);
 		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
@@ -179,36 +166,8 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(autoAf);
 	}
 
-	private void makeAudioCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_audio, "audio");
-		screen.addPreference(category);
-
-		final ListPreference service = new ListPreference(context);
-		populatePreference(service, C.PrefKey.AUDIO_SERVICE, R.string.pref_audio_service, R.drawable.ic_audio_service);
-		service.setDefaultValue(String.valueOf(C.PrefDefaultValue.AUDIO_SERVICE));
-		setListProviderAndEntries(service, Vars.sAudioService);
-		service.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.AUDIO_SERVICE, Utils.parseInt((String) newValue));
-			warnApplyPreferenceOnlyAfterRestartApp();
-			return true;
-		});
-		category.addPreference(service);
-
-
-		final ListPreference source = new ListPreference(context);
-		populatePreference(source, C.PrefKey.AUDIO_SOURCE, R.string.pref_audio_source, R.drawable.ic_audio_source);
-		source.setDefaultValue(String.valueOf(C.PrefDefaultValue.AUDIO_SOURCE));
-		setListProviderAndEntries(source, Vars.sAudioSource);
-		source.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.AUDIO_SOURCE, Utils.parseInt((String) newValue));
-			warnApplyPreferenceOnlyAfterRestartApp();
-			return true;
-		});
-		category.addPreference(source);
-	}
-
 	private void makeRecordingCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_audio, "recording");
+		final PreferenceCategory category = makeCategory(context, R.string.pref_header_recording, "recording");
 		screen.addPreference(category);
 
 		final EditTextPreference directory = new EditTextPreference(context);

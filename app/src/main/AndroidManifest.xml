@@ -34,6 +34,9 @@
 				android:name=".activity.FavoritesListsActivity"/>
 		<activity
 				android:name=".activity.AboutActivity"/>
+		<activity
+				android:name=".activity.UnsupportedDeviceActivity"
+				android:label="@string/unsupported_device_title"/>
 
 		<service
 				android:name=".service.FMService"

@@ -7,7 +7,7 @@ public enum Direction {
 	UP(1),
 	DOWN(-1);
 
-	private int value;
+	private final int value;
 
 	Direction(int val) {
 		value = val;

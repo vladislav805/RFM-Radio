@@ -37,8 +37,6 @@
 	<string name="pref_activity_title">Настройки</string>
 	<string name="pref_app_auto_startup">Автозапуск</string>
 	<string name="pref_app_auto_startup_enabled">Начинать воспроизводить аудио сразу при запуске приложения</string>
-	<string name="pref_audio_service">Аудио сервис</string>
-	<string name="pref_audio_source">Источник аудио</string>
 	<string name="pref_auto_startup_disabled">Запускать воспроизведение аудио вручную</string>
 	<string name="pref_header_app">Приложение</string>
 	<string name="pref_header_audio">Аудио</string>
@@ -71,8 +69,6 @@
 	<string name="pref_recording_show_notify_summary">По завершению записи показывать уведомление с информаций о сохраненном файле</string>
 	<string name="pref_tuner_antenna">Антенна</string>
 	<string name="pref_tuner_antenna_message">По умолчанию - 0.\nНа некоторых устройствах - 1.</string>
-	<string name="pref_tuner_audio_source_message">1998 - на новых устройствах;\n0 - на старых</string>
-	<string name="pref_tuner_driver">Дравйвер тюнера</string>
 	<string name="pref_tuner_rds_disabled">Не показывать RDS</string>
 	<string name="pref_tuner_rds_enable">Включить RDS</string>
 	<string name="pref_tuner_rds_enabled">Показывать данные RDS такие как PS и RT</string>
@@ -104,10 +100,7 @@
 	<string name="pref_notification_seek_by_favorites">Навигироаться по избранному</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Используя стрелки в уведомлении перемещаться на предыдущую/следующую избранную радиостанцию</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Используя стрелки в уведомлении искать быстрым поиском предыдущую/следующую радиостанцию</string>
-    <string name="main_error_launching">Во время запуска тюнера произошла ошибка. Приложение не может работать.
-        Попробуйте изменить тюнер в настройках и перезапустить приложение. Если ничего не поменялось, то это означает,
-        что приложение не поддерживается на этом устройстве или на данной ОС.
-    </string>
+    <string name="main_error_launching">Во время запуска тюнера произошла ошибка. Приложение не может работать на этом устройстве.</string>
 	<string name="main_error_launching_title">Критическая ошибка</string>
 	<string name="pref_header_rds">RDS (Radio Data System)</string>
 	<string name="pref_tuner_region">Регион</string>
@@ -134,4 +127,6 @@
 	<string name="pref_tuner_rds_auto_af_disabled">Если сигнал ослабевает, то ничего не произойдет. Данные RDS AF будут проигнорированы.
 	</string>
 	<string name="menu_speaker">Выводить звук через динамик</string>
+	<string name="unsupported_device_title">Устройство не поддерживается</string>
+	<string name="unsupported_device_message">RFM Radio не нашло поддерживаемый FM backend на этом устройстве. Для legacy-режима нужен /dev/radio0, для HAL-режима нужен fm_helium.so.</string>
 </resources>

@@ -30,6 +30,7 @@ import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
+import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.preferences.BandUtils;
@@ -79,6 +80,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mToast = Toast.create(this);
 
         setSupportActionBar(findViewById(R.id.main_toolbar));
+
+        if (!TunerDriverDetector.isDeviceSupported()) {
+            startActivity(new Intent(this, UnsupportedDeviceActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+            return;
+        }
 
         mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);
@@ -148,9 +156,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onDestroy() {
         super.onDestroy();
 
-        mRadioController.unregisterForUpdates();
+        if (mRadioController != null) {
+            mRadioController.unregisterForUpdates();
+        }
 
-        if (Storage.getPrefBoolean(this, C.PrefKey.TUNER_POWER_MODE, false)) {
+        if (mRadioController != null && Storage.getPrefBoolean(this, C.PrefKey.TUNER_POWER_MODE, false)) {
             mRadioController.setPowerMode(PowerMode.LOW);
         }
     }

@@ -14,11 +14,6 @@ import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
  * vlad805 (c) 2020
  */
 public abstract class AbstractFMController {
-	public static final int DRIVER_QUALCOMM = 0;
-	public static final int DRIVER_SPIRIT3 = 1;
-	public static final int DRIVER_QUALCOMM_FM2 = 2;
-	public static final int DRIVER_EMPTY = 999;
-
 	public interface Callback<T> {
 		void onResult(T result);
 		default void onError(Error e) {
@@ -321,9 +316,5 @@ public abstract class AbstractFMController {
 		final Bundle bundle = new Bundle();
 		bundle.putString(Intent.EXTRA_TEXT, message);
 		fireEvent(C.Event.ERROR_OCCURRED, bundle);
-	}
-
-	public static boolean isAbleToWork() {
-		return false;
 	}
 }

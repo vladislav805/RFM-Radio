@@ -52,7 +52,6 @@
 	<string name="pref_tuner_rds_enable">Enable RDS</string>
 	<string name="pref_tuner_rds_enabled">Show RDS such as Program Service and Radio Text</string>
 	<string name="pref_tuner_rds_disabled">Do not show RDS</string>
-	<string name="pref_audio_source">Audio source</string>
 	<string name="pref_app_auto_startup">Autostart</string>
 	<string name="pref_app_auto_startup_enabled">Start playing audio immediately when the application starts</string>
 	<string name="pref_auto_startup_disabled">Audio playback needs to be started manually</string>
@@ -66,11 +65,8 @@
 	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)</string>
 	<string name="pref_info_link_telegram">Telegram channel</string>
 	<string name="pref_info_link_telegram_summary">Publishes news and new releases of the application</string>
-	<string name="pref_tuner_driver">Tuner driver</string>
 	<string name="pref_tuner_antenna">Antenna</string>
 	<string name="pref_tuner_antenna_message">By default it is \'0\'.\nOn some Sony devices it is \'1\'.</string>
-	<string name="pref_tuner_audio_source_message">0 - default\n1998 - \'new\' FM source</string>
-	<string name="pref_audio_service">Audio service</string>
 	<string name="toolbar_favorite_title">Favorites</string>
 	<string name="pref_header_notifications">Notifications</string>
 	<string name="pref_notification_show_ps_enabled">If the station is transmitting PS, it will be shown in the notification</string>
@@ -110,7 +106,7 @@
 	<string name="pref_notification_seek_by_favorites">Navigate through favorites</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Using the arrows in the notification, jump to the prev/next favorite</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Use the arrows in the notification to search for the prev/next station</string>
-    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work. Try changing the tuner in settings and restarting the app. If nothing has changed, then this means that the application is not supported on this device or on this operating system.</string>
+    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work on this device.</string>
 	<string name="main_error_launching_title">Fatal error</string>
     <string name="pref_header_rds">RDS (Radio Data System)</string>
     <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power.</string>
@@ -136,5 +132,7 @@
 	</string>
 	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
 	<string name="menu_speaker">Play through speaker</string>
-    <string name="favorite_list_search_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="favorite_list_search_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="unsupported_device_title">Device not supported</string>
+	<string name="unsupported_device_message">RFM Radio could not find a supported FM backend on this device. Legacy mode requires /dev/radio0, and HAL mode requires fm_helium.so.</string>
 </resources>
