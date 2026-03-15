@@ -5,6 +5,12 @@ def versionMinor = 6
 def versionPatch = 3
 
 def dev = false
+def requiredNativeAssets = [
+        "fmbin-armv7a",
+        "fmbin-aarch64",
+        "fmbin-fm2-armv7a",
+        "fmbin-fm2-aarch64",
+]
 
 android {
     compileSdk 34
@@ -66,6 +72,29 @@ configurations.all {
             }
         }
     }
+}
+
+tasks.register("verifyNativeAssets") {
+    group = "verification"
+    description = "Checks that required native binaries are present in app/src/main/assets"
+
+    doLast {
+        def assetsDir = file("${project.projectDir}/src/main/assets")
+        def missingAssets = requiredNativeAssets.findAll { assetName ->
+            !new File(assetsDir, assetName).exists()
+        }
+
+        if (!missingAssets.isEmpty()) {
+            throw new GradleException(
+                    "Missing native assets in ${assetsDir}: ${missingAssets.join(', ')}. " +
+                    "Build native assets before assembling the app."
+            )
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("verifyNativeAssets")
 }
 
 dependencies {
