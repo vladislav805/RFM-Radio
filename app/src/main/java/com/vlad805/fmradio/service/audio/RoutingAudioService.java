@@ -157,13 +157,28 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private void applyVolume(final int device) {
 		try {
 			final int volumeIndex = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-			final float decibels = mAudioManager.getStreamVolumeDb(AudioManager.STREAM_MUSIC, volumeIndex, device);
-			final float volume = (float) Math.exp(decibels * 0.115129f);
-			Log.d(TAG, "applyVolume: index=" + volumeIndex + " dB=" + decibels + " volume=" + volume);
+			final float volume = resolveMusicStreamGain(volumeIndex, device);
+			Log.d(TAG, "applyVolume: index=" + volumeIndex + " volume=" + volume);
 			sendAudioParameter("fm_volume", String.valueOf(volume));
 		} catch (Throwable t) {
 			Log.e(TAG, "applyVolume failed", t);
 		}
+	}
+
+	private float resolveMusicStreamGain(final int volumeIndex, final int device) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+			final float decibels = mAudioManager.getStreamVolumeDb(AudioManager.STREAM_MUSIC, volumeIndex, device);
+			final float volume = (float) Math.exp(decibels * 0.115129f);
+			Log.d(TAG, "resolveMusicStreamGain: dB=" + decibels);
+			return volume;
+		}
+
+		final int maxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		if (maxVolume <= 0) {
+			return 0f;
+		}
+
+		return Math.max(0f, Math.min(1f, volumeIndex / (float) maxVolume));
 	}
 
 	private void registerVolumeListener() {
