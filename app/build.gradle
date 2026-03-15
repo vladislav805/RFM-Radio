@@ -21,7 +21,7 @@ android {
         applicationId dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
         minSdkVersion 21
         //noinspection ExpiredTargetSdkVersion
-        targetSdkVersion 22
+        targetSdkVersion 24
         //noinspection GroovyAssignabilityCheck
         versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
         //noinspection GroovyAssignabilityCheck
