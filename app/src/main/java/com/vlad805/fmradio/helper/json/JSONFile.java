@@ -1,6 +1,6 @@
 package com.vlad805.fmradio.helper.json;
 
-import android.os.Environment;
+import android.content.Context;
 import android.util.Log;
 
 import java.io.*;
@@ -9,13 +9,23 @@ import java.io.*;
  * vlad805 (c) 2020
  */
 public abstract class JSONFile<T extends IJsonable> {
+	private final Context mContext;
+
+	protected JSONFile(final Context context) {
+		mContext = context.getApplicationContext();
+	}
 
 	/**
 	 * Returns (and create recursively, if it not exists) path to application directory
 	 * @return Path to application directory
 	 */
 	protected final String getBaseApplicationDirectory() {
-		File dir = new File(Environment.getExternalStorageDirectory() + getDirectory());
+		final File externalDir = mContext.getExternalFilesDir(null);
+		if (externalDir == null) {
+			throw new IllegalStateException("External files directory is not available");
+		}
+
+		File dir = externalDir;
 
 		if (!dir.exists()) {
 			if (!dir.mkdirs()) {
@@ -27,25 +37,17 @@ public abstract class JSONFile<T extends IJsonable> {
 	}
 
 	/**
-	 * Returns directory, relative from home directory
-	 * @return Path
-	 */
-	protected String getDirectory() {
-		return "/RFM/";
-	}
-
-	/**
 	 * Returns name of JSON file
 	 * @return Name file with extension
 	 */
-	public abstract String getFilename();
+	public abstract String getPath();
 
 	/**
 	 * Returns full path to file
 	 * @return Path
 	 */
 	protected String getFullPath() {
-		return getBaseApplicationDirectory() + File.separator + getFilename();
+		return getBaseApplicationDirectory() + File.separator + getPath();
 	}
 
 	/**
@@ -84,6 +86,11 @@ public abstract class JSONFile<T extends IJsonable> {
 	 */
 	protected void writeFile(String data) {
 		File file = new File(getFullPath());
+		final File parentDir = file.getParentFile();
+		if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+			Log.e("JSONFile<>", "Can not create parent directory for " + file.getAbsolutePath());
+			return;
+		}
 		try (FileOutputStream stream = new FileOutputStream(file)) {
 			stream.write(data.getBytes());
 		} catch (IOException e) {

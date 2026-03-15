@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.controller;
 
 import android.content.Context;
+import android.os.Environment;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
@@ -12,6 +13,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +34,9 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	private static final String JSON_EXT = ".json";
 
 	public FavoriteController(final Context context) {
+		super(context);
 		this.mStorage = Storage.getInstance(context);
+		migrateLegacyFavorites();
 	}
 
 	/**
@@ -40,8 +44,11 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @return Names of lists
 	 */
 	public List<String> getFavoriteLists() {
-		final File dir = new File(getBaseApplicationDirectory());
+		final File dir = getFavoritesDirectory();
 		final String[] files = dir.list();
+		if (files == null) {
+			return new ArrayList<>();
+		}
 
 		for (int i = 0; i < files.length; ++i) {
 			files[i] = files[i].replace(JSON_EXT, "");
@@ -66,8 +73,8 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 */
 	public void setCurrentFavoriteList(final String name) throws FileNotFoundException {
 		// app                     stat     name   .json
-		// /storage/emulated/0/RFM/stations/default.json
-		final File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
+		// /storage/emulated/0/Android/data/com.vlad805.fmradio/files/favorites/default.json
+		final File file = new File(getFavoritesDirectory(), name + JSON_EXT);
 		if (!file.exists()) {
 			throw new FileNotFoundException("setCurrentFavoriteList: not found list with name '" + name + "'; full path = " + file.getAbsolutePath());
 		}
@@ -103,7 +110,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @return True, if already exists
 	 */
 	public boolean isAlreadyExists(final String name) {
-		return new File(getDirectory(), name + JSON_EXT).exists();
+		return new File(getFavoritesDirectory(), name + JSON_EXT).exists();
 	}
 
 	/**
@@ -121,7 +128,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new Error("List with this name already exists");
 		}
 
-		final File file = new File(getBaseApplicationDirectory(), name + JSON_EXT);
+		final File file = new File(getFavoritesDirectory(), name + JSON_EXT);
 
 		try (final FileOutputStream stream = new FileOutputStream(file)) {
 			stream.write("{\"items\":[]}".getBytes());
@@ -169,22 +176,12 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	}
 
 	/**
-	 * Override directory path to favorites files
-	 * @return Path relative from base app dir
-	 */
-	@Override
-	protected String getDirectory() {
-		//                        /RFM/
-		return super.getDirectory() + "favorites/";
-	}
-
-	/**
 	 * Name of current favorites list
 	 * @return Filename with extension
 	 */
 	@Override
-	public String getFilename() {
-		return getCurrentFavoriteList() + JSON_EXT;
+	public String getPath() {
+		return "favorites" + File.separator + getCurrentFavoriteList() + JSON_EXT;
 	}
 
 	/**
@@ -228,5 +225,46 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void migrateLegacyFavorites() {
+		final File newDir = getFavoritesDirectory();
+		final String[] currentFiles = newDir.list();
+		if (currentFiles != null && currentFiles.length > 0) {
+			return;
+		}
+
+		final File legacyDir = new File(Environment.getExternalStorageDirectory(), "RFM/favorites");
+		final File[] legacyFiles = legacyDir.listFiles((dir, name) -> name.endsWith(JSON_EXT));
+		if (legacyFiles == null || legacyFiles.length == 0) {
+			return;
+		}
+
+		for (final File legacyFile : legacyFiles) {
+			final File targetFile = new File(newDir, legacyFile.getName());
+			if (targetFile.exists()) {
+				continue;
+			}
+
+			try (
+					final FileInputStream input = new FileInputStream(legacyFile);
+					final FileOutputStream output = new FileOutputStream(targetFile)
+			) {
+				final byte[] buffer = new byte[8192];
+				int read;
+				while ((read = input.read(buffer)) != -1) {
+					output.write(buffer, 0, read);
+				}
+			} catch (IOException ignored) {
+			}
+		}
+	}
+
+	private File getFavoritesDirectory() {
+		final File dir = new File(getBaseApplicationDirectory(), "favorites");
+		if (!dir.exists() && !dir.mkdirs()) {
+			throw new IllegalStateException("Cannot create favorites directory");
+		}
+		return dir;
 	}
 }
