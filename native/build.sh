@@ -61,7 +61,9 @@ copy_asset() {
     echo "File ${source_file} moved to ${ASSETS_DIR}/${dest_file}"
 }
 
-build_qualcomm() {
+main() {
+    resolve_ndk
+
     echo "Building unified Qualcomm native assets"
 
     local armv7_dir="${BUILD_ROOT}/qualcomm/cmake-build-armv7a"
@@ -71,49 +73,6 @@ build_qualcomm() {
     build_android_abi "${SCRIPT_DIR}" "${aarch64_dir}" "arm64-v8a"
     copy_asset "${armv7_dir}/fmbin" "fmbin-armv7a"
     copy_asset "${aarch64_dir}/fmbin" "fmbin-aarch64"
-}
-
-show_usage() {
-    cat <<'EOF'
-Usage:
-  bash ./native/build.sh            # build all native assets
-  bash ./native/build.sh all        # build all native assets
-  bash ./native/build.sh qualcomm   # build unified Qualcomm native assets
-EOF
-}
-
-main() {
-    resolve_ndk
-
-    if [[ $# -eq 0 ]]; then
-        set -- all
-    fi
-
-    local build_qualcomm_requested=false
-
-    for target in "$@"; do
-        case "${target}" in
-            all)
-                build_qualcomm_requested=true
-                ;;
-            qualcomm|hal|legacy)
-                build_qualcomm_requested=true
-                ;;
-            -h|--help|help)
-                show_usage
-                exit 0
-                ;;
-            *)
-                echo "Unknown target: ${target}" >&2
-                show_usage >&2
-                exit 1
-                ;;
-        esac
-    done
-
-    if [[ "${build_qualcomm_requested}" == true ]]; then
-        build_qualcomm
-    fi
 }
 
 main "$@"
