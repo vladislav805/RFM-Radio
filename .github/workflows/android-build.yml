@@ -44,6 +44,20 @@ jobs:
       - name: Build debug APK
         run: bash ./gradlew --no-daemon :app:assembleDebug
 
+      - name: Print APK badging
+        run: |
+          APK_PATH="$(find app/build/outputs/apk/debug -name '*.apk' | head -n 1)"
+          if [[ -z "${APK_PATH}" ]]; then
+            echo "APK not found" >&2
+            exit 1
+          fi
+          AAPT_PATH="${ANDROID_SDK_ROOT}/build-tools/34.0.0/aapt"
+          if [[ ! -x "${AAPT_PATH}" ]]; then
+            echo "aapt not found at ${AAPT_PATH}" >&2
+            exit 1
+          fi
+          "${AAPT_PATH}" dump badging "${APK_PATH}"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
