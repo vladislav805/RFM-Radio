@@ -85,6 +85,8 @@
 	<string name="record_permissions_required_title">Нужны разрешения для записи</string>
 	<string name="record_permissions_required">Для записи нужны разрешения на микрофон и хранилище. Откройте настройки приложения и выдайте их.</string>
 	<string name="record_permissions_open_settings">Открыть настройки</string>
+	<string name="playback_permission_required_title">Нужно разрешение на микрофон</string>
+	<string name="playback_permission_required">Для воспроизведения FM на этом устройстве нужен доступ к микрофону. Откройте настройки приложения и выдайте разрешение.</string>
 	<string name="toast_record_ended">Запись %1$s сохранена\nРазмер: %2$.1f МБ\nДлительность: %3$s</string>
 	<string name="toggle_play_pause">Старт</string>
 	<string name="toolbar_favorite_title">Избранное</string>

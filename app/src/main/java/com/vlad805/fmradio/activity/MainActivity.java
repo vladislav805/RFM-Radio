@@ -30,6 +30,7 @@ import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
+import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
@@ -69,8 +70,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
     private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
+    private static final int REQUEST_CODE_PLAYBACK_PERMISSION = 1052;
     private boolean mPendingRecordStart = false;
     private boolean mRecordPermissionsRequested = false;
+    private boolean mPendingPlaybackStart = false;
+    private boolean mPlaybackPermissionRequested = false;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -124,7 +128,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final boolean needStartup = Storage.getPrefBoolean(this, C.PrefKey.APP_AUTO_STARTUP, C.PrefDefaultValue.APP_AUTO_STARTUP);
 
         if (needStartup) {
-            mRadioController.setup();
+            if (ensurePlaybackPermissionForLegacyAudio()) {
+                mRadioController.setup();
+            }
         } else {
             setEnabledUi(false);
         }
@@ -201,6 +207,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mPendingRecordStart = false;
         }
 
+        if (requestCode == REQUEST_CODE_PLAYBACK_PERMISSION) {
+            final boolean granted = hasPlaybackPermission();
+            if (granted && mPendingPlaybackStart) {
+                mRadioController.setup();
+            } else if (mPendingPlaybackStart) {
+                mToast.text(getString(R.string.playback_permission_required)).show();
+            }
+            mPendingPlaybackStart = false;
+        }
+
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
@@ -232,13 +248,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.ctl_toggle: {
                 switch (mRadioController.getState().getStatus()) {
                     case IDLE: {
-                        mRadioController.setup();
+                        if (ensurePlaybackPermissionForLegacyAudio()) {
+                            mRadioController.setup();
+                        }
                         break;
                     }
 
                     case INSTALLED:
                     case LAUNCHED: {
-                        mRadioController.enable();
+                        if (ensurePlaybackPermissionForLegacyAudio()) {
+                            mRadioController.enable();
+                        }
                         break;
                     }
 
@@ -346,6 +366,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean hasPlaybackPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean needsPlaybackPermissionForLegacyAudio() {
+        return (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O &&
+            TunerDriverDetector.getTunerDriver() == TunerDriver.LEGACY
+        );
+    }
+
+    private boolean ensurePlaybackPermissionForLegacyAudio() {
+        if (!needsPlaybackPermissionForLegacyAudio() || hasPlaybackPermission()) {
+            return true;
+        }
+
+        if (shouldOpenPlaybackPermissionSettings()) {
+            showPlaybackPermissionSettingsDialog();
+        } else {
+            mPendingPlaybackStart = true;
+            mPlaybackPermissionRequested = true;
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[] { Manifest.permission.RECORD_AUDIO },
+                    REQUEST_CODE_PLAYBACK_PERMISSION
+            );
+        }
+
+        return false;
+    }
+
     private boolean shouldOpenRecordingPermissionSettings() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mRecordPermissionsRequested) {
             return false;
@@ -359,6 +414,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(R.string.record_permissions_required_title)
                 .setMessage(R.string.record_permissions_required)
+                .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private boolean shouldOpenPlaybackPermissionSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mPlaybackPermissionRequested) {
+            return false;
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
+    }
+
+    private void showPlaybackPermissionSettingsDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.playback_permission_required_title)
+                .setMessage(R.string.playback_permission_required)
                 .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();

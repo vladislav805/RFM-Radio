@@ -98,6 +98,8 @@
 	<string name="record_permissions_required_title">Recording permissions required</string>
 	<string name="record_permissions_required">Recording requires microphone and storage permissions. Open app settings to allow them.</string>
 	<string name="record_permissions_open_settings">Open settings</string>
+	<string name="playback_permission_required_title">Microphone permission required</string>
+	<string name="playback_permission_required">FM playback on this device requires microphone access. Open app settings to allow it.</string>
 	<string name="notification_recording">Recording: %s (%.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
 	<string name="toast_record_ended">Record saved as %1$s\nSize: %2$.1f MB\nDuration: %3$s</string>

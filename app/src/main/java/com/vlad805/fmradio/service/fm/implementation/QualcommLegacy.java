@@ -1,7 +1,6 @@
 package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
-import android.os.Build;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
@@ -282,6 +281,6 @@ public class QualcommLegacy extends AbstractFMController implements IFMEventList
 	}
 
 	public static boolean isAbleToWork() {
-        return "qcom".equals(Build.HARDWARE) && new File("/dev/radio0").exists();
+        return new File("/dev/radio0").exists();
     }
 }
