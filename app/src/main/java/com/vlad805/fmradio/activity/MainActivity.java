@@ -243,59 +243,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(final View view) {
-        switch (view.getId()) {
+        int id = view.getId();
+
+        if (id == R.id.ctl_toggle) {
             // Main play/stop button
-            case R.id.ctl_toggle: {
-                switch (mRadioController.getState().getStatus()) {
-                    case IDLE: {
-                        if (ensurePlaybackPermissionForLegacyAudio()) {
-                            mRadioController.setup();
-                        }
-                        break;
+            switch (mRadioController.getState().getStatus()) {
+                case IDLE: {
+                    if (ensurePlaybackPermissionForLegacyAudio()) {
+                        mRadioController.setup();
                     }
-
-                    case INSTALLED:
-                    case LAUNCHED: {
-                        if (ensurePlaybackPermissionForLegacyAudio()) {
-                            mRadioController.enable();
-                        }
-                        break;
-                    }
-
-                    case ENABLED: {
-                        mRadioController.kill();
-                        break;
-                    }
+                    break;
                 }
-                break;
-            }
 
-            case R.id.ctl_go_down: {
-                mRadioController.jump(Direction.DOWN);
-                break;
-            }
+                case INSTALLED:
+                case LAUNCHED: {
+                    if (ensurePlaybackPermissionForLegacyAudio()) {
+                        mRadioController.enable();
+                    }
+                    break;
+                }
 
-            case R.id.ctl_go_up: {
-                mRadioController.jump(Direction.UP);
-                break;
+                case ENABLED: {
+                    mRadioController.kill();
+                    break;
+                }
             }
-
-            case R.id.ctl_seek_down: {
-                mRadioController.hwSeek(Direction.DOWN);
-                showProgress(getString(R.string.progress_searching));
-                break;
-            }
-
-            case R.id.ctl_seek_up: {
-                mRadioController.hwSeek(Direction.UP);
-                showProgress(getString(R.string.progress_searching));
-                break;
-            }
-
-            case R.id.favorite_button: {
-                startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
-                break;
-            }
+        } else if (id == R.id.ctl_go_down) {
+            mRadioController.jump(Direction.DOWN);
+        } else if (id == R.id.ctl_go_up) {
+            mRadioController.jump(Direction.UP);
+        } else if (id == R.id.ctl_seek_down) {
+            mRadioController.hwSeek(Direction.DOWN);
+            showProgress(getString(R.string.progress_searching));
+        } else if (id == R.id.ctl_seek_up) {
+            mRadioController.hwSeek(Direction.UP);
+            showProgress(getString(R.string.progress_searching));
+        } else if (id == R.id.favorite_button) {
+            startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
         }
     }
 
@@ -311,43 +295,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_about:
-                startActivity(new Intent(this, AboutActivity.class));
-                break;
+        int itemId = item.getItemId();
 
-            case R.id.menu_settings:
-                startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
-                break;
-
-            case R.id.menu_record:
-                if (mRadioController.getState().isRecording()) {
-                    mRadioController.record(false);
-                    break;
-                }
-
-                if (hasRecordingPermissions()) {
-                    mRadioController.record(true);
-                } else if (shouldOpenRecordingPermissionSettings()) {
-                    showRecordingPermissionSettingsDialog();
-                } else {
-                    mPendingRecordStart = true;
-                    mRecordPermissionsRequested = true;
-                    ActivityCompat.requestPermissions(
-                            this,
-                            new String[] {
-                                    Manifest.permission.RECORD_AUDIO,
-                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                            },
-                            REQUEST_CODE_RECORD_PERMISSIONS
-                    );
-                }
-                break;
-
-            case R.id.menu_speaker: {
-                startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
-                break;
+        if (itemId == R.id.menu_about) {
+            startActivity(new Intent(this, AboutActivity.class));
+        } else if (itemId == R.id.menu_settings) {
+            startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
+        } else if (itemId == R.id.menu_record) {
+            if (mRadioController.getState().isRecording()) {
+                mRadioController.record(false);
+                return super.onOptionsItemSelected(item);
             }
+
+            if (hasRecordingPermissions()) {
+                mRadioController.record(true);
+            } else if (shouldOpenRecordingPermissionSettings()) {
+                showRecordingPermissionSettingsDialog();
+            } else {
+                mPendingRecordStart = true;
+                mRecordPermissionsRequested = true;
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{
+                                Manifest.permission.RECORD_AUDIO,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        },
+                        REQUEST_CODE_RECORD_PERMISSIONS
+                );
+            }
+        } else if (itemId == R.id.menu_speaker) {
+            startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
         }
 
         return super.onOptionsItemSelected(item);

@@ -20,7 +20,7 @@
 	<string name="menu_settings">Настройки</string>
 	<string name="notification_mhz">%.1f МГц</string>
 	<string name="notification_recorded">Запись %3$s завершена: %1$s (%2$.1f МБ)</string>
-	<string name="notification_recording">Запись: %s (%.1f МБ)</string>
+	<string name="notification_recording">Запись: %1$s (%2$.1f МБ)</string>
 	<string name="player_event_frequency_changed">Частота изменена на %5.1f МГц</string>
 	<string name="popup_favorite_list_create">Создать список избранного</string>
 	<string name="popup_favorite_list_rename">Переименовать список избранного</string>

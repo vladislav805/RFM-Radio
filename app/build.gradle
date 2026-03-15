@@ -5,6 +5,8 @@ def versionMinor = 6
 def versionPatch = 3
 
 def dev = false
+def appId = dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
+def appVersionName = "${versionMajor}.${versionMinor}.${versionPatch}"
 def requiredNativeAssets = [
         "fmbin-armv7a",
         "fmbin-aarch64",
@@ -13,22 +15,26 @@ def requiredNativeAssets = [
 ]
 
 android {
-    compileSdk 34
-    namespace "com.vlad805.fmradio"
+    compileSdk = 36
+    namespace = "com.vlad805.fmradio"
 
     defaultConfig {
-        applicationId dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
-        minSdkVersion 23
+        applicationId = appId
+        minSdk = 23
         //noinspection ExpiredTargetSdkVersion
-        targetSdkVersion 24
-        versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
-        versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+        targetSdk = 24
+        versionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+        versionName = appVersionName
+
+        ndk {
+            //noinspection ChromeOsAbiSupport
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
     }
 
     buildTypes {
         release {
-            //noinspection GroovyAssignabilityCheck
-            minifyEnabled true
+            minifyEnabled = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -37,36 +43,22 @@ android {
         buildConfig = true
     }
 
-    //noinspection GroovyMissingReturnStatement
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
-    productFlavors {
-    }
     lint {
-        abortOnError false
-        checkReleaseBuilds false
-    }
-
-    //noinspection GroovyMissingReturnStatement
-
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            outputFileName = "${defaultConfig.applicationId}-${variant.versionName}.apk"
-        }
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
 }
 
-configurations.all {
-    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-        def requested = details.requested
-        if (requested.group == "com.android.support") {
-            if (!requested.name.startsWith("multidex")) {
-                details.useVersion "26.+"
-            }
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            output.outputFileName.set("${appId}-${appVersionName}.apk")
         }
     }
 }
@@ -75,16 +67,21 @@ tasks.register("verifyNativeAssets") {
     group = "verification"
     description = "Checks that required native binaries are present in app/src/main/assets"
 
+    def assetsDir = layout.projectDirectory.dir("src/main/assets")
+
+    inputs.dir(assetsDir)
+
     doLast {
-        def assetsDir = file("${project.projectDir}/src/main/assets")
+        def assetsDirFile = assetsDir.asFile
+
         def missingAssets = requiredNativeAssets.findAll { assetName ->
-            !new File(assetsDir, assetName).exists()
+            !new File(assetsDirFile, assetName).exists()
         }
 
         if (!missingAssets.isEmpty()) {
             throw new GradleException(
-                    "Missing native assets in ${assetsDir}: ${missingAssets.join(', ')}. " +
-                    "Build native assets before assembling the app."
+                    "Missing native assets in ${assetsDirFile}: ${missingAssets.join(', ')}. " +
+                            "Build native assets before assembling the app."
             )
         }
     }
@@ -96,12 +93,17 @@ tasks.named("preBuild").configure {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'androidx.core:core:1.6.0-rc01'
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
-    implementation 'androidx.recyclerview:recyclerview:1.2.1'
-    implementation 'androidx.annotation:annotation:1.2.0'
-    implementation 'androidx.preference:preference:1.1.1'
-    implementation 'androidx.media:media:1.3.1'
-    implementation 'com.github.naman14:TAndroidLame:1.1'
+    implementation 'androidx.core:core:1.18.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+    implementation 'androidx.recyclerview:recyclerview:1.4.0'
+    implementation 'androidx.annotation:annotation:1.9.1'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'androidx.media:media:1.7.1'
+    //noinspection Aligned16KB
+    implementation('com.github.naman14:TAndroidLame:1.1') {
+        exclude group: 'com.android.support', module: 'appcompat-v7'
+        exclude group: 'com.android.support', module: 'support-v4'
+        exclude group: 'com.android.support', module: 'support-annotations'
+    }
     implementation 'com.github.atsushi-ageet:tray:0.14.0'
 }

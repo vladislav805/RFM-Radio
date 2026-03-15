@@ -103,7 +103,7 @@
 	<string name="record_permissions_open_settings">Otwórz ustawienia</string>
 	<string name="playback_permission_required_title">Wymagane uprawnienie do mikrofonu</string>
 	<string name="playback_permission_required">Odtwarzanie FM na tym urządzeniu wymaga dostępu do mikrofonu. Otwórz ustawienia aplikacji i nadaj uprawnienie.</string>
-	<string name="notification_recording">Nagrywanie: %s (%.1f MB)</string>
+	<string name="notification_recording">Nagrywanie: %1$s (%2$.1f MB)</string>
 	<string name="notification_recorded">Nagranie %3$s skończone: %1$s (%2$.1f MB)</string>
 	<string name="toast_record_ended">Nagranie zapisane jako %1$s\nWielkość: %2$.1f MB\nTrwanie: %3$s</string>
 	<string name="main_warning_pref_changed_title">Uwaga!</string>

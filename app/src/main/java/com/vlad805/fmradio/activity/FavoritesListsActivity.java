@@ -228,42 +228,24 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	@SuppressLint("NonConstantResourceId")
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		switch (item.getItemId()) {
-			case R.id.menu_favorite_add: {
-				addDialog();
-				break;
-			}
+        int itemId = item.getItemId();
 
-			case R.id.menu_favorite_remove: {
-				removeDialog();
-				break;
-			}
+        if (itemId == R.id.menu_favorite_add) {
+            addDialog();
+        } else if (itemId == R.id.menu_favorite_remove) {
+            removeDialog();
+        } else if (itemId == R.id.menu_favorite_rename) {
+            renameDialog();
+        } else if (itemId == R.id.menu_favorite_search) {
+            searchDialog();
+        } else if (itemId == R.id.menu_favorite_import) {
+            openImportFavoritePicker();
+        } else if (itemId == R.id.menu_favorite_export) {
+            openExportFavoritePicker();
+        } else if (itemId == android.R.id.home) {
+            finish();
+        }
 
-			case R.id.menu_favorite_rename: {
-				renameDialog();
-				break;
-			}
-
-			case R.id.menu_favorite_search: {
-				searchDialog();
-				break;
-			}
-
-			case R.id.menu_favorite_import: {
-				openImportFavoritePicker();
-				break;
-			}
-
-			case R.id.menu_favorite_export: {
-				openExportFavoritePicker();
-				break;
-			}
-
-			case android.R.id.home: {
-				finish();
-				break;
-			}
-		}
 		return super.onOptionsItemSelected(item);
 	}
 
