@@ -76,10 +76,6 @@ public abstract class RecordService implements IFMRecorder {
      * @param context Context
      * @param kHz Current frequency in kHz
      */
-    public RecordService(final Context context, final int kHz) {
-        this(context, kHz, 44100);
-    }
-
     public RecordService(final Context context, final int kHz, final int sampleRate) {
         mContext = context;
         mKHz = kHz;
@@ -230,7 +226,6 @@ public abstract class RecordService implements IFMRecorder {
      * Create directory hierarchy
      * @return Directory
      */
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     private File makeDirectoryHierarchy() {
         final String path = Environment.getExternalStorageDirectory() + File.separator + getPreferredDirectory();
         final File dir = new File(RecordSchemaHelper.prepareString(path, mKHz));

@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.service.audio;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.content.BroadcastReceiver;
@@ -41,8 +42,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
 	private static final String PERMISSION_CAPTURE_AUDIO_OUTPUT = "android.permission.CAPTURE_AUDIO_OUTPUT";
-	private static final String PERMISSION_RECORD_AUDIO = "android.permission.RECORD_AUDIO";
-	private static final String PERMISSION_WRITE_EXTERNAL_STORAGE = "android.permission.WRITE_EXTERNAL_STORAGE";
 	private static final int AUDIO_SOURCE_RADIO_TUNER = resolveRadioTunerAudioSource();
 	private static final int RECORDING_UPDATE_MS = 1000;
 
@@ -482,11 +481,11 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			return;
 		}
 
-		if (mContext.checkSelfPermission(PERMISSION_RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+		if (mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
 			throw new RecordError("Please allow microphone access before recording");
 		}
 
-		if (mContext.checkSelfPermission(PERMISSION_WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+		if (mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 			throw new RecordError("Please allow storage access before recording");
 		}
 	}
@@ -519,7 +518,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	@SuppressLint("PrivateApi")
 	private static int resolveRadioTunerAudioSource() {
 		try {
-			final Field field = MediaRecorder.AudioSource.class.getField("RADIO_TUNER");
+		final Field field = MediaRecorder.AudioSource.class.getField("RADIO_TUNER");
 			return field.getInt(null);
 		} catch (Throwable t) {
 			Log.w(TAG, "resolveRadioTunerAudioSource failed, fallback to 1998", t);

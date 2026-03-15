@@ -13,10 +13,6 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	 * @param context Context
 	 * @param kHz Current frequency in kHz
 	 */
-	public RecordRawService(final Context context, final int kHz) {
-		super(context, kHz);
-	}
-
 	public RecordRawService(final Context context, final int kHz, final int sampleRate) {
 		super(context, kHz, sampleRate);
 	}
