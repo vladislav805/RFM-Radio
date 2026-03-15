@@ -58,9 +58,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private static final String TAG = "FMS";
     public static final int NOTIFICATION_ID = 1027;
     public static final int NOTIFICATION_RECORD_ID = 1029;
-    private static final String CHANNEL_ID = "playback_channel_v2";
+    private static final String CHANNEL_ID = "playback_channel_v3";
     private static final String CHANNEL_RECORD_ID = "record_channel";
-    private static final String CHANNEL_RECORDING_ID = "recording_channel";
+    private static final String CHANNEL_RECORDING_ID = "recording_channel_v2";
 
     private NotificationCompat.Builder mNBuilder;
     private NotificationManagerCompat mNotificationManager;
@@ -102,7 +102,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final NotificationChannel mainChannel = new NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.app_name),
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
         );
         mainChannel.setDescription(getString(R.string.app_name));
         makeChannelSilent(mainChannel);
@@ -110,7 +110,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final NotificationChannel recordChannel = new NotificationChannel(
                 CHANNEL_RECORD_ID,
                 getString(R.string.app_name) + " recordings",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_LOW
         );
         recordChannel.setDescription(getString(R.string.notification_recorded, "", 0f, ""));
         makeChannelSilent(recordChannel);
@@ -118,7 +118,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final NotificationChannel recordingChannel = new NotificationChannel(
                 CHANNEL_RECORDING_ID,
                 getString(R.string.app_name) + " recording",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH
         );
         recordingChannel.setDescription(getString(R.string.notification_recording, "", 0f));
         makeChannelSilent(recordingChannel);
@@ -656,19 +656,18 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 0
         );
 
-        //.setMediaSession(mediaSession.getSessionToken()))
-
         androidx.media.app.NotificationCompat.MediaStyle ms = new androidx.media.app.NotificationCompat.MediaStyle();
         NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_radio)
                 .setContentIntent(pendingMain)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.progress_starting))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
                 .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .setAutoCancel(false)
                 .setOngoing(true)
                 .setColor(getResources().getColor(R.color.primary_blue))
@@ -705,14 +704,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         /*
          * Title
          */
-        String title = getString(R.string.app_name);
+        String title = getString(R.string.notification_mhz, frequency / 1000d).trim();
         final String stationTitle = mFavoriteList.get(frequency);
         final String rdsPs = state.getPs();
 
         if (isNeedShowRds && rdsPs != null && !rdsPs.isEmpty()) {
-            title = rdsPs.trim();
+            title = title + " | " + rdsPs.trim();
         } else if (stationTitle != null) {
-            title = stationTitle;
+            title = title + " | " + stationTitle;
         }
 
         mNBuilder.setContentTitle(title);
@@ -737,6 +736,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      */
     private void updateNotification() {
         final Notification notification = updateNotification(mState);
+        notification.flags |= Notification.FLAG_NO_CLEAR;
+        notification.flags |= Notification.FLAG_ONGOING_EVENT;
 
         startForeground(NOTIFICATION_ID, notification);
     }
@@ -753,9 +754,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 .setSmallIcon(R.drawable.ic_record_on)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.notification_recording, getTimeStringBySeconds(duration), size / 1024f / 1024f))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .setAutoCancel(false)
                 .setOngoing(true)
                 .setColor(getResources().getColor(R.color.record_active))

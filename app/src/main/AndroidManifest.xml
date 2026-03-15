@@ -39,6 +39,7 @@
 				android:name=".service.FMService"
 				android:enabled="true"
 				android:exported="true"
+				android:foregroundServiceType="mediaPlayback"
 				android:label="RFM Main Service"
 				android:process=":service"
 				tools:ignore="ExportedService"/>
