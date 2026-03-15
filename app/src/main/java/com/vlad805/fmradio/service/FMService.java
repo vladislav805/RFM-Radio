@@ -32,9 +32,9 @@ import com.vlad805.fmradio.service.audio.AudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.RoutingAudioService;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.IFMEventPoller;
-import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
 import com.vlad805.fmradio.service.fm.implementation.QualcommHal;
 import com.vlad805.fmradio.service.fm.implementation.QualcommLegacy;
@@ -69,7 +69,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private Map<Integer, String> mFavoriteList;
 
-    private AbstractFMController mTunerDriver;
+    private IFMController mTunerDriver;
     private AudioService mAudioService;
 
     private BroadcastReceiver mEventReaction;
@@ -401,7 +401,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      * Returns tuner driver
      * @return Tuner driver
      */
-    private AbstractFMController getTunerDriver() {
+    private IFMController getTunerDriver() {
         final TunerDriver id = TunerDriverDetector.getTunerDriver();
 
         switch (id) {

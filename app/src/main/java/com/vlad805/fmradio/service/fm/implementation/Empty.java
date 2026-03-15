@@ -1,21 +1,23 @@
 package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
-import com.vlad805.fmradio.enums.MuteState;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
-import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 
 /**
  * vlad805 (c) 2020
  */
-public class Empty extends AbstractFMController implements IFMEventListener {
-	private static transient final String TAG = "FMCE";
-	private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(1111, 1111);
+public class Empty implements IFMController, IFMEventListener {
+	private static final String TAG = "FMCE";
+	private final Context context;
 
 	public Empty(final Context context) {
-		super(CONFIG, context);
+		this.context = context;
 	}
 
 	@Override
@@ -34,78 +36,94 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 	}
 
 	@Override
-	protected void installImpl(final Callback<Void> callback) {
+	public void install() {
 		Log.d(TAG, "install");
-		callback.onResult(null);
+		fireEvent(C.Event.INSTALLING);
+		fireEvent(C.Event.INSTALLED);
 	}
 
 	@Override
-	protected void applyPreferenceImpl(String key, String value) {
+	public void applyPreference(final String key, final String value) {
 		Log.d(TAG, "applyPref " + key + " = " + value);
 	}
 
 	@Override
-	public void launchImpl(final Callback<Void> callback) {
+	public void prepareBinary() {
+		fireEvent(C.Event.PREPARING);
+		fireEvent(C.Event.INSTALLED);
+	}
+
+	@Override
+	public void launch() {
 		Log.d(TAG, "launch");
 		sleep(1000);
-		callback.onResult(null);
+		fireEvent(C.Event.LAUNCHING);
+		fireEvent(C.Event.LAUNCHED);
 	}
 
 	@Override
-	protected void killImpl(final Callback<Void> callback) {
+	public void kill() {
 		Log.d(TAG, "kill");
 		sleep(1000);
-		callback.onResult(null);
+		fireEvent(C.Event.DISABLED);
+		fireEvent(C.Event.KILLED);
 	}
 
 	@Override
-	protected void enableImpl(final Callback<Void> callback) {
+	public void enable() {
 		Log.d(TAG, "enable");
 		sleep(1000);
-		callback.onResult(null);
+		fireEvent(C.Event.ENABLING);
+		fireEvent(C.Event.ENABLED);
 	}
 
 	@Override
-	protected void disableImpl(final Callback<Void> callback) {
+	public void setupTunerByPreferences(final String[] changed) {
+	}
+
+	@Override
+	public void disable() {
 		Log.d(TAG, "disable");
 		sleep(1000);
-		callback.onResult(null);
+		fireEvent(C.Event.DISABLING);
+		fireEvent(C.Event.DISABLED);
 	}
 
 	@Override
-	protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
+	public void setFrequency(final int kHz) {
 		Log.d(TAG, "setFrequency: " + kHz);
 		sleep(200);
-		callback.onResult(kHz);
+		final Bundle bundle = new Bundle();
+		bundle.putInt(C.Key.FREQUENCY, kHz);
+		fireEvent(C.Event.FREQUENCY_SET, bundle);
 	}
 
 	@Override
-	protected void jumpImpl(final int direction, final Callback<Integer> callback) {
+	public void jump(final int direction) {
 		Log.d(TAG, "jump " + direction);
 		sleep(1000);
-		callback.onResult(87500);
+		final Bundle bundle = new Bundle();
+		bundle.putInt(C.Key.FREQUENCY, 87500);
+		fireEvent(C.Event.JUMP_COMPLETE, bundle);
 	}
 
 	@Override
-	protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
+	public void hwSeek(final int direction) {
 		Log.d(TAG, "hwSeek " + direction);
 		sleep(2000);
-		callback.onResult(87500);
+		final Bundle bundle = new Bundle();
+		bundle.putInt(C.Key.FREQUENCY, 87500);
+		fireEvent(C.Event.HW_SEEK_COMPLETE, bundle);
 	}
 
 	@Override
-	protected void hwSearchImpl() {
+	public void hwSearch() {
 		Log.d(TAG, "hwSearch");
 	}
 
 	@Override
-	protected void setPowerModeImpl(String mode) {
+	public void setPowerMode(final String mode) {
 		Log.d(TAG, "setPowerMode " + mode);
-	}
-
-	@Override
-	public void setMute(final MuteState state, final Callback<Void> callback) {
-		Log.d(TAG, "setMute " + state);
 	}
 
 	private void sleep(final int ms) {
@@ -116,7 +134,16 @@ public class Empty extends AbstractFMController implements IFMEventListener {
 		}
 	}
 
-	public static boolean isAbleToWork() {
+	@SuppressWarnings("unused")
+    public static boolean isAbleToWork() {
 		return true;
+	}
+
+	private void fireEvent(final String event) {
+		context.sendBroadcast(new Intent(event));
+	}
+
+	private void fireEvent(final String event, final Bundle bundle) {
+		context.sendBroadcast(new Intent(event).putExtras(bundle));
 	}
 }
