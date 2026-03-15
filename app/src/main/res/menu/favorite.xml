@@ -8,12 +8,20 @@
 			android:icon="@drawable/ic_favorite_list_add"
 			app:showAsAction="always"/>
 	<item
-			android:id="@+id/menu_favorite_remove"
-			android:title="@string/menu_favorite_list_remove"
-			android:icon="@drawable/ic_favorite_list_remove" />
+			android:id="@+id/menu_favorite_import"
+			android:title="@string/menu_favorite_list_import"
+			android:icon="@drawable/ic_file_music" />
+	<item
+			android:id="@+id/menu_favorite_export"
+			android:title="@string/menu_favorite_list_export"
+			android:icon="@drawable/ic_file_music" />
 	<item
 			android:visible="false"
 			android:id="@+id/menu_favorite_search"
 			android:title="@string/menu_favorite_list_search"
 			android:icon="@drawable/ic_search" />
+	<item
+			android:id="@+id/menu_favorite_remove"
+			android:title="@string/menu_favorite_list_remove"
+			android:icon="@drawable/ic_favorite_list_remove" />
 </menu>

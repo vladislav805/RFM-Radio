@@ -11,14 +11,18 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * vlad805 (c) 2020
@@ -137,6 +141,27 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		}
 
 		return true;
+	}
+
+	public String importList(final String suggestedName, final InputStream inputStream) throws IOException {
+		final String importedJson = readInputStream(inputStream);
+		validateFavoriteListJson(importedJson);
+
+		final String baseName = sanitizeImportedName(suggestedName);
+		final String finalName = makeUniqueListName(baseName);
+		final File file = new File(getFavoritesDirectory(), finalName + JSON_EXT);
+
+		try (final FileOutputStream stream = new FileOutputStream(file)) {
+			stream.write(importedJson.getBytes());
+		}
+
+		return finalName;
+	}
+
+	public void exportCurrentList(final OutputStream outputStream) throws IOException {
+		try (final OutputStream output = outputStream) {
+			output.write(readFile().getBytes());
+		}
 	}
 
 	/**
@@ -266,5 +291,58 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new IllegalStateException("Cannot create favorites directory");
 		}
 		return dir;
+	}
+
+	private String readInputStream(final InputStream inputStream) throws IOException {
+		try (final InputStream input = inputStream; final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			final byte[] buffer = new byte[8192];
+			int read;
+			while ((read = input.read(buffer)) != -1) {
+				output.write(buffer, 0, read);
+			}
+			return output.toString();
+		}
+	}
+
+	private void validateFavoriteListJson(final String importedJson) throws IOException {
+		try {
+			final JSONObject object = new JSONObject(importedJson);
+			final JSONArray items = object.getJSONArray(KEY_JSON_ITEMS);
+			for (int i = 0; i < items.length(); ++i) {
+				new FavoriteStation(items.getJSONObject(i));
+			}
+		} catch (JSONException e) {
+			throw new IOException("Invalid favorites JSON", e);
+		}
+	}
+
+	private String sanitizeImportedName(final String suggestedName) {
+		String baseName = suggestedName;
+		final int dotIndex = baseName.lastIndexOf('.');
+		if (dotIndex > 0) {
+			baseName = baseName.substring(0, dotIndex);
+		}
+
+		baseName = baseName.trim().replaceAll("[^A-Za-z0-9_-]+", "_");
+		baseName = baseName.replaceAll("_+", "_");
+		baseName = baseName.replaceAll("^_+|_+$", "");
+
+		if (baseName.isEmpty()) {
+			baseName = "imported";
+		}
+
+		return baseName.toLowerCase(Locale.ENGLISH);
+	}
+
+	private String makeUniqueListName(final String baseName) {
+		if (!isAlreadyExists(baseName)) {
+			return baseName;
+		}
+
+		int suffix = 1;
+		while (isAlreadyExists(baseName + "_" + suffix)) {
+			suffix++;
+		}
+		return baseName + "_" + suffix;
 	}
 }

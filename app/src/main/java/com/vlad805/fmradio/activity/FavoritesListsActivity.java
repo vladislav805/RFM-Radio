@@ -7,7 +7,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Menu;
@@ -38,9 +41,13 @@ import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
 import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 public class FavoritesListsActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, OnDragListener {
+	private static final int REQUEST_CODE_IMPORT_FAVORITES = 2001;
+	private static final int REQUEST_CODE_EXPORT_FAVORITES = 2002;
 	private ProgressDialog mProgress;
 	private Menu mMenu;
 	private String mCurrentNameList;
@@ -69,6 +76,25 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		mController = new FavoriteController(this);
 
 		initUI();
+	}
+
+	@Override
+	protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
+		if (resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
+			switch (requestCode) {
+				case REQUEST_CODE_IMPORT_FAVORITES: {
+					importFavoriteList(data.getData());
+					break;
+				}
+
+				case REQUEST_CODE_EXPORT_FAVORITES: {
+					exportFavoriteList(data.getData());
+					break;
+				}
+			}
+		}
+
+		super.onActivityResult(requestCode, resultCode, data);
 	}
 
 	/**
@@ -214,6 +240,16 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				break;
 			}
 
+			case R.id.menu_favorite_import: {
+				openImportFavoritePicker();
+				break;
+			}
+
+			case R.id.menu_favorite_export: {
+				openExportFavoritePicker();
+				break;
+			}
+
 			case android.R.id.home: {
 				finish();
 				break;
@@ -259,6 +295,69 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		});
 
 		dialog.open();
+	}
+
+	private void openImportFavoritePicker() {
+		final Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+				.addCategory(Intent.CATEGORY_OPENABLE)
+				.setType("application/json");
+		startActivityForResult(intent, REQUEST_CODE_IMPORT_FAVORITES);
+	}
+
+	private void openExportFavoritePicker() {
+		final Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+				.addCategory(Intent.CATEGORY_OPENABLE)
+				.setType("application/json")
+				.putExtra(Intent.EXTRA_TITLE, mController.getCurrentFavoriteList() + ".json");
+		startActivityForResult(intent, REQUEST_CODE_EXPORT_FAVORITES);
+	}
+
+	private void importFavoriteList(final Uri uri) {
+		try (final InputStream inputStream = getContentResolver().openInputStream(uri)) {
+			if (inputStream == null) {
+				mToast.text(R.string.favorite_list_import_error).show();
+				return;
+			}
+
+			final String importedName = mController.importList(getDisplayName(uri), inputStream);
+			mController.setCurrentFavoriteList(importedName);
+			mCurrentNameList = importedName;
+			reloadLists();
+			reloadContent();
+			setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
+			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+			mToast.text(getString(R.string.favorite_list_import_success, importedName)).show();
+		} catch (IOException e) {
+			mToast.text(R.string.favorite_list_import_error).show();
+		}
+	}
+
+	private void exportFavoriteList(final Uri uri) {
+		try (final java.io.OutputStream outputStream = getContentResolver().openOutputStream(uri, "wt")) {
+			if (outputStream == null) {
+				mToast.text(R.string.favorite_list_export_error).show();
+				return;
+			}
+
+			mController.exportCurrentList(outputStream);
+			mToast.text(getString(R.string.favorite_list_export_success, mController.getCurrentFavoriteList())).show();
+		} catch (IOException e) {
+			mToast.text(R.string.favorite_list_export_error).show();
+		}
+	}
+
+	private String getDisplayName(final Uri uri) {
+		try (final Cursor cursor = getContentResolver().query(uri, new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null)) {
+			if (cursor != null && cursor.moveToFirst()) {
+				final int columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+				if (columnIndex >= 0) {
+					return cursor.getString(columnIndex);
+				}
+			}
+		}
+
+		final String lastSegment = uri.getLastPathSegment();
+		return lastSegment != null ? lastSegment : "imported.json";
 	}
 
 	private void removeDialog() {

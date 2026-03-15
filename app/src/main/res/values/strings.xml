@@ -32,9 +32,15 @@
 	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
+	<string name="menu_favorite_list_import">Import list</string>
+	<string name="menu_favorite_list_export">Export list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
 	<string name="favorite_list_create_error_already_exists">List with this name already exists</string>
 	<string name="favorite_list_create_error_invalid_name">Invalid name. Only A–Z, a–z, \'–\', \'_\' and 0–9 can be used.</string>
+	<string name="favorite_list_import_success">Imported list \"%s\"</string>
+	<string name="favorite_list_import_error">Failed to import favorite list</string>
+	<string name="favorite_list_export_success">Exported list \"%s\"</string>
+	<string name="favorite_list_export_error">Failed to export favorite list</string>
 	<string name="favorite_list_remove_title">Confirmation</string>
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
 	<string name="pref_activity_title">Settings</string>
