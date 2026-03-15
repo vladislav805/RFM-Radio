@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 
 def versionMajor = 0
-def versionMinor = 6
-def versionPatch = 3
+def versionMinor = 7
+def versionPatch = 0
 
 def dev = false
 def appId = dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
