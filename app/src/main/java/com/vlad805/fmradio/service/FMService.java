@@ -262,8 +262,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 if (mAudioService instanceof IAudioRecordable) {
                     try {
                         ((IAudioRecordable) mAudioService).startRecord(getPreferredRecorder());
-                    } catch (RecordError e) {
-                        Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                    } catch (Throwable e) {
+                        Log.e("FMS", "Failed to start recording", e);
+                        final String message = e.getMessage() != null ? e.getMessage() : "Recording start failed";
+                        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                     }
                 } else {
                     Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();

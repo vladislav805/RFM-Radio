@@ -185,12 +185,12 @@ public abstract class RecordService implements IFMRecorder {
      * Create file and initialize streams
      */
     private void createFile() throws RecordError {
-        final File dir = makeDirectoryHierarchy();
-        final String name = getFilename();
-
-        mRecordFile = new File(dir, name);
-
         try {
+            final File dir = makeDirectoryHierarchy();
+            final String name = getFilename();
+
+            mRecordFile = new File(dir, name);
+
             if (mRecordFile.exists()) {
                 throw new RecordError("File with these name already exists!\nPlease, check filename schema for unique.");
             }
@@ -203,8 +203,10 @@ public abstract class RecordService implements IFMRecorder {
             mBufferOutStream = new BufferedOutputStream(mFileOutStream, 131072);
 
             onFileCreated();
+        } catch (IllegalStateException e) {
+            throw new RecordError(e.getMessage());
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RecordError("Cannot create recording file");
         }
     }
 
@@ -233,8 +235,12 @@ public abstract class RecordService implements IFMRecorder {
         final String path = Environment.getExternalStorageDirectory() + File.separator + getPreferredDirectory();
         final File dir = new File(RecordSchemaHelper.prepareString(path, mKHz));
 
-        if (!dir.exists()) {
-            dir.mkdirs();
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IllegalStateException("Cannot create recording directory");
+        }
+
+        if (!dir.isDirectory()) {
+            throw new IllegalStateException("Recording path is not a directory");
         }
 
         return dir;

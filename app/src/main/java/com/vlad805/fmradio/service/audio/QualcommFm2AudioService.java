@@ -12,6 +12,7 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Environment;
+import android.os.Build;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -38,6 +39,8 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 	private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
 	private static final String PERMISSION_CAPTURE_AUDIO_OUTPUT = "android.permission.CAPTURE_AUDIO_OUTPUT";
+	private static final String PERMISSION_RECORD_AUDIO = "android.permission.RECORD_AUDIO";
+	private static final String PERMISSION_WRITE_EXTERNAL_STORAGE = "android.permission.WRITE_EXTERNAL_STORAGE";
 	private static final int AUDIO_SOURCE_RADIO_TUNER = resolveRadioTunerAudioSource();
 	private static final int RECORDING_UPDATE_MS = 1000;
 
@@ -207,6 +210,8 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 			throw new RecordError("External storage is not mounted");
 		}
 
+		ensureRecordingPermissions();
+
 		if (mContext.checkSelfPermission(PERMISSION_CAPTURE_AUDIO_OUTPUT) == PackageManager.PERMISSION_GRANTED) {
 			try {
 				startPrivilegedMediaRecorder();
@@ -262,8 +267,6 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 			throw new RecordError("FM Tuner input device not found");
 		}
 
-		recorder.startRecord();
-
 		final int bufferSize = AudioRecord.getMinBufferSize(
 				48000,
 				AudioFormat.CHANNEL_IN_STEREO,
@@ -280,15 +283,20 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 				.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
 				.build();
 
-		final AudioRecord audioRecord = new AudioRecord.Builder()
-				.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
-				.setAudioFormat(format)
-				.setBufferSizeInBytes(bufferSize * 2)
-				.build();
+		final AudioRecord audioRecord;
+		try {
+			audioRecord = new AudioRecord.Builder()
+					.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+					.setAudioFormat(format)
+					.setBufferSizeInBytes(bufferSize * 2)
+					.build();
+		} catch (Throwable t) {
+			Log.e(TAG, "startAudioRecordRecorder: AudioRecord build failed", t);
+			throw new RecordError("Cannot create AudioRecord");
+		}
 
 		if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
 			audioRecord.release();
-			recorder.stopRecord();
 			throw new RecordError("AudioRecord init failed");
 		}
 
@@ -300,8 +308,18 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 			audioRecord.startRecording();
 		} catch (Throwable t) {
 			audioRecord.release();
-			recorder.stopRecord();
 			throw new RecordError("AudioRecord.startRecording failed");
+		}
+
+		try {
+			recorder.startRecord();
+		} catch (RecordError e) {
+			try {
+				audioRecord.stop();
+			} catch (Throwable ignored) {
+			}
+			audioRecord.release();
+			throw e;
 		}
 
 		mRecordingAudioRecord = audioRecord;
@@ -309,7 +327,6 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 		mRecordingFile = null;
 		mRecordingStartedMs = System.currentTimeMillis();
 		startRecordingTimer();
-		mContext.sendBroadcast(new Intent(C.Event.RECORD_STARTED));
 
 		mRecordingThread = new Thread(() -> {
 			final short[] buffer = new short[bufferSize / 2];
@@ -456,6 +473,20 @@ public class QualcommFm2AudioService extends AudioService implements IAudioRecor
 			throw new RecordError("Cannot create recording file");
 		}
 		return file;
+	}
+
+	private void ensureRecordingPermissions() throws RecordError {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+			return;
+		}
+
+		if (mContext.checkSelfPermission(PERMISSION_RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+			throw new RecordError("Please allow microphone access before recording");
+		}
+
+		if (mContext.checkSelfPermission(PERMISSION_WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+			throw new RecordError("Please allow storage access before recording");
+		}
 	}
 
 	private AudioDeviceInfo findFmTunerInputDevice() {

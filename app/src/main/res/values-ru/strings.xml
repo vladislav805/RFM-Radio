@@ -80,6 +80,9 @@
 	<string name="seek_down">Поиск назад</string>
 	<string name="seek_up">Поиск вперёд</string>
 	<string name="service_record_unsupported">Запись эфира не поддерживается этим драйвером.</string>
+	<string name="record_permissions_required_title">Нужны разрешения для записи</string>
+	<string name="record_permissions_required">Для записи нужны разрешения на микрофон и хранилище. Откройте настройки приложения и выдайте их.</string>
+	<string name="record_permissions_open_settings">Открыть настройки</string>
 	<string name="toast_record_ended">Запись %1$s сохранена\nРазмер: %2$.1f МБ\nДлительность: %3$s</string>
 	<string name="toggle_play_pause">Старт</string>
 	<string name="toolbar_favorite_title">Избранное</string>

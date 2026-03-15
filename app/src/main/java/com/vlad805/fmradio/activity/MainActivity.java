@@ -1,9 +1,15 @@
 package com.vlad805.fmradio.activity;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
+import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -12,6 +18,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -59,6 +67,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
+    private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
+    private boolean mPendingRecordStart = false;
+    private boolean mRecordPermissionsRequested = false;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -168,6 +179,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    @Override
+    public void onRequestPermissionsResult(final int requestCode, final String[] permissions, final int[] grantResults) {
+        if (requestCode == REQUEST_CODE_RECORD_PERMISSIONS) {
+            final boolean granted = hasRecordingPermissions();
+            if (granted && mPendingRecordStart) {
+                mRadioController.record(true);
+            } else if (mPendingRecordStart) {
+                mToast.text(getString(R.string.record_permissions_required)).show();
+            }
+            mPendingRecordStart = false;
+        }
+
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
     /**
      * Setup clickable buttons
      */
@@ -265,7 +291,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.menu_record:
-                mRadioController.record(!mRadioController.getState().isRecording());
+                if (mRadioController.getState().isRecording()) {
+                    mRadioController.record(false);
+                    break;
+                }
+
+                if (hasRecordingPermissions()) {
+                    mRadioController.record(true);
+                } else if (shouldOpenRecordingPermissionSettings()) {
+                    showRecordingPermissionSettingsDialog();
+                } else {
+                    mPendingRecordStart = true;
+                    mRecordPermissionsRequested = true;
+                    ActivityCompat.requestPermissions(
+                            this,
+                            new String[] {
+                                    Manifest.permission.RECORD_AUDIO,
+                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            },
+                            REQUEST_CODE_RECORD_PERMISSIONS
+                    );
+                }
                 break;
 
             case R.id.menu_speaker: {
@@ -279,6 +325,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void setEnabledToggleButton(final boolean enabled) {
         mCtlToggle.setEnabled(enabled);
+    }
+
+    private boolean hasRecordingPermissions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean shouldOpenRecordingPermissionSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mRecordPermissionsRequested) {
+            return false;
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)
+                && !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+    }
+
+    private void showRecordingPermissionSettingsDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.record_permissions_required_title)
+                .setMessage(R.string.record_permissions_required)
+                .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void openAppSettings() {
+        final Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.fromParts("package", getPackageName(), null));
+        startActivity(intent);
     }
 
     private void reloadPreferences() {
