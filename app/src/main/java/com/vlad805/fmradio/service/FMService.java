@@ -1,11 +1,15 @@
 package com.vlad805.fmradio.service;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioAttributes;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -54,7 +58,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private static final String TAG = "FMS";
     public static final int NOTIFICATION_ID = 1027;
     public static final int NOTIFICATION_RECORD_ID = 1029;
-    private static final String CHANNEL_ID = "default_channel";
+    private static final String CHANNEL_ID = "playback_channel_v2";
     private static final String CHANNEL_RECORD_ID = "record_channel";
     private static final String CHANNEL_RECORDING_ID = "recording_channel";
 
@@ -79,6 +83,51 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private RadioState mState;
 
+    private void makeChannelSilent(final NotificationChannel channel) {
+        channel.enableVibration(false);
+        channel.setVibrationPattern(new long[0]);
+        channel.setSound(null, (AudioAttributes) null);
+    }
+
+    private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
+
+        final NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        if (notificationManager == null) {
+            return;
+        }
+
+        final NotificationChannel mainChannel = new NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.app_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        mainChannel.setDescription(getString(R.string.app_name));
+        makeChannelSilent(mainChannel);
+
+        final NotificationChannel recordChannel = new NotificationChannel(
+                CHANNEL_RECORD_ID,
+                getString(R.string.app_name) + " recordings",
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        recordChannel.setDescription(getString(R.string.notification_recorded, "", 0f, ""));
+        makeChannelSilent(recordChannel);
+
+        final NotificationChannel recordingChannel = new NotificationChannel(
+                CHANNEL_RECORDING_ID,
+                getString(R.string.app_name) + " recording",
+                NotificationManager.IMPORTANCE_LOW
+        );
+        recordingChannel.setDescription(getString(R.string.notification_recording, "", 0f));
+        makeChannelSilent(recordingChannel);
+
+        notificationManager.createNotificationChannel(mainChannel);
+        notificationManager.createNotificationChannel(recordChannel);
+        notificationManager.createNotificationChannel(recordingChannel);
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -90,6 +139,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mRadioController = new RadioController(this);
         mFavoriteController = new FavoriteController(this);
         mNotificationManager = NotificationManagerCompat.from(this);
+        createNotificationChannels();
 
         // Preferences
         mStorage = Storage.getInstance(this);
@@ -613,8 +663,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.progress_starting))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
+                .setOnlyAlertOnce(true)
                 .setAutoCancel(false)
                 .setOngoing(true)
                 .setColor(getResources().getColor(R.color.primary_blue))
