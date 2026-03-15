@@ -9,6 +9,7 @@ import com.vlad805.fmradio.Utils;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.util.Arrays;
 
 import static com.vlad805.fmradio.Utils.parseInt;
@@ -65,8 +66,15 @@ public class DatagramServer extends Thread {
 					dp.setData(result.getBytes());
 					mDatagramSocketServer.send(dp);
 				}
+			} catch (SocketException e) {
+				if (mEnabled) {
+					e.printStackTrace();
+				}
+				mEnabled = false;
 			} catch (IOException e) {
-				e.printStackTrace();
+				if (mEnabled) {
+					e.printStackTrace();
+				}
 			} catch (StopServer e) {
 				mEnabled = false;
 			}

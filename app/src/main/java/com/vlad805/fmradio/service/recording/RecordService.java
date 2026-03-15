@@ -36,6 +36,11 @@ public abstract class RecordService implements IFMRecorder {
     private final int mKHz;
 
     /**
+     * Recording sample rate
+     */
+    private final int mSampleRate;
+
+    /**
      * State of recording
      */
     private State mState = State.IDLE;
@@ -72,8 +77,13 @@ public abstract class RecordService implements IFMRecorder {
      * @param kHz Current frequency in kHz
      */
     public RecordService(final Context context, final int kHz) {
+        this(context, kHz, 44100);
+    }
+
+    public RecordService(final Context context, final int kHz, final int sampleRate) {
         mContext = context;
         mKHz = kHz;
+        mSampleRate = sampleRate;
     }
 
     /**
@@ -236,6 +246,10 @@ public abstract class RecordService implements IFMRecorder {
      */
     private String getFilename() {
         return RecordSchemaHelper.prepareString(getPreferredFilename(), mKHz) + "." + getExtension();
+    }
+
+    protected final int getSampleRate() {
+        return mSampleRate;
     }
 
     /**

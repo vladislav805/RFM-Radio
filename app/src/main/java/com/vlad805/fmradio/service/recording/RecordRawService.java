@@ -17,6 +17,10 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 		super(context, kHz);
 	}
 
+	public RecordRawService(final Context context, final int kHz, final int sampleRate) {
+		super(context, kHz, sampleRate);
+	}
+
 	@Override
 	protected String getExtension() {
 		return "wav";
@@ -121,8 +125,8 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 		writeBytes(header, 16, 4, 16);
 		writeBytes(header, 20, 2, 1);
 		writeBytes(header, 22, 2, 2); // channels
-		writeBytes(header, 24, 4, 44100); // sample rate
-		writeBytes(header, 28, 4, (44100 * 2) * 2); // (sample rate * channels) * 2
+		writeBytes(header, 24, 4, getSampleRate()); // sample rate
+		writeBytes(header, 28, 4, (getSampleRate() * 2) * 2); // (sample rate * channels) * 2
 		writeBytes(header, 32, 2, 2 * 2); // channels * 2
 		writeBytes(header, 34, 2, 16);
 		writeBytes(header, 40, 4, mRecordLength);

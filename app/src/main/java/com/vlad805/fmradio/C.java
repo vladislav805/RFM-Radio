@@ -119,6 +119,7 @@ final public class C {
 		// public static final String RECORDING_SAVE_PAST = "recording_save_past";
 
 		public static final String BINARY_VERSION = "bin_version";
+		public static final String BINARY_VERSION_FM2 = "bin_version_fm2";
     }
 
 	public static final class PrefDefaultValue {
@@ -128,7 +129,7 @@ final public class C {
 		public static final boolean APP_AUTO_STARTUP = false;
 		public static final boolean RDS_ENABLE = true;
 
-		public static final int TUNER_DRIVER = AbstractFMController.DRIVER_QUALCOMM;
+		public static final int TUNER_DRIVER = AbstractFMController.DRIVER_QUALCOMM_FM2;
 		public static final int TUNER_REGION = 1;
 		public static final int TUNER_SPACING = 2;
 		public static final int TUNER_ANTENNA = 0;

@@ -16,6 +16,7 @@ import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 public abstract class AbstractFMController {
 	public static final int DRIVER_QUALCOMM = 0;
 	public static final int DRIVER_SPIRIT3 = 1;
+	public static final int DRIVER_QUALCOMM_FM2 = 2;
 	public static final int DRIVER_EMPTY = 999;
 
 	public interface Callback<T> {
@@ -128,16 +129,22 @@ public abstract class AbstractFMController {
 	 */
 	protected abstract void enableImpl(final Callback<Void> callback);
 
+	protected boolean shouldApplyStartupPreferences() {
+		return true;
+	}
+
 	public final void enable() {
 		fireEvent(C.Event.ENABLING);
 		enableImpl(result -> {
-			setupTunerByPreferences(new String[] {
-					C.PrefKey.RDS_ENABLE,
-					C.PrefKey.TUNER_REGION,
-					C.PrefKey.TUNER_SPACING,
-					C.PrefKey.TUNER_STEREO,
-					C.PrefKey.TUNER_ANTENNA,
-			});
+			if (shouldApplyStartupPreferences()) {
+				setupTunerByPreferences(new String[] {
+						C.PrefKey.RDS_ENABLE,
+						C.PrefKey.TUNER_REGION,
+						C.PrefKey.TUNER_SPACING,
+						C.PrefKey.TUNER_STEREO,
+						C.PrefKey.TUNER_ANTENNA,
+				});
+			}
 			fireEvent(C.Event.ENABLED);
 		});
 	}

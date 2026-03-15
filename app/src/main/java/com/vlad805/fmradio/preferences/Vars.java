@@ -23,6 +23,7 @@ public class Vars {
     static {
         sTunerDrivers = new SparseArray<>();
         sTunerDrivers.put(DRIVER_QUALCOMM, "QualComm V4L2 service");
+        sTunerDrivers.put(DRIVER_QUALCOMM_FM2, "QualComm FM HAL service (FM2/Helium)");
         sTunerDrivers.put(DRIVER_SPIRIT3, "QualComm V4L2 service from Spirit3 (installed spirit3 required)");
 
         if (BuildConfig.DEBUG) {

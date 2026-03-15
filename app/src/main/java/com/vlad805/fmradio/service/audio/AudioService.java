@@ -42,6 +42,13 @@ public abstract class AudioService {
 	public abstract void stopAudio();
 
 	/**
+	 * Update FM output route when user toggles speaker mode.
+	 */
+	public void setSpeakerEnabled(final boolean enabled) {
+		// Default implementation is for AudioRecord-based services and does nothing.
+	}
+
+	/**
 	 * AudioSource:
 	 * DEFAULT              work, HQ, loud
 	 * MIC                  work, HW

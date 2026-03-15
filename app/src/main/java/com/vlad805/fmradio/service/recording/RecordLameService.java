@@ -18,6 +18,10 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 		super(context, kHz);
 	}
 
+	public RecordLameService(final Context context, final int kHz, final int sampleRate) {
+		super(context, kHz, sampleRate);
+	}
+
 	@Override
 	protected String getExtension() {
 		return "mp3";
@@ -29,10 +33,10 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	@Override
 	protected void onFileCreated() {
 		mLame = new LameBuilder()
-				.setInSampleRate(44100)
+				.setInSampleRate(getSampleRate())
 				.setOutChannels(2)
 				.setOutBitrate(192)
-				.setOutSampleRate(44100)
+				.setOutSampleRate(getSampleRate())
 				.setMode(LameBuilder.Mode.JSTEREO)
 				.setQuality(8)
 				.build();
