@@ -23,6 +23,7 @@
 	<string name="player_event_frequency_changed">Частота изменена на %5.1f МГц</string>
 	<string name="popup_favorite_list_create">Создать список избранного</string>
 	<string name="favorite_list_import_success">Список \"%s\" импортирован</string>
+	<string name="favorite_list_import_success_many">Импортировано списков: %d</string>
 	<string name="favorite_list_import_error">Не удалось импортировать список избранного</string>
 	<string name="favorite_list_export_success">Список \"%s\" экспортирован</string>
 	<string name="favorite_list_export_error">Не удалось экспортировать список избранного</string>

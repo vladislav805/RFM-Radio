@@ -80,15 +80,17 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 
 	@Override
 	protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
-		if (resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
+		if (resultCode == Activity.RESULT_OK && data != null) {
 			switch (requestCode) {
 				case REQUEST_CODE_IMPORT_FAVORITES: {
-					importFavoriteList(data.getData());
+					importFavoriteLists(data);
 					break;
 				}
 
 				case REQUEST_CODE_EXPORT_FAVORITES: {
-					exportFavoriteList(data.getData());
+					if (data.getData() != null) {
+						exportFavoriteList(data.getData());
+					}
 					break;
 				}
 			}
@@ -300,7 +302,14 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	private void openImportFavoritePicker() {
 		final Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
 				.addCategory(Intent.CATEGORY_OPENABLE)
-				.setType("application/json");
+				.setType("*/*")
+				.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+				.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+						"application/json",
+						"text/json",
+						"text/plain",
+						"application/octet-stream"
+				});
 		startActivityForResult(intent, REQUEST_CODE_IMPORT_FAVORITES);
 	}
 
@@ -312,23 +321,62 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		startActivityForResult(intent, REQUEST_CODE_EXPORT_FAVORITES);
 	}
 
-	private void importFavoriteList(final Uri uri) {
-		try (final InputStream inputStream = getContentResolver().openInputStream(uri)) {
-			if (inputStream == null) {
+	private void importFavoriteLists(final Intent data) {
+		int importedCount = 0;
+		String lastImportedName = null;
+
+		if (data.getClipData() != null) {
+			for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+				final Uri uri = data.getClipData().getItemAt(i).getUri();
+				final String importedName = importFavoriteList(uri);
+				if (importedName != null) {
+					importedCount++;
+					lastImportedName = importedName;
+				}
+			}
+		} else if (data.getData() != null) {
+			lastImportedName = importFavoriteList(data.getData());
+			if (lastImportedName != null) {
+				importedCount = 1;
+			}
+		}
+
+		if (importedCount <= 0) {
+			mToast.text(R.string.favorite_list_import_error).show();
+			return;
+		}
+
+		if (lastImportedName != null) {
+			try {
+				mController.setCurrentFavoriteList(lastImportedName);
+				mCurrentNameList = lastImportedName;
+			} catch (FileNotFoundException e) {
 				mToast.text(R.string.favorite_list_import_error).show();
 				return;
 			}
+		}
 
-			final String importedName = mController.importList(getDisplayName(uri), inputStream);
-			mController.setCurrentFavoriteList(importedName);
-			mCurrentNameList = importedName;
-			reloadLists();
-			reloadContent();
-			setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
-			mToast.text(getString(R.string.favorite_list_import_success, importedName)).show();
+		reloadLists();
+		reloadContent();
+		setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
+		sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+
+		if (importedCount == 1 && lastImportedName != null) {
+			mToast.text(getString(R.string.favorite_list_import_success, lastImportedName)).show();
+		} else {
+			mToast.text(getString(R.string.favorite_list_import_success_many, importedCount)).show();
+		}
+	}
+
+	private String importFavoriteList(final Uri uri) {
+		try (final InputStream inputStream = getContentResolver().openInputStream(uri)) {
+			if (inputStream == null) {
+				return null;
+			}
+
+			return mController.importList(getDisplayName(uri), inputStream);
 		} catch (IOException e) {
-			mToast.text(R.string.favorite_list_import_error).show();
+			return null;
 		}
 	}
 
