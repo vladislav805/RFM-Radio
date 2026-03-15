@@ -17,14 +17,11 @@ android {
     namespace "com.vlad805.fmradio"
 
     defaultConfig {
-        //noinspection GroovyAssignabilityCheck
         applicationId dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
-        minSdkVersion 21
+        minSdkVersion 23
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 24
-        //noinspection GroovyAssignabilityCheck
         versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
-        //noinspection GroovyAssignabilityCheck
         versionName "${versionMajor}.${versionMinor}.${versionPatch}"
     }
 
