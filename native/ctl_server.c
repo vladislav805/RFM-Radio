@@ -56,6 +56,8 @@ bool send_interruption_info(int evt, const char *message) {
         message = "";
     }
 
+    // Keep the historical "event_id<FF>payload" framing so the Java UDP
+    // listener can stay backend-agnostic.
     snprintf(buf, sizeof(buf), "%d%c%s", evt, 0x0c, message);
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);

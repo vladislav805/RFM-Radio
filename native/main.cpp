@@ -51,6 +51,8 @@ response_t make_error(const char *message) {
 }
 
 response_t make_ok(const char *message = kResponseOk) {
+    // response is intentionally delayed to preserve timing expected by the Java/native
+    // interaction and avoid races with async backend events
     usleep(kResponseDelayUs);
     response_t res = {0, message};
     return res;
@@ -61,6 +63,8 @@ Backend *ensure_backend() {
         return g_backend;
     }
 
+    // Backend selection is process-global: the device cannot switch between
+    // V4L2 and FM HAL while the bridge is running, so detect once and reuse.
     g_backend = create_detected_backend();
     return g_backend;
 }

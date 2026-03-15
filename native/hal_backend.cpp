@@ -21,6 +21,9 @@ public:
             return false;
         }
 
+        // FM HAL enable is callback-driven. Returning success too early races
+        // with follow-up commands such as tune, so wait until the backend marks
+        // itself enabled.
         return set_status(fm2_backend_wait_enabled(2000));
     }
 
