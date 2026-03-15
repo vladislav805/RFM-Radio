@@ -76,7 +76,11 @@ public abstract class RecordService implements IFMRecorder {
      * @param context Context
      * @param kHz Current frequency in kHz
      */
-    public RecordService(final Context context, final int kHz, final int sampleRate) {
+    public RecordService(
+            final Context context,
+            final int kHz,
+            final int sampleRate
+    ) {
         mContext = context;
         mKHz = kHz;
         mSampleRate = sampleRate;
@@ -88,10 +92,10 @@ public abstract class RecordService implements IFMRecorder {
      */
     @Override
     public final void startRecord() throws RecordError {
+        mStarted = System.currentTimeMillis();
         createFile();
         mState = State.RECORDING;
         mContext.sendBroadcast(new Intent(C.Event.RECORD_STARTED));
-        mStarted = System.currentTimeMillis();
     }
 
     @Override
@@ -253,6 +257,18 @@ public abstract class RecordService implements IFMRecorder {
         return mSampleRate;
     }
 
+    protected final Context getContext() {
+        return mContext;
+    }
+
+    protected final int getFrequencyKhz() {
+        return mKHz;
+    }
+
+    protected final long getStartedAtMillis() {
+        return mStarted;
+    }
+
     /**
      * Return file extension
      * @return Extension without ".": for example "mp3" or "wav".
@@ -262,7 +278,7 @@ public abstract class RecordService implements IFMRecorder {
     /**
      * Calls when file created and opened streams for write.
      */
-    protected abstract void onFileCreated();
+    protected abstract void onFileCreated() throws IOException;
 
     /**
      * Calls when AudioRecord receive new packet of data
