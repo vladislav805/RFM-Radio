@@ -4,7 +4,6 @@ import android.content.Context;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.MuteState;
-import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.File;
@@ -13,10 +12,8 @@ import java.io.File;
  * vlad805 (c) 2020
  */
 public class QualcommLegacy extends AbstractQualcommNativeController {
-	private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(2112, 2113);
-
 	public QualcommLegacy(final Context context) {
-		super(CONFIG, context);
+		super(context);
 	}
 
 	/**

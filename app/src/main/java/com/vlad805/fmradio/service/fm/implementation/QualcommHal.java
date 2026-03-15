@@ -1,16 +1,14 @@
 package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
+import android.os.Bundle;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
-import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
-import android.os.Bundle;
 import java.io.File;
 
 public class QualcommHal extends AbstractQualcommNativeController {
-    private static final LaunchBinaryConfig CONFIG = new LaunchBinaryConfig(2112, 2113);
     private static final long DUPLICATE_TUNE_WINDOW_MS = 1500L;
 
     private static final String[] FM_HELIUM_PATHS = {
@@ -28,7 +26,7 @@ public class QualcommHal extends AbstractQualcommNativeController {
     private long mLastRequestedFrequencyAtMs = 0L;
 
     public QualcommHal(final Context context) {
-        super(CONFIG, context);
+        super(context);
     }
 
     @Override

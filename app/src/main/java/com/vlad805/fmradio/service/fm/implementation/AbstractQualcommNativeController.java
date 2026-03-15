@@ -12,7 +12,6 @@ import com.vlad805.fmradio.service.fm.DatagramServer;
 import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
-import com.vlad805.fmradio.service.fm.LaunchBinaryConfig;
 import com.vlad805.fmradio.service.fm.communication.Poll;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
@@ -24,6 +23,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public abstract class AbstractQualcommNativeController implements IFMController, IFMEventListener {
+    private static final int CLIENT_PORT = 2112;
+    private static final int SERVER_PORT = 2113;
+
     public interface Callback<T> {
         void onResult(T result);
 
@@ -31,17 +33,15 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         }
     }
 
-    protected final LaunchBinaryConfig config;
     protected final Context context;
 
     private DatagramServer mServer;
     private FMEventCallback mEventCallback;
     private final Poll mCommandPoll;
 
-    protected AbstractQualcommNativeController(final LaunchBinaryConfig config, final Context context) {
-        this.config = config;
+    protected AbstractQualcommNativeController(final Context context) {
         this.context = context;
-        mCommandPoll = new Poll(config);
+        mCommandPoll = new Poll(CLIENT_PORT);
     }
 
     @SuppressLint("SdCardPath")
@@ -339,7 +339,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     protected final void startServerListener() {
         try {
             closeServerListener();
-            mServer = new DatagramServer(config.serverPort);
+            mServer = new DatagramServer(SERVER_PORT);
             mServer.setCallback((event, bundle) -> {
                 onServerEvent(event, bundle);
                 if (mEventCallback != null) {
