@@ -53,7 +53,6 @@ volatile boolean is_power_on_completed = FALSE;
 
 // FM asynchronous thread to perform the long running ON
 pthread_t fm_interrupt_thread;
-pthread_t fm_rssi_thread;
 
 /**
  * Current state
@@ -65,7 +64,6 @@ fm_current_storage fm_storage = {
         .space_type = FM_RX_SPACE_100KHZ,
         .stereo_type = FM_RX_STEREO,
         .state = OFF,
-        .rssi = 0,
         .rds = {
                 .radio_text = "",
                 .program_name = "",
@@ -106,8 +104,6 @@ boolean process_radio_event(uint8 event_buf) {
             // Remove last RDS data
             strcpy(fm_storage.rds.program_name, "");
             strcpy(fm_storage.rds.radio_text, "");
-
-            fm_storage.rssi = 0;
 
             printf("fw_proc_event   : tuned to frequency %d\n", fm_storage.frequency);
 
@@ -285,32 +281,6 @@ exit:
 }
 
 /**
- * Get signal strength
- * In frontend need compute:
- *   Weakest strength = 139 = -116dB
- *   Strongest strength = 220 = -35dB
- *   To get dB need: -255 + N = -X (dB)
- */
-/**
- * Thread for polling signal strength
- */
-void *fm_thread_rssi(__attribute__((unused)) void *ptr) {
-    print("fw_rssi_th      : start RSSI thread\n");
-
-    int errors = 0;
-
-    while (errors < 100) {
-        wait(1000);
-        if (send_interruption_info(EVT_UPDATE_RSSI, int_to_string(fm_receiver_get_rssi())) != TRUE) {
-            ++errors;
-        }
-    }
-
-    print("fw_rssi_th      : RSSI thread exited\n");
-    return NULL;
-}
-
-/**
  * Part 1. Open file descriptor of radio
  * Opens the handle to /dev/radio0 V4L2 device.
  * @return FM command status
@@ -477,7 +447,6 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
 
     // Create threads
     pthread_create(&fm_interrupt_thread, NULL, interrupt_thread, NULL);
-    pthread_create(&fm_rssi_thread, NULL, fm_thread_rssi, NULL);
 
     is_power_on_completed = TRUE;
     return FM_CMD_SUCCESS;

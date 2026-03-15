@@ -10,7 +10,6 @@
 
 response_t api_handler(char* request);
 
-#define MK_GET_RSSI      "getrssi"
 #define MK_SET_STEREO    "setstereo"
 #define MK_SET_MUTE      "setmute"
 #define MK_SEARCH        "search"

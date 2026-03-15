@@ -33,7 +33,6 @@
 #define V4L2_CID_PRIVATE_TAVARUA_RDSD_BUF      (V4L2_CID_PRIVATE_BASE + 19) // 0x8000013
 #define V4L2_CID_PRIVATE_TAVARUA_AF_JUMP       (V4L2_CID_PRIVATE_BASE + 27)
 #define V4L2_CID_PRIVATE_TAVARUA_SET_AUDIO_PATH (V4L2_CID_PRIVATE_BASE + 41)
-#define V4L2_CID_PRIVATE_RSSI_TH               (V4L2_CID_PRIVATE_BASE + 62)
 
 #define V4L2_CID_PRIVATE_TAVARUA_ANTENNA       (V4L2_CID_PRIVATE_BASE + 18)
 #define V4L2_CID_PRIVATE_TAVARUA_PSALL         (V4L2_CID_PRIVATE_BASE + 20)
@@ -615,23 +614,3 @@ uint8 extract_search_station_list(uint32* list) {
 }
 
 
-
-/**
- * Returns the signal strength of the currently tuned station
- *
- * This method returns the signal strength of the currently
- * tuned station.
- *
- * @return RSSI of currently tuned station
- */
-int32 fm_receiver_get_rssi() {
-    struct v4l2_tuner tuner;
-    tuner.index = 0;
-    tuner.signal = 0;
-
-    if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) == 0) {
-        return tuner.signal;
-    } else {
-        return -1;
-    }
-}

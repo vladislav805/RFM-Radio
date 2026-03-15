@@ -25,7 +25,6 @@ typedef struct {
     radio_band_t band_type;
     fm_tuner_state state;
     fm_rds_storage rds;
-    uint8 rssi;
     fm_available_t avail;
 } fm_current_storage;
 
@@ -62,9 +61,5 @@ boolean extract_program_service(fm_rds_storage* storage);
 boolean extract_radio_text(fm_rds_storage* storage);
 uint8 extract_rds_af_list(uint32* list);
 uint8 extract_search_station_list(uint32* list);
-
-int32 fm_receiver_get_rssi();
-
-
 
 #endif //FMBIN_FM_CTL_H
