@@ -36,8 +36,7 @@ import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.IFMEventPoller;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
-import com.vlad805.fmradio.service.fm.implementation.QualcommHal;
-import com.vlad805.fmradio.service.fm.implementation.QualcommLegacy;
+import com.vlad805.fmradio.service.fm.implementation.QualcommNative;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
@@ -70,6 +69,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private Map<Integer, String> mFavoriteList;
 
     private IFMController mTunerDriver;
+    private TunerDriver mTunerDriverKind;
     private AudioService mAudioService;
 
     private BroadcastReceiver mEventReaction;
@@ -145,8 +145,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mStorage.registerOnTrayPreferenceChangeListener(this);
 
         // Services
-        mAudioService = getAudioService();
         mTunerDriver = getTunerDriver();
+        mAudioService = getAudioService();
 
         // Broadcast receivers
         mEventReaction = new EventReaction();
@@ -191,7 +191,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner start and unmute command.
             // When completed, will fire event ENABLED.
             case C.Command.ENABLE: {
-                if (mTunerDriver instanceof QualcommHal) {
+                if (isHalDriver()) {
                     mAudioService.startAudio();
                 }
                 mTunerDriver.enable();
@@ -205,7 +205,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner stop and mute command.
             // When complete, will fire event DISABLED.
             case C.Command.DISABLE: {
-                if (mTunerDriver instanceof QualcommHal) {
+                if (isHalDriver()) {
                     mAudioService.stopAudio();
                 }
                 mTunerDriver.disable();
@@ -325,8 +325,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 final boolean isSpeaker = Audio.isForceSpeakerNow();
                 // Change state
                 Audio.toggleThroughSpeaker(!isSpeaker);
-                if (mTunerDriver instanceof QualcommHal) {
-                    ((QualcommHal) mTunerDriver).refreshAudioRoute();
+                if (mTunerDriver instanceof QualcommNative) {
+                    ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
                 mAudioService.setSpeakerEnabled(!isSpeaker);
                 // Inform
@@ -402,20 +402,17 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      * @return Tuner driver
      */
     private IFMController getTunerDriver() {
-        final TunerDriver id = TunerDriverDetector.getTunerDriver();
+        mTunerDriverKind = TunerDriverDetector.getTunerDriver();
 
-        switch (id) {
-            case HAL: {
-                return new QualcommHal(this);
+        switch (mTunerDriverKind) {
+            case HAL:
+            case LEGACY: {
+                return new QualcommNative(this, mTunerDriverKind);
             }
 
-            case NONE: {
-                return new Empty(this);
-            }
-
-            case LEGACY:
+            case NONE:
             default: {
-                return new QualcommLegacy( this);
+                return new Empty(this);
             }
         }
     }
@@ -428,9 +425,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
         final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
 
-        // HAL - 48kHz
-        // Legacy - 44.1kHz
-        final int sampleRate = mTunerDriver instanceof QualcommHal ? 48000 : 44100;
+        final int sampleRate = mTunerDriver instanceof QualcommNative
+                ? ((QualcommNative) mTunerDriver).getRecorderSampleRate()
+                : 44100;
 
         switch (mode) {
             case 0: {
@@ -527,7 +524,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.ENABLED: {
-                    if (!(mTunerDriver instanceof QualcommHal)) {
+                    if (!isHalDriver()) {
                         mAudioService.startAudio();
                     }
                     final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
@@ -537,7 +534,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.DISABLED: {
-                    if (!(mTunerDriver instanceof QualcommHal)) {
+                    if (!isHalDriver()) {
                         mAudioService.stopAudio();
                     }
                     break;
@@ -592,6 +589,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
             }
         }
+    }
+
+    private boolean isHalDriver() {
+        return mTunerDriverKind == TunerDriver.HAL;
     }
 
     /**

@@ -1,11 +1,14 @@
-#include "fmcommon.h"
+#pragma once
 
-#ifndef CPP_FMSRV_H
-#   define CPP_FMSRV_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#   define CS_PORT 2112
-#   define CS_PORT_SRV 2113
-#   define CS_BUF 256
+#include "types.h"
+
+#define CS_PORT 2112
+#define CS_PORT_SRV 2113
+#define CS_BUF 256
 
 #define EVT_ENABLED 1
 #define EVT_DISABLED 2
@@ -18,17 +21,17 @@
 #define EVT_UPDATE_PTY 11
 #define EVT_UPDATE_PI 12
 #define EVT_UPDATE_AF 14
-#define EVT_INIT 999
 
 typedef struct {
-	int code;
-	const char* data;
+    int code;
+    const char *data;
 } response_t;
 
-typedef response_t (*fm_srv_callback) (char*);
+typedef response_t (*fm_srv_callback)(char *);
 
 int init_server(fm_srv_callback request_callback);
+bool send_interruption_info(int evt, const char *message);
 
-boolean send_interruption_info(int evt, char* message);
-
-#endif //CPP_FMSRV_H
+#ifdef __cplusplus
+}
+#endif

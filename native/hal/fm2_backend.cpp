@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "ctl_server.h"
+#include "../ctl_server.h"
 #include "fm2_vendor_iface.h"
 
 namespace {

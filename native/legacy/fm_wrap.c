@@ -9,7 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <utils.h>
-#include "ctl_server.h"
+#include "../ctl_server.h"
 #include "utils.h"
 #include "fm_ctl.h"
 #include "fmcommon.h"
@@ -44,7 +44,7 @@ enum tavarua_evt_t {
 
 static char *qsoc_poweron_path = NULL;
 
-volatile boolean is_power_on_completed = FALSE;
+volatile bool is_power_on_completed = FALSE;
 
 #define CHECK_EXEC_LAST_COMMAND(X,Y) if (ret == FALSE) {\
     printf("%.*s: failed to set %s, exit code = %d\n", 16, X, Y, ret);\
@@ -77,8 +77,8 @@ fm_current_storage fm_storage = {
  * Process the radio event read from the V4L2 and perform the action by Radio event
  * Updates the global state: frequency, station available, RDS, etc.
  */
-boolean process_radio_event(uint8 event_buf) {
-    boolean ret = TRUE;
+bool process_radio_event(uint8 event_buf) {
+    bool ret = TRUE;
 
     switch (event_buf) {
         case TAVARUA_EVT_RADIO_READY: {
@@ -249,7 +249,7 @@ void* interrupt_thread(__attribute__((unused)) void* ignore) {
     uint8 buf[128] = {0};
 
     // Status of process event
-    boolean status;
+    bool status;
 
     // Index for loop
     int i;
@@ -322,7 +322,7 @@ fm_cmd_status_t fm_command_open() {
 
     print("fw_cmd_open     : open /dev/radio0...\n");
 
-    boolean ret = fm_receiver_open();
+    bool ret = fm_receiver_open();
 
     if (ret == FALSE) {
         print("fw_cmd_open    : failed to open fd_radio\n");
@@ -524,7 +524,7 @@ fm_cmd_status_t fm_command_disable() {
 
     print("fw_cmd_disable  : set state = 0...\n");
 
-    boolean ret = fm_receiver_set_state(OFF);
+    bool ret = fm_receiver_set_state(OFF);
 
     if (ret == FALSE) {
         print("fw_cmd_disable  : failed to set fm off");
@@ -547,7 +547,7 @@ fm_cmd_status_t fm_command_disable() {
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency) {
     print2("fw_cmd_set_freq : call with freq = %d\n", frequency);
 
-    boolean ret = fm_receiver_set_tuned_frequency(frequency);
+    bool ret = fm_receiver_set_tuned_frequency(frequency);
 
     if (ret == FALSE) {
         print("fw_cmd_set_freq : failed\n");
@@ -676,7 +676,7 @@ fm_cmd_status_t fm_receiver_search_stations(fm_search_stations options) {
     int err, i;
     struct v4l2_control control;
     struct v4l2_hw_freq_seek hwseek;
-    boolean ret;
+    bool ret;
 
     hwseek.type = V4L2_TUNER_RADIO;
     print("fm_receiver_search_stations\n");
@@ -716,7 +716,7 @@ fm_cmd_status_t fm_receiver_search_stations(fm_search_stations options) {
  * /
 fm_cmd_status_t fm_receiver_search_rds_stations(fm_search_rds_stations options) {
     int i, err;
-    boolean ret;
+    bool ret;
     struct v4l2_control control;
     struct v4l2_hw_freq_seek hwseek;
 

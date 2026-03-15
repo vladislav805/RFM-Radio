@@ -1,16 +1,8 @@
 #include <sys/types.h>
 #include <zconf.h>
+#include <stdio.h>
 
-typedef unsigned int uint32;
-typedef int int32;
-typedef unsigned short uint16;
-typedef short int16;
-typedef unsigned char uint8;
-typedef char int8;
-typedef unsigned char boolean;
-
-#define FALSE 0
-#define TRUE 1
+#include "../types.h"
 
 // Add implementations of system_property_set/get
 #ifdef __ANDROID_API__

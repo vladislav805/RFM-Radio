@@ -51,14 +51,12 @@
  */
 int fd_radio = -1;
 
-
-
 /**
  * set_v4l2_ctrl
  * Sets the V4L2 control sent as argument with the requested value and returns the status
  * @return FALSE in failure, TRUE in success
  */
-boolean set_v4l2_ctrl(uint32 id, int32 value) {
+bool set_v4l2_ctrl(uint32 id, int32 value) {
     if (fd_radio < 0) {
         return FALSE;
     }
@@ -78,7 +76,7 @@ boolean set_v4l2_ctrl(uint32 id, int32 value) {
     return TRUE;
 }
 
-boolean fm_receiver_open() {
+bool fm_receiver_open() {
     fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
 
     printf("fr_open         : fd_radio = %d\n", fd_radio);
@@ -91,23 +89,23 @@ boolean fm_receiver_open() {
     return TRUE;
 }
 
-boolean fm_receiver_set_state(fm_tuner_state tuner_state) {
+bool fm_receiver_set_state(fm_tuner_state tuner_state) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_STATE, tuner_state);
 }
 
-boolean fm_receiver_set_emphasis(emphasis_t emp_type) {
+bool fm_receiver_set_emphasis(emphasis_t emp_type) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_EMPHASIS, emp_type);
 }
 
-boolean fm_receiver_set_spacing(channel_space_t spacing) {
+bool fm_receiver_set_spacing(channel_space_t spacing) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SPACING, spacing);
 }
 
-boolean fm_receiver_set_rds_state(boolean enable) {
+bool fm_receiver_set_rds_state(bool enable) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDSON, enable);
 }
 
-boolean fm_receiver_set_band(radio_band_t band) {
+bool fm_receiver_set_band(radio_band_t band) {
     band_limit_freq limits = {};
     make_frequency_limit_by_band(band, &limits);
 
@@ -129,7 +127,7 @@ boolean fm_receiver_set_band(radio_band_t band) {
     return ret == 0;
 }
 
-boolean fm_receiver_set_rds_system(rds_system_t system) {
+bool fm_receiver_set_rds_system(rds_system_t system) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDS_STD, system);
 }
 
@@ -159,27 +157,27 @@ uint8 fm_receiver_get_rds_group_options() {
  * 1 << 7 - PI, PTY, PS
  * 1 << 8 - ???
  */
-boolean fm_receiver_set_rds_group_options(uint32 mask) {
+bool fm_receiver_set_rds_group_options(uint32 mask) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, mask);
 }
 
 /**
  *
  */
-boolean fm_receiver_set_ps_all(uint8 mode) {
+bool fm_receiver_set_ps_all(uint8 mode) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_PSALL, mode);
 }
 
-boolean fm_receiver_set_antenna(uint8 antenna) {
+bool fm_receiver_set_antenna(uint8 antenna) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_ANTENNA, antenna);
 }
 
-boolean fm_receiver_query_capabilities(struct v4l2_capability* cap) {
+bool fm_receiver_query_capabilities(struct v4l2_capability* cap) {
     uint32 ret = ioctl(fd_radio, VIDIOC_QUERYCAP, cap);
     return ret >= 0; // Zero or positive - success
 }
 
-boolean fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
+bool fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
     struct v4l2_frequency freq_struct;
 
     if (fd_radio < 0) {
@@ -218,7 +216,7 @@ uint32 fm_receiver_get_tuned_frequency() {
     }
 }
 
-boolean fm_receiver_set_mute_mode(mute_t mode) {
+bool fm_receiver_set_mute_mode(mute_t mode) {
     return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode);
 }
 
@@ -234,7 +232,7 @@ boolean fm_receiver_set_mute_mode(mute_t mode) {
  *
  * @return true if successful false otherwise.
  */
-boolean fm_receiver_toggle_af_jump(uint8 enable) {
+bool fm_receiver_toggle_af_jump(uint8 enable) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_AF_JUMP, enable);
 }
 
@@ -254,7 +252,7 @@ boolean fm_receiver_toggle_af_jump(uint8 enable) {
  *
  * @param mode the new driver operating mode.
  */
-boolean fm_receiver_set_power_mode(power_mode_t mode) {
+bool fm_receiver_set_power_mode(power_mode_t mode) {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_LP_MODE, mode);
 }
 
@@ -265,7 +263,7 @@ boolean fm_receiver_set_power_mode(power_mode_t mode) {
  * of the FM device. Using this function, the user can allow
  * mono/stereo mixing or force the reception of mono audio only.
  */
-boolean fm_receiver_set_stereo_mode(stereo_t mode) {
+bool fm_receiver_set_stereo_mode(stereo_t mode) {
     if (fd_radio < 0) {
         return FALSE;
     }
@@ -284,10 +282,10 @@ boolean fm_receiver_set_stereo_mode(stereo_t mode) {
     return ret == 0;
 }
 
-boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell_period) {
+bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell_period) {
     int err;
 
-    boolean ret;
+    bool ret;
 
     print("fr_seek_search  : search\n");
 
@@ -324,9 +322,9 @@ boolean fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dw
 /**
  * Launch search by stations
  */
-boolean fm_receiver_search_station_list(fm_search_list_stations options) {
+bool fm_receiver_search_station_list(fm_search_list_stations options) {
     int err;
-    boolean ret;
+    bool ret;
     struct v4l2_hw_freq_seek hwseek;
 
     hwseek.type = V4L2_TUNER_RADIO;
@@ -368,7 +366,7 @@ boolean fm_receiver_search_station_list(fm_search_list_stations options) {
 /**
  * Cancel the ongoing search
  */
-boolean fm_receiver_cancel_search() {
+bool fm_receiver_cancel_search() {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHON, 0);
 }
 
@@ -428,7 +426,7 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index) {
  * Updates the Global data strutures PS info entry
  * @return TRUE if success, else FALSE
  */
-boolean extract_program_service(fm_rds_storage* storage) {
+bool extract_program_service(fm_rds_storage* storage) {
     uint8 buf[64] = {0};
 
     uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_PS_RDS);
@@ -466,7 +464,7 @@ boolean extract_program_service(fm_rds_storage* storage) {
  * following a RT event
  * @return TRUE if success,else FALSE
  */
-boolean extract_radio_text(fm_rds_storage* storage) {
+bool extract_radio_text(fm_rds_storage* storage) {
     uint8 buf[128];
 
     uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_RT_RDS);

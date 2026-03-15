@@ -27,8 +27,8 @@ export ANDROID_NDK_HOME=/path/to/android/ndk
 
 Artifacts are copied to:
 
-- `app/src/main/assets/fmbin-fm2-armv7a`
-- `app/src/main/assets/fmbin-fm2-aarch64`
+- `app/src/main/assets/fmbin-armv7a`
+- `app/src/main/assets/fmbin-aarch64`
 
 
 Логи бинаря:

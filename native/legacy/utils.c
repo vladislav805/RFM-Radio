@@ -77,7 +77,7 @@ void make_frequency_limit_by_band(radio_band_t band, band_limit_freq* limits) {
  * @param file Path to file/directory
  * @return True if exists
  */
-boolean file_exists(const char* file) {
+bool file_exists(const char* file) {
     struct stat sb;
     return stat(file, &sb) == 0;
 }

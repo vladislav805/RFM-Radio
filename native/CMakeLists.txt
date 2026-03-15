@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(fmbin_fm2)
+project(fmbin)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -21,10 +21,25 @@ elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
 endif()
 
 add_executable(
-    fmbin_fm2
+    fmbin
     main.cpp
     ctl_server.c
-    fm2_backend.cpp
+    backend_factory.cpp
+    legacy_backend.cpp
+    hal_backend.cpp
+    hal/fm2_backend.cpp
+    legacy/fm_wrap.c
+    legacy/fm_ctl.c
+    legacy/utils.c
+    legacy/detector.c
 )
 
-target_link_libraries(fmbin_fm2 dl)
+target_include_directories(
+    fmbin
+    PRIVATE
+    .
+    legacy
+    hal
+)
+
+target_link_libraries(fmbin dl)

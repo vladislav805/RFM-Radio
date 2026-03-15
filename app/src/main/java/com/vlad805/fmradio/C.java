@@ -109,8 +109,7 @@ final public class C {
 		public static final String RECORDING_FORMAT = "recording_mode";
 		// public static final String RECORDING_SAVE_PAST = "recording_save_past";
 
-		public static final String BINARY_VERSION = "bin_version";
-		public static final String BINARY_VERSION_FM2 = "bin_version_fm2";
+		public static final String BINARY_VERSION_NATIVE = "bin_version_native";
     }
 
 	public static final class PrefDefaultValue {

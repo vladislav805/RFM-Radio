@@ -1,25 +1,23 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <unistd.h>
-#if defined(__GLIBC__)
-#include <execinfo.h>
-#endif
 
+#include <cstdio>
 #include <string>
 #include <vector>
 
 #include "ctl_server.h"
-#include "fm2_backend.h"
-#include "fm2_vendor_iface.h"
+#include "backend.h"
+#include "backend_factory.h"
 
 namespace {
 
 constexpr const char *kResponseOk = "ok";
 constexpr const char *kErrNoArg = "ERR_IVD_FRQ";
 constexpr const char *kErrUnknown = "ERR_UNK_CMD";
-constexpr const char *kErrFailed = "ERR_FAILED";
+constexpr const char *kErrUnsupported = "ERR_UNSUPPORTED";
 constexpr useconds_t kResponseDelayUs = 300000;
+
+Backend *g_backend = nullptr;
 
 std::vector<std::string> split_args(const char *request) {
     std::vector<std::string> parts;
@@ -47,15 +45,7 @@ int parse_int_arg(const std::vector<std::string> &args, size_t index, int fallba
     return atoi(args[index].c_str());
 }
 
-int parse_int_auto_arg(const std::vector<std::string> &args, size_t index, int fallback = 0) {
-    if (index >= args.size()) {
-        return fallback;
-    }
-    return static_cast<int>(strtol(args[index].c_str(), nullptr, 0));
-}
-
 response_t make_error(const char *message) {
-    FM2_LOGE("returning error response `%s`", message);
     response_t res = {1, message};
     return res;
 }
@@ -66,26 +56,45 @@ response_t make_ok(const char *message = kResponseOk) {
     return res;
 }
 
+Backend *ensure_backend() {
+    if (g_backend != nullptr) {
+        return g_backend;
+    }
+
+    g_backend = create_detected_backend();
+    return g_backend;
+}
+
+response_t make_backend_error(Backend *backend) {
+    if (backend == nullptr) {
+        return make_error(kErrUnsupported);
+    }
+    return make_error(backend->last_error()[0] ? backend->last_error() : kErrUnsupported);
+}
+
 response_t handle_init() {
-    if (!fm2_backend_init()) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr) {
+        return make_error(kErrUnsupported);
+    }
+    if (!backend->init()) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
 
 response_t handle_enable() {
-    if (!fm2_backend_enable()) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
-    }
-    if (!fm2_backend_wait_enabled(2000)) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->enable()) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
 
 response_t handle_disable() {
-    if (!fm2_backend_disable()) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->disable()) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -94,8 +103,9 @@ response_t handle_setfreq(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_frequency(parse_int_arg(args, 1))) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_frequency(parse_int_arg(args, 1))) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -107,8 +117,9 @@ response_t handle_jump(const std::vector<std::string> &args) {
 
     static char response[16];
     uint32_t frequency = 0;
-    if (!fm2_backend_jump(parse_int_arg(args, 1, 1), &frequency)) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->jump(parse_int_arg(args, 1, 1), &frequency)) {
+        return make_backend_error(backend);
     }
     snprintf(response, sizeof(response), "%u", frequency);
     return make_ok(response);
@@ -118,8 +129,9 @@ response_t handle_seek(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_seek(parse_int_arg(args, 1, 1))) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->seek(parse_int_arg(args, 1, 1))) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -128,8 +140,9 @@ response_t handle_power_mode(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_power_mode(args[1] == "low")) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_power_mode(args[1] == "low")) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -138,8 +151,9 @@ response_t handle_rds_toggle(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_rds(parse_int_arg(args, 1) == 1)) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_rds(parse_int_arg(args, 1) == 1)) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -148,8 +162,9 @@ response_t handle_stereo(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_stereo(parse_int_arg(args, 1) == 1)) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_stereo(parse_int_arg(args, 1) == 1)) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -158,8 +173,9 @@ response_t handle_antenna(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_antenna(parse_int_arg(args, 1))) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_antenna(parse_int_arg(args, 1))) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -168,9 +184,10 @@ response_t handle_region(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    // if (!fm2_backend_set_region_app_value(parse_int_arg(args, 1))) {
-    //     return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
-    // }
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_region(parse_int_arg(args, 1))) {
+        return make_backend_error(backend);
+    }
     return make_ok();
 }
 
@@ -178,22 +195,25 @@ response_t handle_spacing(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    // if (!fm2_backend_set_spacing_app_value(parse_int_arg(args, 1))) {
-    //     return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
-    // }
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_spacing(parse_int_arg(args, 1))) {
+        return make_backend_error(backend);
+    }
     return make_ok();
 }
 
 response_t handle_search() {
-    if (!fm2_backend_search()) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->search()) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
 
 response_t handle_search_cancel() {
-    if (!fm2_backend_cancel_search()) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->cancel_search()) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -202,8 +222,9 @@ response_t handle_auto_af(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_auto_af(parse_int_arg(args, 1) == 1)) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_auto_af(parse_int_arg(args, 1) == 1)) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -212,8 +233,9 @@ response_t handle_slimbus(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
-    if (!fm2_backend_set_slimbus(parse_int_arg(args, 1) == 1)) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_slimbus(parse_int_arg(args, 1) == 1)) {
+        return make_backend_error(backend);
     }
     return make_ok();
 }
@@ -246,29 +268,7 @@ response_t api_handler(char *request) {
     return make_error(kErrUnknown);
 }
 
-void crash_signal_handler(int sig) {
-    FM2_LOGE("fatal signal received: %d", sig);
-#if defined(__GLIBC__)
-    void *frames[32];
-    int count = backtrace(frames, 32);
-    backtrace_symbols_fd(frames, count, fileno(stderr));
-    fflush(stderr);
-#endif
-    _Exit(128 + sig);
-}
-
-void install_signal_handlers() {
-    signal(SIGSEGV, crash_signal_handler);
-    signal(SIGABRT, crash_signal_handler);
-    signal(SIGBUS, crash_signal_handler);
-    signal(SIGILL, crash_signal_handler);
-    signal(SIGFPE, crash_signal_handler);
-}
-
 int main() {
-    install_signal_handlers();
-    FM2_LOGI("FM HAL binary bridge starting");
     init_server(&api_handler);
-    FM2_LOGI("FM HAL binary bridge exiting");
     return 0;
 }

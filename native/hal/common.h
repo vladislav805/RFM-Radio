@@ -4,23 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <stdint.h>
 
-typedef uint32_t uint32;
-typedef int32_t int32;
-typedef uint16_t uint16;
-typedef int16_t int16;
-typedef uint8_t uint8;
-typedef int8_t int8;
-typedef uint8_t boolean;
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
+#include "../types.h"
 
 static inline const char *fm2_short_file(const char *path) {
     const char *slash = strrchr(path, '/');

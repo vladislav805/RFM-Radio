@@ -10,8 +10,6 @@ def appVersionName = "${versionMajor}.${versionMinor}.${versionPatch}"
 def requiredNativeAssets = [
         "fmbin-armv7a",
         "fmbin-aarch64",
-        "fmbin-fm2-armv7a",
-        "fmbin-fm2-aarch64",
 ]
 
 android {
