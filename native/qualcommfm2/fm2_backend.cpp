@@ -844,14 +844,6 @@ bool fm2_backend_set_slimbus(bool enabled) {
     return true;
 }
 
-int fm2_backend_get_rssi() {
-    int rmssi = 0;
-    if (!vendor_get(V4L2_CID_PRV_IRIS_RMSSI, &rmssi, "failed to get rmssi")) {
-        return -1;
-    }
-    return rmssi;
-}
-
 bool fm2_backend_raw_set(int id, int value) {
     return vendor_set(id, value, "failed raw set");
 }
@@ -875,8 +867,6 @@ bool fm2_backend_log_snapshot(const char *reason) {
     int af_jump = 0;
     int soft_mute = 0;
     int freq = 0;
-    int rmssi = 0;
-
     const bool ok =
         vendor_get(V4L2_CID_PRV_STATE, &state, "failed to read state") &&
         vendor_get(V4L2_CID_PRV_REGION, &region, "failed to read region") &&
@@ -891,11 +881,10 @@ bool fm2_backend_log_snapshot(const char *reason) {
         vendor_get(V4L2_CID_PRV_ANTENNA, &antenna, "failed to read antenna") &&
         vendor_get(V4L2_CID_PRV_AF_JUMP, &af_jump, "failed to read af jump") &&
         vendor_get(V4L2_CID_PRV_SOFT_MUTE, &soft_mute, "failed to read soft mute") &&
-        vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read frequency") &&
-        vendor_get(V4L2_CID_PRV_IRIS_RMSSI, &rmssi, "failed to read rmssi");
+        vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read frequency");
 
-    FM2_LOGI("snapshot reason=%s ok=%d freq=%d rmssi=%d",
-             reason ? reason : "(null)", ok ? 1 : 0, freq, rmssi);
+    FM2_LOGI("snapshot reason=%s ok=%d freq=%d",
+             reason ? reason : "(null)", ok ? 1 : 0, freq);
     return ok;
 }
 

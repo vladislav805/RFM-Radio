@@ -23,7 +23,6 @@ bool fm2_backend_set_antenna(int antenna);
 bool fm2_backend_set_power_mode(bool low_power);
 bool fm2_backend_set_auto_af(bool enabled);
 bool fm2_backend_set_slimbus(bool enabled);
-int fm2_backend_get_rssi();
 bool fm2_backend_raw_set(int id, int value);
 bool fm2_backend_raw_get(int id, int *value);
 bool fm2_backend_log_snapshot(const char *reason);

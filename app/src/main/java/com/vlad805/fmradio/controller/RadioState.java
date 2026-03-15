@@ -30,9 +30,6 @@ public final class RadioState implements Parcelable {
     // RT - Radio Text
     private String rt = "";
 
-    // RSSI - dB
-    private int rssi;
-
     // Stereo - is stereo audio?
     private boolean stereo;
 
@@ -97,14 +94,6 @@ public final class RadioState implements Parcelable {
         this.rt = rt;
     }
 
-    public int getRssi() {
-        return rssi;
-    }
-
-    void setRssi(final int rssi) {
-        this.rssi = rssi;
-    }
-
     public boolean isStereo() {
         return stereo;
     }
@@ -148,7 +137,6 @@ public final class RadioState implements Parcelable {
         pty = in.readInt();
         ps = in.readString();
         rt = in.readString();
-        rssi = in.readInt();
         stereo = in.readInt() > 0;
         recording = in.readInt() > 0;
         recordingStarted = in.readLong();
@@ -168,7 +156,6 @@ public final class RadioState implements Parcelable {
         dest.writeInt(pty);
         dest.writeString(ps);
         dest.writeString(rt);
-        dest.writeInt(rssi);
         dest.writeInt(stereo ? 1 : 0);
         dest.writeInt(recording ? 1 : 0);
         dest.writeLong(recordingStarted);
@@ -196,7 +183,6 @@ public final class RadioState implements Parcelable {
                 ", pty=" + pty +
                 // ", ps='" + ps + '\'' +
                 // ", rt='" + rt + '\'' +
-                ", rssi=" + rssi +
                 ", rec_st=" + recording +
                 ", rec_be=" + recordingStarted +
                 '}';

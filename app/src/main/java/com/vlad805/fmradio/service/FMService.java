@@ -641,12 +641,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         }
 
         final int frequency = state.getFrequency();
-        final int rssi = state.getRssi();
-
         /*
          * Subtitle
          */
-        mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d, rssi));
+        mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d));
 
         final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
 
@@ -747,7 +745,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Polling rssi, current frequency, ps and rt
+     * Polling current frequency, ps and rt
      */
     private class PollTunerHandler extends TimerTask {
         private Bundle last;
@@ -764,7 +762,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 return;
             }
 
-            sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
             sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
             sendIntEventIfExistsAndDiff(bundle, C.Key.PTY, C.Event.UPDATE_PTY);
             sendStringEventIfExistsAndDiff(bundle, C.Key.PI, C.Event.UPDATE_PI);

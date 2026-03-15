@@ -99,20 +99,6 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 		}));
 	}
 
-	/**
-	 * Convert rssi to dB
-	 * @param rssi Number
-	 * @return Signal strength in dB
-	 */
-	private int fixRssi(int rssi) {
-		// Spirit3 versions <= 3.0.12 has invalid normalize
-		if (rssi > 0) {
-			rssi = (139 + rssi);
-		}
-
-		return -0xff + rssi;
-	}
-
 	private String toDirection(int direction) {
 		return direction > 0 ? "up" : "down";
 	}
@@ -150,7 +136,6 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 	}
 
 	private static final Request cmdTunerFreq = new Request("g tuner_freq");
-	private static final Request cmdTunerRssi = new Request("g tuner_rssi");
 	private static final Request cmdRdsPs = new Request("g rds_ps");
 
 	@Override
@@ -161,15 +146,9 @@ public class Spirit3Impl extends AbstractFMController implements IFMEventPoller 
 			int frequency = Utils.parseInt(freq);
 			bundle.putInt(C.Key.FREQUENCY, frequency);
 
-			sendCommand(cmdTunerRssi.onResponse(sRssi -> {
-				int rssi = Utils.parseInt(sRssi);
-
-				bundle.putInt(C.Key.RSSI, fixRssi(rssi));
-
-				sendCommand(cmdRdsPs.onResponse(ps -> {
-					bundle.putString(C.Key.PS, ps);
-					callback.onResult(bundle);
-				}));
+			sendCommand(cmdRdsPs.onResponse(ps -> {
+				bundle.putString(C.Key.PS, ps);
+				callback.onResult(bundle);
 			}));
 		}));
 	}

@@ -29,7 +29,6 @@ public class DatagramServer extends Thread {
 	private static final int EVT_DISABLED = 2;
 
 	private static final int EVT_FREQUENCY_SET = 4;
-	private static final int EVT_UPDATE_RSSI = 5;
 	private static final int EVT_UPDATE_PS = 6;
 	private static final int EVT_UPDATE_RT = 7;
 	private static final int EVT_SEEK_COMPLETE = 8;
@@ -117,14 +116,6 @@ public class DatagramServer extends Thread {
 			case EVT_FREQUENCY_SET: {
 				action = C.Event.FREQUENCY_SET;
 				bundle.putInt(C.Key.FREQUENCY, Utils.parseInt(data));
-				break;
-			}
-
-			case EVT_UPDATE_RSSI: {
-				action = C.Event.UPDATE_RSSI;
-				int val = Utils.parseInt(data);
-				val = -0xff + val;
-				bundle.putInt(C.Key.RSSI, val);
 				break;
 			}
 

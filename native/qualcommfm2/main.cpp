@@ -218,16 +218,6 @@ response_t handle_slimbus(const std::vector<std::string> &args) {
     return make_ok();
 }
 
-response_t handle_getrssi() {
-    static char response[16];
-    const int rssi = fm2_backend_get_rssi();
-    if (rssi < 0) {
-        return make_error(fm2_backend_last_error()[0] ? fm2_backend_last_error() : kErrFailed);
-    }
-    snprintf(response, sizeof(response), "%d", rssi);
-    return make_ok(response);
-}
-
 }  // namespace
 
 response_t api_handler(char *request) {
@@ -253,7 +243,6 @@ response_t api_handler(char *request) {
     if (command == "search_cancel") return handle_search_cancel();
     if (command == "auto_af") return handle_auto_af(args);
     if (command == "slimbus") return handle_slimbus(args);
-    if (command == "getrssi") return handle_getrssi();
     return make_error(kErrUnknown);
 }
 

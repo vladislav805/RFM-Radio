@@ -24,7 +24,6 @@ final public class C {
 		public static final String DISABLING = BASE + "DISABLING";
 		public static final String DISABLED = BASE + "DISABLED";
 		public static final String FREQUENCY_SET = BASE + "FREQUENCY_SET";
-		public static final String UPDATE_RSSI = BASE + "UPDATE_RSSI";
 		public static final String UPDATE_PS = BASE + "UPDATE_PS";
 		public static final String UPDATE_PTY = BASE + "UPDATE_PTY";
 		public static final String UPDATE_PI = BASE + "UPDATE_PI";
@@ -69,7 +68,6 @@ final public class C {
 
 	public static final class Key {
 		public static final String FREQUENCY = "frequency";
-		public static final String RSSI = "rssi";
 		public static final String PS = "ps";
 		public static final String RT = "rt";
 		public static final String PTY = "pty";

@@ -49,8 +49,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private ImageButton mCtlToggle;
 
-    private TextView mViewRssi;
-    private ImageView mViewRssiIcon;
     private ImageView mViewStereoMode;
 
     private TextView mRecordDuration;
@@ -175,8 +173,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
-        mViewRssi = findViewById(R.id.rssi_value);
-        mViewRssiIcon = findViewById(R.id.rssi_icon);
         mViewStereoMode = findViewById(R.id.stereo_mono);
 
         final int[] ids = {
@@ -332,7 +328,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mToast.text(str).show();
 
             mFrequencyInfo.setRadioState(state);
-            mViewRssi.setText("");
         }
 
         if (
@@ -342,10 +337,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             (mode & RadioStateUpdater.SET_PTY) > 0
         ) {
             mFrequencyInfo.setRadioState(state);
-        }
-
-        if ((mode & RadioStateUpdater.SET_RSSI) > 0) {
-            setRssi(state.getRssi());
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
@@ -447,8 +438,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_rt,
                 R.id.frequency_pty,
                 R.id.frequency_seek,
-                R.id.rssi_icon,
-                R.id.rssi_value,
                 R.id.record_duration,
                 R.id.stereo_mono,
                 R.id.favorite_list
@@ -475,34 +464,4 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
     }
 
-    private static final int[] SIGNAL_RES_ID = {
-            R.drawable.ic_signal_0,
-            R.drawable.ic_signal_1,
-            R.drawable.ic_signal_2,
-            R.drawable.ic_signal_3,
-            R.drawable.ic_signal_4,
-            R.drawable.ic_signal_5,
-            R.drawable.ic_signal_6,
-    };
-
-    private static final int[] SIGNAL_THRESHOLD = {
-            -110,
-            -98,
-            -86,
-            -74,
-            -62,
-            -50,
-            -10,
-    };
-
-    private void setRssi(final int rssi) {
-        mViewRssi.setText(String.valueOf(rssi));
-
-        for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
-            if (rssi < SIGNAL_THRESHOLD[i]) {
-                mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
-                break;
-            }
-        }
-    }
 }

@@ -14,7 +14,6 @@
 	<string name="progress_starting">Enabling tuner…</string>
 	<string name="progress_searching">Searching…</string>
 	<string name="progress_stopping">Stopping…</string>
-	<string name="main_rssi_db">%d dB</string>
 	<string name="menu_settings">Settings</string>
 	<string name="menu_open_list">Station list</string>
 	<string name="menu_record">Record</string>
@@ -30,7 +29,7 @@
 	<string name="popup_station_remove">Remove</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>
 	<string name="about_version" translatable="false">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2020–2025</string>
+	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
@@ -92,7 +91,7 @@
 	<string name="pref_version_check_need_update_content">Latest app version: v%1$s (%2$d)\nInstalled app version: %3$s (v%4$d)\n\nUpdates:\n%5$s\n\nOpen the release page to download the installer?</string>
 	<string name="pref_version_check_need_update_ok">Update</string>
 	<string name="pref_version_check_fresh_ok">Well</string>
-	<string name="notification_mhz">%.1f MHz | %d dB</string>
+	<string name="notification_mhz">%.1f MHz</string>
 	<string name="service_record_unsupported">Recording not supported by this driver.</string>
 	<string name="notification_recording">Recording: %s (%.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
