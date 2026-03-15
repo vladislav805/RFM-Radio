@@ -183,6 +183,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		mAdapter.notifyDataSetChanged();
 
 		if (mMenu != null) {
+			mMenu.findItem(R.id.menu_favorite_rename).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
 			mMenu.findItem(R.id.menu_favorite_remove).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
 		}
 	}
@@ -220,6 +221,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		menu.findItem(R.id.menu_favorite_remove).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
+		menu.findItem(R.id.menu_favorite_rename).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
 		return super.onPrepareOptionsMenu(menu);
 	}
 
@@ -234,6 +236,11 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 
 			case R.id.menu_favorite_remove: {
 				removeDialog();
+				break;
+			}
+
+			case R.id.menu_favorite_rename: {
+				renameDialog();
 				break;
 			}
 
@@ -280,6 +287,49 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				String value = et.getText().toString();
 
 				if (mController.isAlreadyExists(value)) {
+					et.setError(getString(R.string.favorite_list_create_error_already_exists));
+					return;
+				}
+
+				if (mController.isInvalidName(value)) {
+					et.setError(getString(R.string.favorite_list_create_error_invalid_name));
+					return;
+				}
+
+				et.setError(null);
+			}
+
+			@Override
+			public void afterTextChanged(Editable s) {}
+		});
+
+		dialog.open();
+	}
+
+	private void renameDialog() {
+		final EditTextDialog dialog = new EditTextDialog(this, mCurrentNameList, title -> {
+			try {
+				mController.renameList(mCurrentNameList, title);
+				mCurrentNameList = title;
+				reloadLists();
+				reloadContent();
+				setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
+				sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+				mToast.text("Renamed list to '" + title + "'").show();
+			} catch (Error e) {
+				mToast.text(e.getMessage()).show();
+			}
+		});
+		final EditText et = dialog.getView();
+		dialog.setTitle(R.string.popup_favorite_list_rename).setOnKeyListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				final String value = et.getText().toString();
+
+				if (!value.equals(mCurrentNameList) && mController.isAlreadyExists(value)) {
 					et.setError(getString(R.string.favorite_list_create_error_already_exists));
 					return;
 				}

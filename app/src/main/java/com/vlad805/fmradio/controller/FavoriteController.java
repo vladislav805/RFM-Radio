@@ -143,6 +143,41 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		return true;
 	}
 
+	public boolean renameList(final String oldName, final String newName) {
+		if (DEFAULT_NAME.equals(oldName)) {
+			return false;
+		}
+
+		if (isInvalidName(newName)) {
+			throw new Error("Invalid name");
+		}
+
+		if (oldName.equals(newName)) {
+			return true;
+		}
+
+		if (isAlreadyExists(newName)) {
+			throw new Error("List with this name already exists");
+		}
+
+		final File oldFile = new File(getFavoritesDirectory(), oldName + JSON_EXT);
+		final File newFile = new File(getFavoritesDirectory(), newName + JSON_EXT);
+		if (!oldFile.exists()) {
+			throw new Error("List not found");
+		}
+
+		if (!oldFile.renameTo(newFile)) {
+			throw new Error("Cannot rename list");
+		}
+
+		if (oldName.equals(getCurrentFavoriteList())) {
+			mStorage.put(KEY_CURRENT_LIST, newName);
+			reload();
+		}
+
+		return true;
+	}
+
 	public String importList(final String suggestedName, final InputStream inputStream) throws IOException {
 		final String importedJson = readInputStream(inputStream);
 		validateFavoriteListJson(importedJson);

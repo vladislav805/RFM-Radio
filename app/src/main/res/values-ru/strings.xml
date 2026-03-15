@@ -11,6 +11,7 @@
 	<string name="menu_about">О приложении</string>
 	<string name="menu_favorite_list_create">Создать список</string>
 	<string name="menu_favorite_list_remove">Удалить этот список</string>
+	<string name="menu_favorite_list_rename">Переименовать этот список</string>
 	<string name="menu_favorite_list_import">Импортировать список</string>
 	<string name="menu_favorite_list_export">Экспортировать список</string>
 	<string name="menu_open_list">Список станций</string>
@@ -22,6 +23,7 @@
 	<string name="notification_recording">Запись: %s (%.1f МБ)</string>
 	<string name="player_event_frequency_changed">Частота изменена на %5.1f МГц</string>
 	<string name="popup_favorite_list_create">Создать список избранного</string>
+	<string name="popup_favorite_list_rename">Переименовать список избранного</string>
 	<string name="favorite_list_import_success">Список \"%s\" импортирован</string>
 	<string name="favorite_list_import_success_many">Импортировано списков: %d</string>
 	<string name="favorite_list_import_error">Не удалось импортировать список избранного</string>
