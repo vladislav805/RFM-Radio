@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.C;
@@ -82,6 +83,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private RadioState mState;
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private void makeChannelSilent(final NotificationChannel channel) {
         channel.enableVibration(false);
         channel.setVibrationPattern(new long[0]);

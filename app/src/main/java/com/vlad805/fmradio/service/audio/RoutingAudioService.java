@@ -16,16 +16,10 @@ import android.os.Environment;
 import android.os.Build;
 import android.util.Log;
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.helper.RecordSchemaHelper;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Field;
+import com.vlad805.fmradio.service.recording.RecordService;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -41,8 +35,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	// Values from @hide Android API
 	private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
-	private static final String PERMISSION_CAPTURE_AUDIO_OUTPUT = "android.permission.CAPTURE_AUDIO_OUTPUT";
-	private static final int AUDIO_SOURCE_RADIO_TUNER = resolveRadioTunerAudioSource();
 	private static final int RECORDING_UPDATE_MS = 1000;
 
 	private static final int DEVICE_OUT_FM = resolveDeviceOutFm();
@@ -50,11 +42,9 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private final Context mContext;
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
-	private MediaRecorder mMediaRecorder;
 	private AudioRecord mRecordingAudioRecord;
 	private Thread mRecordingThread;
 	private IFMRecorder mPcmRecorder;
-	private File mRecordingFile;
 	private long mRecordingStartedMs;
 	private Timer mRecordingTimer;
 
@@ -217,64 +207,22 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	@Override
 	public void startRecord(final IFMRecorder recorder) throws RecordError {
-		if (mMediaRecorder != null || mRecordingAudioRecord != null) {
+		if (mRecordingAudioRecord != null) {
 			Log.d(TAG, "startRecord: already recording");
 			return;
 		}
 
-		if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+		if (
+				Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+				&&
+				!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())
+		) {
 			throw new RecordError("External storage is not mounted");
 		}
 
 		ensureRecordingPermissions();
 
-		if (mContext.checkSelfPermission(PERMISSION_CAPTURE_AUDIO_OUTPUT) == PackageManager.PERMISSION_GRANTED) {
-			try {
-				startPrivilegedMediaRecorder();
-				return;
-			} catch (RecordError e) {
-				Log.w(TAG, "startRecord: MediaRecorder path unavailable, falling back to AudioRecord", e);
-			}
-		}
-
 		startAudioRecordRecorder(recorder);
-	}
-
-	private void startPrivilegedMediaRecorder() throws RecordError {
-		final File outputFile = createRecordingFile(".3gp");
-		final MediaRecorder mediaRecorder = new MediaRecorder();
-		try {
-			Log.d(TAG, "startPrivilegedMediaRecorder: source=" + AUDIO_SOURCE_RADIO_TUNER + " file=" + outputFile);
-			mediaRecorder.setAudioSource(AUDIO_SOURCE_RADIO_TUNER);
-			mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-			mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-			mediaRecorder.setAudioSamplingRate(mSampleRate);
-			mediaRecorder.setAudioEncodingBitRate(128000);
-			mediaRecorder.setAudioChannels(2);
-			mediaRecorder.setOutputFile(outputFile.getAbsolutePath());
-			mediaRecorder.prepare();
-			mediaRecorder.start();
-		} catch (Throwable t) {
-			Log.e(TAG, "startPrivilegedMediaRecorder failed", t);
-			try {
-				mediaRecorder.reset();
-			} catch (Throwable ignored) {
-			}
-			try {
-				mediaRecorder.release();
-			} catch (Throwable ignored) {
-			}
-			if (outputFile.exists() && !outputFile.delete()) {
-				Log.w(TAG, "startPrivilegedMediaRecorder: failed to delete incomplete file " + outputFile);
-			}
-			throw new RecordError("FM recording start failed: " + t.getClass().getSimpleName());
-		}
-
-		mMediaRecorder = mediaRecorder;
-		mRecordingFile = outputFile;
-		mRecordingStartedMs = System.currentTimeMillis();
-		startRecordingTimer();
-		mContext.sendBroadcast(new Intent(C.Event.RECORD_STARTED));
 	}
 
 	private void startAudioRecordRecorder(final IFMRecorder recorder) throws RecordError {
@@ -340,7 +288,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 		mRecordingAudioRecord = audioRecord;
 		mPcmRecorder = recorder;
-		mRecordingFile = null;
 		mRecordingStartedMs = System.currentTimeMillis();
 		startRecordingTimer();
 
@@ -358,7 +305,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	@Override
 	public void stopRecord() {
-		if (mMediaRecorder == null && mRecordingAudioRecord == null) {
+		if (mRecordingAudioRecord == null) {
 			return;
 		}
 
@@ -385,25 +332,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			mPcmRecorder.stopRecord();
 			mPcmRecorder = null;
 		}
-		if (mMediaRecorder != null) {
-			try {
-				mMediaRecorder.stop();
-			} catch (Throwable t) {
-				Log.w(TAG, "MediaRecorder.stop failed", t);
-			}
-			try {
-				mMediaRecorder.reset();
-			} catch (Throwable ignored) {
-			}
-			try {
-				mMediaRecorder.release();
-			} catch (Throwable ignored) {
-			}
-			mMediaRecorder = null;
-		}
-
 		sendRecordingUpdate(C.Event.RECORD_ENDED);
-		mRecordingFile = null;
 		mRecordingStartedMs = 0L;
 	}
 
@@ -426,69 +355,34 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	}
 
 	private void sendRecordingUpdate(final String event) {
-		final File file = mRecordingFile != null ? mRecordingFile : getPcmRecorderFile();
-		if (file == null) {
+		final String displayPath = getRecordingDisplayPath();
+		if (displayPath == null) {
 			return;
 		}
 
 		final long durationSec = mRecordingStartedMs > 0L
 				? Math.max(0L, (System.currentTimeMillis() - mRecordingStartedMs) / 1000L)
 				: 0L;
-		final long fileSize = file.exists() ? file.length() : 0L;
+		final long fileSize = getRecordingSizeBytes();
 
 		mContext.sendBroadcast(new Intent(event)
 				.putExtra(C.Key.SIZE, (int) Math.min(Integer.MAX_VALUE, fileSize))
 				.putExtra(C.Key.DURATION, (int) Math.min(Integer.MAX_VALUE, durationSec))
-				.putExtra(C.Key.PATH, file.getAbsolutePath()));
+				.putExtra(C.Key.PATH, displayPath));
 	}
 
-	private File getPcmRecorderFile() {
-		try {
-			final Field field = mPcmRecorder != null ? mPcmRecorder.getClass().getSuperclass().getDeclaredField("mRecordFile") : null;
-			if (field == null) {
-				return null;
-			}
-			field.setAccessible(true);
-			return (File) field.get(mPcmRecorder);
-		} catch (Throwable t) {
-			return null;
+	private String getRecordingDisplayPath() {
+		if (mPcmRecorder instanceof RecordService) {
+			return ((RecordService) mPcmRecorder).getDisplayPath();
 		}
+		return null;
 	}
 
-	private File createRecordingFile(final String extension) throws RecordError {
-		final String preferredDirectory = Storage.getPrefString(
-				mContext,
-				C.PrefKey.RECORDING_DIRECTORY,
-				mContext.getString(R.string.pref_recording_path_value)
-		);
-		final String preferredFilename = Storage.getPrefString(
-				mContext,
-				C.PrefKey.RECORDING_FILENAME,
-				mContext.getString(R.string.pref_recording_name_value)
-		);
-		final int kHz = Storage.getPrefInt(mContext, C.PrefKey.LAST_FREQUENCY, 0);
-
-		final File dir = new File(RecordSchemaHelper.prepareString(
-				Environment.getExternalStorageDirectory() + File.separator + preferredDirectory,
-				kHz
-		));
-		if (!dir.exists() && !dir.mkdirs()) {
-			throw new RecordError("Cannot create recording directory");
+	private long getRecordingSizeBytes() {
+		if (mPcmRecorder instanceof RecordService) {
+			return ((RecordService) mPcmRecorder).getCurrentSizeBytes();
 		}
-
-		final String filename = RecordSchemaHelper.prepareString(preferredFilename, kHz) + extension;
-		final File file = new File(dir, filename);
-		if (file.exists()) {
-			throw new RecordError("File with this name already exists");
-		}
-		try {
-			if (!file.createNewFile()) {
-				throw new RecordError("Cannot create recording file");
-			}
-		} catch (IOException e) {
-			throw new RecordError("Cannot create recording file");
-		}
-		return file;
+		return 0L;
 	}
 
 	private void ensureRecordingPermissions() throws RecordError {
@@ -500,7 +394,8 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			throw new RecordError("Please allow microphone access before recording");
 		}
 
-		if (mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+				&& mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 			throw new RecordError("Please allow storage access before recording");
 		}
 	}
@@ -527,17 +422,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		} catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
 			Log.e(TAG, "resolveDeviceOutFm failed, fallback to 0", e);
 			return 0;
-		}
-	}
-
-	@SuppressLint("PrivateApi")
-	private static int resolveRadioTunerAudioSource() {
-		try {
-		final Field field = MediaRecorder.AudioSource.class.getField("RADIO_TUNER");
-			return field.getInt(null);
-		} catch (Throwable t) {
-			Log.w(TAG, "resolveRadioTunerAudioSource failed, fallback to 1998", t);
-			return 1998;
 		}
 	}
 }

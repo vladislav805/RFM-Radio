@@ -77,11 +77,9 @@
 	<string name="pref_notification_show_ps">Pokaż PS w tytule</string>
 	<string name="pref_tuner_rds_description">RDS - System danych radiowych\nWyświetlanie informacji związanych z radiem nadawanych przez stacje radiowe.\nPS – Usługa programowa (zwykle nazwa stacji)\nRT – Tekst radiowy (zwykle nazwa bieżącego utworu, informacje o stacji)\nAF – Częstotliwości alternatywne (lista częstotliwości, na których nadaje ta sama stacja w sąsiednich regionach )\nPTY - TYP programu (gatunek stacji)</string>
 	<string name="pref_header_recording">Nagrywanie</string>
-	<string name="pref_recording_path_title">Katalog do zapisywania</string>
-	<string name="pref_recording_path_value" translatable="false">RFM/nagranie/$y-$m-$d</string>
+	<string name="pref_recording_path_title">Podkatalog do zapisywania</string>
 	<string name="pref_recording_name_title">Nazwa pliku</string>
-	<string name="pref_recording_name_value" translatable="false">FM-$h$i$s-$f</string>
-	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nPrzykład:\nKatalog: FM/$y-$m-$d -> FM/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
+	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nNagrania są zapisywane w katalogu Music/RFM-Recordings.\nWartość katalogu musi być ścieżką względną wewnątrz tego katalogu.\nPrzykład:\nKatalog: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_format_title">Format Nagrywania</string>
 	<string name="pref_recording_convert_summary">WAV - surowe/duże audio, MP3 - skompresowane/małe</string>
 	<string name="pref_recording_show_notify">Pokaż Powiadomienia</string>

@@ -2,14 +2,11 @@ package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Environment;
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.helper.RecordSchemaHelper;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
+import java.nio.channels.FileChannel;
 
 /**
  * Abstract recorder
@@ -48,7 +45,7 @@ public abstract class RecordService implements IFMRecorder {
     /**
      * Recordable file
      */
-    protected File mRecordFile = null;
+    private RecordingTarget mRecordingTarget = null;
 
     /**
      * Size of file in bytes
@@ -151,6 +148,16 @@ public abstract class RecordService implements IFMRecorder {
         }
 
         updateState(C.Event.RECORD_ENDED);
+
+        if (mRecordingTarget != null) {
+            try {
+                mRecordingTarget.commit();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mRecordingTarget.closeQuietly();
+            mRecordingTarget = null;
+        }
     }
 
     /**
@@ -161,7 +168,7 @@ public abstract class RecordService implements IFMRecorder {
         mContext.sendBroadcast(new Intent(event)
                 .putExtra(C.Key.SIZE, mRecordLength)
                 .putExtra(C.Key.DURATION, getDuration())
-                .putExtra(C.Key.PATH, mRecordFile.getAbsolutePath())
+                .putExtra(C.Key.PATH, getDisplayPath())
         );
     }
 
@@ -185,80 +192,35 @@ public abstract class RecordService implements IFMRecorder {
      * Create file and initialize streams
      */
     private void createFile() throws RecordError {
+        RecordingTarget target = null;
+
         try {
-            final File dir = makeDirectoryHierarchy();
-            final String name = getFilename();
-
-            mRecordFile = new File(dir, name);
-
-            if (mRecordFile.exists()) {
-                throw new RecordError("File with these name already exists!\nPlease, check filename schema for unique.");
-            }
-
-            if (!mRecordFile.createNewFile()) {
-                throw new FileNotFoundException();
-            }
-
-            mFileOutStream = new FileOutputStream(mRecordFile, true);
+            target = RecordingStorage.create(mContext, mKHz, getExtension(), getMimeType());
+            mFileOutStream = target.openOutputStream();
             mBufferOutStream = new BufferedOutputStream(mFileOutStream, 131072);
+            mRecordingTarget = target;
 
             onFileCreated();
+        } catch (RecordError e) {
+            if (target != null) {
+                target.abort();
+            }
+            throw e;
         } catch (IllegalStateException e) {
+            if (target != null) {
+                target.abort();
+            }
             throw new RecordError(e.getMessage());
         } catch (IOException e) {
+            if (target != null) {
+                target.abort();
+            }
             throw new RecordError("Cannot create recording file");
         }
     }
 
-    /**
-     * Returns user preferred path or default
-     * @return Path schema to directory
-     */
-    private String getPreferredDirectory() {
-        return Storage.getPrefString(mContext, C.PrefKey.RECORDING_DIRECTORY, mContext.getString(R.string.pref_recording_path_value));
-    }
-
-    /**
-     * Returns user preferred name or default
-     * @return Filename schema
-     */
-    private String getPreferredFilename() {
-        return Storage.getPrefString(mContext, C.PrefKey.RECORDING_FILENAME, mContext.getString(R.string.pref_recording_name_value));
-    }
-
-    /**
-     * Create directory hierarchy
-     * @return Directory
-     */
-    private File makeDirectoryHierarchy() {
-        final String path = Environment.getExternalStorageDirectory() + File.separator + getPreferredDirectory();
-        final File dir = new File(RecordSchemaHelper.prepareString(path, mKHz));
-
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw new IllegalStateException("Cannot create recording directory");
-        }
-
-        if (!dir.isDirectory()) {
-            throw new IllegalStateException("Recording path is not a directory");
-        }
-
-        return dir;
-    }
-
-    /**
-     * Returns filename for audio file
-     * @return Filename
-     */
-    private String getFilename() {
-        return RecordSchemaHelper.prepareString(getPreferredFilename(), mKHz) + "." + getExtension();
-    }
-
     protected final int getSampleRate() {
         return mSampleRate;
-    }
-
-    protected final Context getContext() {
-        return mContext;
     }
 
     protected final int getFrequencyKhz() {
@@ -269,11 +231,29 @@ public abstract class RecordService implements IFMRecorder {
         return mStarted;
     }
 
+    protected final FileChannel getRecordingChannel() {
+        return mFileOutStream != null ? mFileOutStream.getChannel() : null;
+    }
+
+    public final String getDisplayPath() {
+        return mRecordingTarget != null ? mRecordingTarget.getDisplayPath() : "";
+    }
+
+    public final String getDisplayName() {
+        return mRecordingTarget != null ? mRecordingTarget.getDisplayName() : "";
+    }
+
+    public final int getCurrentSizeBytes() {
+        return mRecordLength;
+    }
+
     /**
      * Return file extension
      * @return Extension without ".": for example "mp3" or "wav".
      */
     protected abstract String getExtension();
+
+    protected abstract String getMimeType();
 
     /**
      * Calls when file created and opened streams for write.

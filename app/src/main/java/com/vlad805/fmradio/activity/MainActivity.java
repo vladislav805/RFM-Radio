@@ -314,14 +314,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             } else {
                 mPendingRecordStart = true;
                 mRecordPermissionsRequested = true;
-                ActivityCompat.requestPermissions(
-                        this,
-                        new String[]{
+
+                // Android 10+ writes recordings via MediaStore into Music/RFM-Recordings,
+                // so only microphone access is needed. Older releases still use direct File I/O.
+                final String[] permissions = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                        ? new String[]{
+                                Manifest.permission.RECORD_AUDIO
+                        }
+                        : new String[]{
                                 Manifest.permission.RECORD_AUDIO,
                                 Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        },
-                        REQUEST_CODE_RECORD_PERMISSIONS
-                );
+                        };
+
+                ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
             }
         } else if (itemId == R.id.menu_speaker) {
             startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
@@ -339,7 +344,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return true;
         }
 
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        final boolean hasRecordAudio =
+                ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return hasRecordAudio;
+        }
+
+        return hasRecordAudio
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
@@ -381,6 +392,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean shouldOpenRecordingPermissionSettings() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mRecordPermissionsRequested) {
             return false;
+        }
+
+        // Android 10+ saves recordings through MediaStore, so only RECORD_AUDIO can be denied.
+        // Older versions still write directly to shared storage and may also require storage access.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
         }
 
         return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)

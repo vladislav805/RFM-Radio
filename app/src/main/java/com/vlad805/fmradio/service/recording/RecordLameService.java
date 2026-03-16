@@ -30,6 +30,11 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 		return "mp3";
 	}
 
+	@Override
+	protected String getMimeType() {
+		return "audio/mpeg";
+	}
+
 	/**
 	 * When recording is being started, need create instance of encoder lame
 	 */
