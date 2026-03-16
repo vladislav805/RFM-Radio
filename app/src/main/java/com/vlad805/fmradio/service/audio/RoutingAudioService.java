@@ -12,8 +12,10 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Environment;
 import android.os.Build;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.RequiresPermission;
@@ -23,8 +25,6 @@ import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.recording.RecordService;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * FM2/Helium devices route FM audio directly inside audio HAL.
@@ -41,9 +41,8 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private static final int DEVICE_OUT_FM = resolveAudioSystemDevice("DEVICE_OUT_FM", 0);
 	private static final int DEVICE_OUT_SPEAKER = resolveAudioSystemDevice("DEVICE_OUT_SPEAKER", 0x2);
 	private static final int DEVICE_OUT_WIRED_HEADSET = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADSET", 0x4);
-	private static final int DEVICE_OUT_WIRED_HEADPHONE = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADPHONE", 0x8);
 
-	private final Context mContext;
+    private final Context mContext;
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
 	private boolean mSpeakerEnabled = false;
@@ -51,7 +50,18 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private Thread mRecordingThread;
 	private IFMRecorder mPcmRecorder;
 	private long mRecordingStartedMs;
-	private Timer mRecordingTimer;
+	private final Handler mRecordingHandler = new Handler(Looper.getMainLooper());
+	private final Runnable mRecordingUpdateRunnable = new Runnable() {
+		@Override
+		public void run() {
+			if (mRecordingAudioRecord == null) {
+				return;
+			}
+
+			sendRecordingUpdate(C.Event.RECORD_TIME_UPDATE);
+			mRecordingHandler.postDelayed(this, RECORDING_UPDATE_MS);
+		}
+	};
 
 	private final BroadcastReceiver mVolumeReceiver = new BroadcastReceiver() {
 		@Override
@@ -369,20 +379,11 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	private void startRecordingTimer() {
 		stopRecordingTimer();
-		mRecordingTimer = new Timer("Fm2Record", true);
-		mRecordingTimer.scheduleAtFixedRate(new TimerTask() {
-			@Override
-			public void run() {
-				sendRecordingUpdate(C.Event.RECORD_TIME_UPDATE);
-			}
-		}, RECORDING_UPDATE_MS, RECORDING_UPDATE_MS);
+		mRecordingHandler.postDelayed(mRecordingUpdateRunnable, RECORDING_UPDATE_MS);
 	}
 
 	private void stopRecordingTimer() {
-		if (mRecordingTimer != null) {
-			mRecordingTimer.cancel();
-			mRecordingTimer = null;
-		}
+		mRecordingHandler.removeCallbacks(mRecordingUpdateRunnable);
 	}
 
 	private void sendRecordingUpdate(final String event) {
@@ -417,11 +418,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	}
 
 	private void ensureRecordingPermissions() throws RecordError {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-			return;
-		}
-
-		if (mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
 			throw new RecordError("Please allow microphone access before recording");
 		}
 
