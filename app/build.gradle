@@ -15,11 +15,12 @@ def releaseKeystorePath = System.getenv("ANDROID_RELEASE_KEYSTORE_PATH")
 def releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
 def releaseKeyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")
 def releaseKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+def isNonEmpty = { value -> value != null && !value.trim().isEmpty() }
 def hasReleaseSigning =
-        releaseKeystorePath != null &&
-        releaseStorePassword != null &&
-        releaseKeyAlias != null &&
-        releaseKeyPassword != null
+        isNonEmpty(releaseKeystorePath) &&
+        isNonEmpty(releaseStorePassword) &&
+        isNonEmpty(releaseKeyAlias) &&
+        isNonEmpty(releaseKeyPassword)
 
 android {
     compileSdk = 36
