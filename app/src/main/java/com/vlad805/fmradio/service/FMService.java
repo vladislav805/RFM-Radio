@@ -8,7 +8,6 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioAttributes;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -87,7 +86,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private void makeChannelSilent(final NotificationChannel channel) {
         channel.enableVibration(false);
         channel.setVibrationPattern(new long[0]);
-        channel.setSound(null, (AudioAttributes) null);
+        channel.setSound(null, null);
     }
 
     private void createNotificationChannels() {
@@ -323,16 +322,17 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
-                // Now state
-                final boolean isSpeaker = Audio.isForceSpeakerNow();
-                // Change state
-                Audio.toggleThroughSpeaker(!isSpeaker);
+                final boolean isSpeaker = isHalDriver()
+                        ? mState.isForceSpeaker()
+                        : Audio.isForceSpeakerNow();
+                mAudioService.setSpeakerEnabled(!isSpeaker);
+                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
                 if (mTunerDriver instanceof QualcommNative) {
                     ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
-                mAudioService.setSpeakerEnabled(!isSpeaker);
-                // Inform
-                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
+                if (!isHalDriver()) {
+                    Audio.toggleThroughSpeaker(!isSpeaker);
+                }
                 break;
             }
         }

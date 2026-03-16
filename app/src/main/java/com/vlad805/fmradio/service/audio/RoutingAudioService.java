@@ -15,6 +15,9 @@ import android.media.MediaRecorder;
 import android.os.Environment;
 import android.os.Build;
 import android.util.Log;
+
+import androidx.annotation.RequiresPermission;
+
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
@@ -22,8 +25,6 @@ import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.recording.RecordService;
 import java.util.Timer;
 import java.util.TimerTask;
-
-import static com.vlad805.fmradio.helper.Audio.isForceSpeakerNow;
 
 /**
  * FM2/Helium devices route FM audio directly inside audio HAL.
@@ -37,11 +38,15 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
 	private static final int RECORDING_UPDATE_MS = 1000;
 
-	private static final int DEVICE_OUT_FM = resolveDeviceOutFm();
+	private static final int DEVICE_OUT_FM = resolveAudioSystemDevice("DEVICE_OUT_FM", 0);
+	private static final int DEVICE_OUT_SPEAKER = resolveAudioSystemDevice("DEVICE_OUT_SPEAKER", 0x2);
+	private static final int DEVICE_OUT_WIRED_HEADSET = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADSET", 0x4);
+	private static final int DEVICE_OUT_WIRED_HEADPHONE = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADPHONE", 0x8);
 
 	private final Context mContext;
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
+	private boolean mSpeakerEnabled = false;
 	private AudioRecord mRecordingAudioRecord;
 	private Thread mRecordingThread;
 	private IFMRecorder mPcmRecorder;
@@ -60,10 +65,10 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				return;
 			}
 
-			final int device = getCurrentOutputDevice();
-			Log.d(TAG, "onVolumeChanged: refreshing fm_volume for device=" + device);
-			applyVolume(device);
-		}
+				final int device = getCurrentVolumeDeviceType();
+				Log.d(TAG, "onVolumeChanged: refreshing fm_volume for device=" + device);
+				applyVolume(device);
+			}
 	};
 
 	public RoutingAudioService(final Context context) {
@@ -75,7 +80,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	public void startAudio() {
 		if (mIsActive) {
 			Log.d(TAG, "startAudio: already active, refreshing route");
-			applyRoute(true, getCurrentOutputDevice(), true);
+			applyRoute(true, mSpeakerEnabled, true);
 			return;
 		}
 
@@ -83,7 +88,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		requestForFocus(true);
 		registerVolumeListener();
 		mIsActive = true;
-		applyRoute(true, getCurrentOutputDevice(), true);
+		applyRoute(true, mSpeakerEnabled, true);
 	}
 
 	@Override
@@ -95,7 +100,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 		stopRecord();
 		Log.d(TAG, "stopAudio: disabling FM route");
-		applyRoute(false, getCurrentOutputDevice(), false);
+		applyRoute(false, mSpeakerEnabled, false);
 		mIsActive = false;
 		unregisterVolumeListener();
 		requestForFocus(false);
@@ -104,44 +109,68 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	@Override
 	public void setSpeakerEnabled(final boolean enabled) {
 		Log.d(TAG, "setSpeakerEnabled: enabled=" + enabled + " active=" + mIsActive);
+		mSpeakerEnabled = enabled;
 		if (mIsActive) {
-			applyRoute(true, enabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES, false);
+			applyRoute(true, enabled, false);
 		}
 	}
 
-	private int getCurrentOutputDevice() {
-		final boolean speaker = isForceSpeakerNow();
-		final int device = speaker ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
-		Log.d(TAG, "getCurrentOutputDevice: speaker=" + speaker + " device=" + device);
-		return device;
+	private int getCurrentVolumeDeviceType() {
+		return mSpeakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
 	}
 
-	private void applyRoute(final boolean enable, final int device, final boolean updateVolume) {
+	private void applyRoute(final boolean enable, final boolean speakerEnabled, final boolean updateVolume) {
 		if (mAudioManager == null) {
 			Log.e(TAG, "applyRoute: AudioManager is null");
 			return;
 		}
 
-		final int route = enable ? (device | DEVICE_OUT_FM) : device;
-		Log.d(TAG, "applyRoute: enable=" + enable + " device=" + device + " deviceOutFm=" + DEVICE_OUT_FM + " route=" + route);
+		final int routeDevice = speakerEnabled ? DEVICE_OUT_SPEAKER : DEVICE_OUT_WIRED_HEADSET;
+		final int volumeDeviceType = speakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
+		final int route = enable ? (routeDevice | DEVICE_OUT_FM) : routeDevice;
+		Log.d(TAG, "applyRoute: enable=" + enable + " speaker=" + speakerEnabled + " routeDevice=" + routeDevice + " deviceOutFm=" + DEVICE_OUT_FM + " route=" + route);
+		applyFrameworkRoute(speakerEnabled);
 
 		if (enable) {
 			final String fmStatus = mAudioManager.getParameters("fm_status");
 			Log.d(TAG, "applyRoute: fm_status=" + fmStatus);
 			if (fmStatus != null && fmStatus.contains("1")) {
-				final int resetRoute = AudioDeviceInfo.TYPE_WIRED_HEADPHONES | DEVICE_OUT_FM;
+				// AudioManager routing parameters use AudioSystem.DEVICE_OUT_* masks, not AudioDeviceInfo.TYPE_* constants.
+				final int resetRoute = DEVICE_OUT_WIRED_HEADSET | DEVICE_OUT_FM;
 				Log.d(TAG, "applyRoute: FM hardwareLoopback already active, resetting via fm_routing=" + resetRoute);
 				sendAudioParameter("fm_routing", resetRoute);
 			}
 			if (updateVolume) {
-				applyVolume(device);
+				applyVolume(volumeDeviceType);
 			}
 			sendAudioParameter("fm_mute", 0);
+			sendAudioParameter("fm_routing", route);
 			sendAudioParameter("handle_fm", route);
 			return;
 		}
 
+		sendAudioParameter("fm_routing", route);
 		sendAudioParameter("handle_fm", route);
+	}
+
+	private void applyFrameworkRoute(final boolean speakerEnabled) {
+		try {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+				if (speakerEnabled) {
+					for (final AudioDeviceInfo device : mAudioManager.getAvailableCommunicationDevices()) {
+						if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+							mAudioManager.setCommunicationDevice(device);
+							return;
+						}
+					}
+				} else {
+					mAudioManager.clearCommunicationDevice();
+				}
+			}
+			mAudioManager.setSpeakerphoneOn(speakerEnabled);
+		} catch (Throwable t) {
+			Log.w(TAG, "applyFrameworkRoute failed for speaker=" + speakerEnabled, t);
+		}
 	}
 
 	private void applyVolume(final int device) {
@@ -205,7 +234,8 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		}
 	}
 
-	@Override
+	@RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    @Override
 	public void startRecord(final IFMRecorder recorder) throws RecordError {
 		if (mRecordingAudioRecord != null) {
 			Log.d(TAG, "startRecord: already recording");
@@ -225,7 +255,8 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		startAudioRecordRecorder(recorder);
 	}
 
-	private void startAudioRecordRecorder(final IFMRecorder recorder) throws RecordError {
+	@RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    private void startAudioRecordRecorder(final IFMRecorder recorder) throws RecordError {
 		final AudioDeviceInfo fmTuner = findFmTunerInputDevice();
 		if (fmTuner == null) {
 			throw new RecordError("FM Tuner input device not found");
@@ -415,13 +446,13 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	}
 
 	@SuppressLint("PrivateApi")
-	private static int resolveDeviceOutFm() {
+	private static int resolveAudioSystemDevice(final String fieldName, final int fallbackValue) {
 		try {
 			final Class<?> audioSystemClass = Class.forName("android.media.AudioSystem");
-			return audioSystemClass.getField("DEVICE_OUT_FM").getInt(null);
+			return audioSystemClass.getField(fieldName).getInt(null);
 		} catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
-			Log.e(TAG, "resolveDeviceOutFm failed, fallback to 0", e);
-			return 0;
+			Log.e(TAG, "resolveAudioSystemDevice failed for " + fieldName + ", fallback=" + fallbackValue, e);
+			return fallbackValue;
 		}
 	}
 }
