@@ -18,7 +18,10 @@ import androidx.annotation.NonNull;
 
 import com.vlad805.fmradio.R;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * vlad805 (c) 2018
@@ -49,6 +52,7 @@ public class FrequencyBarView extends View {
 	private float mDashIntervalLength;
 
 	private float mOffsetY = 0;
+	private Set<Integer> mFavoriteFrequencies = Collections.emptySet();
 
 	private boolean mIsUserGesture = false;
 
@@ -73,6 +77,11 @@ public class FrequencyBarView extends View {
 
 	public void setOnFrequencyChangeListener(OnFrequencyChangedListener listener) {
 		mOnFrequencyChangeListener = listener;
+	}
+
+	public void setFavoriteFrequencies(final Set<Integer> frequencies) {
+		mFavoriteFrequencies = frequencies == null ? Collections.emptySet() : new HashSet<>(frequencies);
+		invalidate();
 	}
 
 	private void init() {
@@ -257,7 +266,7 @@ public class FrequencyBarView extends View {
 			final float y = mDashIntervalLength * i;
 
 			// The presence of the current frequency in the list of stations
-			final boolean hasStation = false; // mStations != null && mStations.contains(kHz);
+			final boolean hasStation = mFavoriteFrequencies.contains(kHz);
 
 			// Choose color for dash in depend of presence of the current frequency in the list of stations
 			@SuppressWarnings("ConstantConditions") final Paint colorTrait = hasStation ? mStationLine : mTrait;

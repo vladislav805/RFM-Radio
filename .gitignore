@@ -54,3 +54,5 @@ fastlane/readme.md
 
 cmake-build-*
 /fonts/
+
+app/src/main/assets/fmbin*

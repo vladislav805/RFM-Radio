@@ -1,9 +1,15 @@
 package com.vlad805.fmradio.activity;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
+import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -12,18 +18,24 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
+import com.vlad805.fmradio.enums.TunerDriver;
+import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
+import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesPanelView;
@@ -35,6 +47,9 @@ import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 import net.grandcentrix.tray.AppPreferences;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @SuppressLint("NonConstantResourceId")
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
     private ProgressDialog mProgress;
@@ -42,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RadioUIView mFrequencyInfo;
     private FrequencyBarView mSeek;
     private FavoritesPanelView mFavoriteList;
+    private FavoriteController mFavoriteController;
 
     private RadioController mRadioController;
 
@@ -49,8 +65,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private ImageButton mCtlToggle;
 
-    private TextView mViewRssi;
-    private ImageView mViewRssiIcon;
     private ImageView mViewStereoMode;
 
     private TextView mRecordDuration;
@@ -61,6 +75,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
+    private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
+    private static final int REQUEST_CODE_PLAYBACK_PERMISSION = 1052;
+    private boolean mPendingRecordStart = false;
+    private boolean mRecordPermissionsRequested = false;
+    private boolean mPendingPlaybackStart = false;
+    private boolean mPlaybackPermissionRequested = false;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -71,7 +91,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         setSupportActionBar(findViewById(R.id.main_toolbar));
 
+        if (!TunerDriverDetector.isDeviceSupported()) {
+            startActivity(new Intent(this, UnsupportedDeviceActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+            return;
+        }
+
         mPreferences = new AppPreferences(this);
+        mFavoriteController = new FavoriteController(this);
         mRadioController = new RadioController(this);
         mRadioController.requestForCurrentState(this);
         mRadioController.registerForUpdates(this);
@@ -88,6 +116,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mFrequencyInfo = findViewById(R.id.frequency_info);
 
         mFavoriteList = findViewById(R.id.favorite_list);
+        mFavoriteList.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
 
         mSeek = findViewById(R.id.frequency_seek);
 
@@ -96,6 +125,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
         mFrequencyInfo.setFrequency(kHz);
         mSeek.setFrequency(kHz);
+        updateFavoriteFrequencyMarkers();
 
         initClickableButtons();
     }
@@ -107,7 +137,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final boolean needStartup = Storage.getPrefBoolean(this, C.PrefKey.APP_AUTO_STARTUP, C.PrefDefaultValue.APP_AUTO_STARTUP);
 
         if (needStartup) {
-            mRadioController.setup();
+            if (ensurePlaybackPermissionForLegacyAudio()) {
+                mRadioController.setup();
+            }
         } else {
             setEnabledUi(false);
         }
@@ -139,9 +171,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onDestroy() {
         super.onDestroy();
 
-        mRadioController.unregisterForUpdates();
+        if (mRadioController != null) {
+            mRadioController.unregisterForUpdates();
+        }
 
-        if (Storage.getPrefBoolean(this, C.PrefKey.TUNER_POWER_MODE, false)) {
+        if (mRadioController != null && Storage.getPrefBoolean(this, C.PrefKey.TUNER_POWER_MODE, false)) {
             mRadioController.setPowerMode(PowerMode.LOW);
         }
     }
@@ -152,6 +186,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case REQUEST_CODE_FAVORITES_OPENED: {
                 if (resultCode == Activity.RESULT_OK && data.getBooleanExtra("changed", false)) {
                     mFavoriteList.reload(true);
+                    updateFavoriteFrequencyMarkers();
                 }
                 break;
             }
@@ -170,13 +205,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    @Override
+    public void onRequestPermissionsResult(final int requestCode, final String[] permissions, final int[] grantResults) {
+        if (requestCode == REQUEST_CODE_RECORD_PERMISSIONS) {
+            final boolean granted = hasRecordingPermissions();
+            if (granted && mPendingRecordStart) {
+                mRadioController.record(true);
+            } else if (mPendingRecordStart) {
+                mToast.text(getString(R.string.record_permissions_required)).show();
+            }
+            mPendingRecordStart = false;
+        }
+
+        if (requestCode == REQUEST_CODE_PLAYBACK_PERMISSION) {
+            final boolean granted = hasPlaybackPermission();
+            if (granted && mPendingPlaybackStart) {
+                mRadioController.setup();
+            } else if (mPendingPlaybackStart) {
+                mToast.text(getString(R.string.playback_permission_required)).show();
+            }
+            mPendingPlaybackStart = false;
+        }
+
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
     /**
      * Setup clickable buttons
      */
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
-        mViewRssi = findViewById(R.id.rssi_value);
-        mViewRssiIcon = findViewById(R.id.rssi_icon);
         mViewStereoMode = findViewById(R.id.stereo_mono);
 
         final int[] ids = {
@@ -195,55 +253,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(final View view) {
-        switch (view.getId()) {
+        int id = view.getId();
+
+        if (id == R.id.ctl_toggle) {
             // Main play/stop button
-            case R.id.ctl_toggle: {
-                switch (mRadioController.getState().getStatus()) {
-                    case IDLE: {
+            switch (mRadioController.getState().getStatus()) {
+                case IDLE: {
+                    if (ensurePlaybackPermissionForLegacyAudio()) {
                         mRadioController.setup();
-                        break;
                     }
-
-                    case INSTALLED:
-                    case LAUNCHED: {
-                        mRadioController.enable();
-                        break;
-                    }
-
-                    case ENABLED: {
-                        mRadioController.kill();
-                        break;
-                    }
+                    break;
                 }
-                break;
-            }
 
-            case R.id.ctl_go_down: {
-                mRadioController.jump(Direction.DOWN);
-                break;
-            }
+                case INSTALLED:
+                case LAUNCHED: {
+                    if (ensurePlaybackPermissionForLegacyAudio()) {
+                        mRadioController.enable();
+                    }
+                    break;
+                }
 
-            case R.id.ctl_go_up: {
-                mRadioController.jump(Direction.UP);
-                break;
+                case ENABLED: {
+                    mRadioController.kill();
+                    break;
+                }
             }
-
-            case R.id.ctl_seek_down: {
-                mRadioController.hwSeek(Direction.DOWN);
-                showProgress(getString(R.string.progress_searching));
-                break;
-            }
-
-            case R.id.ctl_seek_up: {
-                mRadioController.hwSeek(Direction.UP);
-                showProgress(getString(R.string.progress_searching));
-                break;
-            }
-
-            case R.id.favorite_button: {
-                startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
-                break;
-            }
+        } else if (id == R.id.ctl_go_down) {
+            mRadioController.jump(Direction.DOWN);
+        } else if (id == R.id.ctl_go_up) {
+            mRadioController.jump(Direction.UP);
+        } else if (id == R.id.ctl_seek_down) {
+            mRadioController.hwSeek(Direction.DOWN);
+            showProgress(getString(R.string.progress_searching));
+        } else if (id == R.id.ctl_seek_up) {
+            mRadioController.hwSeek(Direction.UP);
+            showProgress(getString(R.string.progress_searching));
+        } else if (id == R.id.favorite_button) {
+            startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
         }
     }
 
@@ -259,23 +305,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_about:
-                startActivity(new Intent(this, AboutActivity.class));
-                break;
+        int itemId = item.getItemId();
 
-            case R.id.menu_settings:
-                startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
-                break;
-
-            case R.id.menu_record:
-                mRadioController.record(!mRadioController.getState().isRecording());
-                break;
-
-            case R.id.menu_speaker: {
-                startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
-                break;
+        if (itemId == R.id.menu_about) {
+            startActivity(new Intent(this, AboutActivity.class));
+        } else if (itemId == R.id.menu_settings) {
+            startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
+        } else if (itemId == R.id.menu_record) {
+            if (mRadioController.getState().isRecording()) {
+                mRadioController.record(false);
+                return super.onOptionsItemSelected(item);
             }
+
+            if (hasRecordingPermissions()) {
+                mRadioController.record(true);
+            } else if (shouldOpenRecordingPermissionSettings()) {
+                showRecordingPermissionSettingsDialog();
+            } else {
+                mPendingRecordStart = true;
+                mRecordPermissionsRequested = true;
+
+                // Android 10+ writes recordings via MediaStore into Music/RFM-Recordings,
+                // so only microphone access is needed. Older releases still use direct File I/O.
+                final String[] permissions = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                        ? new String[]{
+                                Manifest.permission.RECORD_AUDIO
+                        }
+                        : new String[]{
+                                Manifest.permission.RECORD_AUDIO,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        };
+
+                ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
+            }
+        } else if (itemId == R.id.menu_speaker) {
+            startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
         }
 
         return super.onOptionsItemSelected(item);
@@ -283,6 +347,103 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void setEnabledToggleButton(final boolean enabled) {
         mCtlToggle.setEnabled(enabled);
+    }
+
+    private boolean hasRecordingPermissions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        final boolean hasRecordAudio =
+                ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return hasRecordAudio;
+        }
+
+        return hasRecordAudio
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasPlaybackPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean needsPlaybackPermissionForLegacyAudio() {
+        return (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O &&
+            TunerDriverDetector.getTunerDriver() == TunerDriver.LEGACY
+        );
+    }
+
+    private boolean ensurePlaybackPermissionForLegacyAudio() {
+        if (!needsPlaybackPermissionForLegacyAudio() || hasPlaybackPermission()) {
+            return true;
+        }
+
+        if (shouldOpenPlaybackPermissionSettings()) {
+            showPlaybackPermissionSettingsDialog();
+        } else {
+            mPendingPlaybackStart = true;
+            mPlaybackPermissionRequested = true;
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[] { Manifest.permission.RECORD_AUDIO },
+                    REQUEST_CODE_PLAYBACK_PERMISSION
+            );
+        }
+
+        return false;
+    }
+
+    private boolean shouldOpenRecordingPermissionSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mRecordPermissionsRequested) {
+            return false;
+        }
+
+        // Android 10+ saves recordings through MediaStore, so only RECORD_AUDIO can be denied.
+        // Older versions still write directly to shared storage and may also require storage access.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)
+                && !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+    }
+
+    private void showRecordingPermissionSettingsDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.record_permissions_required_title)
+                .setMessage(R.string.record_permissions_required)
+                .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private boolean shouldOpenPlaybackPermissionSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mPlaybackPermissionRequested) {
+            return false;
+        }
+
+        return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
+    }
+
+    private void showPlaybackPermissionSettingsDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.playback_permission_required_title)
+                .setMessage(R.string.playback_permission_required)
+                .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void openAppSettings() {
+        final Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.fromParts("package", getPackageName(), null));
+        startActivity(intent);
     }
 
     private void reloadPreferences() {
@@ -294,6 +455,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mSeek.setMinMaxValue(bandLimit.lower, bandLimit.upper, spacing);
         mSeek.setOnFrequencyChangeListener(mOnFrequencyChanged);
+        updateFavoriteFrequencyMarkers();
+    }
+
+    private void updateFavoriteFrequencyMarkers() {
+        if (mFavoriteController == null || mSeek == null) {
+            return;
+        }
+
+        mFavoriteController.reload();
+        final Set<Integer> frequencies = new HashSet<>();
+        for (final FavoriteStation station : mFavoriteController.getStationsInCurrentList()) {
+            frequencies.add(station.getFrequency());
+        }
+        mSeek.setFavoriteFrequencies(frequencies);
     }
 
     private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
@@ -332,7 +507,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mToast.text(str).show();
 
             mFrequencyInfo.setRadioState(state);
-            mViewRssi.setText("");
         }
 
         if (
@@ -342,10 +516,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             (mode & RadioStateUpdater.SET_PTY) > 0
         ) {
             mFrequencyInfo.setRadioState(state);
-        }
-
-        if ((mode & RadioStateUpdater.SET_RSSI) > 0) {
-            setRssi(state.getRssi());
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
@@ -447,8 +617,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_rt,
                 R.id.frequency_pty,
                 R.id.frequency_seek,
-                R.id.rssi_icon,
-                R.id.rssi_value,
                 R.id.record_duration,
                 R.id.stereo_mono,
                 R.id.favorite_list
@@ -475,34 +643,4 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
     }
 
-    private static final int[] SIGNAL_RES_ID = {
-            R.drawable.ic_signal_0,
-            R.drawable.ic_signal_1,
-            R.drawable.ic_signal_2,
-            R.drawable.ic_signal_3,
-            R.drawable.ic_signal_4,
-            R.drawable.ic_signal_5,
-            R.drawable.ic_signal_6,
-    };
-
-    private static final int[] SIGNAL_THRESHOLD = {
-            -110,
-            -98,
-            -86,
-            -74,
-            -62,
-            -50,
-            -10,
-    };
-
-    private void setRssi(final int rssi) {
-        mViewRssi.setText(String.valueOf(rssi));
-
-        for (int i = 0; i < SIGNAL_RES_ID.length; ++i) {
-            if (rssi < SIGNAL_THRESHOLD[i]) {
-                mViewRssiIcon.setImageResource(SIGNAL_RES_ID[i]);
-                break;
-            }
-        }
-    }
 }

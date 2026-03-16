@@ -14,7 +14,6 @@
 	<string name="progress_starting">Włączanie tunera…</string>
 	<string name="progress_searching">Szukanie…</string>
 	<string name="progress_stopping">Zatrzymywanie…</string>
-	<string name="main_rssi_db">%d dB</string>
 	<string name="menu_settings">Ustawienia</string>
 	<string name="menu_open_list">Lista stacji</string>
 	<string name="menu_record">Nagraj</string>
@@ -30,12 +29,21 @@
 	<string name="popup_station_remove">Usuń</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>
 	<string name="about_version" translatable="false">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2020–2025</string>
+	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Stwórz listę</string>
 	<string name="menu_favorite_list_remove">Usuń listę</string>
+	<string name="menu_favorite_list_rename">Zmień nazwę listy</string>
+	<string name="menu_favorite_list_import">Importuj listę</string>
+	<string name="menu_favorite_list_export">Eksportuj listę</string>
 	<string name="popup_favorite_list_create">Stwórz ulubioną listę</string>
+	<string name="popup_favorite_list_rename">Zmień nazwę ulubionej listy</string>
 	<string name="favorite_list_create_error_already_exists">Lista z taką nazwą już istnieje</string>
 	<string name="favorite_list_create_error_invalid_name">Nieprawidłowa nazwa. Tylko A–Z, a–z, \'–\', \'_\' i 0–9 mogą być użyte.</string>
+	<string name="favorite_list_import_success">Zaimportowano listę \"%s\"</string>
+	<string name="favorite_list_import_success_many">Zaimportowano list: %d</string>
+	<string name="favorite_list_import_error">Nie udało się zaimportować listy ulubionych</string>
+	<string name="favorite_list_export_success">Wyeksportowano listę \"%s\"</string>
+	<string name="favorite_list_export_error">Nie udało się wyeksportować listy ulubionych</string>
 	<string name="favorite_list_remove_title">Potwierdzenie</string>
 	<string name="favorite_list_remove_message">Czy jesteś pewien, że chcesz usunąć tą listę \'%s\'?</string>
 	<string name="pref_activity_title">Ustawienia</string>
@@ -47,7 +55,6 @@
 	<string name="pref_tuner_rds_enable">Aktywuj RDS</string>
 	<string name="pref_tuner_rds_enabled">Pokaż RDS takie jak serwis programowy i tekst radiowy</string>
 	<string name="pref_tuner_rds_disabled">Nie pokazuj RDS</string>
-	<string name="pref_audio_source">Źródło dźwięku</string>
 	<string name="pref_app_auto_startup">Autostart</string>
 	<string name="pref_app_auto_startup_enabled">Rozpocznij odtwarzanie dźwięku natychmiast po uruchomieniu aplikacji</string>
 	<string name="pref_auto_startup_disabled">Odtwarzanie dźwięku należy uruchomić ręcznie</string>
@@ -61,11 +68,8 @@
 	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)\nAndus - translator (Polish)</string>
 	<string name="pref_info_link_telegram">Kanał Telegram</string>
 	<string name="pref_info_link_telegram_summary">Publikuje nowości i nowe wydania aplikacji</string>
-	<string name="pref_tuner_driver">Sterownik tunera</string>
 	<string name="pref_tuner_antenna">Antena</string>
 	<string name="pref_tuner_antenna_message">Domyślnie jest to \'0\'.\nNa niektórych urządzeniach Sony jest \'1\'.</string>
-	<string name="pref_tuner_audio_source_message">0 - domyślnie\n1998 - \'new\' Źródło FM</string>
-	<string name="pref_audio_service">Serwis Audio</string>
 	<string name="toolbar_favorite_title">Ulubione</string>
 	<string name="pref_header_notifications">Powiadomienia</string>
 	<string name="pref_notification_show_ps_enabled">Jeśli stacja nadaje PS, zostanie to pokazane w powiadomieniu</string>
@@ -73,11 +77,9 @@
 	<string name="pref_notification_show_ps">Pokaż PS w tytule</string>
 	<string name="pref_tuner_rds_description">RDS - System danych radiowych\nWyświetlanie informacji związanych z radiem nadawanych przez stacje radiowe.\nPS – Usługa programowa (zwykle nazwa stacji)\nRT – Tekst radiowy (zwykle nazwa bieżącego utworu, informacje o stacji)\nAF – Częstotliwości alternatywne (lista częstotliwości, na których nadaje ta sama stacja w sąsiednich regionach )\nPTY - TYP programu (gatunek stacji)</string>
 	<string name="pref_header_recording">Nagrywanie</string>
-	<string name="pref_recording_path_title">Katalog do zapisywania</string>
-	<string name="pref_recording_path_value" translatable="false">RFM/nagranie/$y-$m-$d</string>
+	<string name="pref_recording_path_title">Podkatalog do zapisywania</string>
 	<string name="pref_recording_name_title">Nazwa pliku</string>
-	<string name="pref_recording_name_value" translatable="false">FM-$h$i$s-$f</string>
-	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nPrzykład:\nKatalog: FM/$y-$m-$d -> FM/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
+	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nNagrania są zapisywane w katalogu Music/RFM-Recordings.\nWartość katalogu musi być ścieżką względną wewnątrz tego katalogu.\nPrzykład:\nKatalog: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_format_title">Format Nagrywania</string>
 	<string name="pref_recording_convert_summary">WAV - surowe/duże audio, MP3 - skompresowane/małe</string>
 	<string name="pref_recording_show_notify">Pokaż Powiadomienia</string>
@@ -92,9 +94,14 @@
 	<string name="pref_version_check_need_update_content">Najnowsza wersja aplikacji: v%1$s (%2$d)\nZainstalowana wersja aplikacji: %3$s (v%4$d)\n\nAktualizacje:\n%5$s\n\nOtwórz stronę wydania, aby pobrać instalator?</string>
 	<string name="pref_version_check_need_update_ok">Aktualizuj</string>
 	<string name="pref_version_check_fresh_ok">Dobrze</string>
-	<string name="notification_mhz">%.1f MHz | %d dB</string>
+	<string name="notification_mhz">%.1f MHz</string>
 	<string name="service_record_unsupported">Nagrywanie nieobsługiwane przez ten sterownik.</string>
-	<string name="notification_recording">Nagrywanie: %s (%.1f MB)</string>
+	<string name="record_permissions_required_title">Wymagane uprawnienia do nagrywania</string>
+	<string name="record_permissions_required">Nagrywanie wymaga uprawnień do mikrofonu i pamięci. Otwórz ustawienia aplikacji i nadaj je.</string>
+	<string name="record_permissions_open_settings">Otwórz ustawienia</string>
+	<string name="playback_permission_required_title">Wymagane uprawnienie do mikrofonu</string>
+	<string name="playback_permission_required">Odtwarzanie FM na tym urządzeniu wymaga dostępu do mikrofonu. Otwórz ustawienia aplikacji i nadaj uprawnienie.</string>
+	<string name="notification_recording">Nagrywanie: %1$s (%2$.1f MB)</string>
 	<string name="notification_recorded">Nagranie %3$s skończone: %1$s (%2$.1f MB)</string>
 	<string name="toast_record_ended">Nagranie zapisane jako %1$s\nWielkość: %2$.1f MB\nTrwanie: %3$s</string>
 	<string name="main_warning_pref_changed_title">Uwaga!</string>
@@ -102,7 +109,7 @@
 	<string name="pref_notification_seek_by_favorites">Poruszaj się po ulubionych</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Używając strzałek w powiadomieniu, przejdź do poprzedniego/następnego ulubionego</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Użyj strzałek w powiadomieniu, aby wyszukać poprzednią/następną stację</string>
-    <string name="main_error_launching">Wystąpił błąd podczas uruchamiania tunera. Aplikacja nie może działać. Spróbuj zmienić tuner w ustawieniach i ponownie uruchomić aplikację. Jeśli nic się nie zmieniło, oznacza to, że aplikacja nie jest obsługiwana na tym urządzeniu lub w tym systemie operacyjnym.</string>
+    <string name="main_error_launching">Wystąpił błąd podczas uruchamiania tunera. Aplikacja nie może działać na tym urządzeniu.</string>
 	<string name="main_error_launching_title">Fatalny bład</string>
     <string name="pref_header_rds">RDS (Radio Data System)</string>
     <string name="pref_tuner_power_mode_low">Gdy aplikacja działa w tle, tuner zużywa mniej energii.</string>
@@ -128,5 +135,7 @@
 	</string>
 	<string name="pref_tuner_rds_auto_af_disabled">Jeśli sygnał się pogorszy, nic się nie stanie, dane o alternatywnych częstotliwościach ze stacji radiowej zostaną zignorowane.</string>
 	<string name="menu_speaker">Graj przez głośnik</string>
-    <string name="favorite_list_search_error_tuner_not_enabled">Nie można wyszukiwać, gdy tuner jest wyłączony.</string>
+	<string name="favorite_list_search_error_tuner_not_enabled">Nie można wyszukiwać, gdy tuner jest wyłączony.</string>
+	<string name="unsupported_device_title">Urządzenie nie jest obsługiwane</string>
+	<string name="unsupported_device_message">RFM Radio nie znalazło obsługiwanego backendu FM na tym urządzeniu. Tryb legacy wymaga /dev/radio0, a tryb HAL wymaga fm_helium.so.</string>
 </resources>

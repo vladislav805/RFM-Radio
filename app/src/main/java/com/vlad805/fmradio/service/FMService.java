@@ -1,15 +1,19 @@
 package com.vlad805.fmradio.service;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.C;
@@ -20,19 +24,19 @@ import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.RadioStateUpdater;
+import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.Audio;
+import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.AudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
-import com.vlad805.fmradio.service.audio.Spirit3AudioService;
+import com.vlad805.fmradio.service.audio.RoutingAudioService;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.IFMEventPoller;
-import com.vlad805.fmradio.service.fm.RecordError;
-import com.vlad805.fmradio.service.fm.implementation.AbstractFMController;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
-import com.vlad805.fmradio.service.fm.implementation.QualcommLegacy;
-import com.vlad805.fmradio.service.fm.implementation.Spirit3Impl;
+import com.vlad805.fmradio.service.fm.implementation.QualcommNative;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
@@ -52,9 +56,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private static final String TAG = "FMS";
     public static final int NOTIFICATION_ID = 1027;
     public static final int NOTIFICATION_RECORD_ID = 1029;
-    private static final String CHANNEL_ID = "default_channel";
+    private static final String CHANNEL_ID = "playback_channel_v3";
     private static final String CHANNEL_RECORD_ID = "record_channel";
-    private static final String CHANNEL_RECORDING_ID = "recording_channel";
+    private static final String CHANNEL_RECORDING_ID = "recording_channel_v2";
 
     private NotificationCompat.Builder mNBuilder;
     private NotificationManagerCompat mNotificationManager;
@@ -64,7 +68,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private Map<Integer, String> mFavoriteList;
 
-    private AbstractFMController mTunerDriver;
+    private IFMController mTunerDriver;
+    private TunerDriver mTunerDriverKind;
     private AudioService mAudioService;
 
     private BroadcastReceiver mEventReaction;
@@ -77,6 +82,52 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private RadioState mState;
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void makeChannelSilent(final NotificationChannel channel) {
+        channel.enableVibration(false);
+        channel.setVibrationPattern(new long[0]);
+        channel.setSound(null, null);
+    }
+
+    private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
+
+        final NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        if (notificationManager == null) {
+            return;
+        }
+
+        final NotificationChannel mainChannel = new NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.app_name),
+                NotificationManager.IMPORTANCE_HIGH
+        );
+        mainChannel.setDescription(getString(R.string.app_name));
+        makeChannelSilent(mainChannel);
+
+        final NotificationChannel recordChannel = new NotificationChannel(
+                CHANNEL_RECORD_ID,
+                getString(R.string.app_name) + " recordings",
+                NotificationManager.IMPORTANCE_LOW
+        );
+        recordChannel.setDescription(getString(R.string.notification_recorded, "", 0f, ""));
+        makeChannelSilent(recordChannel);
+
+        final NotificationChannel recordingChannel = new NotificationChannel(
+                CHANNEL_RECORDING_ID,
+                getString(R.string.app_name) + " recording",
+                NotificationManager.IMPORTANCE_HIGH
+        );
+        recordingChannel.setDescription(getString(R.string.notification_recording, "", 0f));
+        makeChannelSilent(recordingChannel);
+
+        notificationManager.createNotificationChannel(mainChannel);
+        notificationManager.createNotificationChannel(recordChannel);
+        notificationManager.createNotificationChannel(recordingChannel);
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -88,14 +139,15 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mRadioController = new RadioController(this);
         mFavoriteController = new FavoriteController(this);
         mNotificationManager = NotificationManagerCompat.from(this);
+        createNotificationChannels();
 
         // Preferences
         mStorage = Storage.getInstance(this);
         mStorage.registerOnTrayPreferenceChangeListener(this);
 
         // Services
-        mAudioService = getPreferredAudioService();
-        mTunerDriver = getPreferredTunerDriver();
+        mTunerDriver = getTunerDriver();
+        mAudioService = getAudioService();
 
         // Broadcast receivers
         mEventReaction = new EventReaction();
@@ -140,6 +192,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner start and unmute command.
             // When completed, will fire event ENABLED.
             case C.Command.ENABLE: {
+                if (isHalDriver()) {
+                    mAudioService.startAudio();
+                }
                 mTunerDriver.enable();
                 if (mTunerDriver instanceof IFMEventPoller) {
                     mTimer = new Timer("Poll", true);
@@ -151,6 +206,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner stop and mute command.
             // When complete, will fire event DISABLED.
             case C.Command.DISABLE: {
+                if (isHalDriver()) {
+                    mAudioService.stopAudio();
+                }
                 mTunerDriver.disable();
                 stopSelf();
                 break;
@@ -204,8 +262,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 if (mAudioService instanceof IAudioRecordable) {
                     try {
                         ((IAudioRecordable) mAudioService).startRecord(getPreferredRecorder());
-                    } catch (RecordError e) {
-                        Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                    } catch (Throwable e) {
+                        Log.e("FMS", "Failed to start recording", e);
+                        final String message = e.getMessage() != null ? e.getMessage() : "Recording start failed";
+                        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                     }
                 } else {
                     Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
@@ -262,12 +322,17 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
-                // Now state
-                final boolean isSpeaker = Audio.isForceSpeakerNow();
-                // Change state
-                Audio.toggleThroughSpeaker(!isSpeaker);
-                // Inform
+                final boolean isSpeaker = isHalDriver()
+                        ? mState.isForceSpeaker()
+                        : Audio.isForceSpeakerNow();
+                mAudioService.setSpeakerEnabled(!isSpeaker);
                 sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
+                if (mTunerDriver instanceof QualcommNative) {
+                    ((QualcommNative) mTunerDriver).refreshAudioRoute();
+                }
+                if (!isHalDriver()) {
+                    Audio.toggleThroughSpeaker(!isSpeaker);
+                }
                 break;
             }
         }
@@ -321,43 +386,35 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Returns preferred by user audio service (from settings)
+     * Returns audio service
      * @return FMAudioService instance
      */
-    private AudioService getPreferredAudioService() {
-        final int id = Storage.getPrefInt(this, C.PrefKey.AUDIO_SERVICE, C.PrefDefaultValue.AUDIO_SERVICE);
-
-        switch (id) {
-            case AudioService.SERVICE_LIGHT: {
-                return new LightAudioService(this);
-            }
-
-            case AudioService.SERVICE_SPIRIT3:
-            default: {
-                return new Spirit3AudioService(this);
-            }
+    private AudioService getAudioService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Android 8+
+            return new RoutingAudioService(this);
         }
+
+        // Android 7-
+        return new LightAudioService(this);
     }
 
     /**
-     * Returns preferred by user tuner driver
+     * Returns tuner driver
      * @return Tuner driver
      */
-    private AbstractFMController getPreferredTunerDriver() {
-        final int id = Storage.getPrefInt(this, C.PrefKey.TUNER_DRIVER, C.PrefDefaultValue.TUNER_DRIVER);
+    private IFMController getTunerDriver() {
+        mTunerDriverKind = TunerDriverDetector.getTunerDriver();
 
-        switch (id) {
-            case AbstractFMController.DRIVER_SPIRIT3: {
-                return new Spirit3Impl(this);
+        switch (mTunerDriverKind) {
+            case HAL:
+            case LEGACY: {
+                return new QualcommNative(this, mTunerDriverKind);
             }
 
-            case AbstractFMController.DRIVER_EMPTY: {
-                return new Empty(this);
-            }
-
-            case AbstractFMController.DRIVER_QUALCOMM:
+            case NONE:
             default: {
-                return new QualcommLegacy( this);
+                return new Empty(this);
             }
         }
     }
@@ -370,13 +427,17 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
         final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
 
+        final int sampleRate = mTunerDriver instanceof QualcommNative
+                ? ((QualcommNative) mTunerDriver).getRecorderSampleRate()
+                : 44100;
+
         switch (mode) {
             case 0: {
-                return new RecordRawService(this, kHz);
+                return new RecordRawService(this, kHz, sampleRate);
             }
 
             case 1: {
-                return new RecordLameService(this, kHz);
+                return new RecordLameService(this, kHz, sampleRate);
             }
         }
 
@@ -465,7 +526,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.ENABLED: {
-                    mAudioService.startAudio();
+                    if (!isHalDriver()) {
+                        mAudioService.startAudio();
+                    }
                     final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
                     mRadioController.setFrequency(frequency);
                     updateNotification();
@@ -473,7 +536,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.DISABLED: {
-                    mAudioService.stopAudio();
+                    if (!isHalDriver()) {
+                        mAudioService.stopAudio();
+                    }
                     break;
                 }
 
@@ -528,6 +593,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         }
     }
 
+    private boolean isHalDriver() {
+        return mTunerDriverKind == TunerDriver.HAL;
+    }
+
     /**
      * Create notification
      * @return Notification builder
@@ -578,17 +647,18 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 0
         );
 
-        //.setMediaSession(mediaSession.getSessionToken()))
-
         androidx.media.app.NotificationCompat.MediaStyle ms = new androidx.media.app.NotificationCompat.MediaStyle();
         NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_radio)
                 .setContentIntent(pendingMain)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.progress_starting))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .setAutoCancel(false)
                 .setOngoing(true)
                 .setColor(getResources().getColor(R.color.primary_blue))
@@ -615,26 +685,24 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         }
 
         final int frequency = state.getFrequency();
-        final int rssi = state.getRssi();
-
         /*
          * Subtitle
          */
-        mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d, rssi));
+        mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d));
 
         final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
 
         /*
          * Title
          */
-        String title = getString(R.string.app_name);
+        String title = getString(R.string.notification_mhz, frequency / 1000d).trim();
         final String stationTitle = mFavoriteList.get(frequency);
         final String rdsPs = state.getPs();
 
         if (isNeedShowRds && rdsPs != null && !rdsPs.isEmpty()) {
-            title = rdsPs.trim();
+            title = title + " | " + rdsPs.trim();
         } else if (stationTitle != null) {
-            title = stationTitle;
+            title = title + " | " + stationTitle;
         }
 
         mNBuilder.setContentTitle(title);
@@ -659,6 +727,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      */
     private void updateNotification() {
         final Notification notification = updateNotification(mState);
+        notification.flags |= Notification.FLAG_NO_CLEAR;
+        notification.flags |= Notification.FLAG_ONGOING_EVENT;
 
         startForeground(NOTIFICATION_ID, notification);
     }
@@ -675,9 +745,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 .setSmallIcon(R.drawable.ic_record_on)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.notification_recording, getTimeStringBySeconds(duration), size / 1024f / 1024f))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .setAutoCancel(false)
                 .setOngoing(true)
                 .setColor(getResources().getColor(R.color.record_active))
@@ -721,7 +793,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Polling rssi, current frequency, ps and rt
+     * Polling current frequency, ps and rt
      */
     private class PollTunerHandler extends TimerTask {
         private Bundle last;
@@ -738,7 +810,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 return;
             }
 
-            sendIntEventIfExistsAndDiff(bundle, C.Key.RSSI, C.Event.UPDATE_RSSI);
             sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
             sendIntEventIfExistsAndDiff(bundle, C.Key.PTY, C.Event.UPDATE_PTY);
             sendStringEventIfExistsAndDiff(bundle, C.Key.PI, C.Event.UPDATE_PI);

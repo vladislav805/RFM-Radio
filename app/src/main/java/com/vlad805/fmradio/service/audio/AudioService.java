@@ -4,22 +4,15 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
-import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.Storage;
-
 import static com.vlad805.fmradio.Utils.sleep;
 
 /**
- * Audio service (in two versions: Lightweight and Spirit2) records sound from
+ * Audio service records sound from
  * a specific source (unavailable for playback through speakers) and outputs it
  * to a regular audio output (headphones or speaker).
  * vlad805 (c) 2019
  */
 public abstract class AudioService {
-	public static final int SERVICE_LIGHT = 0;
-	public static final int SERVICE_SPIRIT3 = 1;
-
-	// Android AudioManager
 	protected final AudioManager mAudioManager;
 
 	protected int mSampleRate = 44100; // Default = 8000 (Max with AMR)
@@ -28,7 +21,6 @@ public abstract class AudioService {
 
 	public AudioService(Context context) {
 		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-		mAudioSource = Storage.getPrefInt(context, C.PrefKey.AUDIO_SOURCE, mAudioSource);
 	}
 
 	/**
@@ -40,6 +32,13 @@ public abstract class AudioService {
 	 * Stop redirecting audio
 	 */
 	public abstract void stopAudio();
+
+	/**
+	 * Update FM output route when user toggles speaker mode.
+	 */
+	public void setSpeakerEnabled(final boolean enabled) {
+		// Default implementation is for AudioRecord-based services and does nothing.
+	}
 
 	/**
 	 * AudioSource:
@@ -77,10 +76,9 @@ public abstract class AudioService {
 		return null;
 	}
 
-	@SuppressWarnings("deprecation")
 	protected void requestForFocus(boolean needFocus) {
 		if (needFocus) { // If focus desired...
-			mAudioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK); //AudioManager.AUDIOFOCUS_GAIN);
+			mAudioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
 		} else { // If focus return...
 			mAudioManager.abandonAudioFocus(null);
 		}

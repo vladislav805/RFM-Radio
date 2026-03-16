@@ -14,7 +14,6 @@
 	<string name="progress_starting">Enabling tuner…</string>
 	<string name="progress_searching">Searching…</string>
 	<string name="progress_stopping">Stopping…</string>
-	<string name="main_rssi_db">%d dB</string>
 	<string name="menu_settings">Settings</string>
 	<string name="menu_open_list">Station list</string>
 	<string name="menu_record">Record</string>
@@ -30,12 +29,21 @@
 	<string name="popup_station_remove">Remove</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>
 	<string name="about_version" translatable="false">v%s</string>
-	<string name="about_author">Vladislav Veluga © 2020–2025</string>
+	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
+	<string name="menu_favorite_list_rename">Rename this list</string>
+	<string name="menu_favorite_list_import">Import list</string>
+	<string name="menu_favorite_list_export">Export list</string>
 	<string name="popup_favorite_list_create">Create favorite list</string>
+	<string name="popup_favorite_list_rename">Rename favorite list</string>
 	<string name="favorite_list_create_error_already_exists">List with this name already exists</string>
 	<string name="favorite_list_create_error_invalid_name">Invalid name. Only A–Z, a–z, \'–\', \'_\' and 0–9 can be used.</string>
+	<string name="favorite_list_import_success">Imported list \"%s\"</string>
+	<string name="favorite_list_import_success_many">Imported %d lists</string>
+	<string name="favorite_list_import_error">Failed to import favorite list</string>
+	<string name="favorite_list_export_success">Exported list \"%s\"</string>
+	<string name="favorite_list_export_error">Failed to export favorite list</string>
 	<string name="favorite_list_remove_title">Confirmation</string>
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
 	<string name="pref_activity_title">Settings</string>
@@ -47,7 +55,6 @@
 	<string name="pref_tuner_rds_enable">Enable RDS</string>
 	<string name="pref_tuner_rds_enabled">Show RDS such as Program Service and Radio Text</string>
 	<string name="pref_tuner_rds_disabled">Do not show RDS</string>
-	<string name="pref_audio_source">Audio source</string>
 	<string name="pref_app_auto_startup">Autostart</string>
 	<string name="pref_app_auto_startup_enabled">Start playing audio immediately when the application starts</string>
 	<string name="pref_auto_startup_disabled">Audio playback needs to be started manually</string>
@@ -61,11 +68,8 @@
 	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)</string>
 	<string name="pref_info_link_telegram">Telegram channel</string>
 	<string name="pref_info_link_telegram_summary">Publishes news and new releases of the application</string>
-	<string name="pref_tuner_driver">Tuner driver</string>
 	<string name="pref_tuner_antenna">Antenna</string>
 	<string name="pref_tuner_antenna_message">By default it is \'0\'.\nOn some Sony devices it is \'1\'.</string>
-	<string name="pref_tuner_audio_source_message">0 - default\n1998 - \'new\' FM source</string>
-	<string name="pref_audio_service">Audio service</string>
 	<string name="toolbar_favorite_title">Favorites</string>
 	<string name="pref_header_notifications">Notifications</string>
 	<string name="pref_notification_show_ps_enabled">If the station is transmitting PS, it will be shown in the notification</string>
@@ -73,11 +77,11 @@
 	<string name="pref_notification_show_ps">Show PS in title</string>
 	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)\nAF - Alternative Frequencies (list of frequencies on which the same station is broadcasting in neighboring regions )\nPTY - Program TYpe (genre of station)</string>
 	<string name="pref_header_recording">Recording</string>
-	<string name="pref_recording_path_title">Directory for saving</string>
-	<string name="pref_recording_path_value" translatable="false">RFM/recording/$y-$m-$d</string>
+	<string name="pref_recording_path_title">Subdirectory for saving</string>
+	<string name="pref_recording_path_value" translatable="false">$y-$m-$d</string>
 	<string name="pref_recording_name_title">Filename</string>
 	<string name="pref_recording_name_value" translatable="false">FM-$h$i$s-$f</string>
-	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Available variables:\n$y - year\n$m - month\n$d - day of month\n$h - hour\n$i - minute\n$s - second\n$f - frequency (e.g., 103.4 MHz = 1034)\n$r - random number 10000-99999\nExample:\nDirectory: FM/$y-$m-$d -> FM/2020-01-27\nFilename: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
+	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Available variables:\n$y - year\n$m - month\n$d - day of month\n$h - hour\n$i - minute\n$s - second\n$f - frequency (e.g., 103.4 MHz = 1034)\n$r - random number 10000-99999\nRecordings are stored inside Music/RFM-Recordings.\nThe directory value must stay relative to that root.\nExample:\nDirectory: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nFilename: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_format_title">Recording format</string>
 	<string name="pref_recording_convert_summary">WAV - raw/large audio, MP3 - compressed/small</string>
 	<string name="pref_recording_show_notify">Show notifications</string>
@@ -92,9 +96,14 @@
 	<string name="pref_version_check_need_update_content">Latest app version: v%1$s (%2$d)\nInstalled app version: %3$s (v%4$d)\n\nUpdates:\n%5$s\n\nOpen the release page to download the installer?</string>
 	<string name="pref_version_check_need_update_ok">Update</string>
 	<string name="pref_version_check_fresh_ok">Well</string>
-	<string name="notification_mhz">%.1f MHz | %d dB</string>
+	<string name="notification_mhz">%.1f MHz</string>
 	<string name="service_record_unsupported">Recording not supported by this driver.</string>
-	<string name="notification_recording">Recording: %s (%.1f MB)</string>
+	<string name="record_permissions_required_title">Recording permissions required</string>
+	<string name="record_permissions_required">Recording requires microphone and storage permissions. Open app settings to allow them.</string>
+	<string name="record_permissions_open_settings">Open settings</string>
+	<string name="playback_permission_required_title">Microphone permission required</string>
+	<string name="playback_permission_required">FM playback on this device requires microphone access. Open app settings to allow it.</string>
+	<string name="notification_recording">Recording: %1$s (%2$.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
 	<string name="toast_record_ended">Record saved as %1$s\nSize: %2$.1f MB\nDuration: %3$s</string>
 	<string name="main_warning_pref_changed_title">Attention!</string>
@@ -102,7 +111,7 @@
 	<string name="pref_notification_seek_by_favorites">Navigate through favorites</string>
 	<string name="pref_notification_seek_by_favorites_enabled">Using the arrows in the notification, jump to the prev/next favorite</string>
 	<string name="pref_notification_seek_by_favorites_disabled">Use the arrows in the notification to search for the prev/next station</string>
-    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work. Try changing the tuner in settings and restarting the app. If nothing has changed, then this means that the application is not supported on this device or on this operating system.</string>
+    <string name="main_error_launching">An error occurred while starting the tuner. The application cannot work on this device.</string>
 	<string name="main_error_launching_title">Fatal error</string>
     <string name="pref_header_rds">RDS (Radio Data System)</string>
     <string name="pref_tuner_power_mode_low">When the app is in the background, the tuner will consume less power.</string>
@@ -128,5 +137,7 @@
 	</string>
 	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
 	<string name="menu_speaker">Play through speaker</string>
-    <string name="favorite_list_search_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="favorite_list_search_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="unsupported_device_title">Device not supported</string>
+	<string name="unsupported_device_message">RFM Radio could not find a supported FM backend on this device. Legacy mode requires /dev/radio0, and HAL mode requires fm_helium.so.</string>
 </resources>

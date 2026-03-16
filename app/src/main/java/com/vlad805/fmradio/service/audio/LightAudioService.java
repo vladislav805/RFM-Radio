@@ -5,6 +5,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.util.Log;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
@@ -12,7 +13,6 @@ import com.vlad805.fmradio.service.recording.IFMRecorder;
 /**
  * vlad805 (c) 2019
  */
-@SuppressWarnings("deprecation")
 public class LightAudioService extends AudioService implements IAudioRecordable {
 	private static final String TAG = "LAS";
 	private Thread mThread;
@@ -74,6 +74,12 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 				AudioFormat.ENCODING_PCM_16BIT
 		);
 
+		if (bufferSize <= 0) {
+			Log.e(TAG, "Invalid AudioTrack bufferSize=" + bufferSize);
+			closeAll();
+			return;
+		}
+
 		mAudioTrack = new AudioTrack(
 				AudioManager.STREAM_MUSIC,
 				mSampleRate,
@@ -83,8 +89,32 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 				AudioTrack.MODE_STREAM
 		);
 
+		if (mAudioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
+			Log.e(TAG, "AudioTrack init failed, state=" + mAudioTrack.getState());
+			closeAll();
+			return;
+		}
+
 		mAudioRecorder = getAudioRecorder();
-		mAudioRecorder.startRecording();
+		if (mAudioRecorder == null) {
+			Log.e(TAG, "AudioRecord init failed: recorder is null");
+			closeAll();
+			return;
+		}
+
+		if (mAudioRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
+			Log.e(TAG, "AudioRecord init failed, state=" + mAudioRecorder.getState());
+			closeAll();
+			return;
+		}
+
+		try {
+			mAudioRecorder.startRecording();
+		} catch (Throwable t) {
+			Log.e(TAG, "AudioRecord.startRecording failed", t);
+			closeAll();
+			return;
+		}
 		mAudioTrack.play();
 
 		int bytes;
@@ -92,6 +122,10 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 		while (mIsActive) {
 			bytes = mAudioRecorder.read(buffer, 0, bufferSize);
+			if (bytes <= 0) {
+				Log.w(TAG, "AudioRecord.read returned " + bytes);
+				continue;
+			}
 
 			if (mIsActive) {
 				mAudioTrack.write(buffer, 0, bytes);

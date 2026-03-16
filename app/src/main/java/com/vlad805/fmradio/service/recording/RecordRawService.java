@@ -2,7 +2,8 @@ package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
 
-import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 /**
  * Record WAV audiofile without compression
@@ -13,13 +14,18 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	 * @param context Context
 	 * @param kHz Current frequency in kHz
 	 */
-	public RecordRawService(final Context context, final int kHz) {
-		super(context, kHz);
+	public RecordRawService(final Context context, final int kHz, final int sampleRate) {
+		super(context, kHz, sampleRate);
 	}
 
 	@Override
 	protected String getExtension() {
 		return "wav";
+	}
+
+	@Override
+	protected String getMimeType() {
+		return "audio/wav";
 	}
 
 	/**
@@ -35,8 +41,7 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	 * @param data New data
 	 * @param length Length of data
 	 * @param encoded Pointer to byte array of encoded data (output)
-	 * @return
-	 */
+     */
 	@Override
 	protected int onReceivedData(short[] data, int length, byte[] encoded) {
 		for (int i = 0, l = data.length; i < l; ++i) {
@@ -121,8 +126,8 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 		writeBytes(header, 16, 4, 16);
 		writeBytes(header, 20, 2, 1);
 		writeBytes(header, 22, 2, 2); // channels
-		writeBytes(header, 24, 4, 44100); // sample rate
-		writeBytes(header, 28, 4, (44100 * 2) * 2); // (sample rate * channels) * 2
+		writeBytes(header, 24, 4, getSampleRate()); // sample rate
+		writeBytes(header, 28, 4, (getSampleRate() * 2) * 2); // (sample rate * channels) * 2
 		writeBytes(header, 32, 2, 2 * 2); // channels * 2
 		writeBytes(header, 34, 2, 16);
 		writeBytes(header, 40, 4, mRecordLength);
@@ -153,22 +158,20 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	 */
 	private void writeFinal() {
 		try {
-			if (mRecordFile != null) {
-				final RandomAccessFile file = new RandomAccessFile(mRecordFile, "rw");
-
-				final byte[] buffer = new byte[4];
-
-				// Set 4-7 bytes (length + 36)
-				writeBytes(buffer, 0, 4, mRecordLength + 36);
-				file.seek(4);
-				file.write(buffer);
-
-				// Set 40-43 bytes (length)
-				writeBytes(buffer, 0, 4, mRecordLength);
-				file.seek(40);
-				file.write(buffer);
-				file.close();
+			final FileChannel channel = getRecordingChannel();
+			if (channel == null) {
+				return;
 			}
+
+			final byte[] buffer = new byte[4];
+
+			writeBytes(buffer, 0, 4, mRecordLength + 36);
+			channel.position(4);
+			channel.write(ByteBuffer.wrap(buffer));
+
+			writeBytes(buffer, 0, 4, mRecordLength);
+			channel.position(40);
+			channel.write(ByteBuffer.wrap(buffer));
 		} catch (Throwable e) {
 			e.printStackTrace();
 		}

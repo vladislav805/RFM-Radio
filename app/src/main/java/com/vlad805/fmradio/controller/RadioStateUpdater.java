@@ -20,12 +20,11 @@ public class RadioStateUpdater extends BroadcastReceiver {
     public static final int SET_FREQUENCY = 1 << 1;
     public static final int SET_PS = 1 << 2;
     public static final int SET_RT = 1 << 3;
-    public static final int SET_RSSI = 1 << 4;
-    public static final int SET_PTY = 1 << 5;
-    public static final int SET_PI = 1 << 6;
-    public static final int SET_STEREO = 1 << 7;
-    public static final int SET_RECORDING = 1 << 8;
-    public static final int SET_SPEAKER = 1 << 9;
+    public static final int SET_PTY = 1 << 4;
+    public static final int SET_PI = 1 << 5;
+    public static final int SET_STEREO = 1 << 6;
+    public static final int SET_RECORDING = 1 << 7;
+    public static final int SET_SPEAKER = 1 << 8;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
@@ -129,12 +128,6 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 break;
             }
 
-            case C.Event.UPDATE_RSSI: {
-                mState.setRssi(intent.getIntExtra(C.Key.RSSI, 0));
-                mode = SET_RSSI;
-                break;
-            }
-
             case C.Event.UPDATE_PTY: {
                 mState.setPty(intent.getIntExtra(C.Key.PTY, 0));
                 mode = SET_PTY;
@@ -204,7 +197,6 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 C.Event.UPDATE_RT,
                 C.Event.UPDATE_PTY,
                 C.Event.UPDATE_PI,
-                C.Event.UPDATE_RSSI,
                 C.Event.UPDATE_STEREO,
                 C.Event.HW_SEARCH_DONE,
                 C.Event.JUMP_COMPLETE,
