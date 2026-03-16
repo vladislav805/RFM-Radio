@@ -28,6 +28,11 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	private FavoritePanelAdapter mAdapter;
 	private FavoriteController mController;
 	private final RadioController mRadioController;
+	private OnFavoritesChangedListener mOnFavoritesChangedListener;
+
+	public interface OnFavoritesChangedListener {
+		void onFavoritesChanged();
+	}
 
 	public FavoritesPanelView(final Context context) {
 		this(context, null);
@@ -61,6 +66,11 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 
 		mStations = mController.getStationsInCurrentList();
 		mAdapter.setList(mStations);
+		notifyFavoritesChanged();
+	}
+
+	public void setOnFavoritesChangedListener(final OnFavoritesChangedListener listener) {
+		mOnFavoritesChangedListener = listener;
 	}
 
 	private void init(final Context context) {
@@ -161,5 +171,12 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	 */
 	public void onFavoriteListUpdated() {
 		mController.save();
+		notifyFavoritesChanged();
+	}
+
+	private void notifyFavoritesChanged() {
+		if (mOnFavoritesChangedListener != null) {
+			mOnFavoritesChangedListener.onFavoritesChanged();
+		}
 	}
 }
