@@ -103,7 +103,7 @@
 	<string name="playback_permission_required">Odtwarzanie FM na tym urządzeniu wymaga dostępu do mikrofonu. Otwórz ustawienia aplikacji i nadaj uprawnienie.</string>
 	<string name="notification_recording">Nagrywanie: %1$s (%2$.1f MB)</string>
 	<string name="notification_recorded">Nagranie %3$s skończone: %1$s (%2$.1f MB)</string>
-	<string name="toast_record_ended">Nagranie zapisane jako %1$s\nWielkość: %2$.1f MB\nTrwanie: %3$s</string>
+	<string name="toast_record_ended">Nagranie zapisane jako %1$s\nTrwanie: %3$s (%2$.1f MB)</string>
 	<string name="main_warning_pref_changed_title">Uwaga!</string>
 	<string name="main_warning_pref_changed_content">Aby zastosować niektóre zmienione ustawienia, musisz całkowicie ponownie uruchomić aplikację:\n1. Zatrzymaj tuner (przycisk wyłączania u góry)\n2. Zamknij i przesuń aplikację z wielozadaniowości\n3. Uruchom aplikację.</string>
 	<string name="pref_notification_seek_by_favorites">Poruszaj się po ulubionych</string>
