@@ -20,6 +20,7 @@ import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -527,11 +528,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             mRecordDuration.setVisibility(isRecording ? View.VISIBLE : View.GONE);
             if (mMenu != null) {
-                mMenu.findItem(R.id.menu_record).setIcon(isRecording ? R.drawable.ic_record_press : R.drawable.ic_record);
-            }
+                final MenuItem recordButtonMenuItem = mMenu.findItem(R.id.menu_record);
 
-            if (isRecording) {
-                mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
+                recordButtonMenuItem.setIcon(isRecording ? R.drawable.ic_led_on : R.drawable.ic_led_off);
+
+                if (isRecording) {
+                    mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
+                }
             }
         }
 

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+  <path
+      android:pathData="M 50 4 A 46 46 0 1 1 50 96 A 46 46 0 1 1 50 4"
+      android:fillColor="#080808"/>
+  <path
+      android:pathData="M 50 5 A 45 45 0 1 1 50 95 A 45 45 0 1 1 50 5">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="linear"
+          android:startX="0"
+          android:startY="0"
+          android:endX="100"
+          android:endY="100">
+        <item android:offset="0.0" android:color="#4A4A4A" />
+        <item android:offset="0.5" android:color="#222222" />
+        <item android:offset="1.0" android:color="#050505" />
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:pathData="M 50 8 A 42 42 0 1 1 50 92 A 42 42 0 1 1 50 8">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="100" android:endY="100">
+        <item android:offset="0.0" android:color="#0A0000" />
+        <item android:offset="0.5" android:color="#140606" />
+        <item android:offset="1.0" android:color="#331C1C" />
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:pathData="M 50 10.5 A 39.5 39.5 0 1 1 50 89.5 A 39.5 39.5 0 1 1 50 10.5" android:fillColor="#1F0404" />
+  <path android:pathData="M 50 12 A 38 38 0 1 1 50 88 A 38 38 0 1 1 50 12">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="50" android:centerY="50" android:gradientRadius="65">
+        <item android:offset="0.0" android:color="#FF6B4A" /> <!-- Раскаленный центр -->
+        <item android:offset="0.25" android:color="#D91616" /> <!-- Язык света -->
+        <item android:offset="0.7" android:color="#7A0000" /> <!-- Плотное красное стекло -->
+        <item android:offset="1.0" android:color="#2E0000" /> <!-- Темный край полусферы -->
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:pathData="M 50 12.5 A 37.5 37.5 0 1 1 50 87.5 A 37.5 37.5 0 1 1 50 12.5"
+      android:strokeColor="#99FF3333"
+      android:strokeWidth="1.5" />
+
+  <!-- === СТЕКЛЯННЫЕ БЛИКИ (Отражение комнаты снаружи) === -->
+  <group android:pivotX="36" android:pivotY="33" android:rotation="-35">
+    <path android:pathData="M 36 25 a 14 8 0 1 0 0 16 a 14 8 0 1 0 0 -16">
+      <aapt:attr name="android:fillColor">
+        <gradient android:type="linear" android:startX="36" android:startY="25" android:endX="36" android:endY="41">
+          <item android:offset="0.0" android:color="#59FFFFFF" />
+          <item android:offset="1.0" android:color="#00FFFFFF" />
+        </gradient>
+      </aapt:attr>
+    </path>
+  </group>
+
+  <group android:pivotX="33" android:pivotY="29" android:rotation="-35">
+    <path android:pathData="M 33 27.5 a 3.5 1.5 0 1 0 0 3 a 3.5 1.5 0 1 0 0 -3" android:fillColor="#73FFFFFF" />
+  </group>
+</vector>
