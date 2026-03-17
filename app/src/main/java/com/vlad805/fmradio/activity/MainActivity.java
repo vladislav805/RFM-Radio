@@ -351,10 +351,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private boolean hasRecordingPermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-
         final boolean hasRecordAudio =
                 ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -366,10 +362,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private boolean hasPlaybackPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-
         return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
     }
 
@@ -401,7 +393,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private boolean shouldOpenRecordingPermissionSettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mRecordPermissionsRequested) {
+        if (!mRecordPermissionsRequested) {
             return false;
         }
 
@@ -425,7 +417,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private boolean shouldOpenPlaybackPermissionSettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !mPlaybackPermissionRequested) {
+        if (!mPlaybackPermissionRequested) {
             return false;
         }
 

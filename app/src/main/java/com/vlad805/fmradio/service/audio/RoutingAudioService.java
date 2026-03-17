@@ -252,10 +252,8 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			return;
 		}
 
-		if (
-				Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-				&&
-				!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+				&& !Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())
 		) {
 			throw new RecordError("External storage is not mounted");
 		}
