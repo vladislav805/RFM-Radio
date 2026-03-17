@@ -9,12 +9,13 @@
 			app:showAsAction="always"/>
 	<item
 			android:id="@+id/menu_favorite_import"
-			android:title="@string/menu_favorite_list_import"
-			android:icon="@drawable/ic_file_music" />
+			android:title="@string/menu_favorite_list_import" />
 	<item
 			android:id="@+id/menu_favorite_export"
-			android:title="@string/menu_favorite_list_export"
-			android:icon="@drawable/ic_file_music" />
+			android:title="@string/menu_favorite_list_export" />
+	<item
+			android:id="@+id/menu_favorite_export_all"
+			android:title="@string/menu_favorite_list_export_all" />
 	<item
 			android:id="@+id/menu_favorite_rename"
 			android:title="@string/menu_favorite_list_rename"

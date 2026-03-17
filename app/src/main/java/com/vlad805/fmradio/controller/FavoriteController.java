@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * vlad805 (c) 2020
@@ -196,6 +198,28 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	public void exportCurrentList(final OutputStream outputStream) throws IOException {
 		try (final OutputStream output = outputStream) {
 			output.write(readFile().getBytes());
+		}
+	}
+
+	public void exportAllLists(final OutputStream outputStream) throws IOException {
+		try (final ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
+			for (final String listName : getFavoriteLists()) {
+				final File file = new File(getFavoritesDirectory(), listName + JSON_EXT);
+				if (!file.exists()) {
+					continue;
+				}
+
+				zipOutputStream.putNextEntry(new ZipEntry(file.getName()));
+				try (final FileInputStream inputStream = new FileInputStream(file)) {
+					final byte[] buffer = new byte[8192];
+					int read;
+					while ((read = inputStream.read(buffer)) != -1) {
+						zipOutputStream.write(buffer, 0, read);
+					}
+				}
+				zipOutputStream.closeEntry();
+			}
+			zipOutputStream.finish();
 		}
 	}
 

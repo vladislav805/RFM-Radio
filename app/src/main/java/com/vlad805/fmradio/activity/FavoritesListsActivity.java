@@ -41,13 +41,18 @@ import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
 import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
 
 import java.io.FileNotFoundException;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class FavoritesListsActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, OnDragListener {
 	private static final int REQUEST_CODE_IMPORT_FAVORITES = 2001;
 	private static final int REQUEST_CODE_EXPORT_FAVORITES = 2002;
+	private static final int REQUEST_CODE_EXPORT_ALL_FAVORITES = 2003;
 	private ProgressDialog mProgress;
 	private Menu mMenu;
 	private String mCurrentNameList;
@@ -64,6 +69,16 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	private ItemTouchHelper mItemTouchHelper;
 
 	private Toast mToast;
+
+	private static final class ImportResult {
+		final int count;
+		final String lastImportedName;
+
+		ImportResult(final int count, final String lastImportedName) {
+			this.count = count;
+			this.lastImportedName = lastImportedName;
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -90,6 +105,13 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				case REQUEST_CODE_EXPORT_FAVORITES: {
 					if (data.getData() != null) {
 						exportFavoriteList(data.getData());
+					}
+					break;
+				}
+
+				case REQUEST_CODE_EXPORT_ALL_FAVORITES: {
+					if (data.getData() != null) {
+						exportAllFavoriteLists(data.getData());
 					}
 					break;
 				}
@@ -242,6 +264,8 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
             openImportFavoritePicker();
         } else if (itemId == R.id.menu_favorite_export) {
             openExportFavoritePicker();
+        } else if (itemId == R.id.menu_favorite_export_all) {
+            openExportAllFavoritesPicker();
         } else if (itemId == android.R.id.home) {
             finish();
         }
@@ -338,6 +362,8 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
 				.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
 						"application/json",
+						"application/zip",
+						"application/x-zip-compressed",
 						"text/json",
 						"text/plain",
 						"application/octet-stream"
@@ -353,6 +379,14 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		startActivityForResult(intent, REQUEST_CODE_EXPORT_FAVORITES);
 	}
 
+	private void openExportAllFavoritesPicker() {
+		final Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+				.addCategory(Intent.CATEGORY_OPENABLE)
+				.setType("application/zip")
+				.putExtra(Intent.EXTRA_TITLE, "favorites.zip");
+		startActivityForResult(intent, REQUEST_CODE_EXPORT_ALL_FAVORITES);
+	}
+
 	private void importFavoriteLists(final Intent data) {
 		int importedCount = 0;
 		String lastImportedName = null;
@@ -360,16 +394,17 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		if (data.getClipData() != null) {
 			for (int i = 0; i < data.getClipData().getItemCount(); i++) {
 				final Uri uri = data.getClipData().getItemAt(i).getUri();
-				final String importedName = importFavoriteList(uri);
-				if (importedName != null) {
-					importedCount++;
-					lastImportedName = importedName;
+				final ImportResult result = importFavoriteList(uri);
+				if (result.count > 0) {
+					importedCount += result.count;
+					lastImportedName = result.lastImportedName;
 				}
 			}
 		} else if (data.getData() != null) {
-			lastImportedName = importFavoriteList(data.getData());
-			if (lastImportedName != null) {
-				importedCount = 1;
+			final ImportResult result = importFavoriteList(data.getData());
+			if (result.count > 0) {
+				importedCount = result.count;
+				lastImportedName = result.lastImportedName;
 			}
 		}
 
@@ -400,16 +435,45 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		}
 	}
 
-	private String importFavoriteList(final Uri uri) {
+	private ImportResult importFavoriteList(final Uri uri) {
 		try (final InputStream inputStream = getContentResolver().openInputStream(uri)) {
 			if (inputStream == null) {
-				return null;
+				return new ImportResult(0, null);
 			}
 
-			return mController.importList(getDisplayName(uri), inputStream);
+			if (isZipArchive(getDisplayName(uri))) {
+				return importFavoriteArchive(inputStream);
+			}
+
+			return new ImportResult(1, mController.importList(getDisplayName(uri), inputStream));
 		} catch (IOException e) {
-			return null;
+			return new ImportResult(0, null);
 		}
+	}
+
+	private ImportResult importFavoriteArchive(final InputStream inputStream) throws IOException {
+		int importedCount = 0;
+		String lastImportedName = null;
+
+		try (final ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+			ZipEntry entry;
+			while ((entry = zipInputStream.getNextEntry()) != null) {
+				if (entry.isDirectory() || !entry.getName().toLowerCase().endsWith(".json")) {
+					zipInputStream.closeEntry();
+					continue;
+				}
+
+				final byte[] content = readZipEntry(zipInputStream);
+				lastImportedName = mController.importList(
+						entry.getName(),
+						new ByteArrayInputStream(content)
+				);
+				importedCount++;
+				zipInputStream.closeEntry();
+			}
+		}
+
+		return new ImportResult(importedCount, lastImportedName);
 	}
 
 	private void exportFavoriteList(final Uri uri) {
@@ -424,6 +488,35 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		} catch (IOException e) {
 			mToast.text(R.string.favorite_list_export_error).show();
 		}
+	}
+
+	private void exportAllFavoriteLists(final Uri uri) {
+		try (final java.io.OutputStream outputStream = getContentResolver().openOutputStream(uri, "w")) {
+			if (outputStream == null) {
+				mToast.text(R.string.favorite_list_export_all_error).show();
+				return;
+			}
+
+			final int exportedCount = mController.getFavoriteLists().size();
+			mController.exportAllLists(outputStream);
+			mToast.text(getString(R.string.favorite_list_export_all_success, exportedCount)).show();
+		} catch (IOException e) {
+			mToast.text(R.string.favorite_list_export_all_error).show();
+		}
+	}
+
+	private boolean isZipArchive(final String displayName) {
+		return displayName.toLowerCase().endsWith(".zip");
+	}
+
+	private byte[] readZipEntry(final ZipInputStream zipInputStream) throws IOException {
+		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		final byte[] buffer = new byte[8192];
+		int read;
+		while ((read = zipInputStream.read(buffer)) != -1) {
+			outputStream.write(buffer, 0, read);
+		}
+		return outputStream.toByteArray();
 	}
 
 	private String getDisplayName(final Uri uri) {
