@@ -92,7 +92,6 @@ public abstract class RecordService implements IFMRecorder {
         mStarted = System.currentTimeMillis();
         createFile();
         mState = State.RECORDING;
-        mContext.sendBroadcast(new Intent(C.Event.RECORD_STARTED));
     }
 
     @Override

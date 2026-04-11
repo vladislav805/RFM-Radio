@@ -519,14 +519,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             final boolean isRecording = state.isRecording();
 
             mRecordDuration.setVisibility(isRecording ? View.VISIBLE : View.GONE);
+            if (isRecording) {
+                mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
+            }
+
             if (mMenu != null) {
                 final MenuItem recordButtonMenuItem = mMenu.findItem(R.id.menu_record);
 
                 recordButtonMenuItem.setIcon(isRecording ? R.drawable.ic_led_on : R.drawable.ic_led_off);
-
-                if (isRecording) {
-                    mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
-                }
             }
         }
 
