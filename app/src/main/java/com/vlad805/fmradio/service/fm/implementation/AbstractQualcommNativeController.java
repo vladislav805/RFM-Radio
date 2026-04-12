@@ -177,14 +177,18 @@ public abstract class AbstractQualcommNativeController implements IFMController,
             return;
         }
 
-        setupTunerByPreferences(new String[]{
+        setupTunerByPreferences(getStartupPreferenceKeys());
+    }
+
+    protected String[] getStartupPreferenceKeys() {
+        return new String[]{
                 C.PrefKey.RDS_ENABLE,
                 C.PrefKey.TUNER_REGION,
                 C.PrefKey.TUNER_SPACING,
                 C.PrefKey.TUNER_STEREO,
                 C.PrefKey.TUNER_ANTENNA,
                 C.PrefKey.RDS_AUTO_AF,
-        });
+        };
     }
 
     public void setupTunerByPreferences(final String[] changed) {

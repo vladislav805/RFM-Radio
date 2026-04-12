@@ -53,6 +53,15 @@ public class QualcommNative extends AbstractQualcommNativeController {
     }
 
     @Override
+    protected String[] getStartupPreferenceKeys() {
+        if (mDriverKind == TunerDriver.HAL) {
+            return new String[]{C.PrefKey.RDS_AUTO_AF};
+        }
+
+        return super.getStartupPreferenceKeys();
+    }
+
+    @Override
     protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
         if (mDriverKind == TunerDriver.HAL) {
             final long now = System.currentTimeMillis();
