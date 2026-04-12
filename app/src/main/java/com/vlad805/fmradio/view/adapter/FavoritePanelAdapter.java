@@ -17,8 +17,6 @@ import java.util.List;
  * vlad805 (c) 2020
  */
 public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-	private static final int MAX_COUNT = 40;
-
 	private final LayoutInflater mInflater;
 	protected List<FavoriteStation> mList;
 
@@ -78,7 +76,7 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 
 	@Override
 	public int getItemCount() {
-		return Math.min(mList.size(), MAX_COUNT) + BUTTONS.length;
+		return mList.size() + BUTTONS.length;
 	}
 
 	public static class ViewHolder extends RecyclerView.ViewHolder {
