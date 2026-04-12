@@ -44,11 +44,6 @@ public class QualcommNative extends AbstractQualcommNativeController {
     }
 
     @Override
-    protected boolean shouldApplyStartupPreferences() {
-        return mDriverKind != TunerDriver.HAL;
-    }
-
-    @Override
     protected void onApplyAntennaPreference(final String value) {
         sendCommand(new Request("set_antenna " + value).onResponse(str -> {
             if (str.startsWith("ERR_UNV_ANT")) {

@@ -171,6 +171,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
                 C.PrefKey.TUNER_SPACING,
                 C.PrefKey.TUNER_STEREO,
                 C.PrefKey.TUNER_ANTENNA,
+                C.PrefKey.RDS_AUTO_AF,
         });
     }
 

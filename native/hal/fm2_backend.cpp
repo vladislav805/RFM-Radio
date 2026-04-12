@@ -38,7 +38,7 @@ struct RuntimeState {
     bool rds_enabled = true;
     bool stereo = true;
     bool low_power = false;
-    bool auto_af = true;
+    bool auto_af = false;
     bool slimbus_enabled = false;
     int antenna = 0;
     int app_band = 1;
@@ -768,7 +768,8 @@ bool fm2_backend_set_rds(bool enabled) {
 
     if (!enabled) {
         return vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to set rds") &&
-               vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to clear rds groups");
+               vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to clear rds groups") &&
+               vendor_set(V4L2_CID_PRV_AF_JUMP, 0, "failed to clear af jump");
     }
 
     return apply_raw_rds_group_mask() &&
