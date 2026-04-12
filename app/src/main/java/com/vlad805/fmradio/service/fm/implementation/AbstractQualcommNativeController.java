@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
+
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
@@ -133,7 +135,17 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected void killImpl(final Callback<Void> callback) {
+        if (!mCommandPoll.isEnabled()) {
+            finishKill(callback);
+            return;
+        }
+
+        disableImpl(result -> finishKill(callback));
+    }
+
+    private void finishKill(final Callback<Void> callback) {
         closeServerListener();
+        killRunningBinary();
         callback.onResult(null);
     }
 
@@ -396,6 +408,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected final void killRunningBinary() {
+        Log.i("QQQ", String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName()));
         Utils.shell(String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName()), true);
     }
 

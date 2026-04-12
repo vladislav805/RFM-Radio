@@ -36,6 +36,10 @@ public class Poll {
 		}
 	}
 
+	public boolean isEnabled() {
+		return enabled;
+	}
+
 	private void createSocket() {
 		try {
 			this.socket = new DatagramSocket(0);
