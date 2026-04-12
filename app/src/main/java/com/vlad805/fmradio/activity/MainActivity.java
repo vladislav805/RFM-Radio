@@ -126,6 +126,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
         mFrequencyInfo.setFrequency(kHz);
         mSeek.setFrequency(kHz);
+        mFavoriteList.setActiveFrequency(kHz);
         updateFavoriteFrequencyMarkers();
 
         initClickableButtons();
@@ -495,6 +496,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mFrequencyInfo.setFrequency(state.getFrequency());
 
             mSeek.setFrequency(state.getFrequency());
+            mFavoriteList.setActiveFrequency(state.getFrequency());
 
             final String str = getString(R.string.player_event_frequency_changed, state.getFrequency() / 1000f);
             mToast.text(str).show();

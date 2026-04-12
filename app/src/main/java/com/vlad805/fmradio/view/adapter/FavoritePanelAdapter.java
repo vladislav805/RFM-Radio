@@ -1,11 +1,13 @@
 package com.vlad805.fmradio.view.adapter;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
@@ -19,6 +21,7 @@ import java.util.List;
 public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private final LayoutInflater mInflater;
 	protected List<FavoriteStation> mList;
+	private int mActiveFrequency = -1;
 
 	private static final int TYPE_STATION = 0;
 	private static final int TYPE_BUTTON = 1;
@@ -34,6 +37,24 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 	public void setList(List<FavoriteStation> stations) {
 		mList = stations;
 		notifyDataSetChanged();
+	}
+
+	public void setActiveFrequency(final int activeFrequency) {
+		if (mActiveFrequency == activeFrequency) {
+			return;
+		}
+
+		final int previousIndex = findStationIndexByFrequency(mActiveFrequency);
+		mActiveFrequency = activeFrequency;
+		final int currentIndex = findStationIndexByFrequency(mActiveFrequency);
+
+		if (previousIndex >= 0) {
+			notifyItemChanged(previousIndex);
+		}
+
+		if (currentIndex >= 0) {
+			notifyItemChanged(currentIndex);
+		}
 	}
 
 	@Override
@@ -54,7 +75,7 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 		switch (holder.getItemViewType()) {
 			case TYPE_STATION: {
 				final FavoriteStation station = mList.get(position);
-				((ViewHolder) holder).populate(station);
+				((ViewHolder) holder).populate(station, station.getFrequency() == mActiveFrequency);
 				break;
 			}
 
@@ -79,20 +100,43 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 		return mList.size() + BUTTONS.length;
 	}
 
+	private int findStationIndexByFrequency(final int frequency) {
+		if (mList == null) {
+			return -1;
+		}
+
+		for (int i = 0; i < mList.size(); ++i) {
+			if (mList.get(i).getFrequency() == frequency) {
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
 	public static class ViewHolder extends RecyclerView.ViewHolder {
 		private final TextView frequency;
 		private final TextView title;
+		private final ColorStateList defaultFrequencyColor;
+		private final ColorStateList defaultTitleColor;
+		private final int activeFrequencyColor;
 
 		private ViewHolder(View root) {
 			super(root);
 
 			frequency = root.findViewById(R.id.favorite_panel_item_frequency);
 			title = root.findViewById(R.id.favorite_panel_item_title);
+			defaultFrequencyColor = frequency.getTextColors();
+			defaultTitleColor = title.getTextColors();
+			activeFrequencyColor = ContextCompat.getColor(root.getContext(), R.color.color_accent);
 		}
 
-		public void populate(final FavoriteStation station) {
+		public void populate(final FavoriteStation station, final boolean active) {
+			itemView.setSelected(active);
 			frequency.setText(Utils.getMHz(station.getFrequency()).trim());
 			title.setText(station.getTitle());
+			frequency.setTextColor(active ? ColorStateList.valueOf(activeFrequencyColor) : defaultFrequencyColor);
+			title.setTextColor(defaultTitleColor);
 		}
 	}
 

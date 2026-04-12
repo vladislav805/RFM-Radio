@@ -10,6 +10,7 @@
 	<color name="main_background">#212121</color>
 	<color name="primary_blue">#2979ff</color>
 	<color name="primary_blue_shadow">#004ecb</color>
+	<color name="favorite_station_active_stroke">#9900FFD8</color>
 
 	<!-- Recording colors -->
 	<color name="record_active">#ff0000</color>

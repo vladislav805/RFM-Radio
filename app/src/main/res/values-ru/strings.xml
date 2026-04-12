@@ -38,6 +38,7 @@
 	<string name="popup_preset_replace">Заменить</string>
 	<string name="popup_station_create">Создать</string>
 	<string name="popup_station_create_hint">Название станции…</string>
+	<string name="favorite_station_already_added">Текущая частота уже добавлена в избранное</string>
 	<string name="popup_station_remove">Удалить</string>
 	<string name="popup_station_rename">Переименовать</string>
 	<string name="pref_activity_title">Настройки</string>

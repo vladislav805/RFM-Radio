@@ -25,6 +25,7 @@
 	<string name="popup_preset_remove">Usuń</string>
 	<string name="popup_station_create">Stwórz</string>
 	<string name="popup_station_create_hint">Nazwa stacji…</string>
+	<string name="favorite_station_already_added">Bieżąca częstotliwość jest już dodana do ulubionych</string>
 	<string name="popup_station_rename">Zmień nazwę</string>
 	<string name="popup_station_remove">Usuń</string>
 	<string name="favorite_list_item_add" translatable="false">+</string>

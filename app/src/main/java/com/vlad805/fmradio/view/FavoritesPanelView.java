@@ -12,6 +12,7 @@ import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
+import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.view.adapter.FavoritePanelAdapter;
 
@@ -28,6 +29,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	private FavoritePanelAdapter mAdapter;
 	private FavoriteController mController;
 	private final RadioController mRadioController;
+	private final Toast mToast;
 	private OnFavoritesChangedListener mOnFavoritesChangedListener;
 
 	public interface OnFavoritesChangedListener {
@@ -44,6 +46,7 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		super(context, attrs);
 
 		mRadioController = new RadioController(context);
+		mToast = Toast.create(context);
 
 		init(context);
 	}
@@ -67,6 +70,10 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		mStations = mController.getStationsInCurrentList();
 		mAdapter.setList(mStations);
 		notifyFavoritesChanged();
+	}
+
+	public void setActiveFrequency(final int frequency) {
+		mAdapter.setActiveFrequency(frequency);
 	}
 
 	public void setOnFavoritesChangedListener(final OnFavoritesChangedListener listener) {
@@ -113,8 +120,14 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		if (position == size) {
 			// request current radio state
 			mRadioController.requestForCurrentState((state, mode) -> {
+				setActiveFrequency(state.getFrequency());
+				if (hasFrequency(state.getFrequency())) {
+					mToast.text(R.string.favorite_station_already_added).show();
+					return;
+				}
+
 				// open edit window
-				new EditTextDialog(getContext(), "", title -> {
+				new EditTextDialog(getContext(), normalizeStationTitle(state.getPs()), title -> {
 					FavoriteStation station = new FavoriteStation(state.getFrequency(), title);
 					mStations.add(station);
 					mAdapter.notifyItemInserted(position);
@@ -172,6 +185,24 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	public void onFavoriteListUpdated() {
 		mController.save();
 		notifyFavoritesChanged();
+	}
+
+	private boolean hasFrequency(final int frequency) {
+		if (frequency <= 0 || mStations == null) {
+			return false;
+		}
+
+		for (final FavoriteStation station : mStations) {
+			if (station.getFrequency() == frequency) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private String normalizeStationTitle(final String title) {
+		return title == null ? "" : title.trim();
 	}
 
 	private void notifyFavoritesChanged() {
