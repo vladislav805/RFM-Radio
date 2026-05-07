@@ -261,26 +261,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_info, "info");
 		screen.addPreference(category);
 
-		final Preference github = new Preference(context);
-		populatePreference(github, "info_links_github", R.string.pref_info_link_github, R.drawable.ic_github);
-		github.setSummary(R.string.pref_info_link_github_summary);
-		github.setOnPreferenceClickListener(this);
-		category.addPreference(github);
-
-
-		final Preference telegram = new Preference(context);
-		populatePreference(telegram, "info_links_telegram", R.string.pref_info_link_telegram, R.drawable.ic_telegram);
-		telegram.setSummary(R.string.pref_info_link_telegram_summary);
-		telegram.setOnPreferenceClickListener(this);
-		category.addPreference(telegram);
-
-
-		final Preference site = new Preference(context);
-		populatePreference(site, "info_links_site", R.string.pref_info_link_site, R.drawable.ic_web);
-		site.setSummary(R.string.pref_info_link_site_summary);
-		site.setOnPreferenceClickListener(this);
-		category.addPreference(site);
-
 
 		final Preference version = new Preference(context);
 		populatePreference(version, "pref_info_version", R.string.pref_info_version_title, 0);
@@ -327,21 +307,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 				break;
 			}
 
-			case "info_links_site": {
-				final String url = "https://rfm.velu.ga/?ref=app&hl=" + Utils.getCountryISO(context);
-				browseUrl(context, url);
-				return true;
-			}
-
-			case "info_links_telegram": {
-				browseUrl(context, "https://t.me/RFMRadioApp");
-				return true;
-			}
-
-			case "info_links_github": {
-				Utils.browseUrl(context, "https://github.com/vladislav805/RFM-Radio");
-				return true;
-			}
 		}
 		return false;
 	}

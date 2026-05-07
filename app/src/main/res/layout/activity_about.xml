@@ -5,13 +5,14 @@
 		xmlns:app="http://schemas.android.com/apk/res-auto"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
+		android:background="@color/main_background"
 		tools:context=".activity.AboutActivity">
 	<androidx.appcompat.widget.Toolbar
 			android:layout_width="0dp"
 			android:layout_height="?attr/actionBarSize"
 			android:background="?attr/colorPrimary"
 			android:theme="?attr/actionBarTheme"
-			android:elevation="10dp"
+			android:elevation="4dp"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
 			app:layout_constraintTop_toTopOf="parent"
@@ -23,22 +24,22 @@
 			android:contentDescription="@string/nil"
 			android:layout_width="100dp"
 			android:layout_height="100dp"
-			android:layout_marginBottom="36dp"
+			android:layout_marginTop="28dp"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
-			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintBottom_toTopOf="@+id/about_author"/>
+			app:layout_constraintTop_toBottomOf="@+id/about_toolbar"/>
 
 	<TextView
-			android:id="@+id/about_name"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="8dp"
-			android:text="@string/app_name"
-			android:textSize="36sp"
-			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintEnd_toEndOf="parent"
-			app:layout_constraintTop_toBottomOf="@+id/about_logo"/>
+		android:id="@+id/about_name"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="16dp"
+		android:text="@string/app_name"
+		android:textColor="@color/text_primary"
+		android:textSize="36sp"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toBottomOf="@+id/about_logo" />
 
 	<com.vlad805.fmradio.view.TextViewWithReflection
 			android:id="@+id/about_version"
@@ -46,6 +47,7 @@
 			android:layout_height="wrap_content"
 			android:layout_marginTop="8dp"
 			android:paddingBottom="3dp"
+			android:textColor="@color/text_secondary"
 			app:reflectionHeightMultiple="0.5"
 			app:reflectionPadding="4"
 			android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small"
@@ -54,14 +56,76 @@
 			app:layout_constraintTop_toBottomOf="@+id/about_name"
 			tools:text="v0.0.0"/>
 
-	<TextView
-			android:id="@+id/about_author"
-			android:layout_width="wrap_content"
+	<LinearLayout
+			android:id="@+id/about_links"
+			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:layout_marginBottom="16dp"
-			android:text="@string/about_author"
+			android:layout_marginStart="24dp"
+			android:layout_marginTop="20dp"
+			android:layout_marginEnd="24dp"
+			android:orientation="vertical"
 			app:layout_constraintEnd_toEndOf="parent"
 			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintBottom_toBottomOf="parent"/>
+			app:layout_constraintTop_toBottomOf="@+id/about_version">
+
+		<TextView
+				android:id="@+id/about_link_github"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="?android:selectableItemBackground"
+				android:clickable="true"
+				android:focusable="true"
+				android:drawableStart="@drawable/ic_github"
+				android:drawablePadding="12dp"
+				android:gravity="center_vertical"
+				android:minHeight="48dp"
+				android:paddingStart="12dp"
+				android:paddingEnd="12dp"
+				android:text="@string/pref_info_link_github"
+				android:textColor="@color/text_primary" />
+
+		<TextView
+				android:id="@+id/about_link_telegram"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="?android:selectableItemBackground"
+				android:clickable="true"
+				android:focusable="true"
+				android:drawableStart="@drawable/ic_telegram"
+				android:drawablePadding="12dp"
+				android:gravity="center_vertical"
+				android:minHeight="48dp"
+				android:paddingStart="12dp"
+				android:paddingEnd="12dp"
+				android:text="@string/pref_info_link_telegram"
+				android:textColor="@color/text_primary" />
+
+		<TextView
+				android:id="@+id/about_link_site"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="?android:selectableItemBackground"
+				android:clickable="true"
+				android:focusable="true"
+				android:drawableStart="@drawable/ic_web"
+				android:drawablePadding="12dp"
+				android:gravity="center_vertical"
+				android:minHeight="48dp"
+				android:paddingStart="12dp"
+				android:paddingEnd="12dp"
+				android:text="@string/pref_info_link_site"
+				android:textColor="@color/text_primary" />
+	</LinearLayout>
+
+	<TextView
+			android:id="@+id/about_author"
+		android:layout_width="wrap_content"
+		android:layout_height="19dp"
+		android:layout_marginBottom="16dp"
+		android:text="@string/about_author"
+		android:textColor="@color/text_secondary"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
