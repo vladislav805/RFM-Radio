@@ -20,15 +20,18 @@
 	<style name="RDS_PS">
 		<item name="android:fontFamily">monospace</item>
 		<item name="android:textSize">20sp</item>
-		<item name="android:gravity">center_horizontal</item>
+		<item name="android:textColor">@color/text_primary</item>
+		<item name="android:gravity">start|center_vertical</item>
 	</style>
 
 	<style name="RDS_RT">
 		<item name="android:textSize">16sp</item>
-		<item name="android:gravity">center_horizontal</item>
+		<item name="android:textColor">@color/text_secondary</item>
+		<item name="android:gravity">start|top</item>
 	</style>
 	<style name="RDS_PTY">
 		<item name="android:textSize">14sp</item>
-		<item name="android:gravity">center_horizontal</item>
+		<item name="android:textColor">@color/text_secondary</item>
+		<item name="android:gravity">start|center_vertical</item>
 	</style>
 </resources>
