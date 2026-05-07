@@ -34,7 +34,6 @@ import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
-import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
@@ -53,7 +52,6 @@ import java.util.Set;
 
 @SuppressLint("NonConstantResourceId")
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
-    private ProgressDialog mProgress;
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
     private FrequencyBarView mSeek;
@@ -153,21 +151,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             setEnabledUi(false);
             mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
-        }
-    }
-
-    private void showProgress(final String text) {
-        if (mProgress != null) {
-            hideProgress();
-        }
-
-        mProgress = ProgressDialog.create(this).text(text).show();
-    }
-
-    private void hideProgress() {
-        if (mProgress != null) {
-            mProgress.hide();
-            mProgress = null;
         }
     }
 
@@ -296,11 +279,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (id == R.id.ctl_seek_down) {
             mRadioController.hwSeek(Direction.DOWN);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
-            showProgress(getString(R.string.progress_searching));
         } else if (id == R.id.ctl_seek_up) {
             mRadioController.hwSeek(Direction.UP);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
-            showProgress(getString(R.string.progress_searching));
         } else if (id == R.id.favorite_button) {
             startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
         }
@@ -511,7 +492,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_FREQUENCY) > 0) {
-            hideProgress();
             mFrequencyInfo.hideStatus();
 
             mFrequencyInfo.setFrequency(state.getFrequency());
@@ -565,7 +545,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void handleChangingState(final TunerStatus status) {
         switch (status) {
             case IDLE: {
-                hideProgress();
                 setEnabledUi(false);
                 mFrequencyInfo.clearMetadata();
                 mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
@@ -576,7 +555,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case INSTALLING: {
                 mFrequencyInfo.showStatus(R.string.status_installing);
-                showProgress(getString(R.string.progress_installing));
                 setEnabledToggleButton(false);
                 break;
             }
@@ -584,18 +562,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case INSTALLED:
             case LAUNCHED: {
                 mFrequencyInfo.hideStatus();
-                showProgress(null);
                 break;
             }
 
             case LAUNCHING: {
                 mFrequencyInfo.showStatus(R.string.status_launching);
-                showProgress(getString(R.string.progress_launching));
                 break;
             }
 
             case LAUNCH_FAILED: {
-                hideProgress();
                 mFrequencyInfo.clearMetadata();
                 mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
 
@@ -610,12 +585,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case ENABLING: {
                 mFrequencyInfo.hideStatus();
-                showProgress(getString(R.string.progress_starting));
                 break;
             }
 
             case ENABLED: {
-                hideProgress();
                 setEnabledUi(true);
                 mFrequencyInfo.hideStatus();
                 setEnabledToggleButton(true);
