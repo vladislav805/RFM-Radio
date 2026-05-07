@@ -223,7 +223,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		autostart.setSummaryOn(R.string.pref_app_auto_startup_enabled);
 		autostart.setSummaryOff(R.string.pref_auto_startup_disabled);
 		autostart.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.NOTIFICATION_SHOW_RDS, (boolean) newValue);
+			Storage.getInstance(context).put(C.PrefKey.APP_AUTO_STARTUP, (boolean) newValue);
 			return true;
 		});
 		category.addPreference(autostart);
