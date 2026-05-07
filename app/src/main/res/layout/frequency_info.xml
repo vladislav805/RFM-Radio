@@ -108,7 +108,7 @@
 		android:layout_height="@dimen/icon_size"
 		android:layout_marginStart="16dp"
 		android:layout_marginTop="8dp"
-		android:contentDescription="@string/nil"
+		android:contentDescription="@string/stereo_indicator"
 		android:src="@drawable/ic_mono"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent" />

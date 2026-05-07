@@ -54,7 +54,7 @@
 		android:layout_width="0dp"
 		android:layout_height="@dimen/favorite_panel_item_height"
 		android:background="@android:color/transparent"
-		android:contentDescription="@string/nil"
+		android:contentDescription="@string/open_favorites_lists"
 		android:src="@drawable/ic_favorite_lists"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toEndOf="parent"

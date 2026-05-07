@@ -9,6 +9,10 @@
 	<string name="seek_up">Seek up</string>
 	<string name="jump_down">Jump down</string>
 	<string name="seek_down">Seek down</string>
+	<string name="open_favorites_lists">Open favorites lists</string>
+	<string name="stereo_indicator">Stereo or mono indicator</string>
+	<string name="drag_to_reorder">Drag to reorder station</string>
+	<string name="station_in_favorites">Station is in favorites</string>
 	<string name="progress_installing">Install binary…</string>
 	<string name="progress_launching">Launching…</string>
 	<string name="progress_starting">Enabling tuner…</string>

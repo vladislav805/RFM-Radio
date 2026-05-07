@@ -87,6 +87,10 @@
 	<string name="progress_starting">Запуск тюнера…</string>
 	<string name="progress_stopping">Остановка…</string>
 	<string name="seek_down">Поиск назад</string>
+	<string name="open_favorites_lists">Открыть списки избранного</string>
+	<string name="stereo_indicator">Индикатор стерео или моно</string>
+	<string name="drag_to_reorder">Перетащите для изменения порядка станции</string>
+	<string name="station_in_favorites">Станция в избранном</string>
 	<string name="seek_up">Поиск вперёд</string>
 	<string name="service_record_unsupported">Запись эфира не поддерживается этим драйвером.</string>
 	<string name="record_permissions_required_title">Нужны разрешения для записи</string>

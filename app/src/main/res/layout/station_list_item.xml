@@ -41,7 +41,7 @@
 			android:src="@drawable/ic_favorites"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:contentDescription="@string/nil"
+			android:contentDescription="@string/station_in_favorites"
 			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintTop_toTopOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
@@ -54,7 +54,7 @@
 			android:layout_width="?android:listPreferredItemHeight"
 			android:layout_height="0dp"
 			android:scaleType="center"
-			android:contentDescription="@string/nil"
+			android:contentDescription="@string/drag_to_reorder"
 			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintTop_toTopOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"/>
