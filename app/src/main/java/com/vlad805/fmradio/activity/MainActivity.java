@@ -611,6 +611,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.ctl_seek_up,
                 R.id.frequency_mhz,
                 R.id.frequency_ps,
+                R.id.frequency_pi,
                 R.id.frequency_rt,
                 R.id.frequency_pty,
                 R.id.frequency_seek,
