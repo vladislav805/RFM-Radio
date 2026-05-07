@@ -9,6 +9,11 @@
 	<string name="seek_up">Seek up</string>
 	<string name="jump_down">Jump down</string>
 	<string name="seek_down">Seek down</string>
+	<string name="status_tuner_stopped">Tuner stopped</string>
+	<string name="status_searching_station">Searching for station…</string>
+	<string name="status_installing">Installing FM backend…</string>
+	<string name="status_launching">Launching FM backend…</string>
+	<string name="favorites_empty_hint">No favorites yet. Tap + to add the current frequency.</string>
 	<string name="open_favorites_lists">Open favorites lists</string>
 	<string name="stereo_indicator">Stereo or mono indicator</string>
 	<string name="drag_to_reorder">Drag to reorder station</string>

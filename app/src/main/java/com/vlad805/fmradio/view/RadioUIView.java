@@ -2,10 +2,12 @@ package com.vlad805.fmradio.view;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.view.View;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import androidx.annotation.StringRes;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
@@ -23,6 +25,8 @@ public class RadioUIView extends LinearLayout {
 	private TextView mRdsRt;
 	private TextView mRdsPty;
 	private TextView mRdsPi;
+	private boolean mStatusShown;
+	private String mLastPtyText = "";
     private final AppPreferences mPreferences;
 
 	public RadioUIView(final Context context) {
@@ -67,7 +71,28 @@ public class RadioUIView extends LinearLayout {
 	public final void setRadioState(final RadioState state) {
 		mRdsPs.setText(state.getPs());
 		mRdsRt.setText(state.getRt());
-		mRdsPty.setText(UtilsLocalization.getProgramType(state.getPty()));
+		mLastPtyText = UtilsLocalization.getProgramType(state.getPty());
+		if (!mStatusShown) {
+			mRdsPty.setText(mLastPtyText);
+		}
 		mRdsPi.setText(state.getPi() != null ? state.getPi() : "");
+	}
+
+	public final void showStatus(@StringRes final int stringRes) {
+		mStatusShown = true;
+		mRdsPty.setText(stringRes);
+	}
+
+	public final void hideStatus() {
+		mStatusShown = false;
+		mRdsPty.setText(mLastPtyText);
+	}
+
+	public final void clearMetadata() {
+		mRdsPs.setText("");
+		mRdsPi.setText("");
+		mRdsRt.setText("");
+		mRdsPty.setText("");
+		mLastPtyText = "";
 	}
 }

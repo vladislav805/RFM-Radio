@@ -80,6 +80,10 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		mOnFavoritesChangedListener = listener;
 	}
 
+	public int getStationsCount() {
+		return mStations == null ? 0 : mStations.size();
+	}
+
 	private void init(final Context context) {
 		setLayoutManager(new GridLayoutManager(getContext(), 2));
 

@@ -70,6 +70,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private TextView mRecordDuration;
 
+    private TextView mFavoriteEmptyHint;
+
     private RadioState mLastState;
 
     private Menu mMenu;
@@ -117,7 +119,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mFrequencyInfo = findViewById(R.id.frequency_info);
 
         mFavoriteList = findViewById(R.id.favorite_list);
-        mFavoriteList.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
+        mFavoriteList.setOnFavoritesChangedListener(() -> {
+            updateFavoriteFrequencyMarkers();
+            updateFavoritesEmptyState();
+        });
+
+        mFavoriteEmptyHint = findViewById(R.id.favorite_empty_hint);
 
         mSeek = findViewById(R.id.frequency_seek);
 
@@ -128,6 +135,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mSeek.setFrequency(kHz);
         mFavoriteList.setActiveFrequency(kHz);
         updateFavoriteFrequencyMarkers();
+        updateFavoritesEmptyState();
 
         initClickableButtons();
     }
@@ -144,6 +152,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         } else {
             setEnabledUi(false);
+            mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
         }
     }
 
@@ -286,9 +295,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mRadioController.jump(Direction.UP);
         } else if (id == R.id.ctl_seek_down) {
             mRadioController.hwSeek(Direction.DOWN);
+            mFrequencyInfo.showStatus(R.string.status_searching_station);
             showProgress(getString(R.string.progress_searching));
         } else if (id == R.id.ctl_seek_up) {
             mRadioController.hwSeek(Direction.UP);
+            mFrequencyInfo.showStatus(R.string.status_searching_station);
             showProgress(getString(R.string.progress_searching));
         } else if (id == R.id.favorite_button) {
             startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
@@ -465,6 +476,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mSeek.setFavoriteFrequencies(frequencies);
     }
 
+    private void updateFavoritesEmptyState() {
+        if (mFavoriteList == null || mFavoriteEmptyHint == null) {
+            return;
+        }
+
+        final boolean isEmpty = mFavoriteList.getStationsCount() == 0;
+        mFavoriteEmptyHint.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+    }
+
     private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
         @Override
         public void onChanged(final int kHz) {
@@ -492,6 +512,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if ((mode & RadioStateUpdater.SET_FREQUENCY) > 0) {
             hideProgress();
+            mFrequencyInfo.hideStatus();
 
             mFrequencyInfo.setFrequency(state.getFrequency());
 
@@ -546,12 +567,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case IDLE: {
                 hideProgress();
                 setEnabledUi(false);
+                mFrequencyInfo.clearMetadata();
+                mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
                 setPlayingMainPlayButton(false);
                 setEnabledToggleButton(true);
                 break;
             }
 
             case INSTALLING: {
+                mFrequencyInfo.showStatus(R.string.status_installing);
                 showProgress(getString(R.string.progress_installing));
                 setEnabledToggleButton(false);
                 break;
@@ -559,17 +583,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case INSTALLED:
             case LAUNCHED: {
+                mFrequencyInfo.hideStatus();
                 showProgress(null);
                 break;
             }
 
             case LAUNCHING: {
+                mFrequencyInfo.showStatus(R.string.status_launching);
                 showProgress(getString(R.string.progress_launching));
                 break;
             }
 
             case LAUNCH_FAILED: {
                 hideProgress();
+                mFrequencyInfo.clearMetadata();
+                mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
 
                 Utils.alert(
                         this,
@@ -581,6 +609,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             case ENABLING: {
+                mFrequencyInfo.hideStatus();
                 showProgress(getString(R.string.progress_starting));
                 break;
             }
@@ -588,6 +617,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case ENABLED: {
                 hideProgress();
                 setEnabledUi(true);
+                mFrequencyInfo.hideStatus();
                 setEnabledToggleButton(true);
                 setPlayingMainPlayButton(true);
                 break;

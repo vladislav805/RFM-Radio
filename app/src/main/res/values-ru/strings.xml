@@ -87,6 +87,11 @@
 	<string name="progress_starting">Запуск тюнера…</string>
 	<string name="progress_stopping">Остановка…</string>
 	<string name="seek_down">Поиск назад</string>
+	<string name="status_tuner_stopped">Тюнер остановлен</string>
+	<string name="status_searching_station">Идёт поиск станции…</string>
+	<string name="status_installing">Установка FM backend…</string>
+	<string name="status_launching">Запуск FM backend…</string>
+	<string name="favorites_empty_hint">Список избранного пуст. Нажмите +, чтобы добавить текущую частоту.</string>
 	<string name="open_favorites_lists">Открыть списки избранного</string>
 	<string name="stereo_indicator">Индикатор стерео или моно</string>
 	<string name="drag_to_reorder">Перетащите для изменения порядка станции</string>
