@@ -568,6 +568,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 case C.Event.RECORD_STARTED: {
                     mRecordingNow = true;
                     mNeedRecreateNotification = true;
+                    updateNotification();
                     break;
                 }
 
@@ -582,6 +583,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 case C.Event.RECORD_ENDED: {
                     mRecordingNow = false;
                     mNeedRecreateNotification = true;
+                    updateNotification();
                     mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
 
                     if (intent.getExtras() != null) {
