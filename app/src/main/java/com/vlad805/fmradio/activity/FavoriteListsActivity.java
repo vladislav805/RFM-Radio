@@ -701,10 +701,12 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			stations.clear();
 
 			for (final int kHz : frequencies) {
-				stations.add(new FavoriteStation(kHz, Utils.getMHz(kHz)));
+				stations.add(new FavoriteStation(kHz, ""));
 			}
 
 			mController.save();
+			FavoriteListsActivity.this.setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
+			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
 
 			reloadLists();
 			reloadContent();
