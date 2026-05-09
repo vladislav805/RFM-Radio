@@ -38,7 +38,7 @@ import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
-import com.vlad805.fmradio.view.FavoritesPanelView;
+import com.vlad805.fmradio.view.FavoritesView;
 import com.vlad805.fmradio.view.FrequencyBarView;
 import com.vlad805.fmradio.view.RadioUIView;
 
@@ -55,8 +55,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
     private FrequencyBarView mSeek;
-    private FavoritesPanelView mFavoriteList;
-    private FavoriteController mFavoriteController;
+    private FavoritesView mFavoritesView;
 
     private RadioController mRadioController;
 
@@ -67,8 +66,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ImageView mViewStereoMode;
 
     private TextView mRecordDuration;
-
-    private TextView mFavoriteEmptyHint;
 
     private RadioState mLastState;
 
@@ -100,7 +97,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mPreferences = new AppPreferences(this);
-        mFavoriteController = new FavoriteController(this);
         mRadioController = new RadioController(this);
         mRadioController.requestForCurrentState(this);
         mRadioController.registerForUpdates(this);
@@ -116,13 +112,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void initUserInterface() {
         mFrequencyInfo = findViewById(R.id.frequency_info);
 
-        mFavoriteList = findViewById(R.id.favorite_list);
-        mFavoriteList.setOnFavoritesChangedListener(() -> {
+        mFavoritesView = findViewById(R.id.favorite_list);
+        mFavoritesView.setOnFavoritesChangedListener(() -> {
             updateFavoriteFrequencyMarkers();
-            updateFavoritesEmptyState();
         });
-
-        mFavoriteEmptyHint = findViewById(R.id.favorite_empty_hint);
+        mFavoritesView.setOnErrorListener(message -> {
+            mToast.text(message).show();
+        });
 
         mSeek = findViewById(R.id.frequency_seek);
 
@@ -131,9 +127,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
         mFrequencyInfo.setFrequency(kHz);
         mSeek.setFrequency(kHz);
-        mFavoriteList.setActiveFrequency(kHz);
+        mFavoritesView.setActiveFrequency(kHz);
+        mFavoritesView.reload(false);
         updateFavoriteFrequencyMarkers();
-        updateFavoritesEmptyState();
 
         initClickableButtons();
     }
@@ -159,6 +155,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onResume();
 
         reloadPreferences();
+        mFavoritesView.reload(false);
     }
 
     @Override
@@ -179,7 +176,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (requestCode) {
             case REQUEST_CODE_FAVORITES_OPENED: {
                 if (resultCode == Activity.RESULT_OK && data.getBooleanExtra("changed", false)) {
-                    mFavoriteList.reload(true);
+                    mFavoritesView.reload(true);
                     updateFavoriteFrequencyMarkers();
                 }
                 break;
@@ -445,25 +442,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void updateFavoriteFrequencyMarkers() {
-        if (mFavoriteController == null || mSeek == null) {
+        if (mFavoritesView == null || mSeek == null) {
             return;
         }
 
-        mFavoriteController.reload();
         final Set<Integer> frequencies = new HashSet<>();
-        for (final FavoriteStation station : mFavoriteController.getStationsInCurrentList()) {
+        for (final FavoriteStation station : mFavoritesView.getStationsInCurrentList()) {
             frequencies.add(station.getFrequency());
         }
         mSeek.setFavoriteFrequencies(frequencies);
-    }
-
-    private void updateFavoritesEmptyState() {
-        if (mFavoriteList == null || mFavoriteEmptyHint == null) {
-            return;
-        }
-
-        final boolean isEmpty = mFavoriteList.getStationsCount() == 0;
-        mFavoriteEmptyHint.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
     }
 
     private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
@@ -497,7 +484,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mFrequencyInfo.setFrequency(state.getFrequency());
 
             mSeek.setFrequency(state.getFrequency());
-            mFavoriteList.setActiveFrequency(state.getFrequency());
+            mFavoritesView.setActiveFrequency(state.getFrequency());
 
             final String str = getString(R.string.player_event_frequency_changed, state.getFrequency() / 1000f);
             mToast.text(str).show();

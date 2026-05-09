@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<ImageButton
+		android:id="@+id/favorite_edit_toggle"
+		android:layout_width="40dp"
+		android:layout_height="wrap_content"
+		android:layout_marginEnd="8dp"
+		android:background="?android:attr/selectableItemBackgroundBorderless"
+		android:contentDescription="@string/favorites_edit"
+		android:padding="8dp"
+		android:src="@drawable/ic_preset_order_toggle"
+		app:layout_constraintBottom_toBottomOf="@+id/favorite_list_selector"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintTop_toTopOf="@+id/favorite_list_selector"
+		app:tint="@color/text_secondary" />
+
+	<TextView
+		android:id="@+id/favorite_list_selector"
+		android:layout_width="0dp"
+		android:layout_height="48dp"
+		android:layout_marginEnd="8dp"
+		android:background="?android:attr/selectableItemBackground"
+		android:clickable="true"
+		android:drawableEnd="@drawable/ic_expand_more"
+		android:drawableTint="@color/text_secondary"
+		android:drawablePadding="6dp"
+		android:ellipsize="end"
+		android:focusable="true"
+		android:gravity="center_vertical"
+		android:maxLines="1"
+		android:paddingStart="8dp"
+		android:paddingEnd="4dp"
+		android:textColor="@color/text_primary"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toStartOf="@+id/favorite_edit_toggle"
+		app:layout_constraintHorizontal_bias="1.0"
+		app:layout_constraintStart_toStartOf="parent"
+		tools:text="default" />
+
+	<com.vlad805.fmradio.view.FavoritesRecyclerView
+		android:id="@+id/favorite_recycler"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:clickable="true"
+		android:focusable="true"
+		app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+		app:layout_constraintBottom_toTopOf="@+id/favorite_list_selector"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		tools:listitem="@layout/favorite_station_item" />
+
+	<TextView
+		android:id="@+id/favorite_empty_hint"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:gravity="center"
+		android:text="@string/favorites_empty_hint"
+		android:textColor="@color/text_secondary"
+		android:visibility="gone"
+		app:layout_constraintBottom_toBottomOf="@+id/favorite_recycler"
+		app:layout_constraintEnd_toEndOf="@id/favorite_recycler"
+		app:layout_constraintStart_toStartOf="@id/favorite_recycler"
+		app:layout_constraintTop_toTopOf="@id/favorite_recycler"
+		tools:visibility="visible" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

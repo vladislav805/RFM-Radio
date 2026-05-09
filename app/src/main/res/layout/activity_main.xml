@@ -36,37 +36,16 @@
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/main_toolbar" />
 
-	<com.vlad805.fmradio.view.FavoritesPanelView
+	<com.vlad805.fmradio.view.FavoritesView
 		android:id="@+id/favorite_list"
 		android:layout_width="0dp"
 		android:layout_height="0dp"
-		android:layout_marginTop="32dp"
-		android:clickable="true"
-		android:focusable="true"
-		android:orientation="horizontal"
-		app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+		android:layout_marginTop="16dp"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/frequency_info"
 		tools:listitem="@layout/favorite_station_item" />
-
-	<TextView
-		android:id="@+id/favorite_empty_hint"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginStart="16dp"
-		android:layout_marginEnd="16dp"
-		android:layout_marginBottom="24dp"
-		android:gravity="center"
-		android:text="@string/favorites_empty_hint"
-		android:textColor="@color/text_secondary"
-		android:visibility="gone"
-		app:layout_constraintBottom_toBottomOf="@id/favorite_list"
-		app:layout_constraintEnd_toEndOf="@id/favorite_list"
-		app:layout_constraintStart_toStartOf="@id/favorite_list"
-		app:layout_constraintTop_toTopOf="@id/favorite_list"
-		tools:visibility="visible" />
 
 	<com.google.android.material.floatingactionbutton.FloatingActionButton
 		android:id="@+id/favorite_button"

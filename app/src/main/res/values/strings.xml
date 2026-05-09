@@ -15,6 +15,8 @@
 	<string name="status_launching">Launching FM backend…</string>
 	<string name="favorites_empty_hint">No favorites yet. Tap + to add the current frequency.</string>
 	<string name="open_favorites_lists">Open favorites lists</string>
+	<string name="favorites_edit">Edit</string>
+	<string name="favorites_done">Done</string>
 	<string name="stereo_indicator">Stereo or mono indicator</string>
 	<string name="drag_to_reorder">Drag to reorder station</string>
 	<string name="station_in_favorites">Station is in favorites</string>

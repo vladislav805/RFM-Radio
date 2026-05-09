@@ -2,6 +2,7 @@ package com.vlad805.fmradio.view;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 /**
@@ -9,16 +10,26 @@ import androidx.recyclerview.widget.RecyclerView;
  */
 public class SimpleItemTouchHelperCallback extends ItemTouchHelper.Callback {
 	private final ItemTouchHelperAdapter mAdapter;
+	private boolean mLongPressDragEnabled;
 
 	public static final float ALPHA_FULL = 1f;
 
-	public SimpleItemTouchHelperCallback(ItemTouchHelperAdapter adapter) {
+	public SimpleItemTouchHelperCallback(final ItemTouchHelperAdapter adapter) {
+		this(adapter, false);
+	}
+
+	public SimpleItemTouchHelperCallback(final ItemTouchHelperAdapter adapter, final boolean longPressDragEnabled) {
 		mAdapter = adapter;
+		mLongPressDragEnabled = longPressDragEnabled;
+	}
+
+	public void setLongPressDragEnabled(final boolean longPressDragEnabled) {
+		mLongPressDragEnabled = longPressDragEnabled;
 	}
 
 	@Override
 	public boolean isLongPressDragEnabled() {
-		return false;
+		return mLongPressDragEnabled;
 	}
 
 	@Override
@@ -28,8 +39,13 @@ public class SimpleItemTouchHelperCallback extends ItemTouchHelper.Callback {
 
 	@Override
 	public int getMovementFlags(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
-		int dragFlags = ItemTouchHelper.UP | ItemTouchHelper.DOWN;
-		int swipeFlags = ItemTouchHelper.START | ItemTouchHelper.END;
+		int dragFlags;
+		if (recyclerView.getLayoutManager() instanceof GridLayoutManager) {
+			dragFlags = ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT;
+		} else {
+			dragFlags = ItemTouchHelper.UP | ItemTouchHelper.DOWN;
+		}
+		int swipeFlags = 0;
 		return makeMovementFlags(dragFlags, swipeFlags);
 	}
 

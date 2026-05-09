@@ -6,6 +6,7 @@ import android.view.Menu;
 import android.view.View;
 import android.widget.PopupMenu;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.controller.FavoriteController;
@@ -18,10 +19,7 @@ import com.vlad805.fmradio.view.adapter.FavoritePanelAdapter;
 
 import java.util.List;
 
-/**
- * vlad805 (c) 2019
- */
-public class FavoritesPanelView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
+public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemClickListener.OnItemClickListener {
 	public static final int MENU_REMOVE = 100;
 	public static final int MENU_RENAME = 101;
 
@@ -31,18 +29,18 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 	private final RadioController mRadioController;
 	private final Toast mToast;
 	private OnFavoritesChangedListener mOnFavoritesChangedListener;
+	private SimpleItemTouchHelperCallback mTouchHelperCallback;
+	private boolean mEditMode;
 
 	public interface OnFavoritesChangedListener {
 		void onFavoritesChanged();
 	}
 
-	public FavoritesPanelView(final Context context) {
+	public FavoritesRecyclerView(final Context context) {
 		this(context, null);
-
-		init(context);
 	}
 
-	public FavoritesPanelView(final Context context, final AttributeSet attrs) {
+	public FavoritesRecyclerView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 
 		mRadioController = new RadioController(context);
@@ -51,18 +49,20 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		init(context);
 	}
 
-	/**
-	 * Set stations in view
-	 */
+	public void setFavoriteController(final FavoriteController controller) {
+		mController = controller;
+		reload(false);
+	}
+
 	public void load() {
 		reload(false);
 	}
 
-	/**
-	 * Set stations in view. If force is true - will be reloaded data from file.
-	 * @param force If true, data will be fetched from file
-	 */
 	public void reload(final boolean force) {
+		if (mController == null) {
+			return;
+		}
+
 		if (force) {
 			mController.reload();
 		}
@@ -90,39 +90,31 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		mAdapter = new FavoritePanelAdapter(context);
 		setAdapter(mAdapter);
 
-		addOnItemTouchListener(new RecyclerItemClickListener(context, this, this));
+		mTouchHelperCallback = new SimpleItemTouchHelperCallback(mAdapter, false);
+		new ItemTouchHelper(mTouchHelperCallback).attachToRecyclerView(this);
 
-		mController = new FavoriteController(context);
-		load();
+		addOnItemTouchListener(new RecyclerItemClickListener(context, this, this));
 	}
 
-	/**
-	 * On click by item
-	 * @param view View
-	 * @param position Position
-	 */
 	@Override
 	public void onItemClick(final View view, final int position) {
-		// Nothing to do if control is locked
+		if (mEditMode || mStations == null) {
+			return;
+		}
+
 		if (!isEnabled()) {
 			return;
 		}
 
-		// Check for valid index of clicked station (or +1 if we need create one)
 		final int size = mStations.size();
 
-		// If position of clicked item in range 0..size, then it station
-		// and we need tune to this frequency
 		if (position < size) {
 			final FavoriteStation station = mStations.get(position);
 			mRadioController.setFrequency(station.getFrequency());
 			return;
 		}
 
-		// If position of clicked item is next from last station, then we
-		// want create station
 		if (position == size) {
-			// request current radio state
 			mRadioController.requestForCurrentState((state, mode) -> {
 				setActiveFrequency(state.getFrequency());
 				if (hasFrequency(state.getFrequency())) {
@@ -130,7 +122,6 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 					return;
 				}
 
-				// open edit window
 				new EditTextDialog(getContext(), normalizeStationTitle(state.getPs()), title -> {
 					FavoriteStation station = new FavoriteStation(state.getFrequency(), title);
 					mStations.add(station);
@@ -141,13 +132,12 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		}
 	}
 
-	/**
-	 * On long click will be opened popup menu
-	 * @param view View
-	 * @param position Position
-	 */
 	@Override
 	public void onLongItemClick(final View view, final int position) {
+		if (mEditMode || mStations == null) {
+			return;
+		}
+
 		if (!isEnabled() || position >= mStations.size()) {
 			return;
 		}
@@ -183,12 +173,28 @@ public class FavoritesPanelView extends RecyclerView implements RecyclerItemClic
 		popupMenu.show();
 	}
 
-	/**
-	 * Calls when user updated info station
-	 */
 	public void onFavoriteListUpdated() {
-		mController.save();
+		if (mController != null) {
+			mController.save();
+		}
 		notifyFavoritesChanged();
+	}
+
+	public void setEditMode(final boolean editMode) {
+		if (mEditMode == editMode) {
+			return;
+		}
+
+		final boolean wasEditMode = mEditMode;
+		mEditMode = editMode;
+		mAdapter.setEditMode(editMode);
+		if (mTouchHelperCallback != null) {
+			mTouchHelperCallback.setLongPressDragEnabled(editMode);
+		}
+
+		if (wasEditMode && !editMode) {
+			onFavoriteListUpdated();
+		}
 	}
 
 	private boolean hasFrequency(final int frequency) {

@@ -14,7 +14,7 @@
 		android:id="@+id/favorite_panel_item_frequency"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:layout_marginStart="16dp"
+		android:layout_marginStart="8dp"
 		android:layout_marginTop="8dp"
 		android:layout_marginBottom="8dp"
 		android:textAlignment="center"
@@ -29,9 +29,8 @@
 	<TextView
 		android:id="@+id/favorite_panel_item_title"
 		android:layout_width="0dp"
-		android:layout_height="19dp"
+		android:layout_height="20dp"
 		android:layout_marginStart="8dp"
-		android:layout_marginEnd="8dp"
 		android:ellipsize="end"
 		android:maxLines="1"
 		android:paddingStart="8dp"
@@ -40,8 +39,22 @@
 		android:textAppearance="@android:style/TextAppearance.Material.Small"
 		android:textColor="@color/text_secondary"
 		app:layout_constraintBottom_toBottomOf="@+id/favorite_panel_item_frequency"
-		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintEnd_toStartOf="@+id/favorite_panel_item_reorder"
 		app:layout_constraintStart_toEndOf="@+id/favorite_panel_item_frequency"
 		app:layout_constraintTop_toTopOf="@+id/favorite_panel_item_frequency"
 		tools:text="Ретро FM" />
+
+	<ImageView
+		android:id="@+id/favorite_panel_item_reorder"
+		android:layout_width="20dp"
+		android:layout_height="20dp"
+		android:layout_marginEnd="8dp"
+		android:contentDescription="@string/drag_to_reorder"
+		android:src="@drawable/ic_preset_drag"
+		android:visibility="gone"
+		app:layout_constraintBottom_toBottomOf="@+id/favorite_panel_item_frequency"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintTop_toTopOf="@+id/favorite_panel_item_frequency"
+		app:tint="@color/text_secondary"
+		tools:visibility="visible" />
 </androidx.constraintlayout.widget.ConstraintLayout>

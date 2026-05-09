@@ -93,6 +93,8 @@
 	<string name="status_launching">Запуск FM backend…</string>
 	<string name="favorites_empty_hint">Список избранного пуст. Нажмите +, чтобы добавить текущую частоту.</string>
 	<string name="open_favorites_lists">Открыть списки избранного</string>
+	<string name="favorites_edit">Изменить</string>
+	<string name="favorites_done">Готово</string>
 	<string name="stereo_indicator">Индикатор стерео или моно</string>
 	<string name="drag_to_reorder">Перетащите для изменения порядка станции</string>
 	<string name="station_in_favorites">Станция в избранном</string>

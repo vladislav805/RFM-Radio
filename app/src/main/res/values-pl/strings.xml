@@ -15,6 +15,8 @@
 	<string name="status_launching">Uruchamianie backendu FM…</string>
 	<string name="favorites_empty_hint">Lista ulubionych jest pusta. Naciśnij +, aby dodać bieżącą częstotliwość.</string>
 	<string name="open_favorites_lists">Otwórz listy ulubionych</string>
+	<string name="favorites_edit">Edytuj</string>
+	<string name="favorites_done">Gotowe</string>
 	<string name="stereo_indicator">Wskaźnik stereo lub mono</string>
 	<string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność stacji</string>
 	<string name="station_in_favorites">Stacja jest w ulubionych</string>
