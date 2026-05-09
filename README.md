@@ -1,26 +1,30 @@
 # Real FM Radio [![Releases](https://img.shields.io/github/downloads/vladislav805/RFM-Radio/total)](https://github.com/vladislav805/RFM-Radio/releases/latest)
 
-Real hardware radio for Android smartphones based on Qualcomm Snapdragon 2xx, 4xx and 6xx processors (up to 625 and 650).
+Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 
 [<img alt="IzzyRepo" src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" width="176" />](https://apt.izzysoft.de/fdroid/index/apk/com.vlad805.fmradio)
 
-
 ## Requirements
 
-* To use you need **root** in Android (more emphasis placed on AOSP).
-* Android 5.1+ (SDK 22+).
+- Android 6.0+ (SDK 23+).
+- Root access is required, especially on AOSP-based ROMs.
 
+## Features
 
-## Capabilities
+- Live FM playback using supported hardware backend.
+- RDS metadata: PS, RT, PTY.
+- Recording to `.wav` and `.mp3`.
+- Favorites (presets) with custom names.
+- Multiple favorite lists.
+- Favorite list manager screen with import/export.
 
-* Listening to the radio.
-* Reading RDS: PS, RT and PTY.
-* Display the signal strength in dB.
-* Radio recording in `.wav` and `.mp3` files.
-* Saving favorite frequencies with name.
-* Ability to create multiple favorites lists.
+## Favorites UX
 
-## Settings
+- Main screen: tune quickly, reorder presets, switch active favorite list.
+- Favorite Lists screen: manage lists (create, rename, remove, import, export).
+
+## Settings highlights
+
 ### Tuner
 
 #### Enable RDS
@@ -50,8 +54,11 @@ If the option is enabled, then with the "Enable RDS" option enabled, the Program
 
 ## Building
 
-To modify the code of the native part of the application, Android NDK headers files are required.
+```bash
+./gradlew :app:assembleDebug
+```
 
+For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
 
 ## Inspired by
 
@@ -61,12 +68,11 @@ To modify the code of the native part of the application, Android NDK headers fi
 
 ## Disclaimer
 
-The application uses several sources of code:
-1. Hard-to-piece collected documentation for Tavarua, Iris, I2C, V4L2.
-2. GUI code written by the developer of this application.
+The project is based on hard-to-piece collected documentation around Tavarua, Iris, I2C, V4L2.
 
-### Contributors
-* Vladislav Veluga ([@vladislav805](https://github.com/vladislav805)) &mdash; developer;
-* Mike Reid ([@mikereidis](https://github.com/mikereidis)) &mdash; developer of Spirit 1/2;
-* Konstantin Manaev ([@SoSlowMan](https://github.com/SoSlowMan)) &mdash; translator (English);
-* Andus ([@AndusDEV](https://github.com/AndusDEV) &mdash; translator (Polish).
+## Contributors
+
+- Vladislav Veluga ([@vladislav805](https://github.com/vladislav805)) — developer
+- Mike Reid ([@mikereidis](https://github.com/mikereidis)) — developer of Spirit 1/2
+- Konstantin Manaev ([@SoSlowMan](https://github.com/SoSlowMan)) — translator (English)
+- Andus ([@AndusDEV](https://github.com/AndusDEV)) — translator (Polish)
