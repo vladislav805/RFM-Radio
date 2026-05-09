@@ -90,11 +90,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.app_version.outputs.tag_name }}
-          name: RFM Radio ${{ steps.app_version.outputs.tag_name }}
+          name: ${{ steps.app_version.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
           draft: true
           prerelease: false
           generate_release_notes: true
-          files:
+          files: |
             app/build/outputs/apk/release/*.apk
             app/src/main/assets/fmbin-*
