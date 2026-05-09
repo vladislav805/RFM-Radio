@@ -16,14 +16,12 @@ import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.Spinner;
+import android.widget.TextView;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -33,26 +31,29 @@ import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.ProgressDialog;
-import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
-import com.vlad805.fmradio.view.OnDragListener;
-import com.vlad805.fmradio.view.SimpleItemTouchHelperCallback;
-import com.vlad805.fmradio.view.adapter.FavoriteAdapter;
 
 import java.io.FileNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class FavoritesListsActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, OnDragListener {
+public class FavoriteListsActivity extends AppCompatActivity {
 	private static final int REQUEST_CODE_IMPORT_FAVORITES = 2001;
 	private static final int REQUEST_CODE_EXPORT_FAVORITES = 2002;
 	private static final int REQUEST_CODE_EXPORT_ALL_FAVORITES = 2003;
+	private static final int REQUEST_CODE_EXPORT_SELECTED_FAVORITES = 2004;
+	private static final int MENU_LIST_RENAME = 1;
+	private static final int MENU_LIST_REMOVE = 2;
+	private static final int MENU_LIST_EXPORT = 3;
 	private ProgressDialog mProgress;
 	private Menu mMenu;
 	private String mCurrentNameList;
@@ -60,15 +61,26 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	private RadioController mRadioCtl;
 
 	private FavoriteController mController;
-	private Spinner mSpinner;
-	private List<String> mFavoriteListNames;
-
-	private FavoriteAdapter mAdapter;
-	private List<FavoriteStation> mStationsList;
-
-	private ItemTouchHelper mItemTouchHelper;
+	private List<FavoriteListItem> mFavoriteListItems = new ArrayList<>();
+	private RecyclerView mRecyclerView;
+	private FavoriteListsAdapter mListsAdapter;
+	private final Set<String> mSelectedLists = new LinkedHashSet<>();
+	private boolean mSelectionMode;
+	private String mPendingExportListName;
 
 	private Toast mToast;
+
+	private static final class FavoriteListItem {
+		final String name;
+		final int stationsCount;
+		final boolean current;
+
+		FavoriteListItem(final String name, final int stationsCount, final boolean current) {
+			this.name = name;
+			this.stationsCount = stationsCount;
+			this.current = current;
+		}
+	}
 
 	private static final class ImportResult {
 		final int count;
@@ -83,7 +95,7 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_favorites_lists);
+		setContentView(R.layout.activity_favorite_lists);
 
 		mRadioCtl = new RadioController(this);
 
@@ -115,6 +127,15 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 					}
 					break;
 				}
+
+				case REQUEST_CODE_EXPORT_SELECTED_FAVORITES: {
+					if (data.getData() != null) {
+						if (exportSelectedFavoriteLists(data.getData())) {
+							exitSelectionMode();
+						}
+					}
+					break;
+				}
 			}
 		}
 
@@ -125,104 +146,55 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	 * Initialize UI
 	 */
 	private void initUI() {
-		final Toolbar toolbar = findViewById(R.id.favorite_list_toolbar);
-		mSpinner = findViewById(R.id.favorite_list_lists);
+		final Toolbar toolbar = findViewById(R.id.favorite_lists_toolbar);
+		mRecyclerView = findViewById(R.id.favorite_lists_content);
+		mListsAdapter = new FavoriteListsAdapter();
+		mRecyclerView.setAdapter(mListsAdapter);
 
 		setSupportActionBar(toolbar);
 
 		final ActionBar ab = getSupportActionBar();
 		if (ab != null) {
 			ab.setDisplayHomeAsUpEnabled(true);
+			ab.setTitle(R.string.toolbar_favorite_title);
 		}
-
-		mFavoriteListNames = mController.getFavoriteLists();
-
-		final RecyclerView recycler = findViewById(R.id.favorite_list_content);
-		recycler.addOnItemTouchListener(new RecyclerItemClickListener(this, recycler, new RecyclerItemClickListener.OnItemClickListener() {
-			@Override
-			public void onItemClick(final View view, final int position) {
-				final FavoriteStation station = mStationsList.get(position);
-
-				mRadioCtl.setFrequency(station.getFrequency());
-			}
-
-			@Override
-			public void onLongItemClick(final View view, int position) {
-				// TODO: open menu here
-			}
-		}));
-
-		mAdapter = new FavoriteAdapter(mStationsList, this);
-		recycler.setAdapter(mAdapter);
 
 		reloadLists();
-		reloadContent();
-
-		final ItemTouchHelper.Callback callback = new SimpleItemTouchHelperCallback(mAdapter);
-		mItemTouchHelper = new ItemTouchHelper(callback);
-		mItemTouchHelper.attachToRecyclerView(recycler);
-
-		// Listen this only after setSelection
-		mSpinner.setOnItemSelectedListener(this);
-	}
-
-	@Override
-	public void onStartDrag(final RecyclerView.ViewHolder viewHolder) {
-		mItemTouchHelper.startDrag(viewHolder);
-	}
-
-	@Override
-	public void onEndDrag() {
-		mController.save();
 	}
 
 	/**
-	 * Update list of favorite lists in spinner
+	 * Update list of favorite lists in recycler
 	 */
 	private void reloadLists() {
-		mFavoriteListNames = mController.getFavoriteLists();
-
 		mCurrentNameList = mController.getCurrentFavoriteList();
-		final int position = mFavoriteListNames.indexOf(mCurrentNameList);
-
-		final ArrayAdapter<?> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, mFavoriteListNames.toArray(new String[0]));
-
-		mSpinner.setAdapter(adapter);
-		mSpinner.setSelection(position);
+		mFavoriteListItems.clear();
+		for (final String listName : mController.getFavoriteLists()) {
+			mFavoriteListItems.add(new FavoriteListItem(
+					listName,
+					mController.getStationsCountInList(listName),
+					listName.equals(mCurrentNameList)
+			));
+		}
+		mListsAdapter.notifyDataSetChanged();
+		reloadContent();
+		updateSelectionUi();
 	}
 
-	/**
-	 * Update list of stations when favorite list selected
-	 */
 	private void reloadContent() {
-		if (mStationsList != null) {
-			mStationsList.clear();
-		}
-
-		mStationsList = mController.getStationsInCurrentList();
-
-		mAdapter.setDataset(mStationsList);
-		mAdapter.notifyDataSetChanged();
-
-		if (mMenu != null) {
-			mMenu.findItem(R.id.menu_favorite_rename).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
-			mMenu.findItem(R.id.menu_favorite_remove).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
-		}
+		mController.reload();
 	}
 
-	/**
-	 * Listener for selected item in spinner (favorite list)
-	 */
-	@Override
-	public void onItemSelected(final AdapterView<?> parent, final View view, final int position, final long id) {
-		String item = (String) parent.getItemAtPosition(position);
+	private void setCurrentList(final String item) {
+		if (mSelectionMode) {
+			toggleSelection(item);
+			return;
+		}
 
 		try {
 			mController.setCurrentFavoriteList(item);
 			mCurrentNameList = item;
-			reloadContent();
+			reloadLists();
 
-			// need to remove and replace by broadcast?
 			final Intent intent = new Intent().putExtra("changed", true);
 			setResult(Activity.RESULT_OK, intent);
 
@@ -232,18 +204,75 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		}
 	}
 
+	private void enterSelectionMode(final String initialSelection) {
+		if (!mSelectionMode) {
+			mSelectionMode = true;
+		}
+		toggleSelection(initialSelection);
+	}
+
+	private void exitSelectionMode() {
+		mSelectionMode = false;
+		mSelectedLists.clear();
+		updateSelectionUi();
+	}
+
+	private void toggleSelection(final String listName) {
+		if (mSelectedLists.contains(listName)) {
+			mSelectedLists.remove(listName);
+		} else {
+			mSelectedLists.add(listName);
+		}
+
+		if (mSelectedLists.isEmpty()) {
+			mSelectionMode = false;
+		}
+
+		updateSelectionUi();
+	}
+
+	private void updateSelectionUi() {
+		if (mListsAdapter != null) {
+			mListsAdapter.notifyDataSetChanged();
+		}
+
+		invalidateOptionsMenu();
+
+		final ActionBar actionBar = getSupportActionBar();
+		if (actionBar != null) {
+			if (mSelectionMode) {
+				actionBar.setTitle(getString(R.string.favorite_lists_selected_count, mSelectedLists.size()));
+				actionBar.setSubtitle(null);
+			} else {
+				actionBar.setTitle(R.string.toolbar_favorite_title);
+				actionBar.setSubtitle(null);
+			}
+		}
+	}
+
 	@Override
 	public boolean onCreateOptionsMenu(final Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		mMenu = menu;
 		getMenuInflater().inflate(R.menu.favorite, menu);
+		menu.findItem(R.id.menu_favorite_add).setVisible(true);
+		menu.findItem(R.id.menu_favorite_remove).setVisible(false);
+		menu.findItem(R.id.menu_favorite_rename).setVisible(false);
+		menu.findItem(R.id.menu_favorite_import).setVisible(true);
+		menu.findItem(R.id.menu_favorite_export_selected).setVisible(false);
+		menu.findItem(R.id.menu_favorite_remove_selected).setVisible(false);
 		return true;
 	}
 
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
-		menu.findItem(R.id.menu_favorite_remove).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
-		menu.findItem(R.id.menu_favorite_rename).setVisible(!mCurrentNameList.equals(FavoriteController.DEFAULT_NAME));
+		final boolean hasSelection = !mSelectedLists.isEmpty();
+		menu.findItem(R.id.menu_favorite_add).setVisible(!mSelectionMode);
+		menu.findItem(R.id.menu_favorite_import).setVisible(!mSelectionMode);
+		menu.findItem(R.id.menu_favorite_search).setVisible(!mSelectionMode);
+		menu.findItem(R.id.menu_favorite_export_all).setVisible(!mSelectionMode);
+		menu.findItem(R.id.menu_favorite_export_selected).setVisible(mSelectionMode && hasSelection);
+		menu.findItem(R.id.menu_favorite_remove_selected).setVisible(mSelectionMode && hasSelection);
 		return super.onPrepareOptionsMenu(menu);
 	}
 
@@ -252,23 +281,25 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 	public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
 
-        if (itemId == R.id.menu_favorite_add) {
-            addDialog();
-        } else if (itemId == R.id.menu_favorite_remove) {
-            removeDialog();
-        } else if (itemId == R.id.menu_favorite_rename) {
-            renameDialog();
-        } else if (itemId == R.id.menu_favorite_search) {
-            searchDialog();
-        } else if (itemId == R.id.menu_favorite_import) {
-            openImportFavoritePicker();
-        } else if (itemId == R.id.menu_favorite_export) {
-            openExportFavoritePicker();
-        } else if (itemId == R.id.menu_favorite_export_all) {
-            openExportAllFavoritesPicker();
-        } else if (itemId == android.R.id.home) {
-            finish();
-        }
+		if (itemId == R.id.menu_favorite_add) {
+			addDialog();
+		} else if (itemId == R.id.menu_favorite_import) {
+			openImportFavoritePicker();
+		} else if (itemId == R.id.menu_favorite_search) {
+			searchDialog();
+		} else if (itemId == R.id.menu_favorite_export_all) {
+			openExportAllFavoritesPicker();
+		} else if (itemId == R.id.menu_favorite_export_selected) {
+			openExportSelectedFavoritesPicker();
+		} else if (itemId == R.id.menu_favorite_remove_selected) {
+			removeSelectedDialog();
+		} else if (itemId == android.R.id.home) {
+			if (mSelectionMode) {
+				exitSelectionMode();
+			} else {
+				finish();
+			}
+		}
 
 		return super.onOptionsItemSelected(item);
 	}
@@ -312,10 +343,23 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		dialog.open();
 	}
 
-	private void renameDialog() {
+	private void renameDialog(final String listName) {
+		mCurrentNameList = listName;
+		if (FavoriteController.DEFAULT_NAME.equals(mCurrentNameList)) {
+			mToast.text(getString(R.string.favorite_list_rename_default_error)).show();
+			return;
+		}
+
 		final EditTextDialog dialog = new EditTextDialog(this, mCurrentNameList, title -> {
 			try {
-				mController.renameList(mCurrentNameList, title);
+				if (mCurrentNameList.equals(title)) {
+					return;
+				}
+
+				if (!mController.renameList(mCurrentNameList, title)) {
+					mToast.text(getString(R.string.favorite_list_rename_default_error)).show();
+					return;
+				}
 				mCurrentNameList = title;
 				reloadLists();
 				reloadContent();
@@ -371,11 +415,12 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		startActivityForResult(intent, REQUEST_CODE_IMPORT_FAVORITES);
 	}
 
-	private void openExportFavoritePicker() {
+	private void openExportFavoritePicker(final String listName) {
+		mPendingExportListName = listName;
 		final Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
 				.addCategory(Intent.CATEGORY_OPENABLE)
 				.setType("application/json")
-				.putExtra(Intent.EXTRA_TITLE, mController.getCurrentFavoriteList() + ".json");
+				.putExtra(Intent.EXTRA_TITLE, listName + ".json");
 		startActivityForResult(intent, REQUEST_CODE_EXPORT_FAVORITES);
 	}
 
@@ -385,6 +430,14 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				.setType("application/zip")
 				.putExtra(Intent.EXTRA_TITLE, "favorites.zip");
 		startActivityForResult(intent, REQUEST_CODE_EXPORT_ALL_FAVORITES);
+	}
+
+	private void openExportSelectedFavoritesPicker() {
+		final Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+				.addCategory(Intent.CATEGORY_OPENABLE)
+				.setType("application/zip")
+				.putExtra(Intent.EXTRA_TITLE, "favorites-selected.zip");
+		startActivityForResult(intent, REQUEST_CODE_EXPORT_SELECTED_FAVORITES);
 	}
 
 	private void importFavoriteLists(final Intent data) {
@@ -483,10 +536,15 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				return;
 			}
 
-			mController.exportCurrentList(outputStream);
-			mToast.text(getString(R.string.favorite_list_export_success, mController.getCurrentFavoriteList())).show();
+			final String listName = mPendingExportListName != null
+					? mPendingExportListName
+					: mController.getCurrentFavoriteList();
+			mController.exportList(listName, outputStream);
+			mToast.text(getString(R.string.favorite_list_export_success, listName)).show();
+			mPendingExportListName = null;
 		} catch (IOException e) {
 			mToast.text(R.string.favorite_list_export_error).show();
+			mPendingExportListName = null;
 		}
 	}
 
@@ -502,6 +560,23 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 			mToast.text(getString(R.string.favorite_list_export_all_success, exportedCount)).show();
 		} catch (IOException e) {
 			mToast.text(R.string.favorite_list_export_all_error).show();
+		}
+	}
+
+	private boolean exportSelectedFavoriteLists(final Uri uri) {
+		try (final java.io.OutputStream outputStream = getContentResolver().openOutputStream(uri, "w")) {
+			if (outputStream == null) {
+				mToast.text(R.string.favorite_list_export_all_error).show();
+				return false;
+			}
+
+			final List<String> names = new ArrayList<>(mSelectedLists);
+			mController.exportLists(outputStream, names);
+			mToast.text(getString(R.string.favorite_list_export_all_success, names.size())).show();
+			return true;
+		} catch (IOException e) {
+			mToast.text(R.string.favorite_list_export_all_error).show();
+			return false;
 		}
 	}
 
@@ -533,9 +608,8 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		return lastSegment != null ? lastSegment : "imported.json";
 	}
 
-	private void removeDialog() {
-
-
+	private void removeDialog(final String listName) {
+		mCurrentNameList = listName;
 
 		final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
 				.setTitle(R.string.favorite_list_remove_title)
@@ -550,6 +624,39 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 				.setNegativeButton(android.R.string.no, (dlg, buttonId) -> {})
 				.setIcon(android.R.drawable.ic_dialog_alert);
 		dialog.create().show();
+	}
+
+	private void removeSelectedDialog() {
+		final int selectedCount = mSelectedLists.size();
+		if (selectedCount <= 0) {
+			return;
+		}
+
+		new AlertDialog.Builder(this)
+				.setTitle(R.string.favorite_list_remove_title)
+				.setMessage(getString(R.string.favorite_lists_remove_selected_confirm, selectedCount))
+				.setCancelable(false)
+				.setPositiveButton(android.R.string.yes, (dlg, buttonId) -> {
+					int removed = 0;
+					for (final String name : new ArrayList<>(mSelectedLists)) {
+						if (FavoriteController.DEFAULT_NAME.equals(name)) {
+							continue;
+						}
+						if (mController.removeList(name)) {
+							removed++;
+						}
+					}
+
+					exitSelectionMode();
+					reloadLists();
+					if (removed > 0) {
+						setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
+						sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+					}
+				})
+				.setNegativeButton(android.R.string.no, null)
+				.setIcon(android.R.drawable.ic_dialog_alert)
+				.show();
 	}
 
 	private void searchDialog() {
@@ -608,6 +715,73 @@ public class FavoritesListsActivity extends AppCompatActivity implements Adapter
 		}
 	};
 
-	@Override
-	public void onNothingSelected(AdapterView<?> parent) {}
+	private class FavoriteListsAdapter extends RecyclerView.Adapter<FavoriteListsAdapter.ViewHolder> {
+		@Override
+		public ViewHolder onCreateViewHolder(final android.view.ViewGroup parent, final int viewType) {
+			final View view = getLayoutInflater().inflate(R.layout.favorite_list_manager_item, parent, false);
+			return new ViewHolder(view);
+		}
+
+		@Override
+		public void onBindViewHolder(final ViewHolder holder, final int position) {
+			holder.bind(mFavoriteListItems.get(position));
+		}
+
+		@Override
+		public int getItemCount() {
+			return mFavoriteListItems.size();
+		}
+
+		class ViewHolder extends RecyclerView.ViewHolder {
+			private final TextView name;
+			private final TextView count;
+			private final CheckBox check;
+			private final View menuButton;
+
+			ViewHolder(final View itemView) {
+				super(itemView);
+				name = itemView.findViewById(R.id.favorite_list_item_name);
+				count = itemView.findViewById(R.id.favorite_list_item_count);
+				check = itemView.findViewById(R.id.favorite_list_item_check);
+				menuButton = itemView.findViewById(R.id.favorite_list_item_menu);
+			}
+
+			void bind(final FavoriteListItem item) {
+				name.setText(item.name);
+				count.setText(getString(R.string.favorite_lists_stations_count, item.stationsCount));
+				final boolean selected = mSelectedLists.contains(item.name);
+				itemView.setAlpha(selected ? 1f : (item.current ? 1f : 0.85f));
+				check.setVisibility(mSelectionMode ? View.VISIBLE : View.GONE);
+				check.setChecked(selected);
+				menuButton.setVisibility(mSelectionMode ? View.GONE : View.VISIBLE);
+
+				itemView.setOnClickListener(v -> setCurrentList(item.name));
+				itemView.setOnLongClickListener(v -> {
+					enterSelectionMode(item.name);
+					return true;
+				});
+
+				menuButton.setOnClickListener(v -> {
+					final android.widget.PopupMenu popupMenu = new android.widget.PopupMenu(FavoriteListsActivity.this, v);
+					popupMenu.getMenu().add(0, MENU_LIST_RENAME, 1, R.string.popup_station_rename);
+					if (!FavoriteController.DEFAULT_NAME.equals(item.name)) {
+						popupMenu.getMenu().add(0, MENU_LIST_REMOVE, 2, R.string.popup_station_remove);
+					}
+					popupMenu.getMenu().add(0, MENU_LIST_EXPORT, 3, R.string.menu_favorite_list_export);
+					popupMenu.setOnMenuItemClickListener(menuItem -> {
+						final int itemId = menuItem.getItemId();
+						if (itemId == MENU_LIST_RENAME) {
+							renameDialog(item.name);
+						} else if (itemId == MENU_LIST_REMOVE) {
+							removeDialog(item.name);
+						} else if (itemId == MENU_LIST_EXPORT) {
+							openExportFavoritePicker(item.name);
+						}
+						return true;
+					});
+					popupMenu.show();
+				});
+			}
+		}
+	}
 }

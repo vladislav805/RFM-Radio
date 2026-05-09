@@ -65,6 +65,26 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		return Arrays.asList(files);
 	}
 
+	public int getStationsCountInList(final String name) {
+		final File file = new File(getFavoritesDirectory(), name + JSON_EXT);
+		if (!file.exists()) {
+			return 0;
+		}
+
+		try (final FileInputStream input = new FileInputStream(file); final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			final byte[] buffer = new byte[8192];
+			int read;
+			while ((read = input.read(buffer)) != -1) {
+				output.write(buffer, 0, read);
+			}
+
+			final JSONObject object = new JSONObject(output.toString());
+			return object.getJSONArray(KEY_JSON_ITEMS).length();
+		} catch (IOException | JSONException e) {
+			return 0;
+		}
+	}
+
 	/**
 	 * Returns name of file of current favorite list
 	 * @return filename without extension
@@ -201,9 +221,28 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		}
 	}
 
+	public void exportList(final String listName, final OutputStream outputStream) throws IOException {
+		final File file = new File(getFavoritesDirectory(), listName + JSON_EXT);
+		if (!file.exists()) {
+			throw new FileNotFoundException("List not found: " + listName);
+		}
+
+		try (final FileInputStream inputStream = new FileInputStream(file); final OutputStream output = outputStream) {
+			final byte[] buffer = new byte[8192];
+			int read;
+			while ((read = inputStream.read(buffer)) != -1) {
+				output.write(buffer, 0, read);
+			}
+		}
+	}
+
 	public void exportAllLists(final OutputStream outputStream) throws IOException {
+		exportLists(outputStream, getFavoriteLists());
+	}
+
+	public void exportLists(final OutputStream outputStream, final List<String> listNames) throws IOException {
 		try (final ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
-			for (final String listName : getFavoriteLists()) {
+			for (final String listName : listNames) {
 				final File file = new File(getFavoritesDirectory(), listName + JSON_EXT);
 				if (!file.exists()) {
 					continue;
@@ -233,7 +272,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			return false;
 		}
 
-		final String path = getFullPath();
+		final File file = new File(getFavoritesDirectory(), name + JSON_EXT);
 		if (getCurrentFavoriteList().equals(name)) {
 			try {
 				setCurrentFavoriteList(DEFAULT_NAME);
@@ -242,7 +281,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			}
 		}
 
-		return new File(path).delete();
+		return file.delete();
 	}
 
 	/**

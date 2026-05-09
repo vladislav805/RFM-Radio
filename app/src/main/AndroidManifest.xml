@@ -29,8 +29,8 @@
 		<activity
 				android:name=".activity.SettingsActivity"
 				android:label="@string/pref_activity_title"/>
-		<activity
-				android:name=".activity.FavoritesListsActivity"/>
+			<activity
+				android:name=".activity.FavoriteListsActivity"/>
 		<activity
 				android:name=".activity.AboutActivity"/>
 		<activity

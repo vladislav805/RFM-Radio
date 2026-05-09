@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_marginStart="16dp"
+	android:layout_marginTop="8dp"
+	android:layout_marginEnd="16dp"
+	android:layout_marginBottom="8dp"
+	app:cardBackgroundColor="@color/main_background"
+	app:cardCornerRadius="12dp"
+	app:cardElevation="1dp"
+	app:cardUseCompatPadding="false">
+
+	<androidx.constraintlayout.widget.ConstraintLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:minHeight="64dp"
+		android:paddingStart="16dp"
+		android:paddingTop="10dp"
+		android:paddingEnd="8dp"
+		android:paddingBottom="10dp">
+
+		<TextView
+			android:id="@+id/favorite_list_item_name"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:ellipsize="end"
+			android:maxLines="1"
+			android:textColor="@color/text_primary"
+			android:textSize="16sp"
+			android:textStyle="bold"
+			app:layout_constraintEnd_toStartOf="@+id/favorite_list_item_check"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent" />
+
+		<TextView
+			android:id="@+id/favorite_list_item_count"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="4dp"
+			android:ellipsize="end"
+			android:maxLines="1"
+			android:textColor="@color/text_secondary"
+			android:textSize="13sp"
+			app:layout_constraintEnd_toStartOf="@+id/favorite_list_item_check"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/favorite_list_item_name" />
+
+		<CheckBox
+			android:id="@+id/favorite_list_item_check"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:clickable="false"
+			android:focusable="false"
+			android:visibility="gone"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			tools:visibility="visible" />
+
+		<ImageButton
+			android:id="@+id/favorite_list_item_menu"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?android:attr/selectableItemBackgroundBorderless"
+			android:contentDescription="@string/menu_open_list_favorites"
+			android:src="@drawable/ic_more_vert"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			app:tint="@color/text_secondary" />
+	</androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.cardview.widget.CardView>

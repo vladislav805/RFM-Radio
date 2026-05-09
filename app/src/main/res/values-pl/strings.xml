@@ -19,7 +19,6 @@
 	<string name="favorites_done">Gotowe</string>
 	<string name="stereo_indicator">Wskaźnik stereo lub mono</string>
 	<string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność stacji</string>
-	<string name="station_in_favorites">Stacja jest w ulubionych</string>
 	<string name="progress_installing">Instalowanie pliku binarnego…</string>
 	<string name="progress_launching">Startowanie…</string>
 	<string name="progress_starting">Włączanie tunera…</string>
@@ -47,10 +46,16 @@
 	<string name="menu_favorite_list_rename">Zmień nazwę listy</string>
 	<string name="menu_favorite_list_import">Importuj listę</string>
 	<string name="menu_favorite_list_export">Eksportuj listę</string>
+	<string name="menu_favorite_list_export_selected">Eksportuj wybrane listy</string>
+	<string name="menu_favorite_list_remove_selected">Usuń wybrane listy</string>
+	<string name="favorite_lists_remove_selected_confirm">Usunąć wybrane listy (%d)?</string>
+	<string name="favorite_lists_stations_count">Stacji: %d</string>
+	<string name="favorite_lists_selected_count">Wybrano: %d</string>
 	<string name="popup_favorite_list_create">Stwórz ulubioną listę</string>
 	<string name="popup_favorite_list_rename">Zmień nazwę ulubionej listy</string>
 	<string name="favorite_list_create_error_already_exists">Lista z taką nazwą już istnieje</string>
 	<string name="favorite_list_create_error_invalid_name">Nieprawidłowa nazwa. Tylko A–Z, a–z, \'–\', \'_\' i 0–9 mogą być użyte.</string>
+	<string name="favorite_list_rename_default_error">Nie można zmienić nazwy listy domyślnej.</string>
 	<string name="favorite_list_import_success">Zaimportowano listę \"%s\"</string>
 	<string name="favorite_list_import_success_many">Zaimportowano list: %d</string>
 	<string name="favorite_list_import_error">Nie udało się zaimportować listy ulubionych</string>

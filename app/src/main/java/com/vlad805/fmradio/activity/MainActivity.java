@@ -280,7 +280,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mRadioController.hwSeek(Direction.UP);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
         } else if (id == R.id.favorite_button) {
-            startActivityForResult(new Intent(this, FavoritesListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
+            startActivityForResult(new Intent(this, FavoriteListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
         }
     }
 
