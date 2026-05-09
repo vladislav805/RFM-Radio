@@ -61,6 +61,7 @@ final public class C {
 		public static final String KILL = "kill";
 		public static final String REQUEST_CURRENT_STATE = "ui_started";
 		public static final String SPEAKER_STATE = "speaker_state";
+		public static final String SET_AUDIO_ROUTE = "set_audio_route";
     }
 
 	public static final class Key {
@@ -84,6 +85,7 @@ final public class C {
 		public static final String FREQUENCIES = "frequencies";
 		public static final String STATE = "state";
 		public static final String IS_SPEAKER = "is_speaker";
+		public static final String AUDIO_ROUTE = "audio_route";
     }
 
 	public static final class PrefKey {
@@ -110,6 +112,7 @@ final public class C {
 		// public static final String RECORDING_SAVE_PAST = "recording_save_past";
 
 		public static final String BINARY_VERSION_NATIVE = "bin_version_native";
+		public static final String AUDIO_OUTPUT_ROUTE = "audio_output_route";
     }
 
 	public static final class PrefDefaultValue {
@@ -127,6 +130,7 @@ final public class C {
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_FORMAT = 0;
+		public static final String AUDIO_OUTPUT_ROUTE = "wired";
 		// public static final boolean RECORDING_SAVE_PAST = false;
         public static final boolean RDS_AUTO_AF = false;
     }

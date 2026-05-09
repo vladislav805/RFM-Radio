@@ -151,7 +151,10 @@
 		stacji radiowej, tuner automatycznie przełączy się na częstotliwość o najlepszej jakości.
 	</string>
 	<string name="pref_tuner_rds_auto_af_disabled">Jeśli sygnał się pogorszy, nic się nie stanie, dane o alternatywnych częstotliwościach ze stacji radiowej zostaną zignorowane.</string>
-	<string name="menu_speaker">Graj przez głośnik</string>
+	<string name="menu_output_route">Wyjście audio</string>
+	<string name="menu_output_speaker">Głośnik</string>
+	<string name="menu_output_wired">Słuchawki przewodowe</string>
+	<string name="menu_output_bluetooth">Słuchawki Bluetooth</string>
 	<string name="favorite_list_search_error_tuner_not_enabled">Nie można wyszukiwać, gdy tuner jest wyłączony.</string>
 	<string name="unsupported_device_title">Urządzenie nie jest obsługiwane</string>
 	<string name="unsupported_device_message">RFM Radio nie znalazło obsługiwanego backendu FM na tym urządzeniu. Tryb legacy wymaga /dev/radio0, a tryb HAL wymaga fm_helium.so.</string>

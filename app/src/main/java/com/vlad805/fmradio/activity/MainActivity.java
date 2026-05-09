@@ -6,6 +6,8 @@ import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.Intent;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Build;
@@ -31,6 +33,7 @@ import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
+import com.vlad805.fmradio.enums.AudioOutputRoute;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
@@ -75,10 +78,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
     private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
     private static final int REQUEST_CODE_PLAYBACK_PERMISSION = 1052;
+    private static final int REQUEST_CODE_BLUETOOTH_OUTPUT_PERMISSION = 1053;
     private boolean mPendingRecordStart = false;
     private boolean mRecordPermissionsRequested = false;
     private boolean mPendingPlaybackStart = false;
     private boolean mPlaybackPermissionRequested = false;
+    private AudioOutputRoute mPendingOutputRoute;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -218,6 +223,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mPendingPlaybackStart = false;
         }
 
+        if (requestCode == REQUEST_CODE_BLUETOOTH_OUTPUT_PERMISSION) {
+            final boolean granted = hasPlaybackPermission();
+            if (granted && mPendingOutputRoute != null) {
+                selectOutputRoute(mPendingOutputRoute);
+            } else if (mPendingOutputRoute != null) {
+                mToast.text(getString(R.string.playback_permission_required)).show();
+            }
+            mPendingOutputRoute = null;
+        }
+
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
@@ -329,8 +344,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
             }
-        } else if (itemId == R.id.menu_speaker) {
-            startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
+        } else if (itemId == R.id.menu_output_speaker) {
+            selectOutputRoute(AudioOutputRoute.SPEAKER);
+        } else if (itemId == R.id.menu_output_wired) {
+            selectOutputRoute(AudioOutputRoute.WIRED);
+        } else if (itemId == R.id.menu_output_bluetooth) {
+            if (ensureBluetoothOutputPermission()) {
+                selectOutputRoute(AudioOutputRoute.BLUETOOTH);
+            }
         }
 
         return super.onOptionsItemSelected(item);
@@ -521,11 +542,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_SPEAKER) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
-            final boolean isSpeaker = state.isForceSpeaker();
-
-            if (mMenu != null) {
-                mMenu.findItem(R.id.menu_speaker).setChecked(isSpeaker);
-            }
+            updateMenuState();
         }
     }
 
@@ -625,10 +642,98 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         final boolean state = TunerStatus.ENABLED.equals(mLastState.getStatus());
+        final boolean wiredAvailable = isWiredOutputAvailable();
+        final boolean bluetoothAvailable = isBluetoothOutputAvailable();
 
         mMenu.findItem(R.id.menu_record).setEnabled(state);
-        mMenu.findItem(R.id.menu_speaker).setEnabled(state);
-        mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
+        mMenu.findItem(R.id.menu_output_route).setEnabled(state);
+        mMenu.findItem(R.id.menu_output_speaker).setEnabled(state);
+        mMenu.findItem(R.id.menu_output_wired).setEnabled(state && wiredAvailable);
+        mMenu.findItem(R.id.menu_output_bluetooth).setEnabled(state && bluetoothAvailable);
+        updateOutputRouteMenu(mLastState.getOutputRoute());
+    }
+
+    private void selectOutputRoute(final AudioOutputRoute route) {
+        startService(
+                new Intent(this, FMService.class)
+                        .setAction(C.Command.SET_AUDIO_ROUTE)
+                        .putExtra(C.Key.AUDIO_ROUTE, route.getValue())
+        );
+    }
+
+    private boolean ensureBluetoothOutputPermission() {
+        if (hasPlaybackPermission()) {
+            return true;
+        }
+
+        if (shouldOpenPlaybackPermissionSettings()) {
+            showPlaybackPermissionSettingsDialog();
+        } else {
+            mPendingOutputRoute = AudioOutputRoute.BLUETOOTH;
+            mPlaybackPermissionRequested = true;
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[] { Manifest.permission.RECORD_AUDIO },
+                    REQUEST_CODE_BLUETOOTH_OUTPUT_PERMISSION
+            );
+        }
+
+        return false;
+    }
+
+    private void updateOutputRouteMenu(final AudioOutputRoute route) {
+        if (mMenu == null) {
+            return;
+        }
+
+        final AudioOutputRoute safeRoute = route == null ? AudioOutputRoute.WIRED : route;
+        mMenu.findItem(R.id.menu_output_speaker).setChecked(safeRoute == AudioOutputRoute.SPEAKER);
+        mMenu.findItem(R.id.menu_output_wired).setChecked(safeRoute == AudioOutputRoute.WIRED);
+        mMenu.findItem(R.id.menu_output_bluetooth).setChecked(safeRoute == AudioOutputRoute.BLUETOOTH);
+    }
+
+    private boolean isWiredOutputAvailable() {
+        final AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audioManager == null) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        for (final AudioDeviceInfo device : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+            final int type = device.getType();
+            if (type == AudioDeviceInfo.TYPE_WIRED_HEADSET || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isBluetoothOutputAvailable() {
+        final AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audioManager == null) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return audioManager.isBluetoothA2dpOn() || audioManager.isBluetoothScoOn();
+        }
+
+        for (final AudioDeviceInfo device : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+            final int type = device.getType();
+            if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                    || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                    || type == AudioDeviceInfo.TYPE_HEARING_AID
+                    || type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                    || type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                    || type == AudioDeviceInfo.TYPE_BLE_BROADCAST) {
+                return true;
+            }
+        }
+
+        return audioManager.isBluetoothA2dpOn() || audioManager.isBluetoothScoOn();
     }
 
 }

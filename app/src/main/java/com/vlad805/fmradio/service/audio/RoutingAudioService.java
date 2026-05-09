@@ -11,6 +11,7 @@ import android.media.AudioFormat;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
@@ -21,6 +22,7 @@ import android.util.Log;
 import androidx.annotation.RequiresPermission;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.enums.AudioOutputRoute;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
@@ -41,13 +43,19 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private static final int DEVICE_OUT_FM = resolveAudioSystemDevice("DEVICE_OUT_FM", 0);
 	private static final int DEVICE_OUT_SPEAKER = resolveAudioSystemDevice("DEVICE_OUT_SPEAKER", 0x2);
 	private static final int DEVICE_OUT_WIRED_HEADSET = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADSET", 0x4);
+	private static final int DEVICE_OUT_WIRED_HEADPHONE = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADPHONE", 0x8);
+	private static final int DEVICE_OUT_BLUETOOTH_A2DP = resolveAudioSystemDevice("DEVICE_OUT_BLUETOOTH_A2DP", 0x80);
+	private static final int DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES = resolveAudioSystemDevice("DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES", 0x100);
+	private static final int DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER = resolveAudioSystemDevice("DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER", 0x200);
 
     private final Context mContext;
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
-	private boolean mSpeakerEnabled = false;
+	private AudioOutputRoute mRequestedRoute = AudioOutputRoute.WIRED;
+	private AudioOutputRoute mAppliedRoute = AudioOutputRoute.WIRED;
 	private AudioRecord mRecordingAudioRecord;
 	private Thread mRecordingThread;
+	private final PcmBridge mBluetoothBridge = new PcmBridge("FmBtBridge");
 	private IFMRecorder mPcmRecorder;
 	private long mRecordingStartedMs;
 	private final Handler mRecordingHandler = new Handler(Looper.getMainLooper());
@@ -90,7 +98,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	public void startAudio() {
 		if (mIsActive) {
 			Log.d(TAG, "startAudio: already active, refreshing route");
-			applyRoute(true, mSpeakerEnabled, true);
+			applyRoute(true, mRequestedRoute, true);
 			return;
 		}
 
@@ -98,7 +106,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		requestForFocus(true);
 		registerVolumeListener();
 		mIsActive = true;
-		applyRoute(true, mSpeakerEnabled, true);
+		applyRoute(true, mRequestedRoute, true);
 	}
 
 	@Override
@@ -109,39 +117,66 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		}
 
 		stopRecord();
+		stopBluetoothBridge();
 		Log.d(TAG, "stopAudio: disabling FM route");
-		applyRoute(false, mSpeakerEnabled, false);
+		applyRoute(false, mAppliedRoute, false);
 		mIsActive = false;
 		unregisterVolumeListener();
 		requestForFocus(false);
 	}
 
 	@Override
-	public void setSpeakerEnabled(final boolean enabled) {
-		Log.d(TAG, "setSpeakerEnabled: enabled=" + enabled + " active=" + mIsActive);
-		mSpeakerEnabled = enabled;
+	public AudioOutputRoute setOutputRoute(final AudioOutputRoute route) {
+		final AudioOutputRoute requestedRoute = route == null ? AudioOutputRoute.WIRED : route;
+		Log.d(TAG, "setOutputRoute: requested=" + requestedRoute + " active=" + mIsActive);
+		mRequestedRoute = requestedRoute;
 		if (mIsActive) {
-			applyRoute(true, enabled, false);
+			try {
+				applyRoute(true, requestedRoute, false);
+			} catch (Throwable t) {
+				Log.e(TAG, "setOutputRoute failed, fallback to speaker", t);
+				mAppliedRoute = AudioOutputRoute.SPEAKER;
+			}
+			return mAppliedRoute;
 		}
+		mAppliedRoute = resolveAvailableRoute(requestedRoute);
+		return mAppliedRoute;
+	}
+
+	@Override
+	public AudioOutputRoute getOutputRoute() {
+		return mAppliedRoute;
 	}
 
 	private int getCurrentVolumeDeviceType() {
-		return mSpeakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
+		return getVolumeDeviceType(mAppliedRoute);
 	}
 
-	private void applyRoute(final boolean enable, final boolean speakerEnabled, final boolean updateVolume) {
+	private void applyRoute(final boolean enable, final AudioOutputRoute requestedRoute, final boolean updateVolume) {
 		if (mAudioManager == null) {
 			Log.e(TAG, "applyRoute: AudioManager is null");
 			return;
 		}
 
-		final int routeDevice = speakerEnabled ? DEVICE_OUT_SPEAKER : DEVICE_OUT_WIRED_HEADSET;
-		final int volumeDeviceType = speakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
+		mAppliedRoute = resolveAvailableRoute(requestedRoute);
+		final boolean useBluetoothBridge = enable && mAppliedRoute == AudioOutputRoute.BLUETOOTH;
+		if (useBluetoothBridge) {
+			if (!startBluetoothBridge()) {
+				Log.w(TAG, "applyRoute: Bluetooth bridge is unavailable, fallback to wired/speaker");
+				mAppliedRoute = hasWiredOutput() ? AudioOutputRoute.WIRED : AudioOutputRoute.SPEAKER;
+			}
+		} else {
+			stopBluetoothBridge();
+		}
+
+		final int routeDevice = getRouteDeviceMask(mAppliedRoute);
+		final int volumeDeviceType = getVolumeDeviceType(mAppliedRoute);
 		final int route = enable ? (routeDevice | DEVICE_OUT_FM) : routeDevice;
-		Log.d(TAG, "applyRoute: enable=" + enable + " speaker=" + speakerEnabled + " routeDevice=" + routeDevice + " deviceOutFm=" + DEVICE_OUT_FM + " route=" + route);
-		applyFrameworkRoute(speakerEnabled);
+		Log.d(TAG, "applyRoute: enable=" + enable + " requested=" + requestedRoute + " applied=" + mAppliedRoute + " routeDevice=" + routeDevice + " deviceOutFm=" + DEVICE_OUT_FM + " route=" + route);
+		applyFrameworkRoute(mAppliedRoute);
 
 		if (enable) {
+			sendAudioParameter("fm_mute", mAppliedRoute == AudioOutputRoute.BLUETOOTH ? 1 : 0);
 			final String fmStatus = mAudioManager.getParameters("fm_status");
 			Log.d(TAG, "applyRoute: fm_status=" + fmStatus);
 			if (fmStatus != null && fmStatus.contains("1")) {
@@ -153,20 +188,110 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			if (updateVolume) {
 				applyVolume(volumeDeviceType);
 			}
-			sendAudioParameter("fm_mute", 0);
 			sendAudioParameter("fm_routing", route);
 			sendAudioParameter("handle_fm", route);
 			return;
 		}
 
+		stopBluetoothBridge();
+		sendAudioParameter("fm_mute", 0);
 		sendAudioParameter("fm_routing", route);
 		sendAudioParameter("handle_fm", route);
 	}
 
-	private void applyFrameworkRoute(final boolean speakerEnabled) {
+	private boolean startBluetoothBridge() {
+		if (mBluetoothBridge.isActive()) {
+			return true;
+		}
+
+		if (mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+			Log.w(TAG, "startBluetoothBridge: RECORD_AUDIO permission is missing");
+			return false;
+		}
+
+		final AudioDeviceInfo fmTuner = findFmTunerInputDevice();
+		if (fmTuner == null) {
+			Log.w(TAG, "startBluetoothBridge: FM tuner input device not found");
+			return false;
+		}
+
+		final int sampleRate = 48000;
+		final int minRecordBuffer = AudioRecord.getMinBufferSize(
+				sampleRate,
+				AudioFormat.CHANNEL_IN_STEREO,
+				AudioFormat.ENCODING_PCM_16BIT
+		);
+		final int minTrackBuffer = AudioTrack.getMinBufferSize(
+				sampleRate,
+				AudioFormat.CHANNEL_OUT_STEREO,
+				AudioFormat.ENCODING_PCM_16BIT
+		);
+		if (minRecordBuffer <= 0 || minTrackBuffer <= 0) {
+			Log.w(TAG, "startBluetoothBridge: invalid buffer sizes rec=" + minRecordBuffer + " track=" + minTrackBuffer);
+			return false;
+		}
+
+		final int bridgeBuffer = Math.max(minRecordBuffer, minTrackBuffer);
+		final AudioFormat inputFormat = new AudioFormat.Builder()
+				.setSampleRate(sampleRate)
+				.setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+				.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
+				.build();
+
+		final AudioFormat outputFormat = new AudioFormat.Builder()
+				.setSampleRate(sampleRate)
+				.setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+				.setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+				.build();
+
+		final AudioRecord bridgeRecord;
+		final AudioTrack bridgeTrack;
+		try {
+			bridgeRecord = new AudioRecord.Builder()
+					.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+					.setAudioFormat(inputFormat)
+					.setBufferSizeInBytes(bridgeBuffer * 2)
+					.build();
+
+			bridgeTrack = new AudioTrack.Builder()
+					.setAudioFormat(outputFormat)
+					.setBufferSizeInBytes(bridgeBuffer * 2)
+					.setTransferMode(AudioTrack.MODE_STREAM)
+					.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+					.build();
+		} catch (Throwable t) {
+			Log.e(TAG, "startBluetoothBridge: cannot create bridge", t);
+			return false;
+		}
+
+		if (bridgeRecord.getState() != AudioRecord.STATE_INITIALIZED || bridgeTrack.getState() != AudioTrack.STATE_INITIALIZED) {
+			Log.w(TAG, "startBluetoothBridge: init failed rec=" + bridgeRecord.getState() + " track=" + bridgeTrack.getState());
+			bridgeRecord.release();
+			bridgeTrack.release();
+			return false;
+		}
+
+		if (!bridgeRecord.setPreferredDevice(fmTuner)) {
+			Log.w(TAG, "startBluetoothBridge: setPreferredDevice(FM tuner) returned false");
+		}
+
+		final boolean started = mBluetoothBridge.start(bridgeRecord, bridgeTrack, bridgeBuffer / 2, null);
+		if (started) {
+			Log.d(TAG, "startBluetoothBridge: started");
+			return true;
+		}
+		return false;
+	}
+
+	private void stopBluetoothBridge() {
+		mBluetoothBridge.stop();
+	}
+
+
+	private void applyFrameworkRoute(final AudioOutputRoute route) {
 		try {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-				if (speakerEnabled) {
+				if (route == AudioOutputRoute.SPEAKER) {
 					for (final AudioDeviceInfo device : mAudioManager.getAvailableCommunicationDevices()) {
 						if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
 							mAudioManager.setCommunicationDevice(device);
@@ -177,10 +302,90 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 					mAudioManager.clearCommunicationDevice();
 				}
 			}
-			mAudioManager.setSpeakerphoneOn(speakerEnabled);
+			mAudioManager.setSpeakerphoneOn(route == AudioOutputRoute.SPEAKER);
 		} catch (Throwable t) {
-			Log.w(TAG, "applyFrameworkRoute failed for speaker=" + speakerEnabled, t);
+			Log.w(TAG, "applyFrameworkRoute failed for route=" + route, t);
 		}
+	}
+
+	private AudioOutputRoute resolveAvailableRoute(final AudioOutputRoute requestedRoute) {
+		if (requestedRoute == AudioOutputRoute.BLUETOOTH) {
+			if (hasBluetoothOutput()) {
+				return AudioOutputRoute.BLUETOOTH;
+			}
+			return hasWiredOutput() ? AudioOutputRoute.WIRED : AudioOutputRoute.SPEAKER;
+		}
+
+		if (requestedRoute == AudioOutputRoute.WIRED) {
+			return hasWiredOutput() ? AudioOutputRoute.WIRED : AudioOutputRoute.SPEAKER;
+		}
+
+		return AudioOutputRoute.SPEAKER;
+	}
+
+	private int getRouteDeviceMask(final AudioOutputRoute route) {
+		if (route == AudioOutputRoute.SPEAKER) {
+			return DEVICE_OUT_SPEAKER;
+		}
+
+		if (route == AudioOutputRoute.BLUETOOTH) {
+			if (DEVICE_OUT_BLUETOOTH_A2DP != 0) {
+				return DEVICE_OUT_BLUETOOTH_A2DP;
+			}
+			if (DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES != 0) {
+				return DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES;
+			}
+			if (DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER != 0) {
+				return DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER;
+			}
+		}
+
+		if (DEVICE_OUT_WIRED_HEADSET != 0) {
+			return DEVICE_OUT_WIRED_HEADSET;
+		}
+		if (DEVICE_OUT_WIRED_HEADPHONE != 0) {
+			return DEVICE_OUT_WIRED_HEADPHONE;
+		}
+
+		return DEVICE_OUT_SPEAKER;
+	}
+
+	private int getVolumeDeviceType(final AudioOutputRoute route) {
+		if (route == AudioOutputRoute.SPEAKER) {
+			return AudioDeviceInfo.TYPE_BUILTIN_SPEAKER;
+		}
+
+		if (route == AudioOutputRoute.BLUETOOTH) {
+			return AudioDeviceInfo.TYPE_BLUETOOTH_A2DP;
+		}
+
+		return AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
+	}
+
+	private boolean hasWiredOutput() {
+		for (final AudioDeviceInfo device : mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+			final int type = device.getType();
+			if (type == AudioDeviceInfo.TYPE_WIRED_HEADSET || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean hasBluetoothOutput() {
+		for (final AudioDeviceInfo device : mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+			if (isBluetoothOutput(device.getType())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isBluetoothOutput(final int type) {
+		return type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+				|| type == AudioDeviceInfo.TYPE_BLE_HEADSET
+				|| type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+				|| type == AudioDeviceInfo.TYPE_BLE_BROADCAST;
 	}
 
 	private void applyVolume(final int device) {

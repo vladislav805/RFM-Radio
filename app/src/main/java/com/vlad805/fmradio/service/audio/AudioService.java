@@ -4,6 +4,10 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
+import android.util.Log;
+
+import com.vlad805.fmradio.enums.AudioOutputRoute;
 import static com.vlad805.fmradio.Utils.sleep;
 
 /**
@@ -13,6 +17,7 @@ import static com.vlad805.fmradio.Utils.sleep;
  * vlad805 (c) 2019
  */
 public abstract class AudioService {
+	private static final String TAG = "AudioService";
 	protected final AudioManager mAudioManager;
 
 	protected int mSampleRate = 44100; // Default = 8000 (Max with AMR)
@@ -36,8 +41,12 @@ public abstract class AudioService {
 	/**
 	 * Update FM output route when user toggles speaker mode.
 	 */
-	public void setSpeakerEnabled(final boolean enabled) {
-		// Default implementation is for AudioRecord-based services and does nothing.
+	public AudioOutputRoute setOutputRoute(final AudioOutputRoute route) {
+		return route == null ? AudioOutputRoute.WIRED : route;
+	}
+
+	public AudioOutputRoute getOutputRoute() {
+		return AudioOutputRoute.WIRED;
 	}
 
 	/**
@@ -81,6 +90,101 @@ public abstract class AudioService {
 			mAudioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
 		} else { // If focus return...
 			mAudioManager.abandonAudioFocus(null);
+		}
+	}
+
+	protected interface PcmDataConsumer {
+		void onPcmData(short[] buffer, int length);
+	}
+
+	protected static final class PcmBridge {
+		private final String mThreadName;
+		private volatile boolean mActive;
+		private AudioRecord mInput;
+		private AudioTrack mOutput;
+		private Thread mThread;
+
+		PcmBridge(final String threadName) {
+			mThreadName = threadName;
+		}
+
+		boolean isActive() {
+			return mActive;
+		}
+
+		boolean start(final AudioRecord input, final AudioTrack output, final int bufferShorts, final PcmDataConsumer consumer) {
+			if (mActive) {
+				return true;
+			}
+
+			if (input == null || output == null || bufferShorts <= 0) {
+				return false;
+			}
+
+			try {
+				input.startRecording();
+				output.play();
+			} catch (Throwable t) {
+				Log.e(TAG, "PcmBridge.start failed", t);
+				safeRelease(input, output);
+				return false;
+			}
+
+			mInput = input;
+			mOutput = output;
+			mActive = true;
+			mThread = new Thread(() -> {
+				final short[] buffer = new short[bufferShorts];
+				while (mActive && mInput == input && !Thread.currentThread().isInterrupted()) {
+					final int read = input.read(buffer, 0, buffer.length);
+					if (read <= 0) {
+						continue;
+					}
+
+					output.write(buffer, 0, read);
+					if (consumer != null) {
+						consumer.onPcmData(buffer, read);
+					}
+				}
+			}, mThreadName);
+			mThread.start();
+			return true;
+		}
+
+		void stop() {
+			mActive = false;
+			if (mThread != null) {
+				mThread.interrupt();
+				mThread = null;
+			}
+
+			final AudioRecord input = mInput;
+			final AudioTrack output = mOutput;
+			mInput = null;
+			mOutput = null;
+			safeRelease(input, output);
+		}
+
+		private static void safeRelease(final AudioRecord input, final AudioTrack output) {
+			if (input != null) {
+				try {
+					input.stop();
+				} catch (Throwable ignored) {
+				}
+				try {
+					input.release();
+				} catch (Throwable ignored) {
+				}
+			}
+
+			if (output != null) {
+				try {
+					output.pause();
+					output.flush();
+					output.release();
+				} catch (Throwable ignored) {
+				}
+			}
 		}
 	}
 }

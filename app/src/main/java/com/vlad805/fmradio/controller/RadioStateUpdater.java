@@ -4,7 +4,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.enums.AudioOutputRoute;
 
 /**
  * Broadcast receiver, which, according to updates received from the tuner, changes
@@ -166,8 +168,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
             }
 
             case C.Event.CHANGE_SPEAKER_MODE: {
-                final boolean isSpeaker = intent.getBooleanExtra(C.Key.IS_SPEAKER, false);
-                mState.setForceSpeaker(isSpeaker);
+                final AudioOutputRoute route = AudioOutputRoute.fromValue(intent.getStringExtra(C.Key.AUDIO_ROUTE));
+                mState.setOutputRoute(route);
                 mode = SET_SPEAKER;
                 break;
             }

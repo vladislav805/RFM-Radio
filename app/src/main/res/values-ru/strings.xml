@@ -151,7 +151,10 @@
 	<string name="pref_tuner_rds_auto_afenabled">Когда сигнал ослабевает и радиостанция предоставляет альтернативные частоты, тюнер автоматически переключится на частоту с лучшим качеством приёма.</string>
 	<string name="pref_tuner_rds_auto_af_disabled">Если сигнал ослабевает, то ничего не произойдет. Данные RDS AF будут проигнорированы.
 	</string>
-	<string name="menu_speaker">Выводить звук через динамик</string>
+	<string name="menu_output_route">Аудиовыход</string>
+	<string name="menu_output_speaker">Динамик</string>
+	<string name="menu_output_wired">Проводные наушники</string>
+	<string name="menu_output_bluetooth">Bluetooth-наушники</string>
 	<string name="unsupported_device_title">Устройство не поддерживается</string>
 	<string name="unsupported_device_message">RFM Radio не нашло поддерживаемый FM backend на этом устройстве. Для legacy-режима нужен /dev/radio0, для HAL-режима нужен fm_helium.so.</string>
 </resources>

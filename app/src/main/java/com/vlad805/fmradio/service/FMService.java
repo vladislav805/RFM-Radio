@@ -5,9 +5,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.bluetooth.BluetoothA2dp;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -24,7 +27,9 @@ import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.RadioStateUpdater;
+import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.TunerDriver;
+import com.vlad805.fmradio.enums.AudioOutputRoute;
 import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -74,6 +79,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private BroadcastReceiver mEventReaction;
     private BroadcastReceiver mTunerStateUpdater;
+    private BroadcastReceiver mAudioDeviceReceiver;
 
     private AppPreferences mStorage;
     private Timer mTimer;
@@ -148,10 +154,15 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         // Services
         mTunerDriver = getTunerDriver();
         mAudioService = getAudioService();
+        final AudioOutputRoute savedRoute = AudioOutputRoute.fromValue(
+                mStorage.getString(C.PrefKey.AUDIO_OUTPUT_ROUTE, C.PrefDefaultValue.AUDIO_OUTPUT_ROUTE)
+        );
+        mAudioService.setOutputRoute(savedRoute);
 
         // Broadcast receivers
         mEventReaction = new EventReaction();
         mTunerStateUpdater = new RadioStateUpdater(mState);
+        mAudioDeviceReceiver = new AudioDeviceReceiver();
 
         if (mTunerDriver instanceof IFMEventListener) {
             ((IFMEventListener) mTunerDriver).setEventListener(this);
@@ -161,6 +172,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
         registerReceiver(mEventReaction, RadioStateUpdater.sFilter);
+        registerAudioDeviceReceiver();
     }
 
     /**
@@ -192,9 +204,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner start and unmute command.
             // When completed, will fire event ENABLED.
             case C.Command.ENABLE: {
-                if (isHalDriver()) {
-                    mAudioService.startAudio();
-                }
                 mTunerDriver.enable();
                 if (mTunerDriver instanceof IFMEventPoller) {
                     mTimer = new Timer("Poll", true);
@@ -322,16 +331,32 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
-                final boolean isSpeaker = isHalDriver()
-                        ? mState.isForceSpeaker()
-                        : Audio.isForceSpeakerNow();
-                mAudioService.setSpeakerEnabled(!isSpeaker);
-                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
+                final AudioOutputRoute currentRoute = mState.getOutputRoute();
+                final AudioOutputRoute toggledRoute = currentRoute == AudioOutputRoute.SPEAKER
+                        ? AudioOutputRoute.WIRED
+                        : AudioOutputRoute.SPEAKER;
+                final AudioOutputRoute appliedRoute = mAudioService.setOutputRoute(toggledRoute);
+                mStorage.put(C.PrefKey.AUDIO_OUTPUT_ROUTE, toggledRoute.getValue());
+                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.AUDIO_ROUTE, appliedRoute.getValue()));
                 if (mTunerDriver instanceof QualcommNative) {
                     ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
                 if (!isHalDriver()) {
-                    Audio.toggleThroughSpeaker(!isSpeaker);
+                    Audio.toggleThroughSpeaker(appliedRoute == AudioOutputRoute.SPEAKER);
+                }
+                break;
+            }
+
+            case C.Command.SET_AUDIO_ROUTE: {
+                final AudioOutputRoute requestedRoute = AudioOutputRoute.fromValue(intent.getStringExtra(C.Key.AUDIO_ROUTE));
+                final AudioOutputRoute appliedRoute = mAudioService.setOutputRoute(requestedRoute);
+                mStorage.put(C.PrefKey.AUDIO_OUTPUT_ROUTE, requestedRoute.getValue());
+                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.AUDIO_ROUTE, appliedRoute.getValue()));
+                if (!isHalDriver()) {
+                    Audio.toggleThroughSpeaker(appliedRoute == AudioOutputRoute.SPEAKER);
+                }
+                if (mTunerDriver instanceof QualcommNative) {
+                    ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
                 break;
             }
@@ -367,6 +392,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         if (mTunerStateUpdater != null) {
             unregisterReceiver(mTunerStateUpdater);
             mTunerStateUpdater = null;
+        }
+
+        if (mAudioDeviceReceiver != null) {
+            unregisterReceiver(mAudioDeviceReceiver);
+            mAudioDeviceReceiver = null;
         }
 
         mStorage.unregisterOnTrayPreferenceChangeListener(this);
@@ -526,9 +556,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.ENABLED: {
-                    if (!isHalDriver()) {
-                        mAudioService.startAudio();
+                    mAudioService.startAudio();
+                    if (mTunerDriver instanceof QualcommNative) {
+                        ((QualcommNative) mTunerDriver).refreshAudioRoute();
                     }
+                    sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE)
+                            .putExtra(C.Key.AUDIO_ROUTE, mAudioService.getOutputRoute().getValue()));
                     final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
                     mRadioController.setFrequency(frequency);
                     updateNotification();
@@ -536,9 +569,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.DISABLED: {
-                    if (!isHalDriver()) {
-                        mAudioService.stopAudio();
-                    }
+                    mAudioService.stopAudio();
                     break;
                 }
 
@@ -595,6 +626,34 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private boolean isHalDriver() {
         return mTunerDriverKind == TunerDriver.HAL;
+    }
+
+    private void registerAudioDeviceReceiver() {
+        final IntentFilter filter = new IntentFilter();
+        filter.addAction(AudioManager.ACTION_HEADSET_PLUG);
+        filter.addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
+        registerReceiver(mAudioDeviceReceiver, filter);
+    }
+
+    private void refreshRequestedOutputRoute() {
+        final AudioOutputRoute requestedRoute = mState.getOutputRoute();
+        final AudioOutputRoute appliedRoute = mAudioService.setOutputRoute(requestedRoute);
+        sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.AUDIO_ROUTE, appliedRoute.getValue()));
+    }
+
+    public class AudioDeviceReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            if (intent == null || intent.getAction() == null) {
+                return;
+            }
+
+            if (!TunerStatus.ENABLED.equals(mState.getStatus())) {
+                return;
+            }
+
+            refreshRequestedOutputRoute();
+        }
     }
 
     /**

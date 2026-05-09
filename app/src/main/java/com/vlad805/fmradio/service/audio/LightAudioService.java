@@ -15,10 +15,7 @@ import com.vlad805.fmradio.service.recording.IFMRecorder;
  */
 public class LightAudioService extends AudioService implements IAudioRecordable {
 	private static final String TAG = "LAS";
-	private Thread mThread;
-
-	private AudioTrack mAudioTrack;
-	private AudioRecord mAudioRecorder;
+	private final PcmBridge mBridge = new PcmBridge("FmLegacyBridge");
 	private IFMRecorder mRecorder;
 
 	private boolean mIsActive = false;
@@ -34,8 +31,7 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 		}
 
 		mIsActive = true;
-		mThread = new Thread(mReadWrite);
-		mThread.start();
+		startBridge();
 	}
 
 	@Override
@@ -45,29 +41,10 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 		}
 
 		mIsActive = false;
-		if (mThread != null) {
-			mThread.interrupt();
-		}
-		closeAll();
+		mBridge.stop();
 	}
 
-	private void closeAll() {
-		mIsActive = false;
-		if (mAudioTrack != null) {
-			mAudioTrack.release();
-			mAudioTrack = null;
-		}
-
-		if (mAudioRecorder != null) {
-			if (mAudioRecorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-				mAudioRecorder.stop();
-			}
-			mAudioRecorder.release();
-			mAudioRecorder = null;
-		}
-	}
-
-	private final Runnable mReadWrite = () -> {
+	private void startBridge() {
 		final int bufferSize = AudioTrack.getMinBufferSize(
 				mSampleRate,
 				AudioFormat.CHANNEL_IN_STEREO,
@@ -76,11 +53,11 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 		if (bufferSize <= 0) {
 			Log.e(TAG, "Invalid AudioTrack bufferSize=" + bufferSize);
-			closeAll();
+			mIsActive = false;
 			return;
 		}
 
-		mAudioTrack = new AudioTrack(
+		final AudioTrack audioTrack = new AudioTrack(
 				AudioManager.STREAM_MUSIC,
 				mSampleRate,
 				AudioFormat.CHANNEL_OUT_STEREO,
@@ -89,54 +66,38 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 				AudioTrack.MODE_STREAM
 		);
 
-		if (mAudioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
-			Log.e(TAG, "AudioTrack init failed, state=" + mAudioTrack.getState());
-			closeAll();
+		if (audioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
+			Log.e(TAG, "AudioTrack init failed, state=" + audioTrack.getState());
+			audioTrack.release();
+			mIsActive = false;
 			return;
 		}
 
-		mAudioRecorder = getAudioRecorder();
-		if (mAudioRecorder == null) {
+		final AudioRecord audioRecorder = getAudioRecorder();
+		if (audioRecorder == null) {
 			Log.e(TAG, "AudioRecord init failed: recorder is null");
-			closeAll();
+			audioTrack.release();
+			mIsActive = false;
 			return;
 		}
 
-		if (mAudioRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
-			Log.e(TAG, "AudioRecord init failed, state=" + mAudioRecorder.getState());
-			closeAll();
+		if (audioRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
+			Log.e(TAG, "AudioRecord init failed, state=" + audioRecorder.getState());
+			audioRecorder.release();
+			audioTrack.release();
+			mIsActive = false;
 			return;
 		}
 
-		try {
-			mAudioRecorder.startRecording();
-		} catch (Throwable t) {
-			Log.e(TAG, "AudioRecord.startRecording failed", t);
-			closeAll();
-			return;
-		}
-		mAudioTrack.play();
-
-		int bytes;
-		final short[] buffer = new short[bufferSize];
-
-		while (mIsActive) {
-			bytes = mAudioRecorder.read(buffer, 0, bufferSize);
-			if (bytes <= 0) {
-				Log.w(TAG, "AudioRecord.read returned " + bytes);
-				continue;
+		final boolean started = mBridge.start(audioRecorder, audioTrack, bufferSize, (buffer, length) -> {
+			if (mRecorder != null) {
+				mRecorder.record(buffer, length);
 			}
-
-			if (mIsActive) {
-				mAudioTrack.write(buffer, 0, bytes);
-
-				// If recording enabled, write to recorder
-				if (mRecorder != null) {
-					mRecorder.record(buffer, bytes);
-				}
-			}
+		});
+		if (!started) {
+			mIsActive = false;
 		}
-	};
+	}
 
 	@Override
 	public void startRecord(final IFMRecorder recorder) throws RecordError {

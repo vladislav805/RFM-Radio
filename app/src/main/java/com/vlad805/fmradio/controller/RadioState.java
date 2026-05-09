@@ -3,6 +3,8 @@ package com.vlad805.fmradio.controller;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.vlad805.fmradio.enums.AudioOutputRoute;
+
 /**
  * A class that stores the current state of the radio tuner, audio service and other
  * parameters.
@@ -39,8 +41,7 @@ public final class RadioState implements Parcelable {
     // Date in unixtime of start of recording
     private long recordingStarted = -1L;
 
-    // Outputting sound from speakers
-    private boolean forceSpeaker = false;
+    private AudioOutputRoute outputRoute = AudioOutputRoute.WIRED;
 
     public RadioState() {
 
@@ -122,12 +123,16 @@ public final class RadioState implements Parcelable {
         this.recordingStarted = recordingStarted;
     }
 
-    public boolean isForceSpeaker() {
-        return forceSpeaker;
+    public AudioOutputRoute getOutputRoute() {
+        return outputRoute;
     }
 
-    void setForceSpeaker(boolean forceSpeaker) {
-        this.forceSpeaker = forceSpeaker;
+    public boolean isForceSpeaker() {
+        return AudioOutputRoute.SPEAKER == outputRoute;
+    }
+
+    void setOutputRoute(final AudioOutputRoute outputRoute) {
+        this.outputRoute = outputRoute;
     }
 
     protected RadioState(final Parcel in) {
@@ -140,7 +145,7 @@ public final class RadioState implements Parcelable {
         stereo = in.readInt() > 0;
         recording = in.readInt() > 0;
         recordingStarted = in.readLong();
-        forceSpeaker = in.readInt() > 0;
+        outputRoute = AudioOutputRoute.fromValue(in.readString());
     }
 
     @Override
@@ -159,7 +164,7 @@ public final class RadioState implements Parcelable {
         dest.writeInt(stereo ? 1 : 0);
         dest.writeInt(recording ? 1 : 0);
         dest.writeLong(recordingStarted);
-        dest.writeInt(forceSpeaker ? 1 : 0);
+        dest.writeString(outputRoute.getValue());
     }
 
     public static final Parcelable.Creator<RadioState> CREATOR = new Parcelable.Creator<RadioState>() {

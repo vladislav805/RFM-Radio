@@ -17,9 +17,25 @@
 				android:icon="@drawable/ic_settings"/>
 
 		<item
-				android:checkable="true"
-				android:id="@+id/menu_speaker"
-				android:title="@string/menu_speaker" />
+				android:id="@+id/menu_output_route"
+				android:title="@string/menu_output_route">
+			<menu>
+				<group android:checkableBehavior="single">
+					<item
+							android:id="@+id/menu_output_speaker"
+							android:checkable="true"
+							android:title="@string/menu_output_speaker" />
+					<item
+							android:id="@+id/menu_output_wired"
+							android:checkable="true"
+							android:title="@string/menu_output_wired" />
+					<item
+							android:id="@+id/menu_output_bluetooth"
+							android:checkable="true"
+							android:title="@string/menu_output_bluetooth" />
+				</group>
+			</menu>
+		</item>
 
 		<item
 				android:id="@+id/menu_about"
