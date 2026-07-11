@@ -147,14 +147,13 @@ public abstract class RecordService implements IFMRecorder {
             e.printStackTrace();
         }
 
-        updateState(C.Event.RECORD_ENDED);
-
         if (mRecordingTarget != null) {
             try {
                 mRecordingTarget.commit();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            updateState(C.Event.RECORD_ENDED);
             mRecordingTarget.closeQuietly();
             mRecordingTarget = null;
         }
