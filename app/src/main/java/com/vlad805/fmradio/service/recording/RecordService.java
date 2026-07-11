@@ -126,6 +126,10 @@ public abstract class RecordService implements IFMRecorder {
             return;
         }
 
+        if (mRecordingTarget == null) {
+            return;
+        }
+
         mState = State.FINISHING;
 
         onFinishRecording();
@@ -158,6 +162,7 @@ public abstract class RecordService implements IFMRecorder {
             mRecordingTarget.closeQuietly();
             mRecordingTarget = null;
         }
+        mState = State.DONE;
     }
 
     /**
