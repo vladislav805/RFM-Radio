@@ -49,6 +49,7 @@ import net.grandcentrix.tray.core.TrayItem;
 import java.io.File;
 import java.util.*;
 
+import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
@@ -613,14 +614,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 this,
                 0,
                 mainIntent,
-                FLAG_UPDATE_CURRENT
+                FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
         );
 
         final PendingIntent pendingStop = PendingIntent.getService(
                 this,
                 1,
                 new Intent(this, FMService.class).setAction(C.Command.DISABLE),
-                0
+                FLAG_IMMUTABLE
         );
 
         final PendingIntent pendingRec = PendingIntent.getService(
@@ -628,7 +629,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 2,
                 new Intent(this, FMService.class)
                         .setAction(C.Command.RECORD_START),
-                0
+                FLAG_IMMUTABLE
         );
 
 
@@ -638,7 +639,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 new Intent(this, FMService.class)
                         .setAction(C.Command.NOTIFICATION_SEEK)
                         .putExtra(C.Key.SEEK_HW_DIRECTION, -1),
-                0
+                FLAG_IMMUTABLE
         );
 
         final PendingIntent pendingSeekUp = PendingIntent.getService(
@@ -647,7 +648,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 new Intent(this, FMService.class)
                         .setAction(C.Command.NOTIFICATION_SEEK)
                         .putExtra(C.Key.SEEK_HW_DIRECTION, 1),
-                0
+                FLAG_IMMUTABLE
         );
 
         androidx.media.app.NotificationCompat.MediaStyle ms = new androidx.media.app.NotificationCompat.MediaStyle();
@@ -742,7 +743,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 5,
                 new Intent(this, FMService.class)
                         .setAction(C.Command.RECORD_STOP),
-                0
+                FLAG_IMMUTABLE
         );
         NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORDING_ID)
                 .setSmallIcon(R.drawable.ic_record_on)
