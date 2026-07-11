@@ -407,7 +407,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         }
 
         Storage.getInstance(context).put(getBinaryVersionKey(), BuildConfig.VERSION_CODE);
-        Utils.shell("chmod 777 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
+        Utils.shell("chmod 755 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
         callback.onResult(null);
     }
 
