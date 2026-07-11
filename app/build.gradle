@@ -115,6 +115,37 @@ tasks.register("verifyNativeAssets") {
     }
 }
 
+tasks.register("buildFmbinNative", Exec) {
+    group = "build"
+    description = "Builds native fmbin assets for supported Android ABIs"
+
+    def nativeDir = layout.projectDirectory.dir("../native")
+    def assetsDir = layout.projectDirectory.dir("src/main/assets")
+    def localProperties = new Properties()
+    def localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.withInputStream { localProperties.load(it) }
+    }
+    def androidSdkPath = System.getenv("ANDROID_SDK_ROOT")
+            ?: System.getenv("ANDROID_HOME")
+            ?: localProperties.getProperty("sdk.dir")
+
+    inputs.dir(nativeDir)
+    outputs.files(requiredNativeAssets.collect { assetName ->
+        assetsDir.file(assetName)
+    })
+
+    if (androidSdkPath != null) {
+        environment "ANDROID_HOME", androidSdkPath
+        environment "ANDROID_SDK_ROOT", androidSdkPath
+    }
+    commandLine "bash", nativeDir.file("build.sh").asFile.absolutePath
+}
+
+tasks.named("verifyNativeAssets").configure {
+    dependsOn("buildFmbinNative")
+}
+
 tasks.named("preBuild").configure {
     dependsOn("verifyNativeAssets")
 }
