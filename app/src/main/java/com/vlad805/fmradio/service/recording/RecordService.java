@@ -93,6 +93,7 @@ public abstract class RecordService implements IFMRecorder {
         mStarted = System.currentTimeMillis();
         createFile();
         mState = State.RECORDING;
+        updateState(C.Event.RECORD_STARTED);
     }
 
     @Override

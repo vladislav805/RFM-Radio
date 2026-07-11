@@ -329,7 +329,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		mRecordingAudioRecord = audioRecord;
 		mPcmRecorder = recorder;
 		mRecordingStartedMs = System.currentTimeMillis();
-		sendRecordingUpdate(C.Event.RECORD_STARTED);
 		startRecordingTimer();
 
 		mRecordingThread = new Thread(() -> {
