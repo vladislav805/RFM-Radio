@@ -40,11 +40,11 @@
 		<service
 				android:name=".service.FMService"
 				android:enabled="true"
-				android:exported="true"
+				android:exported="false"
 				android:foregroundServiceType="mediaPlayback"
 				android:label="RFM Main Service"
 				android:process=":service"
-				tools:ignore="ExportedService"/>
+				/>
 
 		<receiver android:name=".receivers.CallReceiver" android:enabled="true">
 			<intent-filter>
