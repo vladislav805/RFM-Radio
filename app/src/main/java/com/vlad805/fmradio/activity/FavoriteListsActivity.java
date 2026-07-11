@@ -589,6 +589,9 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		final byte[] buffer = new byte[8192];
 		int read;
 		while ((read = zipInputStream.read(buffer)) != -1) {
+			if (outputStream.size() + read > FavoriteController.MAX_IMPORT_BYTES) {
+				throw new IOException("Favorites import file is too large");
+			}
 			outputStream.write(buffer, 0, read);
 		}
 		return outputStream.toByteArray();

@@ -36,6 +36,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	private static final String KEY_CURRENT_LIST = "favorites_list_current";
 	private static final String KEY_JSON_ITEMS = "items";
 	public static final String DEFAULT_NAME = "default";
+	public static final int MAX_IMPORT_BYTES = 1024 * 1024;
 
 	private static final String JSON_EXT = ".json";
 
@@ -396,6 +397,9 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			final byte[] buffer = new byte[8192];
 			int read;
 			while ((read = input.read(buffer)) != -1) {
+				if (output.size() + read > MAX_IMPORT_BYTES) {
+					throw new IOException("Favorites import file is too large");
+				}
 				output.write(buffer, 0, read);
 			}
 			return output.toString();
