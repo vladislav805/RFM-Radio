@@ -373,7 +373,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			mPcmRecorder.stopRecord();
 			mPcmRecorder = null;
 		}
-		sendRecordingUpdate(C.Event.RECORD_ENDED);
 		mRecordingStartedMs = 0L;
 	}
 
