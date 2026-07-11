@@ -1,0 +1,3 @@
+[submodule "app/src/main/cpp/third_party/lame"]
+	path = app/src/main/cpp/third_party/lame
+	url = https://github.com/lameproject/lame.git

@@ -1,8 +1,6 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
-import com.naman14.androidlame.AndroidLame;
-import com.naman14.androidlame.LameBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -15,7 +13,12 @@ import java.util.Locale;
  * vlad805 (c) 2021
  */
 public class RecordLameService extends RecordService implements IFMRecorder {
-	private AndroidLame mLame;
+	private static final int CHANNELS = 2;
+	private static final int BITRATE_KBPS = 192;
+	private static final int QUALITY = 8;
+	// Output buffer for final MP3 frames emitted when LAME flushes its internal delay/padding.
+	private static final int MP3_FLUSH_BUFFER_SIZE = 7200;
+	private LameMp3Encoder mEncoder;
 
 	/**
 	 * @param context Context
@@ -41,14 +44,7 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	@Override
 	protected void onFileCreated() throws IOException {
 		writeId3v23Tag();
-		mLame = new LameBuilder()
-				.setInSampleRate(getSampleRate())
-				.setOutChannels(2)
-				.setOutBitrate(192)
-				.setOutSampleRate(getSampleRate())
-				.setMode(LameBuilder.Mode.JSTEREO)
-				.setQuality(8)
-				.build();
+		mEncoder = new LameMp3Encoder(getSampleRate(), CHANNELS, BITRATE_KBPS, QUALITY);
 	}
 
 	/**
@@ -59,8 +55,8 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	 * @return Length of encoded data
 	 */
 	@Override
-	protected int onReceivedData(short[] data, int length, byte[] encoded) {
-		return mLame.encodeBufferInterLeaved(data, length / 2, encoded);
+	protected int onReceivedData(short[] data, int length, byte[] encoded) throws IOException {
+		return mEncoder.encodeInterleaved(data, length / 2, encoded);
 	}
 
 	/**
@@ -69,13 +65,21 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	@Override
 	protected void onFinishRecording() {
 		try {
-			/**
-			 * @see {@link https://github.com/vladislav805/RFM-Radio/issues/82}
-			 */
-			Thread.sleep(500);
-			mLame.close();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
+			if (mEncoder != null) {
+				final byte[] buffer = new byte[MP3_FLUSH_BUFFER_SIZE];
+				final int written = mEncoder.flush(buffer);
+				if (written > 0) {
+					mBufferOutStream.write(buffer, 0, written);
+					mRecordLength += written;
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (mEncoder != null) {
+				mEncoder.close();
+				mEncoder = null;
+			}
 		}
 	}
 

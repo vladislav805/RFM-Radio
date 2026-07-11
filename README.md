@@ -54,11 +54,23 @@ If the option is enabled, then with the "Enable RDS" option enabled, the Program
 
 ## Building
 
+Clone the repository with submodules, or initialize them before building:
+
+```bash
+git clone --recursive https://github.com/vladislav805/RFM-Radio.git
+```
+
+For an existing checkout:
+
+```bash
+git submodule update --init --recursive
+```
+
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
+Gradle builds the app native MP3 encoder and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
 
 ## Inspired by
 
