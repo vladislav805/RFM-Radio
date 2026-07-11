@@ -142,8 +142,8 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 	@Override
 	public void startRecord(final IFMRecorder recorder) throws RecordError {
-		mRecorder = recorder;
 		recorder.startRecord();
+		mRecorder = recorder;
 	}
 
 	@Override

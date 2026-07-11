@@ -210,16 +210,19 @@ public abstract class RecordService implements IFMRecorder {
             if (target != null) {
                 target.abort();
             }
+            mRecordingTarget = null;
             throw e;
         } catch (IllegalStateException e) {
             if (target != null) {
                 target.abort();
             }
+            mRecordingTarget = null;
             throw new RecordError(e.getMessage());
         } catch (IOException e) {
             if (target != null) {
                 target.abort();
             }
+            mRecordingTarget = null;
             throw new RecordError("Cannot create recording file");
         }
     }
