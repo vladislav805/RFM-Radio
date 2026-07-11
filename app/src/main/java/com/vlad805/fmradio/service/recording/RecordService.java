@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.recording;
 import android.content.Context;
 import android.content.Intent;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
@@ -164,7 +165,7 @@ public abstract class RecordService implements IFMRecorder {
      * @param event Key of event
      */
     private void updateState(final String event) {
-        mContext.sendBroadcast(new Intent(event)
+        Utils.sendAppBroadcast(mContext, new Intent(event)
                 .putExtra(C.Key.SIZE, mRecordLength)
                 .putExtra(C.Key.DURATION, getDuration())
                 .putExtra(C.Key.PATH, getDisplayPath())

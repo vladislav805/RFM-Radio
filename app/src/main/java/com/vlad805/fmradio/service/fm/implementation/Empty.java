@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
@@ -140,10 +141,10 @@ public class Empty implements IFMController, IFMEventListener {
 	}
 
 	private void fireEvent(final String event) {
-		context.sendBroadcast(new Intent(event));
+		Utils.sendAppBroadcast(context, new Intent(event));
 	}
 
 	private void fireEvent(final String event, final Bundle bundle) {
-		context.sendBroadcast(new Intent(event).putExtras(bundle));
+		Utils.sendAppBroadcast(context, new Intent(event).putExtras(bundle));
 	}
 }

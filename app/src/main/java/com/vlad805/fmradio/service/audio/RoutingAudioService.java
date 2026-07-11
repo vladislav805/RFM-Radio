@@ -21,6 +21,7 @@ import android.util.Log;
 import androidx.annotation.RequiresPermission;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
@@ -396,7 +397,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				: 0L;
 		final long fileSize = getRecordingSizeBytes();
 
-		mContext.sendBroadcast(new Intent(event)
+		Utils.sendAppBroadcast(mContext, new Intent(event)
 				.putExtra(C.Key.SIZE, (int) Math.min(Integer.MAX_VALUE, fileSize))
 				.putExtra(C.Key.DURATION, (int) Math.min(Integer.MAX_VALUE, durationSec))
 				.putExtra(C.Key.PATH, displayPath));

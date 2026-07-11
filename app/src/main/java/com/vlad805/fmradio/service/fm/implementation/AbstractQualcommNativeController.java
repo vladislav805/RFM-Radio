@@ -305,11 +305,11 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected void fireEvent(final String event, final Bundle bundle) {
-        context.sendBroadcast(new Intent(event).putExtras(bundle));
+        Utils.sendAppBroadcast(context, new Intent(event).putExtras(bundle));
     }
 
     protected void fireEvent(final String event) {
-        context.sendBroadcast(new Intent(event));
+        Utils.sendAppBroadcast(context, new Intent(event));
     }
 
     protected void fireError(final String message) {

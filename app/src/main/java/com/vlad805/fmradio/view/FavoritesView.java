@@ -15,6 +15,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.models.FavoriteStation;
 
@@ -161,7 +162,7 @@ public class FavoritesView extends ConstraintLayout {
 
 			mFavoriteController.setCurrentFavoriteList(listName);
 			reload(true);
-			getContext().sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+			Utils.sendAppBroadcast(getContext(), new Intent(C.Event.FAVORITE_LIST_CHANGED));
 		} catch (final FileNotFoundException e) {
 			if (mOnErrorListener != null) {
 				mOnErrorListener.onError("Not found this list");

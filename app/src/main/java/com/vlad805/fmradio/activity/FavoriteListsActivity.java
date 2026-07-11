@@ -198,7 +198,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			final Intent intent = new Intent().putExtra("changed", true);
 			setResult(Activity.RESULT_OK, intent);
 
-			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+			Utils.sendAppBroadcast(FavoriteListsActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 		} catch (final FileNotFoundException e) {
 			mToast.text("Not found this list").show();
 		}
@@ -364,7 +364,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 				reloadLists();
 				reloadContent();
 				setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-				sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+				Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 				mToast.text("Renamed list to '" + title + "'").show();
 			} catch (Error e) {
 				mToast.text(e.getMessage()).show();
@@ -479,7 +479,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		reloadLists();
 		reloadContent();
 		setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-		sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+		Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 
 		if (importedCount == 1 && lastImportedName != null) {
 			mToast.text(getString(R.string.favorite_list_import_success, lastImportedName)).show();
@@ -651,7 +651,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 					reloadLists();
 					if (removed > 0) {
 						setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-						sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+						Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 					}
 				})
 				.setNegativeButton(android.R.string.no, null)
@@ -706,7 +706,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 
 			mController.save();
 			FavoriteListsActivity.this.setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-			sendBroadcast(new Intent(C.Event.FAVORITE_LIST_CHANGED));
+			Utils.sendAppBroadcast(FavoriteListsActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 
 			reloadLists();
 			reloadContent();

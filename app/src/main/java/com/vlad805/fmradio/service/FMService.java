@@ -19,6 +19,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
@@ -312,12 +313,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 stopService(new Intent(this, FMService.class));
-                sendBroadcast(new Intent(C.Event.KILLED));
+                Utils.sendAppBroadcast(this, new Intent(C.Event.KILLED));
                 break;
             }
 
             case C.Command.REQUEST_CURRENT_STATE: {
-                sendBroadcast(new Intent(C.Event.CURRENT_STATE).putExtra(C.Key.STATE, mState));
+                Utils.sendAppBroadcast(this, new Intent(C.Event.CURRENT_STATE).putExtra(C.Key.STATE, mState));
                 break;
             }
 
@@ -326,7 +327,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                         ? mState.isForceSpeaker()
                         : Audio.isForceSpeakerNow();
                 mAudioService.setSpeakerEnabled(!isSpeaker);
-                sendBroadcast(new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
+                Utils.sendAppBroadcast(this, new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
                 if (mTunerDriver instanceof QualcommNative) {
                     ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
@@ -451,7 +452,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      */
     @Override
     public void onEvent(final String event, final Bundle bundle) {
-        sendBroadcast(new Intent(event).putExtras(bundle));
+        Utils.sendAppBroadcast(this, new Intent(event).putExtras(bundle));
     }
 
     private void navigateThroughFavorite(final int direction) {
@@ -823,13 +824,13 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         private void sendIntEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
             if (last.containsKey(key) && now.containsKey(key) && last.getInt(key) != now.getInt(key)) {
-                sendBroadcast(new Intent(action).putExtra(key, now.getInt(key)));
+                Utils.sendAppBroadcast(FMService.this, new Intent(action).putExtra(key, now.getInt(key)));
             }
         }
 
         private void sendStringEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
             if (last.containsKey(key) && now.containsKey(key) && !Objects.equals(last.getString(key), now.get(key))) {
-                sendBroadcast(new Intent(action).putExtra(key, now.getString(key)));
+                Utils.sendAppBroadcast(FMService.this, new Intent(action).putExtra(key, now.getString(key)));
             }
         }
     }

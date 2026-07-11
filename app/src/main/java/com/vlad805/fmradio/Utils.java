@@ -113,6 +113,11 @@ public class Utils {
 				.show();
 	}
 
+	public static void sendAppBroadcast(final Context context, final Intent intent) {
+		intent.setPackage(BuildConfig.APPLICATION_ID);
+		context.sendBroadcast(intent);
+	}
+
 	public interface FetchCallback {
 		void onSuccess(final JSONObject result);
 		default void onError(final Throwable exception) {
