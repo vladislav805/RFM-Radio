@@ -7,6 +7,7 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import androidx.annotation.Nullable;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.service.FMService;
@@ -47,7 +48,7 @@ public class RadioController {
 
     public void registerForUpdates(RadioStateUpdater.TunerStateListener callback) {
         mTunerStateUpdater = new RadioStateUpdater(mState, callback);
-        mContext.registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
+        Utils.registerAppReceiver(mContext, mTunerStateUpdater, RadioStateUpdater.sFilter);
     }
 
     public void unregisterForUpdates() {
@@ -125,7 +126,7 @@ public class RadioController {
     }
 
     public void getCurrentState(final CurrentStateListener listener) {
-        mContext.registerReceiver(new BroadcastReceiver() {
+        Utils.registerAppReceiver(mContext, new BroadcastReceiver() {
             @Override
             public void onReceive(final Context context, final Intent intent) {
                 listener.onCurrentStateReady(intent.getParcelableExtra(C.Key.STATE));

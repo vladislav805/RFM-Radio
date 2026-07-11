@@ -161,8 +161,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         reloadFavorite();
 
-        registerReceiver(mTunerStateUpdater, RadioStateUpdater.sFilter);
-        registerReceiver(mEventReaction, RadioStateUpdater.sFilter);
+        Utils.registerAppReceiver(this, mTunerStateUpdater, RadioStateUpdater.sFilter);
+        Utils.registerAppReceiver(this, mEventReaction, RadioStateUpdater.sFilter);
     }
 
     /**

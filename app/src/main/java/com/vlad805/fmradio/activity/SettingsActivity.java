@@ -11,6 +11,7 @@ import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.fragments.PreferencesFragment;
 
 public class SettingsActivity extends AppCompatActivity {
@@ -48,7 +49,7 @@ public class SettingsActivity extends AppCompatActivity {
 		final IntentFilter filter = new IntentFilter();
 		filter.addAction(C.Event.ERROR_INVALID_ANTENNA);
 
-		registerReceiver(mEventListener, filter);
+		Utils.registerAppReceiver(this, mEventListener, filter);
 	}
 
 	@Override

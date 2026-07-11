@@ -683,7 +683,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 
 		mProgress = ProgressDialog.create(this).text(R.string.favorite_list_search_progress).show();
 
-		registerReceiver(mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
+		Utils.registerAppReceiver(this, mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
 	}
 
 	private final BroadcastReceiver mSearchDone = new BroadcastReceiver() {
