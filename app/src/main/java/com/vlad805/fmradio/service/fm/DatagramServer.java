@@ -90,8 +90,17 @@ public class DatagramServer extends Thread {
 	 */
 	private String handle(String data) throws StopServer {
 		final int splitAt = data.indexOf(FF);
+		if (splitAt <= 0) {
+			Log.w("FMELS", "invalid event frame");
+			return null;
+		}
+
 		final String code = data.substring(0, splitAt);
 		data = data.substring(splitAt + 1);
+		if (!isDigits(code)) {
+			Log.w("FMELS", "invalid event code");
+			return null;
+		}
 
 		int evt = parseInt(code);
 
@@ -114,6 +123,11 @@ public class DatagramServer extends Thread {
 			}
 
 			case EVT_FREQUENCY_SET: {
+				if (!isDigits(data.trim())) {
+					Log.w("FMELS", "invalid frequency payload");
+					return null;
+				}
+
 				action = C.Event.FREQUENCY_SET;
 				bundle.putInt(C.Key.FREQUENCY, Utils.parseInt(data));
 				break;
@@ -132,15 +146,10 @@ public class DatagramServer extends Thread {
 			}
 
 			case EVT_SEARCH_DONE: {
-				final String stations = data.trim();
-				final int lengthKHz = 4;
-				final int count = stations.length() / lengthKHz;
-
-				final int[] res = new int[count];
-
-				for (int i = 0; i < count; ++i) {
-					int start = i * lengthKHz;
-					res[i] = Utils.parseInt(stations.substring(start, start + lengthKHz)) * 100;
+				final int[] res = parseCompactFrequencyList(data.trim());
+				if (res == null) {
+					Log.w("FMELS", "invalid search result payload");
+					return null;
 				}
 
 				Arrays.sort(res);
@@ -159,6 +168,11 @@ public class DatagramServer extends Thread {
 			}
 
 			case EVT_UPDATE_PTY: {
+				if (!isDigits(data.trim())) {
+					Log.w("FMELS", "invalid PTY payload");
+					return null;
+				}
+
 				action = C.Event.UPDATE_PTY;
 
 				bundle.putInt(C.Key.PTY, Utils.parseInt(data));
@@ -173,15 +187,10 @@ public class DatagramServer extends Thread {
 			}
 
 			case EVT_UPDATE_AF: {
-				final String frequencies = data.trim();
-				final int lengthKHz = 4;
-				final int count = frequencies.length() / lengthKHz;
-
-				final int[] res = new int[count];
-
-				for (int i = 0; i < count; ++i) {
-					int start = i * lengthKHz;
-					res[i] = Utils.parseInt(frequencies.substring(start, start + lengthKHz)) * 100;
+				final int[] res = parseCompactFrequencyList(data.trim());
+				if (res == null) {
+					Log.w("FMELS", "invalid AF payload");
+					return null;
 				}
 
 				action = C.Event.UPDATE_AF;
@@ -200,6 +209,40 @@ public class DatagramServer extends Thread {
 		}
 
 		return "ok";
+	}
+
+	private static boolean isDigits(final String value) {
+		if (value == null || value.isEmpty()) {
+			return false;
+		}
+
+		for (int i = 0; i < value.length(); ++i) {
+			if (!Character.isDigit(value.charAt(i))) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static int[] parseCompactFrequencyList(final String payload) {
+		final int lengthKHz = 4;
+		if (payload.isEmpty()) {
+			return new int[0];
+		}
+
+		if (payload.length() % lengthKHz != 0 || !isDigits(payload)) {
+			return null;
+		}
+
+		final int count = payload.length() / lengthKHz;
+		final int[] res = new int[count];
+		for (int i = 0; i < count; ++i) {
+			final int start = i * lengthKHz;
+			res[i] = Utils.parseInt(payload.substring(start, start + lengthKHz)) * 100;
+		}
+
+		return res;
 	}
 
 	private static class StopServer extends Throwable { }
