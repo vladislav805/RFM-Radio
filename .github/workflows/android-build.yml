@@ -43,7 +43,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           sdkmanager \
             "platform-tools" \
-            "platforms;android-34" \
+            "platforms;android-36" \
             "build-tools;34.0.0" \
             "cmake;3.22.1" \
             "ndk;29.0.14033849"
