@@ -53,6 +53,8 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 	private void closeAll() {
 		mIsActive = false;
+		stopRecord();
+
 		if (mAudioTrack != null) {
 			mAudioTrack.release();
 			mAudioTrack = null;
