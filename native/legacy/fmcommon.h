@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <zconf.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "../types.h"
 
@@ -14,15 +15,42 @@
 #    define asprintf(x, y, z)
 #endif
 
+#ifndef RFM_LEGACY_LOG_HELPERS
+#define RFM_LEGACY_LOG_HELPERS
+
+static inline void legacy_log(const char* scope, const char* fmt, ...) {
+    printf("legacy/%-7s: ", scope);
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+
+    printf("\n");
+}
+
 // Add debug function macros
 #ifdef DEBUG
 #    define print(x) printf(x)
 #    define print2(x,y) printf(x,y)
 #    define print3(x,y,z) printf(x,y,z)
+static inline void legacy_debug_log(const char* scope, const char* fmt, ...) {
+    printf("legacy/%s: ", scope);
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+
+    printf("\n");
+}
 #else
 #    define print(x)
 #    define print2(x, y)
 #    define print3(x, y, z)
+static inline void legacy_debug_log(const char*, const char*, ...) {}
+#endif
+
 #endif
 
 /*

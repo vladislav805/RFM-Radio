@@ -69,7 +69,7 @@ bool set_v4l2_ctrl(uint32 id, int32 value) {
     int32 err = ioctl(fd_radio, VIDIOC_S_CTRL, &control);
 
     if (err < 0) {
-        printf("    v4l2_error @@@  failed for control = 0x%x, value = %d, err = %d\n", control.id, value, err);
+        legacy_log("v4l2", "set control 0x%x=%d failed, err=%d", control.id, value, err);
         return FALSE;
     }
 
@@ -79,10 +79,10 @@ bool set_v4l2_ctrl(uint32 id, int32 value) {
 bool fm_receiver_open() {
     fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
 
-    printf("fr_open         : fd_radio = %d\n", fd_radio);
+    legacy_log("v4l2", "opened /dev/radio0 fd=%d", fd_radio);
 
     if (fd_radio < 0) {
-        printf("fr_open         : failed to open fd_radio, exit code = %d\n", fd_radio);
+        legacy_log("v4l2", "open /dev/radio0 failed, fd=%d", fd_radio);
         return FALSE;
     }
 
@@ -146,7 +146,7 @@ uint8 fm_receiver_get_rds_group_options() {
     uint32 err = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
 
     if (err < 0) {
-        print2("fr_g_rds_grp_opt: failed to set RDS group err = %d\n", err);
+        legacy_debug_log("rds", "get group options failed, err=%d", err);
         return 0;
     }
 
@@ -198,7 +198,7 @@ bool fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
     int32 err = ioctl(fd_radio, VIDIOC_S_FREQUENCY, &freq_struct);
 
     if (err < 0) {
-        print2("fr_set_freq     : failed, exit code = %d\n", err);
+        legacy_log("tune", "set frequency %d kHz failed, err=%d", frequency_khz, err);
         return FALSE;
     }
 
@@ -219,7 +219,7 @@ uint32 fm_receiver_get_tuned_frequency() {
     if (err == 0) {
         return tunefreq_to_khz(freq_struct.frequency);
     } else {
-        print2("fr_             : failed to set tuned frequency, err = %d\n", err);
+        legacy_debug_log("tune", "get frequency failed, err=%d", err);
         return 0;
     }
 }
@@ -284,7 +284,7 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
     int32 ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
 
     if (ret < 0) {
-        print2("fr_s_stereo_mode: failed, ret = %d\n", ret);
+        legacy_debug_log("audio", "set stereo mode failed, ret=%d", ret);
     }
 
     return ret == 0;
@@ -295,7 +295,7 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     bool ret;
 
-    print("fr_seek_search  : search\n");
+    legacy_debug_log("search", "start seek");
 
     if (fd_radio < 0) {
         return FALSE;
@@ -303,13 +303,13 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, mode);
     if (ret == FALSE) {
-        print("fr_seek_search  : set SRCHMODE failed\n");
+        legacy_debug_log("search", "set seek mode failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SCANDWELL, dwell_period);
     if (ret == FALSE) {
-        print("fr_seek_search  : set SCANDWELL failed\n");
+        legacy_debug_log("search", "set scan dwell failed");
         return FALSE;
     }
 
@@ -319,11 +319,11 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hw_seek);
 
     if (err < 0) {
-        print("fr_seek_search  : search failed\n");
+        legacy_debug_log("search", "seek failed");
         return FALSE;
     }
 
-    print("fr_seek_search  : successfully\n");
+    legacy_debug_log("search", "seek started");
     return TRUE;
 }
 
@@ -336,26 +336,26 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     struct v4l2_hw_freq_seek hwseek;
 
     hwseek.type = V4L2_TUNER_RADIO;
-    print("fm_receiver_search_station_list>\n");
+    legacy_debug_log("search", "start station list scan");
     if (fd_radio < 0) {
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, options.search_mode);
     if (ret == FALSE) {
-        print("fm_receiver_search_station_list 1 failed\n");
+        legacy_debug_log("search", "set list scan mode failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl( V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT, options.srch_list_max);
     if (ret == FALSE) {
-        print("fm_receiver_search_station_list 2 failed\n");
+        legacy_debug_log("search", "set list scan count failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY, options.program_type);
     if (ret == FALSE) {
-        print("fm_receiver_search_station_list 3 failed\n");
+        legacy_debug_log("search", "set list scan PTY failed");
         return FALSE;
     }
 
@@ -363,11 +363,11 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hwseek);
 
     if (err < 0) {
-        print("fm_receiver_search_station_list 4 failed\n");
+        legacy_debug_log("search", "list scan failed");
         return FALSE;
     }
 
-    print("fm_receiver_search_station_list<\n");
+    legacy_debug_log("search", "station list scan started");
     return TRUE;
 }
 
@@ -420,7 +420,7 @@ int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
     err = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
 
     if (err < 0) {
-        printf("fr_v4l2_read    : ioctl read 0x%x failed, err = %d\n", index, err);
+        legacy_log("v4l2", "read buffer 0x%x failed, err=%d", index, err);
         return -1;
     }
 
@@ -471,7 +471,7 @@ bool extract_program_service(fm_rds_storage* storage) {
     }
     storage->program_name[ps_services_len] = '\0';
 
-    printf("fr_extr_ps      : prgid=%d, pty=%d, ps=`%s`\n", storage->program_id, storage->program_type, storage->program_name);
+    legacy_log("rds", "ps pi=%04x pty=%d name=`%s`", storage->program_id, storage->program_type, storage->program_name);
 
     return TRUE;
 }
@@ -514,7 +514,7 @@ bool extract_radio_text(fm_rds_storage* storage) {
     if (radio_text_length > 0) {
         memcpy(storage->radio_text, &buf[5], radio_text_length);
     }
-    printf("fr_extr_rt      : rt=`%s`\n", storage->radio_text);
+    legacy_log("rds", "rt=`%s`", storage->radio_text);
 
     return TRUE;
 }
@@ -539,16 +539,14 @@ uint8 extract_rds_af_list(uint32* frequencies) {
     const uint8 af_size = buf[6] & 0xff;
 
     if (af_size <= 0 || af_size > 25) {
-        print3("fr_extr_af_list : AF invalid: %d , %d\n", buf[4], buf[4] & 0xff);
+        legacy_debug_log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
         return FALSE;
     }
 
     if (bytes < 7 + af_size * 4) {
-        print3("fr_extr_af_list : AF truncated: bytes=%d, size=%d\n", bytes, af_size);
+        legacy_debug_log("af", "truncated list bytes=%d count=%d", bytes, af_size);
         return FALSE;
     }
-
-    print("fr_extr_af_list : ");
 
     for (int i = 0; i < af_size; ++i) {
         uint8 shift = 6 + i * 4;
@@ -560,11 +558,9 @@ uint8 extract_rds_af_list(uint32* frequencies) {
                 ((buf[shift + 4] & 0xff) << 24);
 
         frequencies[i] = freq;
-
-        print2("%d ", freq);
     }
 
-    print("\n");
+    legacy_log("af", "parsed %d frequencies", af_size);
 
     return af_size;
 }
@@ -604,7 +600,7 @@ uint8 extract_search_station_list(uint32* list) {
     }
 
     if (lower_limit < 65000 || lower_limit > FREQ_UPPER || upper_limit <= lower_limit || upper_limit > FREQ_UPPER) {
-        printf("fr_extr_srch_stl: invalid limits = %d-%d, fallback to %d-%d\n", lower_limit, upper_limit, FREQ_LOWER, FREQ_UPPER);
+        legacy_log("search", "invalid limits %d-%d, fallback to %d-%d", lower_limit, upper_limit, FREQ_LOWER, FREQ_UPPER);
         lower_limit = FREQ_LOWER;
         upper_limit = FREQ_UPPER;
     }
@@ -613,7 +609,7 @@ uint8 extract_search_station_list(uint32* list) {
     int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_SRCH_LIST);
 
     if (bytes < 1) {
-        printf("fr_extr_srch_stl: read failed\n");
+        legacy_log("search", "read station list failed");
         return 0;
     }
 
@@ -637,7 +633,7 @@ uint8 extract_search_station_list(uint32* list) {
         // Search-list entries are absolute 50 kHz channel numbers.
         const uint32 frequency = ((freq + 50) / 100) * 100;
         if (frequency < lower_limit || frequency > upper_limit) {
-            printf("fr_extr_srch_stl: skip station[%d] = %d out of range\n", i, frequency);
+            legacy_log("search", "skip station[%d]=%d out of range", i, frequency);
             continue;
         }
 
