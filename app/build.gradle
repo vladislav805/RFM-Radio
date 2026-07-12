@@ -96,7 +96,7 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.each { output ->
-            output.outputFileName.set("${appId}-${appVersionName}.apk")
+            output.outputFileName.set("${variant.applicationId.get()}-${appVersionName}.apk")
         }
     }
 }
