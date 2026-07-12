@@ -1,6 +1,6 @@
-#include <unistd.h>
-#include <malloc.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
 #include "utils.h"
 
 /**

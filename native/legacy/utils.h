@@ -3,6 +3,10 @@
 #ifndef FMBIN_UTILS_H
 #define FMBIN_UTILS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void wait(int ms);
 
 char* int_to_string(uint32 val);
@@ -14,5 +18,9 @@ uint32 khz_to_tunefreq(uint32 freq);
 void make_frequency_limit_by_band(radio_band_t band, band_limit_freq* limits);
 
 bool file_exists(const char* file);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //FMBIN_UTILS_H
