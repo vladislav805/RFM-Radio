@@ -1,6 +1,7 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
 #include "utils.h"
+#include <algorithm>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <string.h>
@@ -425,14 +426,6 @@ int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
  * @return TRUE if success, else FALSE
  */
 bool extract_program_service(fm_rds_storage* storage) {
-    uint8 buf[64] = {0};
-
-    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_PS_RDS);
-
-    if (bytes < 5) {
-        return FALSE;
-    }
-
     /*
      * Program Service
      * | buf[0]  | buf[1]  | buf[2]  | buf[3]  | buf[4]  | buf[5]  |
@@ -442,26 +435,36 @@ bool extract_program_service(fm_rds_storage* storage) {
      * |         |         |1111 1111|1111 1111|         |         | program_id (((buf[2] & 0xff) << 8) | (buf[3] & 0xff))
      * |         |         |         |         |         |1111 1111| program_name (buf[5] with length ps_services_len)
      */
-    int num_of_ps = (int) (buf[0] & 0x0F); // 0-15
-    int ps_services_len = num_of_ps * 8; // 0-120
+    uint8 buf[64] = {0};
+
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_PS_RDS);
+
+    if (bytes < 5) {
+        return FALSE;
+    }
+
+    const int PROGRAM_SERVICE_OFFSET = 5;
+    const int MAX_PS_CHUNKS = 12;
+
+    const int num_of_ps = std::min((int) (buf[0] & 0x0F), MAX_PS_CHUNKS);
+    int ps_services_len = num_of_ps * 8;
+
     const int max_storage_len = (int) sizeof(storage->program_name) - 1;
-    const int max_buffer_len = bytes > 5 ? bytes - 5 : 0;
-    if (ps_services_len > max_storage_len) {
-        ps_services_len = max_storage_len;
-    }
-    if (ps_services_len > max_buffer_len) {
-        ps_services_len = max_buffer_len;
-    }
+    const int max_buffer_len = bytes > PROGRAM_SERVICE_OFFSET ? bytes - PROGRAM_SERVICE_OFFSET : 0;
+
+    ps_services_len = std::min(ps_services_len, max_storage_len);
+    ps_services_len = std::min(ps_services_len, max_buffer_len);
 
     storage->program_id = ((buf[2] & 0xFF) << 8) | (buf[3] & 0xFF);
     storage->program_type = (int) (buf[1] & 0x1F);
+
     memset(storage->program_name, 0x0, sizeof(storage->program_name));
     if (ps_services_len > 0) {
-        memcpy(storage->program_name, &buf[5], ps_services_len);
+        memcpy(storage->program_name, &buf[PROGRAM_SERVICE_OFFSET], ps_services_len);
     }
     storage->program_name[ps_services_len] = '\0';
 
-    legacy_log("rds", "ps pi=%04x pty=%d name=`%s`", storage->program_id, storage->program_type, storage->program_name);
+    legacy_log("rds", "ps pi=%04x pty=0x%04x name=`%s` (len=%d)", storage->program_id, storage->program_type, storage->program_name, ps_services_len);
 
     return TRUE;
 }
@@ -473,6 +476,15 @@ bool extract_program_service(fm_rds_storage* storage) {
  * @return TRUE if success,else FALSE
  */
 bool extract_radio_text(fm_rds_storage* storage) {
+    /*
+     * Radio text
+     * | buf[0]  | buf[1]  | buf[2]  | buf[3]  | buf[4]  | buf[5]  |
+     * |.... ....|.... ....|.... ....|.... ....|.... ....|.... ....|
+     * |0111 1111|         |         |         |         |         | radio_text_length (buf[0] & 0x7f)
+     *?|         |0001 1111|         |         |         |         | program_type (buf[1] & 0x1f)
+     *?|         |         |1111 1111|1111 1111|         |         | program_id (((buf[2] & 0xff) << 8) | (buf[3] & 0xff))
+     * |         |         |         |         |         |1111 1111| radio_text (buf[5] with length radio_text_length)
+     */
     uint8 buf[128] = {0};
 
     int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_RT_RDS);
@@ -481,30 +493,20 @@ bool extract_radio_text(fm_rds_storage* storage) {
         return FALSE;
     }
 
-    /*
-     * Radio text
-     * | buf[0]  | buf[1]  | buf[2]  | buf[3]  | buf[4]  | buf[5]  |
-     * |.... ....|.... ....|.... ....|.... ....|.... ....|.... ....|
-     * |1111 1111|         |         |         |         |         | radio_text_length (buf[0] + 5)
-     *?|         |0001 1111|         |         |         |         | program_type (buf[1] & 0x1f)
-     *?|         |         |1111 1111|1111 1111|         |         | program_id (((buf[2] & 0xff) << 8) | (buf[3] & 0xff))
-     * |         |         |         |         |         |1111 1111| radio_text (buf[5] with length buf[0] + 5)
-     */
-    int radio_text_length = (int) (buf[0] + 5);
+    const int RADIO_TEXT_OFFSET = 5;
+
+    int radio_text_length = (int) (buf[0] & 0x7F);
+
     const int max_storage_len = (int) sizeof(storage->radio_text) - 1;
-    const int max_buffer_len = bytes > 5 ? bytes - 5 : 0;
-    if (radio_text_length > max_storage_len) {
-        radio_text_length = max_storage_len;
-    }
-    if (radio_text_length > max_buffer_len) {
-        radio_text_length = max_buffer_len;
-    }
+    const int max_buffer_len = bytes > RADIO_TEXT_OFFSET ? bytes - RADIO_TEXT_OFFSET : 0;
+    radio_text_length = std::min(radio_text_length, max_storage_len);
+    radio_text_length = std::min(radio_text_length, max_buffer_len);
 
     memset(storage->radio_text, 0x0, sizeof(storage->radio_text));
     if (radio_text_length > 0) {
-        memcpy(storage->radio_text, &buf[5], radio_text_length);
+        memcpy(storage->radio_text, &buf[RADIO_TEXT_OFFSET], radio_text_length);
     }
-    legacy_log("rds", "rt=`%s`", storage->radio_text);
+    legacy_log("rds", "rt=`%s` (len=%d)", storage->radio_text, radio_text_length);
 
     return TRUE;
 }
