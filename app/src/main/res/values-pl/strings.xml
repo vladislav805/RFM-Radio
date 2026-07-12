@@ -2,7 +2,6 @@
 	<string name="app_name">RFM Radio</string>
 	<string name="nil" translatable="false">null</string>
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
-	<string name="progress_init">Prosze, czekać… Inicjowanie… Wersja: %s</string>
 	<string name="player_event_frequency_changed">Częstotliwość zmieniona na %5.1f MHz</string>
 	<string name="toggle_play_pause">Graj</string>
 	<string name="jump_up">Przeskocz</string>
@@ -19,27 +18,16 @@
 	<string name="favorites_done">Gotowe</string>
 	<string name="stereo_indicator">Wskaźnik stereo lub mono</string>
 	<string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność stacji</string>
-	<string name="progress_installing">Instalowanie pliku binarnego…</string>
-	<string name="progress_launching">Startowanie…</string>
 	<string name="progress_starting">Włączanie tunera…</string>
-	<string name="progress_searching">Szukanie…</string>
-	<string name="progress_stopping">Zatrzymywanie…</string>
 	<string name="menu_settings">Ustawienia</string>
-	<string name="menu_open_list">Lista stacji</string>
 	<string name="menu_record">Nagraj</string>
 	<string name="menu_about">O aplikacji</string>
 	<string name="menu_open_list_favorites">Ulubione</string>
-	<string name="popup_preset_add">Dodaj</string>
-	<string name="popup_preset_rename">Zmień nazwę</string>
-	<string name="popup_preset_replace">Zastąp</string>
-	<string name="popup_preset_remove">Usuń</string>
 	<string name="popup_station_create">Stwórz</string>
 	<string name="popup_station_create_hint">Nazwa stacji…</string>
 	<string name="favorite_station_already_added">Bieżąca częstotliwość jest już dodana do ulubionych</string>
 	<string name="popup_station_rename">Zmień nazwę</string>
 	<string name="popup_station_remove">Usuń</string>
-	<string name="favorite_list_item_add" translatable="false">+</string>
-	<string name="about_version" translatable="false">v%s</string>
 	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Stwórz listę</string>
 	<string name="menu_favorite_list_remove">Usuń listę</string>
@@ -65,7 +53,6 @@
 	<string name="favorite_list_remove_message">Czy jesteś pewien, że chcesz usunąć tą listę \'%s\'?</string>
 	<string name="pref_activity_title">Ustawienia</string>
 	<string name="pref_header_tuner">Tuner</string>
-	<string name="pref_header_audio">Audio</string>
 	<string name="pref_header_app">Aplikacja</string>
 	<string name="pref_header_info">Info</string>
 	<string name="pref_tuner_spacing">Spacjowanie</string>
@@ -75,16 +62,8 @@
 	<string name="pref_app_auto_startup">Autostart</string>
 	<string name="pref_app_auto_startup_enabled">Rozpocznij odtwarzanie dźwięku natychmiast po uruchomieniu aplikacji</string>
 	<string name="pref_auto_startup_disabled">Odtwarzanie dźwięku należy uruchomić ręcznie</string>
-	<string name="pref_header_info_links">Linki</string>
-	<string name="pref_header_info_authors">Autorzy</string>
-	<string name="pref_info_link_4pda">Temat 4pda</string>
-	<string name="pref_info_link_4pda_summary">Temat o tej aplikacji na forum rosyjskojęzycznym</string>
 	<string name="pref_info_link_github">Repozytorium GitHub</string>
-	<string name="pref_info_link_github_summary">Repozytorium z kodem dla tej aplikacji. Projekt jest OpenSource</string>
-	<string name="pref_info_contributors_title">Współtwórcy</string>
-	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)\nAndus - translator (Polish)</string>
 	<string name="pref_info_link_telegram">Kanał Telegram</string>
-	<string name="pref_info_link_telegram_summary">Publikuje nowości i nowe wydania aplikacji</string>
 	<string name="pref_tuner_antenna">Antena</string>
 	<string name="pref_tuner_antenna_message">Domyślnie jest to \'0\'.\nNa niektórych urządzeniach Sony jest \'1\'.</string>
 	<string name="toolbar_favorite_title">Ulubione</string>
@@ -98,19 +77,16 @@
 	<string name="pref_recording_name_title">Nazwa pliku</string>
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nNagrania są zapisywane w katalogu Music/RFM-Recordings.\nWartość katalogu musi być ścieżką względną wewnątrz tego katalogu.\nPrzykład:\nKatalog: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_format_title">Format Nagrywania</string>
-	<string name="pref_recording_convert_summary">WAV - surowe/duże audio, MP3 - skompresowane/małe</string>
 	<string name="pref_recording_show_notify">Pokaż Powiadomienia</string>
 	<string name="pref_recording_show_notify_summary">Pod koniec nagrania wyświetl informacje o zapisanym pliku</string>
 	<string name="pref_info_version_title">Wersja</string>
 	<string name="pref_info_link_site">Strona Aplikacji</string>
-	<string name="pref_info_link_site_summary" translatable="false">rfm.velu.ga</string>
 	<string name="pref_version_check_progress">Sprawdzanie Aktualizacji…</string>
 	<string name="pref_version_check_fresh_title">Jest OK!</string>
 	<string name="pref_version_check_fresh_content">Zainstalowana jest najnowsza wersja. Aktualizacja nie jest wymagana.</string>
 	<string name="pref_version_check_need_update_title">Dostępna aktualizacja</string>
 	<string name="pref_version_check_need_update_content">Najnowsza wersja aplikacji: v%1$s (%2$d)\nZainstalowana wersja aplikacji: %3$s (v%4$d)\n\nAktualizacje:\n%5$s\n\nOtwórz stronę wydania, aby pobrać instalator?</string>
 	<string name="pref_version_check_need_update_ok">Aktualizuj</string>
-	<string name="pref_version_check_fresh_ok">Dobrze</string>
 	<string name="notification_mhz">%.1f MHz</string>
 	<string name="service_record_unsupported">Nagrywanie nieobsługiwane przez ten sterownik.</string>
 	<string name="record_permissions_required_title">Wymagane uprawnienia do nagrywania</string>

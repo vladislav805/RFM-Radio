@@ -2,7 +2,6 @@
 	<string name="app_name">RFM Radio</string>
 	<string name="nil" translatable="false">null</string>
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
-	<string name="progress_init">Please, wait… Initializing… Version %s</string>
 	<string name="player_event_frequency_changed">Frequency changed to %5.1f MHz</string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
@@ -19,27 +18,16 @@
 	<string name="favorites_done">Done</string>
 	<string name="stereo_indicator">Stereo or mono indicator</string>
 	<string name="drag_to_reorder">Drag to reorder station</string>
-	<string name="progress_installing">Install binary…</string>
-	<string name="progress_launching">Launching…</string>
 	<string name="progress_starting">Enabling tuner…</string>
-	<string name="progress_searching">Searching…</string>
-	<string name="progress_stopping">Stopping…</string>
 	<string name="menu_settings">Settings</string>
-	<string name="menu_open_list">Station list</string>
 	<string name="menu_record">Record</string>
 	<string name="menu_about">About</string>
 	<string name="menu_open_list_favorites">Favorites</string>
-	<string name="popup_preset_add">Add</string>
-	<string name="popup_preset_rename">Rename</string>
-	<string name="popup_preset_replace">Replace</string>
-	<string name="popup_preset_remove">Remove</string>
 	<string name="popup_station_create">Create</string>
 	<string name="popup_station_create_hint">Station name…</string>
 	<string name="favorite_station_already_added">Current frequency is already added to favorites</string>
 	<string name="popup_station_rename">Rename</string>
 	<string name="popup_station_remove">Remove</string>
-	<string name="favorite_list_item_add" translatable="false">+</string>
-	<string name="about_version" translatable="false">v%s</string>
 	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Create list</string>
 	<string name="menu_favorite_list_remove">Remove this list</string>
@@ -68,7 +56,6 @@
 	<string name="favorite_list_remove_message">Are you sure, that you want remove list \'%s\'?</string>
 	<string name="pref_activity_title">Settings</string>
 	<string name="pref_header_tuner">Tuner</string>
-	<string name="pref_header_audio">Audio</string>
 	<string name="pref_header_app">Application</string>
 	<string name="pref_header_info">Info</string>
 	<string name="pref_tuner_spacing">Spacing</string>
@@ -78,16 +65,8 @@
 	<string name="pref_app_auto_startup">Autostart</string>
 	<string name="pref_app_auto_startup_enabled">Start playing audio immediately when the application starts</string>
 	<string name="pref_auto_startup_disabled">Audio playback needs to be started manually</string>
-	<string name="pref_header_info_links">Links</string>
-	<string name="pref_header_info_authors">Authors</string>
-	<string name="pref_info_link_4pda">4pda topic</string>
-	<string name="pref_info_link_4pda_summary">Topic about this application on the Russian-language forum</string>
 	<string name="pref_info_link_github">GitHub repository</string>
-	<string name="pref_info_link_github_summary">Repository with the code for this application. Project is OpenSource</string>
-	<string name="pref_info_contributors_title">Contributors</string>
-	<string name="pref_info_contributors_content">Vladislav Veluga — developer;\nMike Reid — developer of Spirit 1\/2\nKonstantin Manaev — translator (English)</string>
 	<string name="pref_info_link_telegram">Telegram channel</string>
-	<string name="pref_info_link_telegram_summary">Publishes news and new releases of the application</string>
 	<string name="pref_tuner_antenna">Antenna</string>
 	<string name="pref_tuner_antenna_message">By default it is \'0\'.\nOn some Sony devices it is \'1\'.</string>
 	<string name="toolbar_favorite_title">Favorites</string>
@@ -103,19 +82,16 @@
 	<string name="pref_recording_name_value" translatable="false">FM-$h$i$s-$f</string>
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Available variables:\n$y - year\n$m - month\n$d - day of month\n$h - hour\n$i - minute\n$s - second\n$f - frequency (e.g., 103.4 MHz = 1034)\n$r - random number 10000-99999\nRecordings are stored inside Music/RFM-Recordings.\nThe directory value must stay relative to that root.\nExample:\nDirectory: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nFilename: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_format_title">Recording format</string>
-	<string name="pref_recording_convert_summary">WAV - raw/large audio, MP3 - compressed/small</string>
 	<string name="pref_recording_show_notify">Show notifications</string>
 	<string name="pref_recording_show_notify_summary">At the end of the recording, display information about the saved file</string>
 	<string name="pref_info_version_title">Version</string>
 	<string name="pref_info_link_site">Application\'s site</string>
-	<string name="pref_info_link_site_summary" translatable="false">rfm.velu.ga</string>
 	<string name="pref_version_check_progress">Checking for updates…</string>
 	<string name="pref_version_check_fresh_title">It\'s OK!</string>
 	<string name="pref_version_check_fresh_content">The latest version is installed. No update required.</string>
 	<string name="pref_version_check_need_update_title">Update available</string>
 	<string name="pref_version_check_need_update_content">Latest app version: v%1$s (%2$d)\nInstalled app version: %3$s (v%4$d)\n\nUpdates:\n%5$s\n\nOpen the release page to download the installer?</string>
 	<string name="pref_version_check_need_update_ok">Update</string>
-	<string name="pref_version_check_fresh_ok">Well</string>
 	<string name="notification_mhz">%.1f MHz</string>
 	<string name="service_record_unsupported">Recording not supported by this driver.</string>
 	<string name="record_permissions_required_title">Recording permissions required</string>
