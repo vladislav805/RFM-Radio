@@ -393,9 +393,9 @@ void fm_receiver_close() {
  * the interrupt data received
  * @return FALSE in failure, TRUE in success
  */
-uint32 read_data_from_v4l2(const uint8 *buf, int index) {
-    if (fd_radio < 0) {
-        return 0xffffffff;
+int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
+    if (fd_radio < 0 || buf == NULL || buffer_size == 0) {
+        return -1;
     }
 
     int err;
@@ -407,7 +407,7 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index) {
     v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
     v4l2_buf.memory = V4L2_MEMORY_USERPTR;
     v4l2_buf.m.userptr = (unsigned long) buf;
-    v4l2_buf.length = 128;
+    v4l2_buf.length = buffer_size;
 
     err = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
 
@@ -416,7 +416,7 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index) {
         return -1;
     }
 
-    return v4l2_buf.bytesused;
+    return (int32) v4l2_buf.bytesused;
 }
 
 /**
@@ -429,9 +429,9 @@ uint32 read_data_from_v4l2(const uint8 *buf, int index) {
 bool extract_program_service(fm_rds_storage* storage) {
     uint8 buf[64] = {0};
 
-    uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_PS_RDS);
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_PS_RDS);
 
-    if (bytes < 0) {
+    if (bytes < 5) {
         return FALSE;
     }
 
@@ -446,11 +446,21 @@ bool extract_program_service(fm_rds_storage* storage) {
      */
     int num_of_ps = (int) (buf[0] & 0x0F); // 0-15
     int ps_services_len = num_of_ps * 8; // 0-120
+    const int max_storage_len = (int) sizeof(storage->program_name) - 1;
+    const int max_buffer_len = bytes > 5 ? bytes - 5 : 0;
+    if (ps_services_len > max_storage_len) {
+        ps_services_len = max_storage_len;
+    }
+    if (ps_services_len > max_buffer_len) {
+        ps_services_len = max_buffer_len;
+    }
 
     storage->program_id = ((buf[2] & 0xFF) << 8) | (buf[3] & 0xFF);
     storage->program_type = (int) (buf[1] & 0x1F);
-    memset(storage->program_name, 0x0, 96);
-    memcpy(storage->program_name, &buf[5], ps_services_len);
+    memset(storage->program_name, 0x0, sizeof(storage->program_name));
+    if (ps_services_len > 0) {
+        memcpy(storage->program_name, &buf[5], ps_services_len);
+    }
     storage->program_name[ps_services_len] = '\0';
 
     printf("fr_extr_ps      : prgid=%d, pty=%d, ps=`%s`\n", storage->program_id, storage->program_type, storage->program_name);
@@ -465,11 +475,11 @@ bool extract_program_service(fm_rds_storage* storage) {
  * @return TRUE if success,else FALSE
  */
 bool extract_radio_text(fm_rds_storage* storage) {
-    uint8 buf[128];
+    uint8 buf[128] = {0};
 
-    uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_RT_RDS);
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_RT_RDS);
 
-    if (bytes < 0) {
+    if (bytes < 5) {
         return FALSE;
     }
 
@@ -482,10 +492,20 @@ bool extract_radio_text(fm_rds_storage* storage) {
      *?|         |         |1111 1111|1111 1111|         |         | program_id (((buf[2] & 0xff) << 8) | (buf[3] & 0xff))
      * |         |         |         |         |         |1111 1111| radio_text (buf[5] with length buf[0] + 5)
      */
-    uint8 radio_text_length = (int) (buf[0] + 5);
+    int radio_text_length = (int) (buf[0] + 5);
+    const int max_storage_len = (int) sizeof(storage->radio_text) - 1;
+    const int max_buffer_len = bytes > 5 ? bytes - 5 : 0;
+    if (radio_text_length > max_storage_len) {
+        radio_text_length = max_storage_len;
+    }
+    if (radio_text_length > max_buffer_len) {
+        radio_text_length = max_buffer_len;
+    }
 
-    memset(storage->radio_text, 0x0, 64);
-    memcpy(storage->radio_text, &buf[5], radio_text_length);
+    memset(storage->radio_text, 0x0, sizeof(storage->radio_text));
+    if (radio_text_length > 0) {
+        memcpy(storage->radio_text, &buf[5], radio_text_length);
+    }
     printf("fr_extr_rt      : rt=`%s`\n", storage->radio_text);
 
     return TRUE;
@@ -499,9 +519,9 @@ bool extract_radio_text(fm_rds_storage* storage) {
 uint8 extract_rds_af_list(uint32* frequencies) {
     uint8 buf[0xff];
 
-    const uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_AF_LIST);
+    const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_AF_LIST);
 
-    if (bytes < 0) {
+    if (bytes < 7) {
         return FALSE;
     }
 
@@ -512,6 +532,11 @@ uint8 extract_rds_af_list(uint32* frequencies) {
 
     if (af_size <= 0 || af_size > 25) {
         print3("fr_extr_af_list : AF invalid: %d , %d\n", buf[4], buf[4] & 0xff);
+        return FALSE;
+    }
+
+    if (bytes < 7 + af_size * 4) {
+        print3("fr_extr_af_list : AF truncated: bytes=%d, size=%d\n", bytes, af_size);
         return FALSE;
     }
 
@@ -571,15 +596,21 @@ uint8 extract_search_station_list(uint32* list) {
     printf("fr_extr_srch_stl: lower_limit = %d\n", lower_limit);
 
     // Read buffer
-    uint32 bytes = read_data_from_v4l2(buf, TAVARUA_BUF_SRCH_LIST);
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_SRCH_LIST);
 
-    if (bytes < 0) {
+    if (bytes < 1) {
         printf("fr_extr_srch_stl: read failed\n");
         return 0;
     }
 
     // First byte is count of found stations
     station_count = (int) buf[0];
+    if (station_count > 25) {
+        station_count = 25;
+    }
+    if (station_count > (uint32) ((bytes - 1) / 2)) {
+        station_count = (uint32) ((bytes - 1) / 2);
+    }
 
     printf("fr_extr_srch_stl: found stations = %d\n", station_count);
 
@@ -610,5 +641,4 @@ uint8 extract_search_station_list(uint32* list) {
 
     return station_count;
 }
-
 

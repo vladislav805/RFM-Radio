@@ -196,10 +196,12 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 stations = extract_search_station_list(list);
 
-            char str[5 * stations];
+            char str[5 * 25 + 1];
+            str[0] = '\0';
 
             for (int i = 0; i < stations; ++i) {
-                sprintf(str, "%s%04d", str, list[i] / 100);
+                const size_t offset = strlen(str);
+                snprintf(str + offset, sizeof(str) - offset, "%04d", list[i] / 100);
             }
 
             printf("SEARCH LIST = %s\n", str);
@@ -212,12 +214,16 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 size = extract_rds_af_list(list);
 
-            char* str = (char*) malloc(sizeof(char) * 5 * size);
+            char* str = (char*) malloc(sizeof(char) * (5 * size + 1));
+            if (str == NULL) {
+                break;
+            }
             str[0] = '\0';
 
             for (int i = 0; i < size; ++i) {
                 printf("%d %d\n", list[i], list[i] / 100);
-                sprintf(str, "%s%04d", str, list[i] / 100);
+                const size_t offset = strlen(str);
+                snprintf(str + offset, 5 * size + 1 - offset, "%04d", list[i] / 100);
             }
 
             printf("AF LIST = %s\n", str);
@@ -255,11 +261,11 @@ void* interrupt_thread(__attribute__((unused)) void* ignore) {
     int i;
 
     // Count of bytes,
-    uint32 bytes;
+    int32 bytes;
 
     while (1) {
         // Wait and read events
-        bytes = read_data_from_v4l2(buf, TAVARUA_BUF_EVENTS);
+        bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_EVENTS);
 
         // If error occurred
         if (bytes < 0) {

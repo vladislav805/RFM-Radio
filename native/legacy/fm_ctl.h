@@ -55,7 +55,7 @@ bool fm_receiver_cancel_search();
 
 void fm_receiver_close();
 
-uint32 read_data_from_v4l2(const uint8 *buf, int index);
+int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index);
 
 bool extract_program_service(fm_rds_storage* storage);
 bool extract_radio_text(fm_rds_storage* storage);
