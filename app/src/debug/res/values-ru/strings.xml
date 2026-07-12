@@ -1,0 +1,4 @@
+<resources>
+	<string name="app_name" translatable="false">[DEV] RFM Radio</string>
+	<string name="main_activity_label" translatable="false">[DEV] RFM Radio</string>
+</resources>
