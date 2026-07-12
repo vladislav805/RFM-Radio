@@ -31,7 +31,7 @@ add_executable(
     legacy/fm_wrap.c
     legacy/fm_ctl.c
     legacy/utils.cpp
-    legacy/detector.c
+    legacy/detector.cpp
 )
 
 target_include_directories(
