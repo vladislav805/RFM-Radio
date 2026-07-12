@@ -146,7 +146,7 @@ uint8 fm_receiver_get_rds_group_options() {
     uint32 err = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
 
     if (err < 0) {
-        legacy_debug_log("rds", "get group options failed, err=%d", err);
+        legacy_log("rds", "get group options failed, err=%d", err);
         return 0;
     }
 
@@ -219,7 +219,7 @@ uint32 fm_receiver_get_tuned_frequency() {
     if (err == 0) {
         return tunefreq_to_khz(freq_struct.frequency);
     } else {
-        legacy_debug_log("tune", "get frequency failed, err=%d", err);
+        legacy_log("tune", "get frequency failed, err=%d", err);
         return 0;
     }
 }
@@ -284,7 +284,7 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
     int32 ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
 
     if (ret < 0) {
-        legacy_debug_log("audio", "set stereo mode failed, ret=%d", ret);
+        legacy_log("audio", "set stereo mode failed, ret=%d", ret);
     }
 
     return ret == 0;
@@ -295,7 +295,7 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     bool ret;
 
-    legacy_debug_log("search", "start seek");
+    legacy_log("search", "start seek");
 
     if (fd_radio < 0) {
         return FALSE;
@@ -303,13 +303,13 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, mode);
     if (ret == FALSE) {
-        legacy_debug_log("search", "set seek mode failed");
+        legacy_log("search", "set seek mode failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SCANDWELL, dwell_period);
     if (ret == FALSE) {
-        legacy_debug_log("search", "set scan dwell failed");
+        legacy_log("search", "set scan dwell failed");
         return FALSE;
     }
 
@@ -319,11 +319,11 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hw_seek);
 
     if (err < 0) {
-        legacy_debug_log("search", "seek failed");
+        legacy_log("search", "seek failed");
         return FALSE;
     }
 
-    legacy_debug_log("search", "seek started");
+    legacy_log("search", "seek started");
     return TRUE;
 }
 
@@ -336,26 +336,26 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     struct v4l2_hw_freq_seek hwseek;
 
     hwseek.type = V4L2_TUNER_RADIO;
-    legacy_debug_log("search", "start station list scan");
+    legacy_log("search", "start station list scan");
     if (fd_radio < 0) {
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, options.search_mode);
     if (ret == FALSE) {
-        legacy_debug_log("search", "set list scan mode failed");
+        legacy_log("search", "set list scan mode failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl( V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT, options.srch_list_max);
     if (ret == FALSE) {
-        legacy_debug_log("search", "set list scan count failed");
+        legacy_log("search", "set list scan count failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY, options.program_type);
     if (ret == FALSE) {
-        legacy_debug_log("search", "set list scan PTY failed");
+        legacy_log("search", "set list scan PTY failed");
         return FALSE;
     }
 
@@ -363,11 +363,11 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hwseek);
 
     if (err < 0) {
-        legacy_debug_log("search", "list scan failed");
+        legacy_log("search", "list scan failed");
         return FALSE;
     }
 
-    legacy_debug_log("search", "station list scan started");
+    legacy_log("search", "station list scan started");
     return TRUE;
 }
 
@@ -377,16 +377,6 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
 bool fm_receiver_cancel_search() {
     return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHON, 0);
 }
-
-
-
-
-
-
-
-
-
-
 
 /**
  * Close file descriptor
@@ -539,12 +529,12 @@ uint8 extract_rds_af_list(uint32* frequencies) {
     const uint8 af_size = buf[6] & 0xff;
 
     if (af_size <= 0 || af_size > 25) {
-        legacy_debug_log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
+        legacy_log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
         return FALSE;
     }
 
     if (bytes < 7 + af_size * 4) {
-        legacy_debug_log("af", "truncated list bytes=%d count=%d", bytes, af_size);
+        legacy_log("af", "truncated list bytes=%d count=%d", bytes, af_size);
         return FALSE;
     }
 

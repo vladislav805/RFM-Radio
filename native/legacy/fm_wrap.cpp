@@ -149,50 +149,50 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_ERROR: {
-            legacy_debug_log("event", "driver error");
+            legacy_log("event", "driver error");
             break;
         }
 
         case TAVARUA_EVT_BELOW_TH: {
-            legacy_debug_log("event", "signal below threshold");
+            legacy_log("event", "signal below threshold");
             fm_storage.avail = FM_SERVICE_NOT_AVAILABLE;
             break;
         }
 
         case TAVARUA_EVT_ABOVE_TH: {
-            legacy_debug_log("event", "signal above threshold");
+            legacy_log("event", "signal above threshold");
             fm_storage.avail = FM_SERVICE_AVAILABLE;
             break;
         }
 
         case TAVARUA_EVT_STEREO: {
-            legacy_debug_log("event", "stereo mode");
+            legacy_log("event", "stereo mode");
             fm_storage.stereo_type = FM_RX_STEREO;
             send_interruption_info(EVT_STEREO, "1");
             break;
         }
 
         case TAVARUA_EVT_MONO: {
-            legacy_debug_log("event", "mono mode");
+            legacy_log("event", "mono mode");
             fm_storage.stereo_type = FM_RX_MONO;
             send_interruption_info(EVT_STEREO, "0");
             break;
         }
 
         case TAVARUA_EVT_RDS_AVAIL: {
-            legacy_debug_log("event", "RDS available");
+            legacy_log("event", "RDS available");
             // fm_global_params.rds_sync_status = FM_RDS_SYNCED;
             break;
         }
 
         case TAVARUA_EVT_RDS_NOT_AVAIL: {
-            legacy_debug_log("event", "RDS not available");
+            legacy_log("event", "RDS not available");
             // fm_global_params.rds_sync_status = FM_RDS_NOT_SYNCED;
             break;
         }
 
         case TAVARUA_EVT_NEW_SRCH_LIST: {
-            legacy_debug_log("event", "search list available");
+            legacy_log("event", "search list available");
             uint32 list[25];
             uint8 stations = extract_search_station_list(list);
 
@@ -254,7 +254,7 @@ bool process_radio_event(uint8 event_buf) {
  * Thread to perform a continuous read on the radio handle for events
  */
 void* interrupt_thread(__attribute__((unused)) void* ignore) {
-    legacy_debug_log("event", "interrupt thread started");
+    legacy_log("event", "interrupt thread started");
 
     // Temporary buffer
     uint8 buf[128] = {0};
@@ -287,7 +287,7 @@ void* interrupt_thread(__attribute__((unused)) void* ignore) {
     }
 exit:
 
-    legacy_debug_log("event", "interrupt thread exited");
+    legacy_log("event", "interrupt thread exited");
     return NULL;
 }
 
@@ -299,10 +299,10 @@ exit:
 fm_cmd_status_t fm_command_open() {
     int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
 
-    legacy_debug_log("open", "setprop exit=%d", exit_code);
+    legacy_log("open", "setprop exit=%d", exit_code);
 
     if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
-        legacy_debug_log("open", "found radio-iris-transport.ko, loading");
+        legacy_log("open", "found radio-iris-transport.ko, loading");
         system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
     }
 
@@ -323,20 +323,20 @@ fm_cmd_status_t fm_command_open() {
     }
 
     if (init_success) {
-        legacy_debug_log("open", "init success after %d attempts", attempt + 1);
+        legacy_log("open", "init success after %d attempts", attempt + 1);
     } else {
-        legacy_debug_log("open", "init failed after %d attempts", attempt);
+        legacy_log("open", "init failed after %d attempts", attempt);
         return FM_CMD_FAILURE;
     }
 
     wait(500);
 
-    legacy_debug_log("open", "opening /dev/radio0");
+    legacy_log("open", "opening /dev/radio0");
 
     bool ret = fm_receiver_open();
 
     if (ret == FALSE) {
-        legacy_debug_log("open", "failed to open /dev/radio0");
+        legacy_log("open", "failed to open /dev/radio0");
         return FM_CMD_FAILURE;
     }
 
@@ -355,21 +355,21 @@ fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
     char version_str[40] = {'\0'};
     struct v4l2_capability cap = {};
 
-    legacy_debug_log("prepare", "reading driver version");
+    legacy_log("prepare", "reading driver version");
 
     // Read the driver version
     ret = fm_receiver_query_capabilities(&cap);
 
-    legacy_debug_log("prepare", "VIDIOC_QUERYCAP ret=%d version=0x%x", ret, cap.version);
+    legacy_log("prepare", "VIDIOC_QUERYCAP ret=%d version=0x%x", ret, cap.version);
 
     if (ret == TRUE) {
-        legacy_debug_log("prepare", "driver version=0x%x", cap.version);
+        legacy_log("prepare", "driver version=0x%x", cap.version);
 
         // Convert the integer to string
         ret = snprintf(version_str, sizeof(version_str), "%d", cap.version);
 
         if (ret >= sizeof(version_str)) {
-            legacy_debug_log("prepare", "version string overflow");
+            legacy_log("prepare", "version string overflow");
             fm_receiver_close();
             return FM_CMD_FAILURE;
         }
@@ -378,19 +378,19 @@ fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
         __system_property_set("hw.fm.version", version_str);
 #endif
 
-        legacy_debug_log("prepare", "hw.fm.version=%s", version_str);
+        legacy_log("prepare", "hw.fm.version=%s", version_str);
 
         asprintf(&qsoc_poweron_path, "fm_qsoc_patches %d 0", cap.version);
 
         if (qsoc_poweron_path != NULL) {
-            legacy_debug_log("prepare", "qsoc_onpath=%s", qsoc_poweron_path);
+            legacy_log("prepare", "qsoc_onpath=%s", qsoc_poweron_path);
         }
     } else {
-        legacy_debug_log("prepare", "query capabilities failed");
+        legacy_log("prepare", "query capabilities failed");
         return FM_CMD_FAILURE;
     }
 
-    legacy_debug_log("prepare", "receiver opened");
+    legacy_log("prepare", "receiver opened");
     return fm_command_setup_receiver(config_ptr);
 }
 
@@ -410,7 +410,7 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     } else if (!is_rome_chip()) {
         ret = system(qsoc_poweron_path);
         if (ret != 0) {
-            legacy_debug_log("setup", "patch download failed, ret=%d", ret);
+            legacy_log("setup", "patch download failed, ret=%d", ret);
             return FM_CMD_FAILURE;
         }
     }
@@ -429,7 +429,7 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
 
     // If cannot set state, finish
     if (ret == FALSE) {
-        legacy_debug_log("setup", "set radio state failed, ret=%d", ret);
+        legacy_log("setup", "set radio state failed, ret=%d", ret);
         fm_receiver_close();
         return FM_CMD_FAILURE;
     }
@@ -438,12 +438,12 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     // set_v4l2_ctrl(fd_radio, V4L2_CID_TUNE_POWER_LEVEL, 7);
 
     // Emphasis (50/75 kHz)
-    legacy_debug_log("setup", "emphasis=%d", cfg->emphasis);
+    legacy_log("setup", "emphasis=%d", cfg->emphasis);
     ret = fm_receiver_set_emphasis(cfg->emphasis);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change emphasis");
 
     // Spacing (50/100/200kHz)
-    legacy_debug_log("setup", "spacing=%d", cfg->spacing);
+    legacy_log("setup", "spacing=%d", cfg->spacing);
     ret = fm_receiver_set_spacing(cfg->spacing);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change channel spacing");
 
@@ -475,7 +475,7 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS system");
 
     // RDS system standard
-    legacy_debug_log("rds", "system=%d", system);
+    legacy_log("rds", "system=%d", system);
 
     // If RDS enabled
     if (system != FM_RX_NO_RDS_SYSTEM) {
@@ -490,13 +490,13 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
 
         uint32 mask = 0xffff;
 
-        legacy_debug_log("rds", "set group options=0x%x", mask);
+        legacy_log("rds", "set group options=0x%x", mask);
         ret = fm_receiver_set_rds_group_options(/*rds_group_mask*/ mask); // 0xff OK
         CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS group options");
     }
 
     if (is_rome_chip()) {
-        legacy_debug_log("rds", "using Rome RDS setup");
+        legacy_log("rds", "using Rome RDS setup");
         /*ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_MASK, 1);
         if (ret == FALSE) {
             print("Failed to set RDS GRP MASK\n");
@@ -509,10 +509,10 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
         }*/
     } else {
         uint32 ps_all = 0xffff;
-        legacy_debug_log("rds", "set ps all=0x%x", ps_all);
+        legacy_log("rds", "set ps all=0x%x", ps_all);
         ret = fm_receiver_set_ps_all(ps_all); // ???
         if (ret == FALSE) {
-            legacy_debug_log("rds", "set ps all failed");
+            legacy_log("rds", "set ps all failed");
             return FM_CMD_FAILURE;
         }
     }
@@ -525,20 +525,20 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
  * Close the handle to /dev/radio0 V4L2 device.
  */
 fm_cmd_status_t fm_command_disable() {
-    legacy_debug_log("disable", "requested");
+    legacy_log("disable", "requested");
 
     // Wait till the previous ON sequence has completed
     if (is_power_on_completed != TRUE) {
-        legacy_debug_log("disable", "already disabled");
+        legacy_log("disable", "already disabled");
         return FM_CMD_FAILURE;
     }
 
-    legacy_debug_log("disable", "setting radio state off");
+    legacy_log("disable", "setting radio state off");
 
     bool ret = fm_receiver_set_state(OFF);
 
     if (ret == FALSE) {
-        legacy_debug_log("disable", "set radio state off failed");
+        legacy_log("disable", "set radio state off failed");
         return FM_CMD_FAILURE;
     }
 
@@ -546,7 +546,7 @@ fm_cmd_status_t fm_command_disable() {
     __system_property_set("ctl.stop", "fm_dl");
 #endif
 
-    legacy_debug_log("disable", "success");
+    legacy_log("disable", "success");
 
     return FM_CMD_SUCCESS;
 }
@@ -556,16 +556,16 @@ fm_cmd_status_t fm_command_disable() {
  * Tune to specified frequency.
  */
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency) {
-    legacy_debug_log("tune", "request frequency=%d", frequency);
+    legacy_log("tune", "request frequency=%d", frequency);
 
     bool ret = fm_receiver_set_tuned_frequency(frequency);
 
     if (ret == FALSE) {
-        legacy_debug_log("tune", "request failed");
+        legacy_log("tune", "request failed");
         return FM_CMD_FAILURE;
     }
 
-    legacy_debug_log("tune", "request sent");
+    legacy_log("tune", "request sent");
 
     return FM_CMD_SUCCESS;
 }
@@ -609,7 +609,7 @@ fm_cmd_status_t fm_command_set_mute_mode(mute_t mode) {
     int ret = fm_receiver_set_mute_mode(mode);
 
     if (ret == TRUE) {
-        legacy_debug_log("audio", "mute mode set");
+        legacy_log("audio", "mute mode set");
         return FM_CMD_SUCCESS;
     }
 

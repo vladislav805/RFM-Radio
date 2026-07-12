@@ -95,7 +95,7 @@ When launched by the app, the unified binary is piped into Android logcat.
 Typical filter:
 
 ```sh
-adb logcat -s RFM-QCOM -v process
+adb logcat -s RFM-QCOM -v thread
 ```
 
 If you want to focus on the HAL-specific internal logs emitted from
