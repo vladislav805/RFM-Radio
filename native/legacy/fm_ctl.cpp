@@ -49,6 +49,7 @@
  * V4L2 radio handle
  */
 int fd_radio = -1;
+extern fm_current_storage fm_storage;
 
 /**
  * set_v4l2_ctrl
@@ -97,7 +98,12 @@ bool fm_receiver_set_emphasis(emphasis_t emp_type) {
 }
 
 bool fm_receiver_set_spacing(channel_space_t spacing) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SPACING, spacing);
+    if (!set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SPACING, spacing)) {
+        return FALSE;
+    }
+
+    fm_storage.space_type = spacing;
+    return TRUE;
 }
 
 bool fm_receiver_set_rds_state(bool enable) {
@@ -122,8 +128,11 @@ bool fm_receiver_set_band(radio_band_t band) {
     }
 
     ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_REGION, band);
+    if (ret == TRUE) {
+        fm_storage.band_type = band;
+    }
 
-    return ret == 0;
+    return ret == TRUE;
 }
 
 bool fm_receiver_set_rds_system(rds_system_t system) {
@@ -561,14 +570,10 @@ uint8 extract_rds_af_list(uint32* frequencies) {
 }
 
 /**
- * Extract the list of stations that woa found
+ * Extract the list of stations found by hardware search.
+ * Search-list entries are absolute 50 kHz channel numbers encoded as
+ * big-endian 16-bit values. Example: 0x06df * 50 kHz = 87950 kHz.
  * @return Count of stations
- *
- * Эта хуйня перестала работать в самый последний момент просто ХУЙ ПОЙМИ почему.
- * Точнее, как сказать... Не хуй пойми почему, а потому что lower_limit с какого-то чёрта
- * возвращается нулём. Хотя, возвращаемые значения тоже не похожи на частоты, которые я видел в самом начале.
- * Периодически при установке band'а происходит ошибка. А если она происходит во время инициализации приложения
- * (сервера) то вообще всё вываливается в Segmentation Fault. Короче, ниебацца веселье.
  */
 uint8 extract_search_station_list(uint32* list) {
     uint32 station_count;
@@ -577,22 +582,32 @@ uint8 extract_search_station_list(uint32* list) {
     uint8 freq_upper;
     uint8 freq_lower;
 
-    // Offset from lower limit frequency in 50 kHz
+    // Frequency in kHz, before rounding to the app's compact 100 kHz format.
     uint32 freq;
 
     // Temporary buffer
     uint8 buf[100] = {0};
 
-    // Lower limit for computation real frequency
+    // Lower/upper limits for computation real frequency
     uint32 lower_limit;
+    uint32 upper_limit;
 
     // Get lower limit from tuner
-    struct v4l2_tuner tuner;
+    struct v4l2_tuner tuner = {};
     tuner.index = 0;
-    ioctl(fd_radio, VIDIOC_G_TUNER, &tuner);
-    lower_limit = tunefreq_to_khz(tuner.rangelow);
+    if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) == 0) {
+        lower_limit = tunefreq_to_khz(tuner.rangelow);
+        upper_limit = tunefreq_to_khz(tuner.rangehigh);
+    } else {
+        lower_limit = FREQ_LOWER;
+        upper_limit = FREQ_UPPER;
+    }
 
-    printf("fr_extr_srch_stl: lower_limit = %d\n", lower_limit);
+    if (lower_limit < 65000 || lower_limit > FREQ_UPPER || upper_limit <= lower_limit || upper_limit > FREQ_UPPER) {
+        printf("fr_extr_srch_stl: invalid limits = %d-%d, fallback to %d-%d\n", lower_limit, upper_limit, FREQ_LOWER, FREQ_UPPER);
+        lower_limit = FREQ_LOWER;
+        upper_limit = FREQ_UPPER;
+    }
 
     // Read buffer
     int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_SRCH_LIST);
@@ -611,32 +626,24 @@ uint8 extract_search_station_list(uint32* list) {
         station_count = (uint32) ((bytes - 1) / 2);
     }
 
-    printf("fr_extr_srch_stl: found stations = %d\n", station_count);
-
-    /**
-     * | buf[1]  | buf[2]  |
-     * |.... ....|.... ....|
-     * |1111 1111|         | <- upper
-     * |         |1111 1111| <- lower
-     * |0000 0011|1111 1111| <- freq
-     *
-     * freq is offset from lower limit - "1" mean 50 kHz (0.05 MHz)
-     * For example, if lower limit = 87500 (in kHz):
-     * 0 means offset 0 kHz
-     * 1 means offset 50 kHz
-     * 10 means offset 500 kHz (0.5 MHz)
-     */
+    uint8 valid_count = 0;
 
     for (int i = 0; i < station_count; i++) {
         freq_upper = buf[i * 2 + 1] & 0xff; // upper part
         freq_lower = buf[i * 2 + 2] & 0xff; // lower part
-        freq = ((freq_upper & 0x03) << 8) | freq_lower; // make offset from lower limit
+        const uint16 raw = ((uint16) freq_upper << 8) | freq_lower;
+        freq = raw * 50;
 
-        printf("fr_extr_srch_stl: station[%d] = %d\n", i, freq);
+        // Search-list entries are absolute 50 kHz channel numbers.
+        const uint32 frequency = ((freq + 50) / 100) * 100;
+        if (frequency < lower_limit || frequency > upper_limit) {
+            printf("fr_extr_srch_stl: skip station[%d] = %d out of range\n", i, frequency);
+            continue;
+        }
 
-        // kHz = lower + (freq * 50), where: lower = lower_limit in kHz; freq = variable from code
-        list[i] = lower_limit + (freq * 50);
+        list[valid_count] = frequency;
+        valid_count++;
     }
 
-    return station_count;
+    return valid_count;
 }

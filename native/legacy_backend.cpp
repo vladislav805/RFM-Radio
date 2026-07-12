@@ -11,6 +11,18 @@ constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 
+channel_space_t map_app_spacing(int spacing) {
+    switch (spacing) {
+        case 1:
+            return FM_RX_SPACE_50KHZ;
+        case 3:
+            return FM_RX_SPACE_200KHZ;
+        case 2:
+        default:
+            return FM_RX_SPACE_100KHZ;
+    }
+}
+
 class LegacyBackend final : public Backend {
 public:
     BackendKind kind() const override {
@@ -89,7 +101,7 @@ public:
     }
 
     bool set_spacing(int spacing) override {
-        return set_status(fm_receiver_set_spacing(static_cast<channel_space_t>(spacing)) == TRUE, kErrFailed);
+        return set_status(fm_receiver_set_spacing(map_app_spacing(spacing)) == TRUE, kErrFailed);
     }
 
     bool search() override {
