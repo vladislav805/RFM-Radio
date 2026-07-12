@@ -1,5 +1,12 @@
 #include "fmcommon.h"
 
+#ifndef FMBIN_FM_WRAP_H
+#define FMBIN_FM_WRAP_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 fm_cmd_status_t fm_command_open();
 fm_cmd_status_t fm_command_prepare(fm_config_data* config_ptr);
 fm_cmd_status_t fm_command_setup_receiver(fm_config_data* ptr);
@@ -23,3 +30,9 @@ fm_cmd_status_t fm_receiver_search_rds_stations(fm_search_rds_stations options);
 fm_cmd_status_t fm_receiver_search_station_list(fm_search_list_stations options);
 fm_cmd_status_t fm_receiver_cancel_search();
  */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //FMBIN_FM_WRAP_H

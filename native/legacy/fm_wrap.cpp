@@ -1,12 +1,12 @@
 #include "fm_wrap.h"
-#include <linux/videodev2.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <stdlib.h>
+#include <linux/videodev2.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <utils.h>
 #include "../ctl_server.h"
@@ -59,16 +59,16 @@ pthread_t fm_interrupt_thread;
  */
 fm_current_storage fm_storage = {
         .frequency = 0,
-        .band_type = FM_RX_US_EUROPE,
         .mute_mode = FM_RX_NO_MUTE,
-        .space_type = FM_RX_SPACE_100KHZ,
         .stereo_type = FM_RX_STEREO,
+        .space_type = FM_RX_SPACE_100KHZ,
+        .band_type = FM_RX_US_EUROPE,
         .state = OFF,
         .rds = {
-                .radio_text = "",
-                .program_name = "",
                 .program_id = 0,
                 .program_type = 0,
+                .program_name = "",
+                .radio_text = "",
         },
 };
 
@@ -585,7 +585,7 @@ fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction) {
     uint32 need_frequency_khz = current_frequency_khz + (delta * direction);
 
     // Change
-    return fm_receiver_set_tuned_frequency(need_frequency_khz);
+    return fm_receiver_set_tuned_frequency(need_frequency_khz) ? FM_CMD_SUCCESS : FM_CMD_FAILURE;
 }
 
 /**
@@ -612,7 +612,7 @@ fm_cmd_status_t fm_command_set_mute_mode(mute_t mode) {
 }
 
 fm_cmd_status_t fm_command_set_stereo_mode(stereo_t is_stereo) {
-    return fm_receiver_set_stereo_mode(is_stereo);
+    return fm_receiver_set_stereo_mode(is_stereo) ? FM_CMD_SUCCESS : FM_CMD_FAILURE;
 }
 
 
