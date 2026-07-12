@@ -29,7 +29,7 @@ add_executable(
     hal_backend.cpp
     hal/fm2_backend.cpp
     legacy/fm_wrap.c
-    legacy/fm_ctl.c
+    legacy/fm_ctl.cpp
     legacy/utils.cpp
     legacy/detector.cpp
 )

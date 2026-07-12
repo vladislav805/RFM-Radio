@@ -1,10 +1,9 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
 #include "utils.h"
+#include <fcntl.h>
 #include <linux/videodev2.h>
 #include <string.h>
-#include <malloc.h>
-#include <fcntl.h>
 #ifndef __ANDROID_API__
 #    include <sys/ioctl.h>
 #endif
@@ -641,4 +640,3 @@ uint8 extract_search_station_list(uint32* list) {
 
     return station_count;
 }
-
