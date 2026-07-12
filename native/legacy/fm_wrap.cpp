@@ -102,8 +102,8 @@ bool process_radio_event(uint8 event_buf) {
             fm_storage.frequency = fm_receiver_get_tuned_frequency();
 
             // Remove last RDS data
-            strcpy(fm_storage.rds.program_name, "");
-            strcpy(fm_storage.rds.radio_text, "");
+            fm_storage.rds.program_name[0] = '\0';
+            fm_storage.rds.radio_text[0] = '\0';
 
             printf("fw_proc_event   : tuned to frequency %d\n", fm_storage.frequency);
 
@@ -214,23 +214,19 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 size = extract_rds_af_list(list);
 
-            char* str = (char*) malloc(sizeof(char) * (5 * size + 1));
-            if (str == NULL) {
-                break;
-            }
+            char str[5 * 25 + 1];
             str[0] = '\0';
 
             for (int i = 0; i < size; ++i) {
                 printf("%d %d\n", list[i], list[i] / 100);
                 const size_t offset = strlen(str);
-                snprintf(str + offset, 5 * size + 1 - offset, "%04d", list[i] / 100);
+                snprintf(str + offset, sizeof(str) - offset, "%04d", list[i] / 100);
             }
 
             printf("AF LIST = %s\n", str);
 
             send_interruption_info(EVT_UPDATE_AF, str);
 
-            free(str);
             break;
         }
 
@@ -573,7 +569,7 @@ fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction) {
     // Current
     uint32 current_frequency_khz = fm_receiver_get_tuned_frequency();
 
-    int32 delta;
+    int32 delta = 100;
 
     switch (fm_storage.space_type) {
         case FM_RX_SPACE_200KHZ: delta = 200; break;
