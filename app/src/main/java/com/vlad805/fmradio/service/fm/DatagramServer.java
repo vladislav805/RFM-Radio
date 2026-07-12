@@ -168,14 +168,15 @@ public class DatagramServer extends Thread {
 			}
 
 			case EVT_UPDATE_PTY: {
-				if (!isDigits(data.trim())) {
+				final String pty = data.trim();
+				if (!pty.isEmpty() && !isDigits(pty)) {
 					Log.w("FMELS", "invalid PTY payload");
 					return null;
 				}
 
 				action = C.Event.UPDATE_PTY;
 
-				bundle.putInt(C.Key.PTY, Utils.parseInt(data));
+				bundle.putInt(C.Key.PTY, pty.isEmpty() ? 0 : Utils.parseInt(pty));
 				break;
 			}
 
