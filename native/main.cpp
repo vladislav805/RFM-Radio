@@ -273,6 +273,8 @@ response_t api_handler(char *request) {
 }
 
 int main() {
+    setvbuf(stdout, nullptr, _IOLBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
     init_server(&api_handler);
     return 0;
 }

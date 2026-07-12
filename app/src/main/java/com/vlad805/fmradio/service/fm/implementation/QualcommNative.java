@@ -36,7 +36,7 @@ public class QualcommNative extends AbstractQualcommNativeController {
         closeServerListener();
         killRunningBinary();
         Utils.sleep(150);
-        Utils.shell(String.format("sh -c '%s 2>&1 | log -t RFM-QCOM' &", getBinaryPath()), true);
+        Utils.shell(String.format("sh -c '%s 2>&1 | while IFS= read -r line; do log -t RFM-QCOM \"$line\"; done' &", getBinaryPath()), true);
         toggleCommandPoll(true);
         startServerListener();
         Utils.sleep(300);
