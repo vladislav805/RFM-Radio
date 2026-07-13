@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <algorithm>
 
 #include "../ctl_server.h"
 #include "fm2_vendor_iface.h"
@@ -251,6 +252,21 @@ void send_hex_event(int event_id, int value) {
     send_interruption_info(event_id, buf);
 }
 
+void format_hex_dump(const char *payload, int len, char *dump, size_t dump_size) {
+    if (dump_size == 0) {
+        return;
+    }
+
+    dump[0] = '\0';
+    const int max_bytes_by_buffer = dump_size > 1 ? static_cast<int>((dump_size - 1) / 3) : 0;
+    const int dump_len = len > max_bytes_by_buffer ? max_bytes_by_buffer : len;
+    for (int i = 0; i < dump_len; ++i) {
+        char chunk[4];
+        snprintf(chunk, sizeof(chunk), "%s%02x", i == 0 ? "" : " ", static_cast<unsigned char>(payload[i]));
+        strncat(dump, chunk, dump_size - strlen(dump) - 1);
+    }
+}
+
 void log_scan_next_cb() {
     hal_log("search", "scan next");
 }
@@ -263,8 +279,59 @@ void oda_update_cb() {
     hal_log("rds", "oda update");
 }
 
+/*
+ * RT+: [0]=payload length, [1]=PTY, [2..3]=PI, [4..7]=flags/toggle,
+ *      [8..10]=tag 1 (content type, start, length), [11..13]=tag 2, [14]=padding.
+ *
+ * RT+ tag length is encoded as length-1.
+ * Example:
+ * RT="Bravo;Valeriy Syutkin - Stil'nyy oranjevyy galstuk"
+ * RT+ raw=0f 07 77 56 01 0c 00 01 01 18 19 04 00 14 00
+ * tag1 TITLE=(ct=1,start=24,len=25) -> 26 chars
+ * tag2 ARTIST=(ct=4,start=0,len=20) -> 21 chars.
+ * Byte [5] is the ODA group number (for example 0x0c = 12A); byte [14] can contain stale padding.
+ */
 void rt_plus_update_cb(char *payload) {
-    hal_log("rds", "rt_plus_update_cb payload=%p", static_cast<void *>(payload));
+    if (payload == nullptr) {
+        hal_log("rds", "rt_plus_update_cb got null");
+        return;
+    }
+
+    const int len = static_cast<unsigned char>(payload[0]);
+    char dump[3 * 32 + 1];
+    format_hex_dump(payload, len, dump, sizeof(dump));
+
+    if (len >= 15) {
+        const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
+        const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
+        const int flags = (static_cast<unsigned char>(payload[4]) << 24) |
+                (static_cast<unsigned char>(payload[5]) << 16) |
+                (static_cast<unsigned char>(payload[6]) << 8) |
+                static_cast<unsigned char>(payload[7]);
+        const int tag1_type = static_cast<unsigned char>(payload[8]);
+        const int tag1_start = static_cast<unsigned char>(payload[9]);
+        const int tag1_len = static_cast<unsigned char>(payload[10]);
+        const int tag2_type = static_cast<unsigned char>(payload[11]);
+        const int tag2_start = static_cast<unsigned char>(payload[12]);
+        const int tag2_len = static_cast<unsigned char>(payload[13]);
+
+        hal_log("rds", "rt+ len=%d pi=0x%04x pty=0x%02x flags=0x%08x tag1=(ct=%d,start=%d,len=%d) tag2=(ct=%d,start=%d,len=%d) data=%s%s",
+                len, pi, pty, flags,
+                tag1_type, tag1_start, tag1_type == 0 ? 0 : tag1_len + 1,
+                tag2_type, tag2_start, tag2_type == 0 ? 0 : tag2_len + 1,
+                dump, len > 32 ? " ..." : "");
+        return;
+    }
+
+    if (len >= 4) {
+        const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
+        const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
+        hal_log("rds", "rt+ len=%d pi=0x%04x pty=0x%02x data=%s%s",
+                len, pi, pty, dump, len > 32 ? " ..." : "");
+        return;
+    }
+
+    hal_log("rds", "rt+ len=%d data=%s%s", len, dump, len > 32 ? " ..." : "");
 }
 
 void ert_update_cb(char *payload) {
@@ -295,6 +362,19 @@ void fm_ch_det_th_rsp_cb(char *payload) {
     hal_log("vendor", "fm_ch_det_th_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
+/*
+ * ECC callback carries RDS group 1A:
+ * [0]=12
+ * [1]=PTY
+ * [2..3]=PI
+ * [4..5]=variant
+ * [6..7]=flags/reserved
+ * [8..9]=slow labelling
+ * [10..11]=block D.
+ *
+ * The slow-labelling low byte is ECC only when variant == 0. Other variants
+ * are broadcaster/vendor data and are ignored to avoid log spam.
+ */
 void ext_country_code_cb(char *payload) {
     if (payload == nullptr) {
         hal_log("rds", "ext_country_code_cb got null");
@@ -302,16 +382,29 @@ void ext_country_code_cb(char *payload) {
     }
 
     const int len = static_cast<unsigned char>(payload[0]);
-    const int dump_len = len > 32 ? 32 : len;
     char dump[3 * 32 + 1];
-    dump[0] = '\0';
-    for (int i = 0; i < dump_len; ++i) {
-        char chunk[4];
-        snprintf(chunk, sizeof(chunk), "%s%02x", i == 0 ? "" : " ", static_cast<unsigned char>(payload[i]));
-        strncat(dump, chunk, sizeof(dump) - strlen(dump) - 1);
+    format_hex_dump(payload, len, dump, sizeof(dump));
+
+    if (len >= 12) {
+        const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
+        const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
+        const int variant = (static_cast<unsigned char>(payload[4]) << 8) | static_cast<unsigned char>(payload[5]);
+        const int slow_labelling =
+                (static_cast<unsigned char>(payload[8]) << 8) | static_cast<unsigned char>(payload[9]);
+        const int block_d = (static_cast<unsigned char>(payload[10]) << 8) | static_cast<unsigned char>(payload[11]);
+
+        if (variant == 0) {
+            const int country_code = (pi >> 12) & 0x0f;
+            const int ecc = slow_labelling & 0xff;
+            hal_log("rds", "ecc len=%d pi=0x%04x pty=0x%02x cc=0x%x ecc=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
+                    len, pi, pty, country_code, ecc, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
+            return;
+        }
+
+        return;
     }
 
-    hal_log("rds", "ext country code len=%d data=%s%s", len, dump, len > dump_len ? " ..." : "");
+    hal_log("rds", "ecc len=%d data=%s%s", len, dump, len > 32 ? " ..." : "");
 }
 
 void fm_get_sig_thres_cb(int value, int status) {
@@ -419,6 +512,16 @@ void stereo_status_cb(bool stereo) {
     send_string_event(EVT_STEREO, stereo ? "1" : "0");
 }
 
+/*
+ * PS:
+ * [0]=PS block count
+ * [1]=PTY
+ * [2..3]=PI
+ * [4]=header,
+ * [5..]=one or more 8-byte Program Service name blocks.
+ *
+ * Qualcomm HAL keeps PTY/PI in the same buffer, so we can update all three app fields here.
+ */
 void ps_update_cb(char *ps) {
     if (ps == nullptr) {
         hal_log("rds", "ps update got null");
@@ -428,20 +531,25 @@ void ps_update_cb(char *ps) {
     const int ps_count = static_cast<unsigned char>(ps[0]);
     const int pty = static_cast<unsigned char>(ps[1]) & 0x1f;
     const int pi = (static_cast<unsigned char>(ps[2]) << 8) | static_cast<unsigned char>(ps[3]);
-    int text_len = ps_count * 8;
-    if (text_len > 119) {
-        text_len = 119;
-    }
+    int text_len = std::min(ps_count * 8, 119);
 
     char text[120];
     memset(text, 0, sizeof(text));
     memcpy(text, ps + 5, text_len);
-    hal_log("rds", "ps count=%d pi=%04x pty=0x%04x text=`%s`", ps_count, pi, pty, text);
+    hal_log("rds", "ps count=%d pi=%04x pty=0x%02x text=`%s`", ps_count, pi, pty, text);
     send_string_event(EVT_UPDATE_PS, text);
     send_int_event(EVT_UPDATE_PTY, pty);
     send_hex_event(EVT_UPDATE_PI, pi);
 }
 
+/*
+ * RT:
+ * [0]=text length
+ * [1..4]=metadata/header
+ * [5..]=RadioText.
+ *
+ * The HAL-provided length is clamped to the RDS 64-character RT limit before copying.
+ */
 void rt_update_cb(char *rt) {
     if (rt == nullptr) {
         hal_log("rds", "rt update got null");
@@ -460,6 +568,13 @@ void rt_update_cb(char *rt) {
     send_string_event(EVT_UPDATE_RT, text);
 }
 
+/*
+ * AF list:
+ * [0..3]=tuned frequency
+ * [4..5]=PI
+ * [6]=AF count,
+ * [7..]=int32 kHz frequency entries from the vendor HAL.
+ */
 void af_update_cb(uint16_t *raw) {
     if (raw == nullptr) {
         return;
@@ -493,6 +608,13 @@ void af_update_cb(uint16_t *raw) {
     send_string_event(EVT_UPDATE_AF, payload);
 }
 
+/*
+ * Search list:
+ * [0]=station count
+ * [1..]=big-endian 16-bit relative offsets.
+ *
+ * Offsets are measured from the current lower band edge in 50 kHz units.
+ */
 void search_list_cb(uint16_t *raw) {
     if (raw == nullptr) {
         return;
