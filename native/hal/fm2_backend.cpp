@@ -225,24 +225,6 @@ bool apply_post_enable_config() {
     return disable_processed_rds_config();
 }
 
-bool apply_post_tune_config() {
-    bool rds_enabled = false;
-    bool auto_af = false;
-
-    pthread_mutex_lock(&g_state.lock);
-    rds_enabled = g_state.rds_enabled;
-    auto_af = g_state.auto_af;
-    pthread_mutex_unlock(&g_state.lock);
-
-    if (!rds_enabled) {
-        return true;
-    }
-
-    // return apply_raw_rds_group_mask() &&
-    //        apply_processed_rds_config(auto_af);
-    return true;
-}
-
 int current_frequency_locked() {
     return g_state.current_frequency_khz;
 }
@@ -977,6 +959,8 @@ uint32_t fm2_backend_get_frequency() {
 bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
     pthread_mutex_lock(&g_state.lock);
     const int step = spacing_step_khz_locked();
+    const int lower = g_state.lower_band_khz;
+    const int upper = g_state.upper_band_khz;
     pthread_mutex_unlock(&g_state.lock);
 
     const int current = static_cast<int>(fm2_backend_get_frequency());
@@ -984,13 +968,19 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
         return false;
     }
 
-    const uint32_t target = static_cast<uint32_t>(current + (step * (direction >= 0 ? 1 : -1)));
+    int target = current + (step * (direction >= 0 ? 1 : -1));
+    if (target > upper) {
+        target = lower;
+    } else if (target < lower) {
+        target = upper;
+    }
+
     if (!fm2_backend_set_frequency(target)) {
         return false;
     }
 
     if (new_frequency != nullptr) {
-        *new_frequency = target;
+        *new_frequency = static_cast<uint32_t>(target);
     }
     return true;
 }
