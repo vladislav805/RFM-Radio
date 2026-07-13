@@ -797,6 +797,10 @@ void search_list_cb(uint16_t *raw) {
         strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
     }
 
+    // Qualcomm HAL can replay the last search-list callback after the real
+    // search result, typically while processing the next command-complete
+    // event. The callback buffer is malloc/free-owned by the HAL, so dedupe by
+    // decoded payload instead of pointer or event ordering.
     pthread_mutex_lock(&g_state.lock);
     const bool duplicate = g_state.last_search_payload_valid &&
             strcmp(g_state.last_search_payload, payload) == 0;
