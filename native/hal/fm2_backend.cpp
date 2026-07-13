@@ -9,6 +9,7 @@
 
 #include "../ctl_server.h"
 #include "fm2_vendor_iface.h"
+#include "utils.h"
 
 namespace {
 
@@ -57,7 +58,7 @@ struct RuntimeState {
 } g_state;
 
 void set_error_locked(const char *message) {
-    FM2_LOGE("backend error set: %s", message ? message : "(null)");
+    hal_log("error", "%s", message ? message : "(null)");
     snprintf(g_state.last_error, sizeof(g_state.last_error), "%s", message);
 }
 
@@ -83,7 +84,7 @@ bool vendor_set(int id, int value, const char *message) {
     const int ret = g_state.vendor->set_fm_ctrl(id, value);
     if (ret < 0) {
         set_error_locked(message);
-        FM2_LOGW("vendor_set failed id=0x%x value=%d ret=%d", id, value, ret);
+        hal_log("vendor", "set id=0x%x value=%d failed, ret=%d", id, value, ret);
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
@@ -104,7 +105,7 @@ bool vendor_get(int id, int *value, const char *message) {
     const int ret = g_state.vendor->get_fm_ctrl(id, value);
     if (ret < 0) {
         set_error_locked(message);
-        FM2_LOGW("vendor_get failed id=0x%x ret=%d", id, ret);
+        hal_log("vendor", "get id=0x%x failed, ret=%d", id, ret);
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
@@ -251,120 +252,121 @@ void send_hex_event(int event_id, int value) {
 }
 
 void log_scan_next_cb() {
-}
-
-void log_char_cb(const char *name, char *payload) {
-    (void)name;
-    (void)payload;
+    hal_log("search", "scan next");
 }
 
 void log_thread_evt_cb(unsigned int evt) {
-    (void)evt;
-}
-
-void log_ii_cb(const char *name, int value, int status) {
-    (void)name;
-    (void)value;
-    (void)status;
-}
-
-void log_i_cb(const char *name, int status) {
-    (void)name;
-    (void)status;
+    hal_log("event", "thread event=%u", evt);
 }
 
 void oda_update_cb() {
+    hal_log("rds", "oda update");
 }
 
 void rt_plus_update_cb(char *payload) {
-    log_char_cb("rt_plus_update_cb", payload);
+    hal_log("rds", "rt_plus_update_cb payload=%p", static_cast<void *>(payload));
 }
 
 void ert_update_cb(char *payload) {
-    log_char_cb("ert_update_cb", payload);
+    hal_log("rds", "ert_update_cb payload=%p", static_cast<void *>(payload));
 }
 
 void rds_grp_cntrs_rsp_cb(char *payload) {
-    log_char_cb("rds_grp_cntrs_rsp_cb", payload);
+    hal_log("rds", "rds_grp_cntrs_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
 void rds_grp_cntrs_ext_rsp_cb(char *payload) {
-    log_char_cb("rds_grp_cntrs_ext_rsp_cb", payload);
+    hal_log("rds", "rds_grp_cntrs_ext_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
 void fm_peek_rsp_cb(char *payload) {
-    log_char_cb("fm_peek_rsp_cb", payload);
+    hal_log("vendor", "fm_peek_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
 void fm_ssbi_peek_rsp_cb(char *payload) {
-    log_char_cb("fm_ssbi_peek_rsp_cb", payload);
+    hal_log("vendor", "fm_ssbi_peek_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
 void fm_agc_gain_rsp_cb(char *payload) {
-    log_char_cb("fm_agc_gain_rsp_cb", payload);
+    hal_log("vendor", "fm_agc_gain_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
 void fm_ch_det_th_rsp_cb(char *payload) {
-    log_char_cb("fm_ch_det_th_rsp_cb", payload);
+    hal_log("vendor", "fm_ch_det_th_rsp_cb payload=%p", static_cast<void *>(payload));
 }
 
 void ext_country_code_cb(char *payload) {
-    log_char_cb("ext_country_code_cb", payload);
+    if (payload == nullptr) {
+        hal_log("rds", "ext_country_code_cb got null");
+        return;
+    }
+
+    const int len = static_cast<unsigned char>(payload[0]);
+    const int dump_len = len > 32 ? 32 : len;
+    char dump[3 * 32 + 1];
+    dump[0] = '\0';
+    for (int i = 0; i < dump_len; ++i) {
+        char chunk[4];
+        snprintf(chunk, sizeof(chunk), "%s%02x", i == 0 ? "" : " ", static_cast<unsigned char>(payload[i]));
+        strncat(dump, chunk, sizeof(dump) - strlen(dump) - 1);
+    }
+
+    hal_log("rds", "ext country code len=%d data=%s%s", len, dump, len > dump_len ? " ..." : "");
 }
 
 void fm_get_sig_thres_cb(int value, int status) {
-    log_ii_cb("fm_get_sig_thres_cb", value, status);
+    hal_log("vendor", "fm_get_sig_thres_cb value=%d status=%d", value, status);
 }
 
 void fm_get_ch_det_thr_cb(int value, int status) {
-    log_ii_cb("fm_get_ch_det_thr_cb", value, status);
+    hal_log("vendor", "fm_get_ch_det_thr_cb value=%d status=%d", value, status);
 }
 
 void fm_def_data_read_cb(int value, int status) {
-    log_ii_cb("fm_def_data_read_cb", value, status);
+    hal_log("vendor", "fm_def_data_read_cb value=%d status=%d", value, status);
 }
 
 void fm_get_blend_cb(int value, int status) {
-    log_ii_cb("fm_get_blend_cb", value, status);
+    hal_log("vendor", "fm_get_blend_cb value=%d status=%d", value, status);
 }
 
 void fm_set_ch_det_thr_cb(int status) {
-    log_i_cb("fm_set_ch_det_thr_cb", status);
+    hal_log("vendor", "fm_set_ch_det_thr_cb status=%d", status);
 }
 
 void fm_def_data_write_cb(int status) {
-    log_i_cb("fm_def_data_write_cb", status);
+    hal_log("vendor", "fm_def_data_write_cb status=%d", status);
 }
 
 void fm_set_blend_cb(int status) {
-    log_i_cb("fm_set_blend_cb", status);
+    hal_log("vendor", "fm_set_blend_cb status=%d", status);
 }
 
 void fm_get_station_param_cb(int value, int status) {
-    log_ii_cb("fm_get_station_param_cb", value, status);
+    hal_log("vendor", "fm_get_station_param_cb value=%d status=%d", value, status);
 }
 
 void fm_get_station_debug_param_cb(int value, int status) {
-    log_ii_cb("fm_get_station_debug_param_cb", value, status);
+    hal_log("vendor", "fm_get_station_debug_param_cb value=%d status=%d", value, status);
 }
 
 void enable_softmute_cb(int status) {
-    log_i_cb("enable_softmute_cb", status);
+    hal_log("audio", "softmute status=%d", status);
 }
 
 void rds_avail_status_cb(bool rds_available) {
-    FM2_LOGI("HAL callback rds_avail_status_cb rds_available=%d", rds_available ? 1 : 0);
+    hal_log("event", "RDS available=%d", rds_available ? 1 : 0);
 }
 
 void enable_slimbus_cb(int status) {
-    FM2_LOGI("HAL callback enable_slimbus_cb status=%d", status);
+    hal_log("event", "slimbus status=%d", status);
     pthread_mutex_lock(&g_state.lock);
     g_state.slimbus_enabled = status == 0;
     pthread_mutex_unlock(&g_state.lock);
 }
 
 void enabled_cb() {
-    FM2_LOGI("HAL callback enabled_cb");
+    hal_log("event", "FM enabled");
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = true;
     g_state.last_enabled_cb_ms = now_ms();
@@ -375,7 +377,7 @@ void enabled_cb() {
 }
 
 void disabled_cb() {
-    FM2_LOGI("HAL callback disabled_cb");
+    hal_log("event", "FM disabled");
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
     pthread_cond_broadcast(&g_state.cond);
@@ -384,7 +386,7 @@ void disabled_cb() {
 }
 
 void tune_cb(int freq) {
-    FM2_LOGI("HAL callback tune_cb freq=%d", freq);
+    hal_log("event", "tuned frequency=%d", freq);
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_tune_cb_ms = now_ms();
@@ -397,7 +399,7 @@ void tune_cb(int freq) {
 }
 
 void seek_complete_cb(int freq) {
-    FM2_LOGI("HAL callback seek_complete_cb freq=%d", freq);
+    hal_log("event", "seek complete frequency=%d", freq);
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_seek_cb_ms = now_ms();
@@ -410,7 +412,7 @@ void seek_complete_cb(int freq) {
 }
 
 void stereo_status_cb(bool stereo) {
-    FM2_LOGI("HAL callback stereo_status_cb stereo=%d", stereo ? 1 : 0);
+    hal_log("event", "stereo=%d", stereo ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.stereo = stereo;
     pthread_mutex_unlock(&g_state.lock);
@@ -419,7 +421,7 @@ void stereo_status_cb(bool stereo) {
 
 void ps_update_cb(char *ps) {
     if (ps == nullptr) {
-        FM2_LOGW("HAL callback ps_update_cb got null");
+        hal_log("rds", "ps update got null");
         return;
     }
 
@@ -434,7 +436,7 @@ void ps_update_cb(char *ps) {
     char text[120];
     memset(text, 0, sizeof(text));
     memcpy(text, ps + 5, text_len);
-    FM2_LOGI("HAL callback ps_update_cb ps_count=%d pty=%d pi=0x%x text=`%s`", ps_count, pty, pi, text);
+    hal_log("rds", "ps count=%d pi=%04x pty=0x%04x text=`%s`", ps_count, pi, pty, text);
     send_string_event(EVT_UPDATE_PS, text);
     send_int_event(EVT_UPDATE_PTY, pty);
     send_hex_event(EVT_UPDATE_PI, pi);
@@ -442,7 +444,7 @@ void ps_update_cb(char *ps) {
 
 void rt_update_cb(char *rt) {
     if (rt == nullptr) {
-        FM2_LOGW("HAL callback rt_update_cb got null");
+        hal_log("rds", "rt update got null");
         return;
     }
 
@@ -454,7 +456,7 @@ void rt_update_cb(char *rt) {
     char text[96];
     memset(text, 0, sizeof(text));
     memcpy(text, rt + 5, text_len);
-    FM2_LOGI("HAL callback rt_update_cb len=%d text=`%s`", text_len, text);
+    hal_log("rds", "rt=`%s` (len=%d)", text, text_len);
     send_string_event(EVT_UPDATE_RT, text);
 }
 
@@ -466,12 +468,14 @@ void af_update_cb(uint16_t *raw) {
     const hci_ev_af_list *af = reinterpret_cast<const hci_ev_af_list *>(raw);
     const uint8_t af_size = af->af_size;
     if (af_size == 0 || af_size > 25) {
-        FM2_LOGW("HAL callback af_update_cb invalid size=%u", af_size);
+        hal_log("af", "invalid size=%u", af_size);
         return;
     }
 
     char payload[5 * 25 + 1];
     payload[0] = '\0';
+    char frequencies[7 * 25 + 1];
+    frequencies[0] = '\0';
 
     for (uint8_t i = 0; i < af_size; ++i) {
         int32_t freq = 0;
@@ -479,9 +483,13 @@ void af_update_cb(uint16_t *raw) {
         char chunk[8];
         snprintf(chunk, sizeof(chunk), "%04d", static_cast<int>(freq / 100));
         strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
+
+        char frequency_chunk[8];
+        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", static_cast<int>(freq));
+        strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
     }
 
-    FM2_LOGI("HAL callback af_update_cb size=%u payload=`%s`", af_size, payload);
+    hal_log("af", "result count=%u frequencies=%s", af_size, frequencies);
     send_string_event(EVT_UPDATE_AF, payload);
 }
 
@@ -493,7 +501,7 @@ void search_list_cb(uint16_t *raw) {
     const hci_ev_srch_list_compl *list = reinterpret_cast<const hci_ev_srch_list_compl *>(raw);
     const int count = static_cast<unsigned char>(list->num_stations_found);
     if (count <= 0) {
-        FM2_LOGW("HAL callback search_list_cb empty search result");
+        hal_log("search", "empty result");
         send_string_event(EVT_SEARCH_DONE, "");
         return;
     }
@@ -505,6 +513,8 @@ void search_list_cb(uint16_t *raw) {
 
     char payload[5 * 20 + 1];
     payload[0] = '\0';
+    char frequencies[7 * 20 + 1];
+    frequencies[0] = '\0';
 
     for (int i = 0; i < count && i < 20; ++i) {
         const int rel = ((static_cast<unsigned char>(list->rel_freq[i].rel_freq_msb) << 8) |
@@ -513,9 +523,13 @@ void search_list_cb(uint16_t *raw) {
         char chunk[8];
         snprintf(chunk, sizeof(chunk), "%04d", abs_freq / 100);
         strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
+
+        char frequency_chunk[8];
+        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", abs_freq);
+        strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
     }
 
-    FM2_LOGI("HAL callback search_list_cb count=%d payload=`%s`", count, payload);
+    hal_log("search", "result count=%d frequencies=%s", count, frequencies);
     send_string_event(EVT_SEARCH_DONE, payload);
 }
 
@@ -571,8 +585,8 @@ bool apply_runtime_config() {
     stereo = g_state.stereo ? 1 : 0;
     pthread_mutex_unlock(&g_state.lock);
 
-    FM2_LOGI("apply_runtime_config region=%d lower=%d upper=%d spacing=%d stereo=%d",
-             region, lower, upper, spacing, stereo);
+    hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d stereo=%d",
+            region, lower, upper, spacing, stereo);
 
     return vendor_set(V4L2_CID_PRV_SOFT_MUTE, 1, "failed to enable soft mute") &&
            vendor_set(V4L2_CID_PRV_EMPHASIS, 1, "failed to set emphasis") &&
@@ -598,14 +612,14 @@ bool fm2_backend_init() {
 
     g_state.lib_handle = dlopen(kFmLibraryName, RTLD_NOW);
     if (g_state.lib_handle == nullptr) {
-        FM2_LOGE("dlopen failed for %s: %s", kFmLibraryName, dlerror());
+        hal_log("open", "dlopen failed for %s: %s", kFmLibraryName, dlerror());
         set_error_locked(dlerror());
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
     g_state.vendor = (fm_interface_t *) dlsym(g_state.lib_handle, kFmLibrarySymbol);
     if (g_state.vendor == nullptr) {
-        FM2_LOGE("dlsym failed for %s: %s", kFmLibrarySymbol, dlerror());
+        hal_log("open", "dlsym failed for %s: %s", kFmLibrarySymbol, dlerror());
         set_error_locked(dlerror());
         dlclose(g_state.lib_handle);
         g_state.lib_handle = nullptr;
@@ -629,7 +643,7 @@ bool fm2_backend_init() {
 }
 
 bool fm2_backend_enable() {
-    FM2_LOGI("fm2_backend_enable called");
+    hal_log("enable", "requested");
     if (!fm2_backend_init()) {
         return false;
     }
@@ -640,7 +654,7 @@ bool fm2_backend_enable() {
     pthread_mutex_unlock(&g_state.lock);
 
     if (!fm2_backend_set_slimbus(true)) {
-        FM2_LOGW("fm2_backend_enable: failed to enable slimbus before receiver state");
+        hal_log("enable", "failed to enable slimbus before receiver state");
     }
 
     if (!vendor_set(V4L2_CID_PRV_STATE, kFmRxState, "failed to enable receiver")) {
@@ -676,14 +690,14 @@ bool fm2_backend_wait_enabled(int timeout_ms) {
 }
 
 bool fm2_backend_disable() {
-    FM2_LOGI("fm2_backend_disable called");
+    hal_log("disable", "requested");
     const bool disabled = vendor_set(V4L2_CID_PRV_STATE, 0, "failed to disable receiver");
     const bool slimbus = fm2_backend_set_slimbus(false);
     return disabled && slimbus;
 }
 
 bool fm2_backend_set_frequency(uint32_t frequency_khz) {
-    FM2_LOGI("fm2_backend_set_frequency freq=%u", frequency_khz);
+    hal_log("tune", "request frequency=%u", frequency_khz);
     if (!vendor_set(V4L2_CID_PRV_IRIS_FREQ, static_cast<int>(frequency_khz), "failed to tune")) {
         return false;
     }
@@ -700,7 +714,7 @@ uint32_t fm2_backend_get_frequency() {
         pthread_mutex_lock(&g_state.lock);
         const int cached = current_frequency_locked();
         pthread_mutex_unlock(&g_state.lock);
-        FM2_LOGW("fm2_backend_get_frequency: vendor_get failed, using cached frequency=%d", cached);
+        hal_log("tune", "get frequency failed, using cached=%d", cached);
         return cached > 0 ? static_cast<uint32_t>(cached) : 0;
     }
 
@@ -709,7 +723,7 @@ uint32_t fm2_backend_get_frequency() {
         const int cached = current_frequency_locked();
         clear_error_locked();
         pthread_mutex_unlock(&g_state.lock);
-        FM2_LOGW("fm2_backend_get_frequency: HAL returned invalid frequency=%d, using cached=%d", freq, cached);
+        hal_log("tune", "invalid frequency=%d, using cached=%d", freq, cached);
         return cached > 0 ? static_cast<uint32_t>(cached) : 0;
     }
 
@@ -742,7 +756,7 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
 }
 
 bool fm2_backend_seek(int direction) {
-    FM2_LOGI("fm2_backend_seek direction=%d", direction);
+    hal_log("search", "seek direction=%d", direction);
     const bool ok = vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeSeek, "failed to set seek mode") &&
                     vendor_set(V4L2_CID_PRV_SCANDWELL, kDefaultSeekDwell, "failed to set seek dwell") &&
                     vendor_set(V4L2_CID_PRV_IRIS_SEEK, direction >= 0 ? 1 : 0, "failed to start seek");
@@ -756,12 +770,12 @@ bool fm2_backend_search() {
 }
 
 bool fm2_backend_cancel_search() {
-    FM2_LOGI("fm2_backend_cancel_search called");
+    hal_log("search", "cancel requested");
     return vendor_set(V4L2_CID_PRV_SRCHON, 0, "failed to cancel search");
 }
 
 bool fm2_backend_set_rds(bool enabled) {
-    FM2_LOGI("fm2_backend_set_rds enabled=%d", enabled ? 1 : 0);
+    hal_log("rds", "set enabled=%d", enabled ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.rds_enabled = enabled;
     pthread_mutex_unlock(&g_state.lock);
@@ -777,7 +791,7 @@ bool fm2_backend_set_rds(bool enabled) {
 }
 
 bool fm2_backend_set_stereo(bool enabled) {
-    FM2_LOGI("fm2_backend_set_stereo enabled=%d", enabled ? 1 : 0);
+    hal_log("audio", "set stereo=%d", enabled ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.stereo = enabled;
     pthread_mutex_unlock(&g_state.lock);
@@ -785,7 +799,7 @@ bool fm2_backend_set_stereo(bool enabled) {
 }
 
 bool fm2_backend_set_spacing_app_value(int app_spacing) {
-    FM2_LOGI("fm2_backend_set_spacing_app_value app_spacing=%d", app_spacing);
+    hal_log("setup", "set app spacing=%d", app_spacing);
     pthread_mutex_lock(&g_state.lock);
     g_state.app_spacing = app_spacing;
     g_state.vendor_spacing = map_app_spacing_to_vendor(app_spacing);
@@ -795,7 +809,7 @@ bool fm2_backend_set_spacing_app_value(int app_spacing) {
 }
 
 bool fm2_backend_set_region_app_value(int app_region) {
-    FM2_LOGI("fm2_backend_set_region_app_value app_region=%d", app_region);
+    hal_log("setup", "set app region=%d", app_region);
     pthread_mutex_lock(&g_state.lock);
     apply_band_config_locked(app_region);
     const int region = g_state.vendor_region;
@@ -803,14 +817,14 @@ bool fm2_backend_set_region_app_value(int app_region) {
     const int upper = g_state.upper_band_khz;
     pthread_mutex_unlock(&g_state.lock);
 
-    FM2_LOGI("set_region: applying upper=%d lower=%d region=%d", upper, lower, region);
+    hal_log("setup", "apply region=%d lower=%d upper=%d", region, lower, upper);
     return vendor_set(V4L2_CID_PRV_IRIS_UPPER_BAND, upper, "failed to set upper band") &&
            vendor_set(V4L2_CID_PRV_IRIS_LOWER_BAND, lower, "failed to set lower band") &&
            vendor_set(V4L2_CID_PRV_REGION, region, "failed to set region");
 }
 
 bool fm2_backend_set_antenna(int antenna) {
-    FM2_LOGI("fm2_backend_set_antenna antenna=%d", antenna);
+    hal_log("setup", "set antenna=%d", antenna);
     pthread_mutex_lock(&g_state.lock);
     g_state.antenna = antenna;
     pthread_mutex_unlock(&g_state.lock);
@@ -818,7 +832,7 @@ bool fm2_backend_set_antenna(int antenna) {
 }
 
 bool fm2_backend_set_power_mode(bool low_power) {
-    FM2_LOGI("fm2_backend_set_power_mode low_power=%d", low_power ? 1 : 0);
+    hal_log("setup", "set low_power=%d", low_power ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.low_power = low_power;
     pthread_mutex_unlock(&g_state.lock);
@@ -826,7 +840,7 @@ bool fm2_backend_set_power_mode(bool low_power) {
 }
 
 bool fm2_backend_set_auto_af(bool enabled) {
-    FM2_LOGI("fm2_backend_set_auto_af enabled=%d", enabled ? 1 : 0);
+    hal_log("af", "set auto=%d", enabled ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.auto_af = enabled;
     pthread_mutex_unlock(&g_state.lock);
@@ -834,7 +848,7 @@ bool fm2_backend_set_auto_af(bool enabled) {
 }
 
 bool fm2_backend_set_slimbus(bool enabled) {
-    FM2_LOGI("fm2_backend_set_slimbus enabled=%d", enabled ? 1 : 0);
+    hal_log("setup", "set slimbus=%d", enabled ? 1 : 0);
     if (!vendor_set(V4L2_CID_PRV_ENABLE_SLIMBUS, enabled ? 1 : 0, "failed to set slimbus")) {
         return false;
     }
@@ -884,8 +898,8 @@ bool fm2_backend_log_snapshot(const char *reason) {
         vendor_get(V4L2_CID_PRV_SOFT_MUTE, &soft_mute, "failed to read soft mute") &&
         vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read frequency");
 
-    FM2_LOGI("snapshot reason=%s ok=%d freq=%d",
-             reason ? reason : "(null)", ok ? 1 : 0, freq);
+    hal_log("snapshot", "reason=%s ok=%d freq=%d",
+            reason ? reason : "(null)", ok ? 1 : 0, freq);
     return ok;
 }
 

@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "common.h"
+#include "../types.h"
 
 bool fm2_backend_init();
 bool fm2_backend_enable();

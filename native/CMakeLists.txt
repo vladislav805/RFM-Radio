@@ -28,6 +28,7 @@ add_executable(
     legacy_backend.cpp
     hal_backend.cpp
     hal/fm2_backend.cpp
+    hal/utils.cpp
     legacy/fm_wrap.cpp
     legacy/fm_ctl.cpp
     legacy/utils.cpp
