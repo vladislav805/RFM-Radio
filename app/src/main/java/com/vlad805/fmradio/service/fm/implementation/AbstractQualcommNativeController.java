@@ -296,6 +296,14 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         hwSearchImpl();
     }
 
+    protected void cancelHwSearchImpl() {
+        sendCommand(new Request("search_cancel"));
+    }
+
+    public void cancelHwSearch() {
+        cancelHwSearchImpl();
+    }
+
     protected void setPowerModeImpl(final String mode) {
         sendCommand(new Request("power_mode " + mode));
     }

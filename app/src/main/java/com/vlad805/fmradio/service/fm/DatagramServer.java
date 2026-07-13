@@ -21,7 +21,7 @@ public class DatagramServer extends Thread {
 	private final DatagramSocket mDatagramSocketServer;
 	private FMEventCallback mCallback;
 
-	private static final int BUFFER_SIZE = 96; // 2 + 1 + 4 * 20 + 1 = 84 as minimum
+	private static final int BUFFER_SIZE = 512;
 
 	private boolean mEnabled = false;
 

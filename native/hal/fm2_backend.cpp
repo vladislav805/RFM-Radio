@@ -19,8 +19,10 @@ constexpr const char *kFmLibraryName = "fm_helium.so";
 constexpr const char *kFmLibrarySymbol = "FM_HELIUM_LIB_INTERFACE";
 constexpr int kFmRxState = 1;
 constexpr int kSearchModeSeek = 0;
+constexpr int kSearchModeScan = 1;
 constexpr int kSearchModeStrongList = 2;
 constexpr int kDefaultListSize = 20;
+constexpr int kMaxScanStations = 64;
 constexpr int kEnableWaitTimeoutMs = 2000;
 
 // FM_RX_RSSI_LEVEL_VERY_WEAK   = -105;
@@ -29,7 +31,8 @@ constexpr int kEnableWaitTimeoutMs = 2000;
 // FM_RX_RSSI_LEVEL_VERY_STRONG = -90;
 // set_ctrl(V4L2_CID_PRIVATE_IRIS_SIGNAL_TH, kDefaultSignalThreshold - 105)
 constexpr int kDefaultSignalThreshold = 0x40;
-constexpr int kDefaultSeekDwell = 7;
+// sweeping across the entire frequency range, it stops at each station found and pauses for N seconds
+constexpr int kDefaultSeekDwell = 2;
 constexpr int kDefaultRdsGroupProcMask = 0xEF;
 constexpr int kDefaultRawRdsGroupMask = 40; // 64;
 
@@ -46,6 +49,8 @@ struct RuntimeState {
     bool enabled = false;
     bool rds_enabled = true;
     bool stereo = true;
+    bool audio_mode_valid = false;
+    bool audio_mode_stereo = true;
     bool low_power = false;
     bool auto_af = false;
     bool slimbus_enabled = false;
@@ -62,6 +67,12 @@ struct RuntimeState {
     uint64_t last_seek_cb_ms = 0;
     bool last_search_payload_valid = false;
     char last_search_payload[5 * 20 + 1] = "";
+    bool scan_active = false;
+    bool scan_wrapped = false;
+    int scan_start_frequency_khz = 0;
+    int scan_last_frequency_khz = 0;
+    int scan_found[kMaxScanStations] = {};
+    int scan_found_count = 0;
     bool last_rt_plus_valid = false;
     unsigned char last_rt_plus[15] = {};
     bool last_ecc_valid = false;
@@ -88,6 +99,33 @@ void clear_error_locked() {
 void reset_search_result_locked() {
     g_state.last_search_payload_valid = false;
     g_state.last_search_payload[0] = '\0';
+}
+
+void reset_scan_locked() {
+    g_state.scan_active = false;
+    g_state.scan_wrapped = false;
+    g_state.scan_start_frequency_khz = 0;
+    g_state.scan_last_frequency_khz = 0;
+    g_state.scan_found_count = 0;
+}
+
+void add_scan_frequency_locked(int freq) {
+    if (freq <= 0) {
+        return;
+    }
+
+    for (int i = 0; i < g_state.scan_found_count; ++i) {
+        if (g_state.scan_found[i] == freq) {
+            return;
+        }
+    }
+
+    if (g_state.scan_found_count >= kMaxScanStations) {
+        hal_log("search", "scan result full, dropping frequency=%d", freq);
+        return;
+    }
+
+    g_state.scan_found[g_state.scan_found_count++] = freq;
 }
 
 void reset_rds_dedup_locked() {
@@ -354,7 +392,58 @@ void send_hex_event(int event_id, int value) {
 }
 
 void log_scan_next_cb() {
-    hal_log("search", "scan next");
+    int freq = 0;
+    if (vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read scan-next frequency")) {
+        hal_log("search", "scan next frequency=%d", freq);
+    } else {
+        hal_log("search", "scan next");
+        return;
+    }
+
+    int found[kMaxScanStations];
+    int found_count = 0;
+    bool complete = false;
+
+    pthread_mutex_lock(&g_state.lock);
+    if (g_state.scan_active) {
+        add_scan_frequency_locked(freq);
+        if (g_state.scan_last_frequency_khz > 0 && freq < g_state.scan_last_frequency_khz) {
+            g_state.scan_wrapped = true;
+        }
+        g_state.scan_last_frequency_khz = freq;
+
+        if (g_state.scan_wrapped && freq >= g_state.scan_start_frequency_khz) {
+            complete = true;
+            g_state.scan_active = false;
+            found_count = g_state.scan_found_count;
+            memcpy(found, g_state.scan_found, static_cast<size_t>(found_count) * sizeof(found[0]));
+        }
+    }
+    pthread_mutex_unlock(&g_state.lock);
+
+    if (!complete) {
+        return;
+    }
+
+    vendor_set(V4L2_CID_PRV_SRCHON, 0, "failed to stop completed scan");
+    std::sort(found, found + found_count);
+
+    char payload[5 * kMaxScanStations + 1];
+    payload[0] = '\0';
+    char frequencies[7 * kMaxScanStations + 1];
+    frequencies[0] = '\0';
+    for (int i = 0; i < found_count; ++i) {
+        char chunk[8];
+        snprintf(chunk, sizeof(chunk), "%04d", found[i] / 100);
+        strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
+
+        char frequency_chunk[8];
+        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", found[i]);
+        strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
+    }
+
+    hal_log("search", "scan complete count=%d frequencies=%s", found_count, frequencies);
+    send_string_event(EVT_SEARCH_DONE, payload);
 }
 
 void log_thread_evt_cb(unsigned int evt) {
@@ -581,6 +670,7 @@ void disabled_cb() {
     hal_log("event", "FM disabled");
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
+    g_state.audio_mode_valid = false;
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_DISABLED, "disabled");
@@ -602,7 +692,12 @@ void tune_cb(int freq) {
 }
 
 void seek_complete_cb(int freq) {
-    hal_log("event", "seek complete frequency=%d", freq);
+    int current = 0;
+    if (vendor_get(V4L2_CID_PRV_IRIS_FREQ, &current, "failed to read seek-complete frequency")) {
+        hal_log("event", "seek complete frequency=%d current=%d", freq, current);
+    } else {
+        hal_log("event", "seek complete frequency=%d", freq);
+    }
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_seek_cb_ms = now_ms();
@@ -1067,17 +1162,38 @@ bool fm2_backend_seek(int direction) {
 }
 
 bool fm2_backend_search() {
+    int start_frequency = 0;
+    vendor_get(V4L2_CID_PRV_IRIS_FREQ, &start_frequency, "failed to read scan start frequency");
+
     pthread_mutex_lock(&g_state.lock);
     reset_search_result_locked();
+    reset_scan_locked();
+    if (start_frequency <= 0) {
+        start_frequency = g_state.current_frequency_khz;
+    }
+    g_state.scan_active = true;
+    g_state.scan_start_frequency_khz = start_frequency;
+    g_state.scan_last_frequency_khz = start_frequency;
     pthread_mutex_unlock(&g_state.lock);
 
-    return vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeStrongList, "failed to set search list mode") &&
-           vendor_set(V4L2_CID_PRV_SRCH_CNT, kDefaultListSize, "failed to set search list size") &&
-           vendor_set(V4L2_CID_PRV_IRIS_SEEK, 1, "failed to start search list");
+    hal_log("search", "scan start frequency=%d", start_frequency);
+
+    const bool ok = vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeScan, "failed to set scan mode") &&
+                    vendor_set(V4L2_CID_PRV_SCANDWELL, 1, "failed to set scan dwell") &&
+                    vendor_set(V4L2_CID_PRV_IRIS_SEEK, 1, "failed to start scan");
+    if (!ok) {
+        pthread_mutex_lock(&g_state.lock);
+        reset_scan_locked();
+        pthread_mutex_unlock(&g_state.lock);
+    }
+    return ok;
 }
 
 bool fm2_backend_cancel_search() {
     hal_log("search", "cancel requested");
+    pthread_mutex_lock(&g_state.lock);
+    reset_scan_locked();
+    pthread_mutex_unlock(&g_state.lock);
     return vendor_set(V4L2_CID_PRV_SRCHON, 0, "failed to cancel search");
 }
 
@@ -1097,10 +1213,18 @@ bool fm2_backend_set_rds(bool enabled) {
 }
 
 bool fm2_backend_set_stereo(bool enabled) {
-    hal_log("audio", "set stereo=%d", enabled ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
-    g_state.stereo = enabled;
+    const bool already_set = g_state.audio_mode_valid && g_state.audio_mode_stereo == enabled;
+    g_state.audio_mode_valid = true;
+    g_state.audio_mode_stereo = enabled;
     pthread_mutex_unlock(&g_state.lock);
+
+    if (already_set) {
+        hal_log("audio", "set stereo=%d skipped", enabled ? 1 : 0);
+        return true;
+    }
+
+    hal_log("audio", "set stereo=%d", enabled ? 1 : 0);
     return vendor_set(V4L2_CID_PRV_IRIS_AUDIO_MODE, enabled ? 1 : 0, "failed to set stereo mode");
 }
 

@@ -684,9 +684,23 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	private void searchStart() {
 		mRadioCtl.hwSearch();
 
-		mProgress = ProgressDialog.create(this).text(R.string.favorite_list_search_progress).show();
+		mProgress = ProgressDialog.create(this)
+				.text(R.string.favorite_list_search_progress)
+				.negativeButton(android.R.string.cancel, (dlg, buttonId) -> {
+					mRadioCtl.cancelHwSearch();
+					unregisterSearchReceiver();
+					mProgress = null;
+				})
+				.show();
 
 		Utils.registerAppReceiver(this, mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
+	}
+
+	private void unregisterSearchReceiver() {
+		try {
+			unregisterReceiver(mSearchDone);
+		} catch (IllegalArgumentException ignored) {
+		}
 	}
 
 	private final BroadcastReceiver mSearchDone = new BroadcastReceiver() {
@@ -696,7 +710,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 				return;
 			}
 
-			unregisterReceiver(mSearchDone);
+			unregisterSearchReceiver();
 
 			final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
 

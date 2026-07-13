@@ -55,6 +55,7 @@ final public class C {
 		public static final String SET_FREQUENCY = "set_frequency";
 		public static final String JUMP = "jump";
 		public static final String HW_SEARCH = "hw_search";
+		public static final String HW_SEARCH_CANCEL = "hw_search_cancel";
 		public static final String RECORD_START = "record_start";
 		public static final String RECORD_STOP = "record_stop";
 		public static final String POWER_MODE = "power_mode";

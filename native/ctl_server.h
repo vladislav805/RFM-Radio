@@ -8,7 +8,7 @@ extern "C" {
 
 #define CS_PORT 2112
 #define CS_PORT_SRV 2113
-#define CS_BUF 256
+#define CS_BUF 512
 
 #define EVT_ENABLED 1
 #define EVT_DISABLED 2

@@ -308,6 +308,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 break;
             }
 
+            case C.Command.HW_SEARCH_CANCEL: {
+                mTunerDriver.cancelHwSearch();
+                break;
+            }
+
             case C.Command.KILL: {
                 if (mState.isRecording() && mAudioService instanceof IAudioRecordable) {
                     ((IAudioRecordable) mAudioService).stopRecord();

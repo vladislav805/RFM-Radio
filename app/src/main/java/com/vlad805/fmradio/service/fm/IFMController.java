@@ -29,5 +29,7 @@ public interface IFMController {
 
     void hwSearch();
 
+    void cancelHwSearch();
+
     void setPowerMode(String mode);
 }

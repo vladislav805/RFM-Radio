@@ -2,6 +2,7 @@ package com.vlad805.fmradio.helper;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
@@ -36,6 +37,11 @@ public class ProgressDialog {
 
 	public ProgressDialog text(String content) {
 		text.setText(content);
+		return this;
+	}
+
+	public ProgressDialog negativeButton(@StringRes int id, DialogInterface.OnClickListener listener) {
+		builder.setNegativeButton(id, listener);
 		return this;
 	}
 

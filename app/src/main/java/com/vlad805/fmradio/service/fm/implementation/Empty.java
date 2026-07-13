@@ -123,6 +123,11 @@ public class Empty implements IFMController, IFMEventListener {
 	}
 
 	@Override
+	public void cancelHwSearch() {
+		Log.d(TAG, "cancelHwSearch");
+	}
+
+	@Override
 	public void setPowerMode(final String mode) {
 		Log.d(TAG, "setPowerMode " + mode);
 	}
