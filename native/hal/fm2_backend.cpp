@@ -33,6 +33,12 @@ constexpr int kDefaultSeekDwell = 7;
 constexpr int kDefaultRdsGroupProcMask = 0xEF;
 constexpr int kDefaultRawRdsGroupMask = 40; // 64;
 
+struct RtpTag {
+    int content_type = 0;
+    int start = 0;
+    int length = 0;
+};
+
 struct RuntimeState {
     void *lib_handle = nullptr;
     fm_interface_t *vendor = nullptr;
@@ -60,6 +66,10 @@ struct RuntimeState {
     unsigned char last_rt_plus[15] = {};
     bool last_ecc_valid = false;
     unsigned char last_ecc[12] = {};
+    char current_rt[65] = "";
+    int current_rt_len = 0;
+    bool rt_plus_tags_valid = false;
+    RtpTag rt_plus_tags[2];
     char last_error[128] = "";
     pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -83,6 +93,9 @@ void reset_search_result_locked() {
 void reset_rds_dedup_locked() {
     g_state.last_rt_plus_valid = false;
     g_state.last_ecc_valid = false;
+    g_state.current_rt[0] = '\0';
+    g_state.current_rt_len = 0;
+    g_state.rt_plus_tags_valid = false;
 }
 
 bool is_duplicate_payload_locked(bool *valid, unsigned char *last, size_t last_size, const char *payload, int len) {
@@ -109,6 +122,49 @@ void log_length_prefixed_payload(const char *scope, const char *name, const char
     char dump[3 * 32 + 1];
     format_hex_dump(payload, len, dump, sizeof(dump));
     hal_log(scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
+}
+
+const char *rtp_content_type_name(int content_type) {
+    switch (content_type) {
+        case 1:
+            return "ITEM.TITLE";
+        case 4:
+            return "ITEM.ARTIST";
+        case 12:
+            return "INFO.NEWS";
+        case 28:
+            return "INFO.ADVERT";
+        case 31:
+            return "STATIONNAME.SHORT";
+        case 32:
+            return "STATIONNAME.LONG";
+        case 33:
+            return "PROGRAMME.NOW";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+void log_rt_plus_slices_locked() {
+    if (!g_state.rt_plus_tags_valid || g_state.current_rt_len <= 0) {
+        return;
+    }
+
+    for (const RtpTag &tag : g_state.rt_plus_tags) {
+        if (tag.content_type == 0) {
+            continue;
+        }
+        if (tag.start < 0 || tag.length <= 0 || tag.start + tag.length > g_state.current_rt_len) {
+            hal_log("rds", "rt+ slice out of range ct=%d start=%d len=%d rt_len=%d",
+                    tag.content_type, tag.start, tag.length, g_state.current_rt_len);
+            continue;
+        }
+
+        char text[65];
+        memcpy(text, g_state.current_rt + tag.start, static_cast<size_t>(tag.length));
+        text[tag.length] = '\0';
+        hal_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
+    }
 }
 
 uint64_t now_ms() {
@@ -352,6 +408,13 @@ void rt_plus_update_cb(char *payload) {
         const int tag2_type = static_cast<unsigned char>(payload[11]);
         const int tag2_start = static_cast<unsigned char>(payload[12]);
         const int tag2_len = static_cast<unsigned char>(payload[13]);
+
+        pthread_mutex_lock(&g_state.lock);
+        g_state.rt_plus_tags[0] = {tag1_type, tag1_start, tag1_type == 0 ? 0 : tag1_len + 1};
+        g_state.rt_plus_tags[1] = {tag2_type, tag2_start, tag2_type == 0 ? 0 : tag2_len + 1};
+        g_state.rt_plus_tags_valid = true;
+        log_rt_plus_slices_locked();
+        pthread_mutex_unlock(&g_state.lock);
 
         hal_log("rds", "rt+ len=%d pi=0x%04x pty=0x%02x flags=0x%08x tag1=(ct=%d,start=%d,len=%d) tag2=(ct=%d,start=%d,len=%d) data=%s%s",
                 len, pi, pty, flags,
@@ -631,6 +694,12 @@ void rt_update_cb(char *rt) {
         --text_len;
         text[text_len] = '\0';
     }
+
+    pthread_mutex_lock(&g_state.lock);
+    snprintf(g_state.current_rt, sizeof(g_state.current_rt), "%s", text);
+    g_state.current_rt_len = text_len;
+    log_rt_plus_slices_locked();
+    pthread_mutex_unlock(&g_state.lock);
 
     hal_log("rds", "rt=`%s` (len=%d)", text, text_len);
     send_string_event(EVT_UPDATE_RT, text);
