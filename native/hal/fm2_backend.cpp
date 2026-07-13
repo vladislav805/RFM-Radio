@@ -55,6 +55,10 @@ struct RuntimeState {
     uint64_t last_seek_cb_ms = 0;
     bool last_search_payload_valid = false;
     char last_search_payload[5 * 20 + 1] = "";
+    bool last_rt_plus_valid = false;
+    unsigned char last_rt_plus[15] = {};
+    bool last_ecc_valid = false;
+    unsigned char last_ecc[12] = {};
     char last_error[128] = "";
     pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -73,6 +77,25 @@ void clear_error_locked() {
 void reset_search_result_locked() {
     g_state.last_search_payload_valid = false;
     g_state.last_search_payload[0] = '\0';
+}
+
+void reset_rds_dedup_locked() {
+    g_state.last_rt_plus_valid = false;
+    g_state.last_ecc_valid = false;
+}
+
+bool is_duplicate_payload_locked(bool *valid, unsigned char *last, size_t last_size, const char *payload, int len) {
+    if (len <= 0 || static_cast<size_t>(len) > last_size) {
+        *valid = false;
+        return false;
+    }
+
+    const bool duplicate = *valid && memcmp(last, payload, static_cast<size_t>(len)) == 0;
+    if (!duplicate) {
+        memcpy(last, payload, static_cast<size_t>(len));
+        *valid = true;
+    }
+    return duplicate;
 }
 
 uint64_t now_ms() {
@@ -304,6 +327,14 @@ void rt_plus_update_cb(char *payload) {
     }
 
     const int len = static_cast<unsigned char>(payload[0]);
+    pthread_mutex_lock(&g_state.lock);
+    const bool duplicate = is_duplicate_payload_locked(
+            &g_state.last_rt_plus_valid, g_state.last_rt_plus, sizeof(g_state.last_rt_plus), payload, len);
+    pthread_mutex_unlock(&g_state.lock);
+    if (duplicate) {
+        return;
+    }
+
     char dump[3 * 32 + 1];
     format_hex_dump(payload, len, dump, sizeof(dump));
 
@@ -388,6 +419,14 @@ void ext_country_code_cb(char *payload) {
     }
 
     const int len = static_cast<unsigned char>(payload[0]);
+    pthread_mutex_lock(&g_state.lock);
+    const bool duplicate = is_duplicate_payload_locked(
+            &g_state.last_ecc_valid, g_state.last_ecc, sizeof(g_state.last_ecc), payload, len);
+    pthread_mutex_unlock(&g_state.lock);
+    if (duplicate) {
+        return;
+    }
+
     char dump[3 * 32 + 1];
     format_hex_dump(payload, len, dump, sizeof(dump));
 
@@ -489,6 +528,7 @@ void tune_cb(int freq) {
     g_state.current_frequency_khz = freq;
     g_state.last_tune_cb_ms = now_ms();
     reset_search_result_locked();
+    reset_rds_dedup_locked();
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_UPDATE_PS, "");
     send_string_event(EVT_UPDATE_RT, "");
@@ -503,6 +543,7 @@ void seek_complete_cb(int freq) {
     g_state.current_frequency_khz = freq;
     g_state.last_seek_cb_ms = now_ms();
     reset_search_result_locked();
+    reset_rds_dedup_locked();
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_UPDATE_PS, "");
     send_string_event(EVT_UPDATE_RT, "");
@@ -536,6 +577,11 @@ void ps_update_cb(char *ps) {
     }
 
     const int ps_count = static_cast<unsigned char>(ps[0]);
+    if (ps_count == 0 || ps_count > 8) {
+        hal_log("rds", "invalid ps count=%d", ps_count);
+        return;
+    }
+
     const int pty = static_cast<unsigned char>(ps[1]) & 0x1f;
     const int pi = (static_cast<unsigned char>(ps[2]) << 8) | static_cast<unsigned char>(ps[3]);
     int text_len = std::min(ps_count * 8, 119);
@@ -564,13 +610,27 @@ void rt_update_cb(char *rt) {
     }
 
     int text_len = static_cast<unsigned char>(rt[0]);
-    if (text_len > 64) {
-        text_len = 64;
+    if (text_len == 0 || text_len > 64) {
+        hal_log("rds", "invalid rt len=%d", text_len);
+        return;
     }
 
     char text[96];
     memset(text, 0, sizeof(text));
     memcpy(text, rt + 5, text_len);
+
+    for (int i = 0; i < text_len; ++i) {
+        if (text[i] == '\r') {
+            text_len = i;
+            text[text_len] = '\0';
+            break;
+        }
+    }
+    while (text_len > 0 && text[text_len - 1] == ' ') {
+        --text_len;
+        text[text_len] = '\0';
+    }
+
     hal_log("rds", "rt=`%s` (len=%d)", text, text_len);
     send_string_event(EVT_UPDATE_RT, text);
 }
