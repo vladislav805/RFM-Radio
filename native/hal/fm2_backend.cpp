@@ -1,6 +1,7 @@
 #include "fm2_backend.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,6 +99,18 @@ bool is_duplicate_payload_locked(bool *valid, unsigned char *last, size_t last_s
     return duplicate;
 }
 
+void log_length_prefixed_payload(const char *scope, const char *name, const char *payload, int extra_len = 0) {
+    if (payload == nullptr) {
+        hal_log(scope, "%s got null", name);
+        return;
+    }
+
+    const int len = static_cast<unsigned char>(payload[0]) + extra_len;
+    char dump[3 * 32 + 1];
+    format_hex_dump(payload, len, dump, sizeof(dump));
+    hal_log(scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
+}
+
 uint64_t now_ms() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -113,10 +126,13 @@ bool vendor_set(int id, int value, const char *message) {
         return false;
     }
 
+    errno = 0;
     const int ret = g_state.vendor->set_fm_ctrl(id, value);
     if (ret < 0) {
+        const int saved_errno = errno;
         set_error_locked(message);
-        hal_log("vendor", "set id=0x%x value=%d failed, ret=%d", id, value, ret);
+        hal_log("vendor", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)",
+                id, value, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
@@ -134,10 +150,13 @@ bool vendor_get(int id, int *value, const char *message) {
         return false;
     }
 
+    errno = 0;
     const int ret = g_state.vendor->get_fm_ctrl(id, value);
     if (ret < 0) {
+        const int saved_errno = errno;
         set_error_locked(message);
-        hal_log("vendor", "get id=0x%x failed, ret=%d", id, ret);
+        hal_log("vendor", "get id=0x%x failed, ret=%d errno=%d (%s)",
+                id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
@@ -372,31 +391,31 @@ void rt_plus_update_cb(char *payload) {
 }
 
 void ert_update_cb(char *payload) {
-    hal_log("rds", "ert_update_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("rds", "ert_update_cb", payload, 3);
 }
 
 void rds_grp_cntrs_rsp_cb(char *payload) {
-    hal_log("rds", "rds_grp_cntrs_rsp_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("rds", "rds_grp_cntrs_rsp_cb", payload);
 }
 
 void rds_grp_cntrs_ext_rsp_cb(char *payload) {
-    hal_log("rds", "rds_grp_cntrs_ext_rsp_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("rds", "rds_grp_cntrs_ext_rsp_cb", payload);
 }
 
 void fm_peek_rsp_cb(char *payload) {
-    hal_log("vendor", "fm_peek_rsp_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("vendor", "fm_peek_rsp_cb", payload);
 }
 
 void fm_ssbi_peek_rsp_cb(char *payload) {
-    hal_log("vendor", "fm_ssbi_peek_rsp_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("vendor", "fm_ssbi_peek_rsp_cb", payload);
 }
 
 void fm_agc_gain_rsp_cb(char *payload) {
-    hal_log("vendor", "fm_agc_gain_rsp_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("vendor", "fm_agc_gain_rsp_cb", payload);
 }
 
 void fm_ch_det_th_rsp_cb(char *payload) {
-    hal_log("vendor", "fm_ch_det_th_rsp_cb payload=%p", static_cast<void *>(payload));
+    log_length_prefixed_payload("vendor", "fm_ch_det_th_rsp_cb", payload);
 }
 
 /*
