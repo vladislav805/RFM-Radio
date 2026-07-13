@@ -42,18 +42,31 @@ struct RtpTag {
     int length = 0;
 };
 
+struct AudioState {
+    bool stereo = true;
+    bool mode_valid = false;
+    bool mode_stereo = true;
+    bool slimbus_enabled = false;
+};
+
+struct ScanState {
+    bool active = false;
+    bool wrapped = false;
+    int start_frequency_khz = 0;
+    int last_frequency_khz = 0;
+    int found[kMaxScanStations] = {};
+    int found_count = 0;
+};
+
 struct RuntimeState {
     void *lib_handle = nullptr;
     fm_interface_t *vendor = nullptr;
     bool initialized = false;
     bool enabled = false;
     bool rds_enabled = true;
-    bool stereo = true;
-    bool audio_mode_valid = false;
-    bool audio_mode_stereo = true;
+    AudioState audio;
     bool low_power = false;
     bool auto_af = false;
-    bool slimbus_enabled = false;
     int antenna = 0;
     int app_band = 1;
     int vendor_region = 0;
@@ -67,12 +80,7 @@ struct RuntimeState {
     uint64_t last_seek_cb_ms = 0;
     bool last_search_payload_valid = false;
     char last_search_payload[5 * 20 + 1] = "";
-    bool scan_active = false;
-    bool scan_wrapped = false;
-    int scan_start_frequency_khz = 0;
-    int scan_last_frequency_khz = 0;
-    int scan_found[kMaxScanStations] = {};
-    int scan_found_count = 0;
+    ScanState scan;
     bool last_rt_plus_valid = false;
     unsigned char last_rt_plus[15] = {};
     bool last_ecc_valid = false;
@@ -102,11 +110,11 @@ void reset_search_result_locked() {
 }
 
 void reset_scan_locked() {
-    g_state.scan_active = false;
-    g_state.scan_wrapped = false;
-    g_state.scan_start_frequency_khz = 0;
-    g_state.scan_last_frequency_khz = 0;
-    g_state.scan_found_count = 0;
+    g_state.scan.active = false;
+    g_state.scan.wrapped = false;
+    g_state.scan.start_frequency_khz = 0;
+    g_state.scan.last_frequency_khz = 0;
+    g_state.scan.found_count = 0;
 }
 
 void add_scan_frequency_locked(int freq) {
@@ -114,18 +122,18 @@ void add_scan_frequency_locked(int freq) {
         return;
     }
 
-    for (int i = 0; i < g_state.scan_found_count; ++i) {
-        if (g_state.scan_found[i] == freq) {
+    for (int i = 0; i < g_state.scan.found_count; ++i) {
+        if (g_state.scan.found[i] == freq) {
             return;
         }
     }
 
-    if (g_state.scan_found_count >= kMaxScanStations) {
+    if (g_state.scan.found_count >= kMaxScanStations) {
         hal_log("search", "scan result full, dropping frequency=%d", freq);
         return;
     }
 
-    g_state.scan_found[g_state.scan_found_count++] = freq;
+    g_state.scan.found[g_state.scan.found_count++] = freq;
 }
 
 void reset_rds_dedup_locked() {
@@ -405,18 +413,18 @@ void log_scan_next_cb() {
     bool complete = false;
 
     pthread_mutex_lock(&g_state.lock);
-    if (g_state.scan_active) {
+    if (g_state.scan.active) {
         add_scan_frequency_locked(freq);
-        if (g_state.scan_last_frequency_khz > 0 && freq < g_state.scan_last_frequency_khz) {
-            g_state.scan_wrapped = true;
+        if (g_state.scan.last_frequency_khz > 0 && freq < g_state.scan.last_frequency_khz) {
+            g_state.scan.wrapped = true;
         }
-        g_state.scan_last_frequency_khz = freq;
+        g_state.scan.last_frequency_khz = freq;
 
-        if (g_state.scan_wrapped && freq >= g_state.scan_start_frequency_khz) {
+        if (g_state.scan.wrapped && freq >= g_state.scan.start_frequency_khz) {
             complete = true;
-            g_state.scan_active = false;
-            found_count = g_state.scan_found_count;
-            memcpy(found, g_state.scan_found, static_cast<size_t>(found_count) * sizeof(found[0]));
+            g_state.scan.active = false;
+            found_count = g_state.scan.found_count;
+            memcpy(found, g_state.scan.found, static_cast<size_t>(found_count) * sizeof(found[0]));
         }
     }
     pthread_mutex_unlock(&g_state.lock);
@@ -652,7 +660,7 @@ void rds_avail_status_cb(bool rds_available) {
 void enable_slimbus_cb(int status) {
     hal_log("event", "slimbus status=%d", status);
     pthread_mutex_lock(&g_state.lock);
-    g_state.slimbus_enabled = status == 0;
+    g_state.audio.slimbus_enabled = status == 0;
     pthread_mutex_unlock(&g_state.lock);
 }
 
@@ -670,7 +678,7 @@ void disabled_cb() {
     hal_log("event", "FM disabled");
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
-    g_state.audio_mode_valid = false;
+    g_state.audio.mode_valid = false;
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_DISABLED, "disabled");
@@ -714,7 +722,7 @@ void seek_complete_cb(int freq) {
 void stereo_status_cb(bool stereo) {
     hal_log("event", "stereo=%d", stereo ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
-    g_state.stereo = stereo;
+    g_state.audio.stereo = stereo;
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_STEREO, stereo ? "1" : "0");
 }
@@ -961,7 +969,7 @@ bool apply_runtime_config() {
     region = g_state.vendor_region;
     lower = g_state.lower_band_khz;
     upper = g_state.upper_band_khz;
-    stereo = g_state.stereo ? 1 : 0;
+    stereo = g_state.audio.stereo ? 1 : 0;
     pthread_mutex_unlock(&g_state.lock);
 
     hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d stereo=%d",
@@ -1171,9 +1179,9 @@ bool fm2_backend_search() {
     if (start_frequency <= 0) {
         start_frequency = g_state.current_frequency_khz;
     }
-    g_state.scan_active = true;
-    g_state.scan_start_frequency_khz = start_frequency;
-    g_state.scan_last_frequency_khz = start_frequency;
+    g_state.scan.active = true;
+    g_state.scan.start_frequency_khz = start_frequency;
+    g_state.scan.last_frequency_khz = start_frequency;
     pthread_mutex_unlock(&g_state.lock);
 
     hal_log("search", "scan start frequency=%d", start_frequency);
@@ -1214,9 +1222,9 @@ bool fm2_backend_set_rds(bool enabled) {
 
 bool fm2_backend_set_stereo(bool enabled) {
     pthread_mutex_lock(&g_state.lock);
-    const bool already_set = g_state.audio_mode_valid && g_state.audio_mode_stereo == enabled;
-    g_state.audio_mode_valid = true;
-    g_state.audio_mode_stereo = enabled;
+    const bool already_set = g_state.audio.mode_valid && g_state.audio.mode_stereo == enabled;
+    g_state.audio.mode_valid = true;
+    g_state.audio.mode_stereo = enabled;
     pthread_mutex_unlock(&g_state.lock);
 
     if (already_set) {
@@ -1284,7 +1292,7 @@ bool fm2_backend_set_slimbus(bool enabled) {
     }
 
     pthread_mutex_lock(&g_state.lock);
-    g_state.slimbus_enabled = enabled;
+    g_state.audio.slimbus_enabled = enabled;
     pthread_mutex_unlock(&g_state.lock);
     return true;
 }
