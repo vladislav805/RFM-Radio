@@ -1170,15 +1170,10 @@ bool fm2_backend_seek(int direction) {
 }
 
 bool fm2_backend_search() {
-    int start_frequency = 0;
-    vendor_get(V4L2_CID_PRV_IRIS_FREQ, &start_frequency, "failed to read scan start frequency");
-
     pthread_mutex_lock(&g_state.lock);
+    const int start_frequency = g_state.lower_band_khz;
     reset_search_result_locked();
     reset_scan_locked();
-    if (start_frequency <= 0) {
-        start_frequency = g_state.current_frequency_khz;
-    }
     g_state.scan.active = true;
     g_state.scan.start_frequency_khz = start_frequency;
     g_state.scan.last_frequency_khz = start_frequency;
@@ -1186,7 +1181,8 @@ bool fm2_backend_search() {
 
     hal_log("search", "scan start frequency=%d", start_frequency);
 
-    const bool ok = vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeScan, "failed to set scan mode") &&
+    const bool ok = vendor_set(V4L2_CID_PRV_IRIS_FREQ, start_frequency, "failed to tune scan start") &&
+                    vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeScan, "failed to set scan mode") &&
                     vendor_set(V4L2_CID_PRV_SCANDWELL, 1, "failed to set scan dwell") &&
                     vendor_set(V4L2_CID_PRV_IRIS_SEEK, 1, "failed to start scan");
     if (!ok) {
