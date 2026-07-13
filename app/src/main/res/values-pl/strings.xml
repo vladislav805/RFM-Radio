@@ -2,7 +2,6 @@
 	<string name="app_name">RFM Radio</string>
 	<string name="nil" translatable="false">null</string>
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
-	<string name="player_event_frequency_changed">Częstotliwość zmieniona na %5.1f MHz</string>
 	<string name="toggle_play_pause">Graj</string>
 	<string name="jump_up">Przeskocz</string>
 	<string name="seek_up">Szukaj</string>

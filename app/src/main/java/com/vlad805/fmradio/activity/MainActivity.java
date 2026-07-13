@@ -486,9 +486,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mSeek.setFrequency(state.getFrequency());
             mFavoritesView.setActiveFrequency(state.getFrequency());
 
-            final String str = getString(R.string.player_event_frequency_changed, state.getFrequency() / 1000f);
-            mToast.text(str).show();
-
             mFrequencyInfo.setRadioState(state);
         }
 
