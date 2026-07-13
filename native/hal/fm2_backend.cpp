@@ -53,18 +53,26 @@ struct RuntimeState {
     uint64_t last_enabled_cb_ms = 0;
     uint64_t last_tune_cb_ms = 0;
     uint64_t last_seek_cb_ms = 0;
+    bool last_search_payload_valid = false;
+    char last_search_payload[5 * 20 + 1] = "";
     char last_error[128] = "";
     pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 } g_state;
 
 void set_error_locked(const char *message) {
-    hal_log("error", "%s", message ? message : "(null)");
-    snprintf(g_state.last_error, sizeof(g_state.last_error), "%s", message);
+    const char *safe_message = message ? message : "unknown error";
+    hal_log("error", "%s", safe_message);
+    snprintf(g_state.last_error, sizeof(g_state.last_error), "%s", safe_message);
 }
 
 void clear_error_locked() {
     g_state.last_error[0] = '\0';
+}
+
+void reset_search_result_locked() {
+    g_state.last_search_payload_valid = false;
+    g_state.last_search_payload[0] = '\0';
 }
 
 uint64_t now_ms() {
@@ -129,9 +137,24 @@ bool apply_processed_rds_config(bool auto_af) {
         return false;
     }
     if (!vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, kDefaultRdsGroupProcMask, "failed to set rds groups")) {
+        vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to roll back rds on");
         return false;
     }
-    return vendor_set(V4L2_CID_PRV_AF_JUMP, auto_af ? 1 : 0, "failed to set af jump");
+    if (!vendor_set(V4L2_CID_PRV_AF_JUMP, auto_af ? 1 : 0, "failed to set af jump")) {
+        vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to roll back rds groups");
+        vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to roll back rds on");
+        return false;
+    }
+
+    return true;
+}
+
+bool disable_processed_rds_config() {
+    bool ok = true;
+    ok &= vendor_set(V4L2_CID_PRV_AF_JUMP, 0, "failed to clear af jump");
+    ok &= vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to clear rds groups");
+    ok &= vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to disable rds");
+    return ok;
 }
 
 bool apply_post_enable_config() {
@@ -157,9 +180,7 @@ bool apply_post_enable_config() {
         return apply_processed_rds_config(auto_af);
     }
 
-    return vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to disable rds") &&
-           vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to clear rds groups") &&
-           vendor_set(V4L2_CID_PRV_AF_JUMP, 0, "failed to clear af jump");
+    return disable_processed_rds_config();
 }
 
 bool apply_post_tune_config() {
@@ -450,7 +471,6 @@ void enabled_cb() {
     g_state.last_enabled_cb_ms = now_ms();
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
-    apply_post_enable_config();
     send_string_event(EVT_ENABLED, "enabled");
 }
 
@@ -468,6 +488,7 @@ void tune_cb(int freq) {
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_tune_cb_ms = now_ms();
+    reset_search_result_locked();
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_UPDATE_PS, "");
     send_string_event(EVT_UPDATE_RT, "");
@@ -481,6 +502,7 @@ void seek_complete_cb(int freq) {
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_seek_cb_ms = now_ms();
+    reset_search_result_locked();
     pthread_mutex_unlock(&g_state.lock);
     send_string_event(EVT_UPDATE_PS, "");
     send_string_event(EVT_UPDATE_RT, "");
@@ -608,6 +630,15 @@ void search_list_cb(uint16_t *raw) {
     const hci_ev_srch_list_compl *list = reinterpret_cast<const hci_ev_srch_list_compl *>(raw);
     const int count = static_cast<unsigned char>(list->num_stations_found);
     if (count <= 0) {
+        pthread_mutex_lock(&g_state.lock);
+        const bool duplicate = g_state.last_search_payload_valid && g_state.last_search_payload[0] == '\0';
+        g_state.last_search_payload_valid = true;
+        g_state.last_search_payload[0] = '\0';
+        pthread_mutex_unlock(&g_state.lock);
+        if (duplicate) {
+            return;
+        }
+
         hal_log("search", "empty result");
         send_string_event(EVT_SEARCH_DONE, "");
         return;
@@ -634,6 +665,18 @@ void search_list_cb(uint16_t *raw) {
         char frequency_chunk[8];
         snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", abs_freq);
         strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
+    }
+
+    pthread_mutex_lock(&g_state.lock);
+    const bool duplicate = g_state.last_search_payload_valid &&
+            strcmp(g_state.last_search_payload, payload) == 0;
+    if (!duplicate) {
+        snprintf(g_state.last_search_payload, sizeof(g_state.last_search_payload), "%s", payload);
+        g_state.last_search_payload_valid = true;
+    }
+    pthread_mutex_unlock(&g_state.lock);
+    if (duplicate) {
+        return;
     }
 
     hal_log("search", "result count=%d frequencies=%s", count, frequencies);
@@ -695,13 +738,16 @@ bool apply_runtime_config() {
     hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d stereo=%d",
             region, lower, upper, spacing, stereo);
 
-    return vendor_set(V4L2_CID_PRV_SOFT_MUTE, 1, "failed to enable soft mute") &&
-           vendor_set(V4L2_CID_PRV_EMPHASIS, 1, "failed to set emphasis") &&
-           vendor_set(V4L2_CID_PRV_RDS_STD, 1, "failed to set rds standard") &&
-           vendor_set(V4L2_CID_PRV_CHAN_SPACING, spacing, "failed to set channel spacing") &&
-           vendor_set(V4L2_CID_PRV_IRIS_UPPER_BAND, upper, "failed to set upper band") &&
-           vendor_set(V4L2_CID_PRV_IRIS_LOWER_BAND, lower, "failed to set lower band") &&
-           vendor_set(V4L2_CID_PRV_REGION, region, "failed to set region");
+    bool ok = true;
+    ok &= vendor_set(V4L2_CID_PRV_REGION, region, "failed to set region");
+    ok &= vendor_set(V4L2_CID_PRV_IRIS_UPPER_BAND, upper, "failed to set upper band");
+    ok &= vendor_set(V4L2_CID_PRV_IRIS_LOWER_BAND, lower, "failed to set lower band");
+    ok &= vendor_set(V4L2_CID_PRV_CHAN_SPACING, spacing, "failed to set channel spacing");
+    ok &= vendor_set(V4L2_CID_PRV_EMPHASIS, 1, "failed to set emphasis");
+    ok &= vendor_set(V4L2_CID_PRV_RDS_STD, 1, "failed to set rds standard");
+    ok &= apply_signal_threshold();
+    ok &= vendor_set(V4L2_CID_PRV_SOFT_MUTE, 1, "failed to enable soft mute");
+    return ok;
 }
 
 }  // namespace
@@ -719,15 +765,17 @@ bool fm2_backend_init() {
 
     g_state.lib_handle = dlopen(kFmLibraryName, RTLD_NOW);
     if (g_state.lib_handle == nullptr) {
-        hal_log("open", "dlopen failed for %s: %s", kFmLibraryName, dlerror());
-        set_error_locked(dlerror());
+        const char *err = dlerror();
+        hal_log("open", "dlopen failed for %s: %s", kFmLibraryName, err ? err : "(unknown)");
+        set_error_locked(err ? err : "dlopen failed");
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
     g_state.vendor = (fm_interface_t *) dlsym(g_state.lib_handle, kFmLibrarySymbol);
     if (g_state.vendor == nullptr) {
-        hal_log("open", "dlsym failed for %s: %s", kFmLibrarySymbol, dlerror());
-        set_error_locked(dlerror());
+        const char *err = dlerror();
+        hal_log("open", "dlsym failed for %s: %s", kFmLibrarySymbol, err ? err : "(unknown)");
+        set_error_locked(err ? err : "dlsym failed");
         dlclose(g_state.lib_handle);
         g_state.lib_handle = nullptr;
         pthread_mutex_unlock(&g_state.lock);
@@ -768,8 +816,14 @@ bool fm2_backend_enable() {
         return false;
     }
 
-    const bool ok = apply_runtime_config();
-    return ok;
+    if (!fm2_backend_wait_enabled(kEnableWaitTimeoutMs)) {
+        return false;
+    }
+
+    const bool runtime_ok = apply_runtime_config();
+    fm2_backend_log_snapshot("after-runtime-config");
+    const bool post_ok = apply_post_enable_config();
+    return runtime_ok && post_ok;
 }
 
 bool fm2_backend_wait_enabled(int timeout_ms) {
@@ -871,8 +925,12 @@ bool fm2_backend_seek(int direction) {
 }
 
 bool fm2_backend_search() {
+    pthread_mutex_lock(&g_state.lock);
+    reset_search_result_locked();
+    pthread_mutex_unlock(&g_state.lock);
+
     return vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeStrongList, "failed to set search list mode") &&
-           vendor_set(V4L2_CID_PRV_SRCH_CNT, 1, "failed to set search list size") &&
+           vendor_set(V4L2_CID_PRV_SRCH_CNT, kDefaultListSize, "failed to set search list size") &&
            vendor_set(V4L2_CID_PRV_IRIS_SEEK, 1, "failed to start search list");
 }
 
@@ -885,16 +943,15 @@ bool fm2_backend_set_rds(bool enabled) {
     hal_log("rds", "set enabled=%d", enabled ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.rds_enabled = enabled;
+    const bool auto_af = g_state.auto_af;
     pthread_mutex_unlock(&g_state.lock);
 
     if (!enabled) {
-        return vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to set rds") &&
-               vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to clear rds groups") &&
-               vendor_set(V4L2_CID_PRV_AF_JUMP, 0, "failed to clear af jump");
+        return disable_processed_rds_config();
     }
 
     return apply_raw_rds_group_mask() &&
-           apply_processed_rds_config(g_state.auto_af);
+           apply_processed_rds_config(auto_af);
 }
 
 bool fm2_backend_set_stereo(bool enabled) {
@@ -975,38 +1032,38 @@ bool fm2_backend_raw_get(int id, int *value) {
 }
 
 bool fm2_backend_log_snapshot(const char *reason) {
-    int state = 0;
-    int region = 0;
-    int emphasis = 0;
-    int rds_std = 0;
-    int spacing = 0;
-    int signal_th = 0;
-    int rds_on = 0;
-    int rds_mask = 0;
-    int rds_proc = 0;
-    int lp_mode = 0;
-    int antenna = 0;
-    int af_jump = 0;
-    int soft_mute = 0;
-    int freq = 0;
-    const bool ok =
-        vendor_get(V4L2_CID_PRV_STATE, &state, "failed to read state") &&
-        vendor_get(V4L2_CID_PRV_REGION, &region, "failed to read region") &&
-        vendor_get(V4L2_CID_PRV_EMPHASIS, &emphasis, "failed to read emphasis") &&
-        vendor_get(V4L2_CID_PRV_RDS_STD, &rds_std, "failed to read rds std") &&
-        vendor_get(V4L2_CID_PRV_CHAN_SPACING, &spacing, "failed to read spacing") &&
-        vendor_get(V4L2_CID_PRV_SIGNAL_TH, &signal_th, "failed to read signal threshold") &&
-        vendor_get(V4L2_CID_PRV_RDSON, &rds_on, "failed to read rds on") &&
-        vendor_get(V4L2_CID_PRV_RDSGROUP_MASK, &rds_mask, "failed to read rds group mask") &&
-        vendor_get(V4L2_CID_PRV_RDSGROUP_PROC, &rds_proc, "failed to read rds group proc") &&
-        vendor_get(V4L2_CID_PRV_LP_MODE, &lp_mode, "failed to read low power mode") &&
-        vendor_get(V4L2_CID_PRV_ANTENNA, &antenna, "failed to read antenna") &&
-        vendor_get(V4L2_CID_PRV_AF_JUMP, &af_jump, "failed to read af jump") &&
-        vendor_get(V4L2_CID_PRV_SOFT_MUTE, &soft_mute, "failed to read soft mute") &&
-        vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read frequency");
+    struct CtlProbe {
+        int id;
+        const char *name;
+    };
 
-    hal_log("snapshot", "reason=%s ok=%d freq=%d",
-            reason ? reason : "(null)", ok ? 1 : 0, freq);
+    static const CtlProbe probes[] = {
+        {V4L2_CID_PRV_STATE, "state"},
+        {V4L2_CID_PRV_REGION, "region"},
+        {V4L2_CID_PRV_EMPHASIS, "emphasis"},
+        {V4L2_CID_PRV_RDS_STD, "rds_std"},
+        {V4L2_CID_PRV_CHAN_SPACING, "spacing"},
+        {V4L2_CID_PRV_SIGNAL_TH, "signal_th"},
+        {V4L2_CID_PRV_RDSON, "rds_on"},
+        {V4L2_CID_PRV_RDSGROUP_MASK, "rds_mask"},
+        {V4L2_CID_PRV_RDSGROUP_PROC, "rds_proc"},
+        {V4L2_CID_PRV_LP_MODE, "lp_mode"},
+        {V4L2_CID_PRV_ANTENNA, "antenna"},
+        {V4L2_CID_PRV_AF_JUMP, "af_jump"},
+        {V4L2_CID_PRV_SOFT_MUTE, "soft_mute"},
+        {V4L2_CID_PRV_IRIS_FREQ, "freq"},
+        {V4L2_CID_PRV_IRIS_RMSSI, "rmssi"},
+    };
+
+    bool ok = true;
+    hal_log("snapshot", "reason=%s", reason ? reason : "(null)");
+    for (const CtlProbe &probe : probes) {
+        int value = 0;
+        const bool probe_ok = vendor_get(probe.id, &value, "failed snapshot read");
+        ok &= probe_ok;
+        hal_log("snapshot", "%s id=0x%x ok=%d value=%d", probe.name, probe.id, probe_ok ? 1 : 0, value);
+    }
+
     return ok;
 }
 
