@@ -8,8 +8,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <algorithm>
+#include <string>
 
 #include "../ctl_server.h"
+#include "../frequency_format.h"
 #include "../fm_v4l2_controls.h"
 #include "../rds_parser.h"
 #include "fm2_vendor_iface.h"
@@ -438,22 +440,11 @@ void log_scan_next_cb() {
     vendor_set(kV4l2CtrlSearchOn, 0, "failed to stop completed scan");
     std::sort(found, found + found_count);
 
-    char payload[5 * kMaxScanStations + 1];
-    payload[0] = '\0';
-    char frequencies[7 * kMaxScanStations + 1];
-    frequencies[0] = '\0';
-    for (int i = 0; i < found_count; ++i) {
-        char chunk[8];
-        snprintf(chunk, sizeof(chunk), "%04d", found[i] / 100);
-        strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
+    const std::string payload = format_frequency_list_khz(found, found_count, FrequencyListFormat::kCompact100Khz);
+    const std::string frequencies = format_frequency_list_khz(found, found_count);
 
-        char frequency_chunk[8];
-        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", found[i]);
-        strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
-    }
-
-    hal_log("search", "scan complete count=%d frequencies=%s", found_count, frequencies);
-    send_string_event(EVT_SEARCH_DONE, payload);
+    hal_log("search", "scan complete count=%d frequencies=%s", found_count, frequencies.c_str());
+    send_string_event(EVT_SEARCH_DONE, payload.c_str());
 }
 
 void log_thread_evt_cb(unsigned int evt) {
@@ -835,24 +826,11 @@ void af_update_cb(uint16_t *raw) {
         return;
     }
 
-    char payload[5 * 25 + 1];
-    payload[0] = '\0';
-    char frequencies[7 * 25 + 1];
-    frequencies[0] = '\0';
+    const std::string payload = format_frequency_list_khz(af.frequencies_khz, af.count, FrequencyListFormat::kCompact100Khz);
+    const std::string frequencies = format_frequency_list_khz(af.frequencies_khz, af.count);
 
-    for (int i = 0; i < af.count; ++i) {
-        const int freq = af.frequencies_khz[i];
-        char chunk[8];
-        snprintf(chunk, sizeof(chunk), "%04d", freq / 100);
-        strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
-
-        char frequency_chunk[8];
-        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", freq);
-        strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
-    }
-
-    hal_log("af", "result count=%d frequencies=%s", af.count, frequencies);
-    send_string_event(EVT_UPDATE_AF, payload);
+    hal_log("af", "result count=%d frequencies=%s", af.count, frequencies.c_str());
+    send_string_event(EVT_UPDATE_AF, payload.c_str());
 }
 
 /*
@@ -899,21 +877,8 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    char payload[5 * 20 + 1];
-    payload[0] = '\0';
-    char frequencies[7 * 20 + 1];
-    frequencies[0] = '\0';
-
-    for (int i = 0; i < list.count; ++i) {
-        const int abs_freq = list.frequencies_khz[i];
-        char chunk[8];
-        snprintf(chunk, sizeof(chunk), "%04d", abs_freq / 100);
-        strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
-
-        char frequency_chunk[8];
-        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", abs_freq);
-        strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
-    }
+    const std::string payload = format_frequency_list_khz(list.frequencies_khz, list.count, FrequencyListFormat::kCompact100Khz);
+    const std::string frequencies = format_frequency_list_khz(list.frequencies_khz, list.count);
 
     // Qualcomm HAL can replay the last search-list callback after the real
     // search result, typically while processing the next command-complete
@@ -921,9 +886,9 @@ void search_list_cb(uint16_t *raw) {
     // decoded payload instead of pointer or event ordering.
     pthread_mutex_lock(&g_state.lock);
     const bool duplicate = g_state.last_search_payload_valid &&
-            strcmp(g_state.last_search_payload, payload) == 0;
+            strcmp(g_state.last_search_payload, payload.c_str()) == 0;
     if (!duplicate) {
-        snprintf(g_state.last_search_payload, sizeof(g_state.last_search_payload), "%s", payload);
+        snprintf(g_state.last_search_payload, sizeof(g_state.last_search_payload), "%s", payload.c_str());
         g_state.last_search_payload_valid = true;
     }
     pthread_mutex_unlock(&g_state.lock);
@@ -931,8 +896,8 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    hal_log("search", "result count=%d reported=%d frequencies=%s", list.count, list.reported_count, frequencies);
-    send_string_event(EVT_SEARCH_DONE, payload);
+    hal_log("search", "result count=%d reported=%d frequencies=%s", list.count, list.reported_count, frequencies.c_str());
+    send_string_event(EVT_SEARCH_DONE, payload.c_str());
 }
 
 static fm_hal_callbacks_t g_callbacks = {

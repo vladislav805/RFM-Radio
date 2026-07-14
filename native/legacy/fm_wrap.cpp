@@ -8,8 +8,10 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string>
 #include <utils.h>
 #include "../ctl_server.h"
+#include "../frequency_format.h"
 #include "utils.h"
 #include "fm_ctl.h"
 #include "fmcommon.h"
@@ -191,22 +193,12 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 stations = extract_search_station_list(list);
 
-            char str[5 * 25 + 1];
-            str[0] = '\0';
-            char frequencies[7 * 25 + 1];
-            frequencies[0] = '\0';
+            const std::string str = format_frequency_list_khz(list, stations, FrequencyListFormat::kCompact100Khz);
+            const std::string frequencies = format_frequency_list_khz(list, stations);
 
-            for (int i = 0; i < stations; ++i) {
-                const size_t offset = strlen(str);
-                snprintf(str + offset, sizeof(str) - offset, "%04d", list[i] / 100);
+            legacy_log("search", "result count=%d frequencies=%s", stations, frequencies.c_str());
 
-                const size_t freq_offset = strlen(frequencies);
-                snprintf(frequencies + freq_offset, sizeof(frequencies) - freq_offset, "%s%d", i == 0 ? "" : " ", list[i]);
-            }
-
-            legacy_log("search", "result count=%d frequencies=%s", stations, frequencies);
-
-            send_interruption_info(EVT_SEARCH_DONE, str);
+            send_interruption_info(EVT_SEARCH_DONE, str.c_str());
             break;
         }
 
@@ -214,22 +206,12 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 size = extract_rds_af_list(list);
 
-            char str[5 * 25 + 1];
-            str[0] = '\0';
-            char frequencies[7 * 25 + 1];
-            frequencies[0] = '\0';
+            const std::string str = format_frequency_list_khz(list, size, FrequencyListFormat::kCompact100Khz);
+            const std::string frequencies = format_frequency_list_khz(list, size);
 
-            for (int i = 0; i < size; ++i) {
-                const size_t offset = strlen(str);
-                snprintf(str + offset, sizeof(str) - offset, "%04d", list[i] / 100);
+            legacy_log("af", "result count=%d frequencies=%s", size, frequencies.c_str());
 
-                const size_t freq_offset = strlen(frequencies);
-                snprintf(frequencies + freq_offset, sizeof(frequencies) - freq_offset, "%s%d", i == 0 ? "" : " ", list[i]);
-            }
-
-            legacy_log("af", "result count=%d frequencies=%s", size, frequencies);
-
-            send_interruption_info(EVT_UPDATE_AF, str);
+            send_interruption_info(EVT_UPDATE_AF, str.c_str());
 
             break;
         }

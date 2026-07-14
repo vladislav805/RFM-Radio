@@ -28,6 +28,7 @@ if(RFM_NATIVE_TESTS)
     add_executable(
         rfm_native_tests
         tests/rds_parser_test.cpp
+        tests/frequency_format_test.cpp
         rds_parser.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
