@@ -20,11 +20,74 @@ constexpr int kRdsPsAll = 1 << 4;
 constexpr int kRdsAfJump = 1;
 constexpr int kMaxTagCodes = 64;
 
+extern fm_current_storage fm_storage;
+
+struct LegacyRtPlusTag {
+    int content_type = 0;
+    int start = 0;
+    int len = 0;
+};
+
+bool g_rt_plus_tags_valid = false;
+LegacyRtPlusTag g_rt_plus_tags[2];
+
+const char *rtp_content_type_name(int content_type) {
+    switch (content_type) {
+        case 1:
+            return "ITEM.TITLE";
+        case 4:
+            return "ITEM.ARTIST";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+void format_dump(const uint8 *buf, int32 bytes, char *dump, size_t dump_size) {
+    if (dump_size == 0) {
+        return;
+    }
+
+    dump[0] = '\0';
+    const int dump_len = bytes > 32 ? 32 : bytes;
+    for (int i = 0; i < dump_len; ++i) {
+        char chunk[4];
+        snprintf(chunk, sizeof(chunk), "%s%02x", i == 0 ? "" : " ", buf[i]);
+        strncat(dump, chunk, dump_size - strlen(dump) - 1);
+    }
+}
+
+void log_rt_plus_slices() {
+    if (!g_rt_plus_tags_valid) {
+        return;
+    }
+
+    const size_t rt_len = strlen(fm_storage.rds.radio_text);
+    for (const LegacyRtPlusTag &tag : g_rt_plus_tags) {
+        if (tag.content_type == 0) {
+            continue;
+        }
+
+        if (tag.start >= 0 && tag.len > 0 && tag.start + tag.len <= static_cast<int>(rt_len)) {
+            char text[65];
+            snprintf(text, sizeof(text), "%.*s", tag.len, fm_storage.rds.radio_text + tag.start);
+            legacy_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
+        } else {
+            legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%zu",
+                    rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.len, rt_len);
+        }
+    }
+}
+
+void clear_rt_plus_tags() {
+    g_rt_plus_tags_valid = false;
+    g_rt_plus_tags[0] = {};
+    g_rt_plus_tags[1] = {};
+}
+
 /**
  * V4L2 radio handle
  */
 int fd_radio = -1;
-extern fm_current_storage fm_storage;
 
 /**
  * set_v4l2_ctrl
@@ -128,6 +191,10 @@ uint8 fm_receiver_get_rds_group_options() {
     return (uint8) control.value;
 }
 
+bool fm_receiver_set_rds_group_mask(uint32 mask) {
+    return set_v4l2_ctrl(kV4l2CtrlRdsGroupMask, mask);
+}
+
 /**
  * 0      - nothing
  * 1 << 0 - RT only
@@ -142,6 +209,10 @@ uint8 fm_receiver_get_rds_group_options() {
  */
 bool fm_receiver_set_rds_group_options(uint32 mask) {
     return set_v4l2_ctrl(kV4l2CtrlRdsGroupProc, mask);
+}
+
+bool fm_receiver_set_rds_data_buffer(uint32 size) {
+    return set_v4l2_ctrl(kV4l2CtrlRdsDataBuffer, size);
 }
 
 bool fm_receiver_set_ps_all(uint8 mode) {
@@ -471,7 +542,82 @@ bool extract_radio_text(fm_rds_storage* storage) {
 
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
     legacy_log("rds", "rt=`%s` (len=%d)", storage->radio_text, parsed.text_len);
+    log_rt_plus_slices();
 
+    return TRUE;
+}
+
+bool extract_raw_rds() {
+    uint8 buf[256] = {0};
+    const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufRawRds);
+
+    if (bytes <= 0) {
+        legacy_log("rds", "raw read failed bytes=%d", bytes);
+        return FALSE;
+    }
+
+    char dump[3 * 32 + 1];
+    format_dump(buf, bytes, dump, sizeof(dump));
+
+    legacy_log("rds", "raw len=%d data=%s%s", bytes, dump, bytes > 32 ? " ..." : "");
+    return TRUE;
+}
+
+bool extract_rt_plus() {
+    uint8 buf[32] = {0};
+    const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufRtPlus);
+
+    if (bytes <= 1) {
+        legacy_log("rds", "rt+ read failed bytes=%d", bytes);
+        return FALSE;
+    }
+
+    char dump[3 * 32 + 1];
+    format_dump(buf, bytes, dump, sizeof(dump));
+
+    const int payload_len = buf[0] < bytes ? buf[0] : bytes;
+    const int rt_ert_flag = buf[1];
+    legacy_log("rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
+
+    // Legacy IRIS V4L2 already converts the raw RT+ RDS group into a compact
+    // buffer: [0]=length, [1]=RT/eRT flag, [2..]=triplets(content,start,len).
+    // Unlike the HAL callback payload, tag lengths are already decoded here.
+    clear_rt_plus_tags();
+    int tag_index = 0;
+    for (int offset = 2; offset + 2 < payload_len; offset += 3) {
+        const int content_type = buf[offset];
+        const int start = buf[offset + 1];
+        const int len = buf[offset + 2];
+
+        if (tag_index < 2) {
+            g_rt_plus_tags[tag_index] = {content_type, start, len};
+            tag_index++;
+        }
+    }
+
+    g_rt_plus_tags_valid = tag_index > 0;
+    log_rt_plus_slices();
+
+    return TRUE;
+}
+
+bool extract_ert() {
+    uint8 buf[256] = {0};
+    const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufErt);
+
+    if (bytes <= 3) {
+        legacy_log("rds", "ert read failed bytes=%d", bytes);
+        return FALSE;
+    }
+
+    char dump[3 * 32 + 1];
+    format_dump(buf, bytes, dump, sizeof(dump));
+
+    const int text_len = buf[0] < bytes - 3 ? buf[0] : bytes - 3;
+    char text[256];
+    snprintf(text, sizeof(text), "%.*s", text_len, buf + 3);
+    legacy_log("rds", "ert len=%d utf8=%d formatting=%d text=`%s` data=%s%s",
+            text_len, buf[1], buf[2], text, dump, bytes > 32 ? " ..." : "");
     return TRUE;
 }
 

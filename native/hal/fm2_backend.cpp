@@ -37,8 +37,6 @@ constexpr int kEnableWaitTimeoutMs = 2000;
 constexpr int kDefaultSignalThreshold = 0x40;
 // sweeping across the entire frequency range, it stops at each station found and pauses for N seconds
 constexpr int kDefaultSeekDwell = 2;
-constexpr int kDefaultRdsGroupProcMask = 0xEF;
-constexpr int kDefaultRawRdsGroupMask = 40; // 64;
 
 struct RtpTag {
     int content_type = 0;
@@ -277,14 +275,14 @@ bool apply_signal_threshold() {
 }
 
 bool apply_raw_rds_group_mask() {
-    return vendor_set(kV4l2CtrlRdsGroupMask, kDefaultRawRdsGroupMask, "failed to set raw rds group mask");
+    return vendor_set(kV4l2CtrlRdsGroupMask, kHalDefaultRawRdsGroupMask, "failed to set raw rds group mask");
 }
 
 bool apply_processed_rds_config(bool auto_af) {
     if (!vendor_set(kV4l2CtrlRdsOn, 1, "failed to set rds on")) {
         return false;
     }
-    if (!vendor_set(kV4l2CtrlRdsGroupProc, kDefaultRdsGroupProcMask, "failed to set rds groups")) {
+    if (!vendor_set(kV4l2CtrlRdsGroupProc, kHalDefaultRdsGroupProcMask, "failed to set rds groups")) {
         vendor_set(kV4l2CtrlRdsOn, 0, "failed to roll back rds on");
         return false;
     }

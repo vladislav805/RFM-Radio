@@ -52,7 +52,15 @@ constexpr int kTavaruaBufRtRds = 2;
 constexpr int kTavaruaBufPsRds = 3;
 constexpr int kTavaruaBufRawRds = 4;
 constexpr int kTavaruaBufAfList = 5;
-constexpr int kTavaruaBufMax = 6;
+constexpr int kTavaruaBufPeek = 6;
+constexpr int kTavaruaBufSsbiPeek = 7;
+constexpr int kTavaruaBufRdsCounters = 8;
+constexpr int kTavaruaBufReadDefault = 9;
+constexpr int kTavaruaBufCalibrationData = 10;
+constexpr int kTavaruaBufRtPlus = 11;
+constexpr int kTavaruaBufErt = 12;
+constexpr int kTavaruaBufEventsCci = 13;
+constexpr int kTavaruaBufMax = 14;
 
 #ifndef __FMCOMMON_H
 #define __FMCOMMON_H

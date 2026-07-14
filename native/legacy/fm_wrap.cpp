@@ -35,11 +35,14 @@ enum tavarua_evt_t {
     TAVARUA_EVT_NEW_SRCH_LIST,
     TAVARUA_EVT_NEW_AF_LIST,
     TAVARUA_EVT_RADIO_DISABLED = 18,
-    TAVARUA_EVT_NEW_RT_PLUS = 20,
+    TAVARUA_EVT_NEW_ODA,
+    TAVARUA_EVT_NEW_RT_PLUS,
     TAVARUA_EVT_NEW_ERT,
 };
 
 static char *qsoc_poweron_path = NULL;
+constexpr int kLegacyRdsMask = 23;
+constexpr int kLegacyRds3aGroupMask = 0x40;
 
 volatile bool is_power_on_completed = FALSE;
 
@@ -101,6 +104,7 @@ bool process_radio_event(uint8 event_buf) {
             // Remove last RDS data
             fm_storage.rds.program_name[0] = '\0';
             fm_storage.rds.radio_text[0] = '\0';
+            clear_rt_plus_tags();
 
             legacy_log("event", "tuned frequency=%d", fm_storage.frequency);
 
@@ -128,7 +132,7 @@ bool process_radio_event(uint8 event_buf) {
 
         case TAVARUA_EVT_NEW_RAW_RDS:
             legacy_log("event", "raw RDS available");
-            // extract_rds_af_list();
+            extract_raw_rds();
             break;
 
         case TAVARUA_EVT_NEW_RT_RDS: {
@@ -213,6 +217,24 @@ bool process_radio_event(uint8 event_buf) {
 
             send_interruption_info(EVT_UPDATE_AF, str.c_str());
 
+            break;
+        }
+
+        case TAVARUA_EVT_NEW_ODA: {
+            legacy_log("event", "ODA available");
+            fm_receiver_set_rds_group_mask(0);
+            break;
+        }
+
+        case TAVARUA_EVT_NEW_RT_PLUS: {
+            legacy_log("event", "RT+ available");
+            extract_rt_plus();
+            break;
+        }
+
+        case TAVARUA_EVT_NEW_ERT: {
+            legacy_log("event", "ERT available");
+            extract_ert();
             break;
         }
 
@@ -456,42 +478,32 @@ fm_cmd_status_t fm_command_setup_rds(rds_system_t system) {
 
     // If RDS enabled
     if (system != FM_RX_NO_RDS_SYSTEM) {
+        // Qualcomm's legacy V4L2 path packs RT/PS/AF options into
+        // RDSGROUP_PROC. RT+/ERT discovery starts from group 3A below; when
+        // the driver discovers an ODA carrier it sends NEW_ODA and expects
+        // userspace to set RDSGROUP_MASK again so it can OR in that carrier.
+        uint8 rds_group_mask = fm_receiver_get_rds_group_options();
+        rds_group_mask &= 0xC7;
+        rds_group_mask |= (kLegacyRdsMask & 0x07) << 3;
 
-        int32 rds_mask = fm_receiver_get_rds_group_options();
-
-        // TODO ????
-        //uint8 rds_group_mask = ((rds_mask & 0xC7) & 0x07) << 3;
-        // int psAllVal = ;
-
-        //print2("fw_cmd_set_rds  : rds_options: %x\n", rds_group_mask);
-
-        uint32 mask = 0xffff;
-
-        legacy_log("rds", "set group options=0x%x", mask);
-        ret = fm_receiver_set_rds_group_options(/*rds_group_mask*/ mask); // 0xff OK
+        legacy_log("rds", "set group options=0x%x", rds_group_mask);
+        ret = fm_receiver_set_rds_group_options(rds_group_mask);
         CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change RDS group options");
     }
 
-    if (is_rome_chip()) {
-        legacy_log("rds", "using Rome RDS setup");
-        /*ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_MASK, 1);
-        if (ret == FALSE) {
-            print("Failed to set RDS GRP MASK\n");
-            return FM_CMD_FAILURE;
-        }
-        ret = set_v4l2_ctrl(fd_radio, V4L2_CID_PRIVATE_TAVARUA_RDSD_BUF, 1);
-        if (ret == FALSE) {
-            print("Failed to set RDS BUF\n");
-            return FM_CMD_FAILURE;
-        }*/
-    } else {
-        uint32 ps_all = 0xffff;
+    if (system != FM_RX_NO_RDS_SYSTEM) {
+        legacy_log("rds", "set raw group mask=0x%x", kLegacyRds3aGroupMask);
+        ret = fm_receiver_set_rds_group_mask(kLegacyRds3aGroupMask);
+        CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change raw RDS group mask");
+
+        legacy_log("rds", "set raw data buffer=1");
+        ret = fm_receiver_set_rds_data_buffer(1);
+        CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change raw RDS data buffer");
+
+        const uint32 ps_all = (kLegacyRdsMask & (1 << 4)) >> 4;
         legacy_log("rds", "set ps all=0x%x", ps_all);
-        ret = fm_receiver_set_ps_all(ps_all); // ???
-        if (ret == FALSE) {
-            legacy_log("rds", "set ps all failed");
-            return FM_CMD_FAILURE;
-        }
+        ret = fm_receiver_set_ps_all(ps_all);
+        CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change ps all");
     }
 
     return FM_CMD_SUCCESS;
