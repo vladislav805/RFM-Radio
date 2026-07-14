@@ -1,9 +1,7 @@
 #include "backend.h"
 
-extern "C" {
 #include "legacy/fm_wrap.h"
 #include "legacy/fm_ctl.h"
-}
 
 namespace {
 

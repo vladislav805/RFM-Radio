@@ -1,6 +1,7 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
 #include "../rds_parser.h"
+#include "../fm_v4l2_controls.h"
 #include "utils.h"
 #include <algorithm>
 #include <fcntl.h>
@@ -11,42 +12,13 @@
 #    include <sys/ioctl.h>
 #endif
 
-#ifndef V4L2_CID_PRIVATE_BASE
-#    define V4L2_CID_PRIVATE_BASE                  0x8000000
-#endif
-
-#define V4L2_CID_PRIVATE_TAVARUA_SRCHMODE      (V4L2_CID_PRIVATE_BASE + 1)  // 0x8000001
-#define V4L2_CID_PRIVATE_TAVARUA_SCANDWELL     (V4L2_CID_PRIVATE_BASE + 2)  // 0x8000002
-#define V4L2_CID_PRIVATE_TAVARUA_SRCHON        (V4L2_CID_PRIVATE_BASE + 3)  // 0x8000003
-#define V4L2_CID_PRIVATE_TAVARUA_STATE         (V4L2_CID_PRIVATE_BASE + 4)  // 0x8000004
-#define V4L2_CID_PRIVATE_TAVARUA_TRANSMIT_MODE (V4L2_CID_PRIVATE_BASE + 5)  // 0x8000005
-#define V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_MASK (V4L2_CID_PRIVATE_BASE + 6)  // 0x8000006
-#define V4L2_CID_PRIVATE_TAVARUA_REGION        (V4L2_CID_PRIVATE_BASE + 7)  // 0x8000007
-#define V4L2_CID_PRIVATE_TAVARUA_SIGNAL_TH     (V4L2_CID_PRIVATE_BASE + 8)  // 0x8000008
-#define V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY      (V4L2_CID_PRIVATE_BASE + 9)  // 0x8000009
-#define V4L2_CID_PRIVATE_TAVARUA_SRCH_PI       (V4L2_CID_PRIVATE_BASE + 10) // 0x800000a
-#define V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT      (V4L2_CID_PRIVATE_BASE + 11) // 0x800000b
-#define V4L2_CID_PRIVATE_TAVARUA_EMPHASIS      (V4L2_CID_PRIVATE_BASE + 12) // 0x800000c
-#define V4L2_CID_PRIVATE_TAVARUA_RDS_STD       (V4L2_CID_PRIVATE_BASE + 13) // 0x800000d
-#define V4L2_CID_PRIVATE_TAVARUA_SPACING       (V4L2_CID_PRIVATE_BASE + 14) // 0x800000e
-#define V4L2_CID_PRIVATE_TAVARUA_RDSON         (V4L2_CID_PRIVATE_BASE + 15) // 0x800000f
-#define V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC (V4L2_CID_PRIVATE_BASE + 16) // 0x8000010
-#define V4L2_CID_PRIVATE_TAVARUA_LP_MODE       (V4L2_CID_PRIVATE_BASE + 17) // 0x8000011
-#define V4L2_CID_PRIVATE_TAVARUA_RDSD_BUF      (V4L2_CID_PRIVATE_BASE + 19) // 0x8000013
-#define V4L2_CID_PRIVATE_TAVARUA_AF_JUMP       (V4L2_CID_PRIVATE_BASE + 27)
-#define V4L2_CID_PRIVATE_TAVARUA_SET_AUDIO_PATH (V4L2_CID_PRIVATE_BASE + 41)
-
-#define V4L2_CID_PRIVATE_TAVARUA_ANTENNA       (V4L2_CID_PRIVATE_BASE + 18)
-#define V4L2_CID_PRIVATE_TAVARUA_PSALL         (V4L2_CID_PRIVATE_BASE + 20)
-
-
-#define RDS_GROUP_RT  1 << 0
-#define RDS_GROUP_PS  1 << 1
-#define RDS_GROUP_AF  1 << 2
-#define RDS_AF_AUTO   1 << 6
-#define RDS_PS_ALL    1 << 4
-#define RDS_AF_JUMP   1
-#define MAX_TAG_CODES 64
+constexpr int kRdsGroupRt = 1 << 0;
+constexpr int kRdsGroupPs = 1 << 1;
+constexpr int kRdsGroupAf = 1 << 2;
+constexpr int kRdsAfAuto = 1 << 6;
+constexpr int kRdsPsAll = 1 << 4;
+constexpr int kRdsAfJump = 1;
+constexpr int kMaxTagCodes = 64;
 
 /**
  * V4L2 radio handle
@@ -93,15 +65,15 @@ bool fm_receiver_open() {
 }
 
 bool fm_receiver_set_state(fm_tuner_state tuner_state) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_STATE, tuner_state);
+    return set_v4l2_ctrl(kV4l2CtrlState, tuner_state);
 }
 
 bool fm_receiver_set_emphasis(emphasis_t emp_type) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_EMPHASIS, emp_type);
+    return set_v4l2_ctrl(kV4l2CtrlEmphasis, emp_type);
 }
 
 bool fm_receiver_set_spacing(channel_space_t spacing) {
-    if (!set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SPACING, spacing)) {
+    if (!set_v4l2_ctrl(kV4l2CtrlChannelSpacing, spacing)) {
         return FALSE;
     }
 
@@ -110,7 +82,7 @@ bool fm_receiver_set_spacing(channel_space_t spacing) {
 }
 
 bool fm_receiver_set_rds_state(bool enable) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDSON, enable);
+    return set_v4l2_ctrl(kV4l2CtrlRdsOn, enable);
 }
 
 bool fm_receiver_set_band(radio_band_t band) {
@@ -130,7 +102,7 @@ bool fm_receiver_set_band(radio_band_t band) {
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_REGION, band);
+    ret = set_v4l2_ctrl(kV4l2CtrlRegion, band);
     if (ret == TRUE) {
         fm_storage.band_type = band;
     }
@@ -139,12 +111,12 @@ bool fm_receiver_set_band(radio_band_t band) {
 }
 
 bool fm_receiver_set_rds_system(rds_system_t system) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDS_STD, system);
+    return set_v4l2_ctrl(kV4l2CtrlRdsStandard, system);
 }
 
 uint8 fm_receiver_get_rds_group_options() {
     struct v4l2_control control;
-    control.id = V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC;
+    control.id = kV4l2CtrlRdsGroupProc;
 
     uint32 err = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
 
@@ -169,18 +141,15 @@ uint8 fm_receiver_get_rds_group_options() {
  * 1 << 8 - ???
  */
 bool fm_receiver_set_rds_group_options(uint32 mask) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_RDSGROUP_PROC, mask);
+    return set_v4l2_ctrl(kV4l2CtrlRdsGroupProc, mask);
 }
 
-/**
- *
- */
 bool fm_receiver_set_ps_all(uint8 mode) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_PSALL, mode);
+    return set_v4l2_ctrl(kV4l2CtrlPsAll, mode);
 }
 
 bool fm_receiver_set_antenna(uint8 antenna) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_ANTENNA, antenna);
+    return set_v4l2_ctrl(kV4l2CtrlAntenna, antenna);
 }
 
 bool fm_receiver_query_capabilities(struct v4l2_capability* cap) {
@@ -244,7 +213,7 @@ bool fm_receiver_set_mute_mode(mute_t mode) {
  * @return true if successful false otherwise.
  */
 bool fm_receiver_toggle_af_jump(uint8 enable) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_AF_JUMP, enable);
+    return set_v4l2_ctrl(kV4l2CtrlAfJump, enable);
 }
 
 /**
@@ -264,7 +233,7 @@ bool fm_receiver_toggle_af_jump(uint8 enable) {
  * @param mode the new driver operating mode.
  */
 bool fm_receiver_set_power_mode(power_mode_t mode) {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_LP_MODE, mode);
+    return set_v4l2_ctrl(kV4l2CtrlLowPowerMode, mode);
 }
 
 /**
@@ -304,13 +273,13 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, mode);
+    ret = set_v4l2_ctrl(kV4l2CtrlSearchMode, mode);
     if (ret == FALSE) {
         legacy_log("search", "set seek mode failed");
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SCANDWELL, dwell_period);
+    ret = set_v4l2_ctrl(kV4l2CtrlScanDwell, dwell_period);
     if (ret == FALSE) {
         legacy_log("search", "set scan dwell failed");
         return FALSE;
@@ -344,19 +313,19 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHMODE, options.search_mode);
+    ret = set_v4l2_ctrl(kV4l2CtrlSearchMode, options.search_mode);
     if (ret == FALSE) {
         legacy_log("search", "set list scan mode failed");
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl( V4L2_CID_PRIVATE_TAVARUA_SRCH_CNT, options.srch_list_max);
+    ret = set_v4l2_ctrl(kV4l2CtrlSearchCount, options.srch_list_max);
     if (ret == FALSE) {
         legacy_log("search", "set list scan count failed");
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCH_PTY, options.program_type);
+    ret = set_v4l2_ctrl(kV4l2CtrlSearchPty, options.program_type);
     if (ret == FALSE) {
         legacy_log("search", "set list scan PTY failed");
         return FALSE;
@@ -378,7 +347,7 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
  * Cancel the ongoing search
  */
 bool fm_receiver_cancel_search() {
-    return set_v4l2_ctrl(V4L2_CID_PRIVATE_TAVARUA_SRCHON, 0);
+    return set_v4l2_ctrl(kV4l2CtrlSearchOn, 0);
 }
 
 /**
@@ -439,7 +408,7 @@ bool extract_program_service(fm_rds_storage* storage) {
      */
     uint8 buf[64] = {0};
 
-    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_PS_RDS);
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufPsRds);
 
     if (bytes < 5) {
         return FALSE;
@@ -483,7 +452,7 @@ bool extract_radio_text(fm_rds_storage* storage) {
      */
     uint8 buf[128] = {0};
 
-    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_RT_RDS);
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufRtRds);
 
     if (bytes < 5) {
         return FALSE;
@@ -514,7 +483,7 @@ bool extract_radio_text(fm_rds_storage* storage) {
 uint8 extract_rds_af_list(uint32* frequencies) {
     uint8 buf[0xff];
 
-    const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_AF_LIST);
+    const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufAfList);
 
     if (bytes < 7) {
         return FALSE;
@@ -565,18 +534,18 @@ uint8 extract_search_station_list(uint32* list) {
         lower_limit = tunefreq_to_khz(tuner.rangelow);
         upper_limit = tunefreq_to_khz(tuner.rangehigh);
     } else {
-        lower_limit = FREQ_LOWER;
-        upper_limit = FREQ_UPPER;
+        lower_limit = kDefaultLowerFrequencyKhz;
+        upper_limit = kDefaultUpperFrequencyKhz;
     }
 
-    if (lower_limit < 65000 || lower_limit > FREQ_UPPER || upper_limit <= lower_limit || upper_limit > FREQ_UPPER) {
-        legacy_log("search", "invalid limits %d-%d, fallback to %d-%d", lower_limit, upper_limit, FREQ_LOWER, FREQ_UPPER);
-        lower_limit = FREQ_LOWER;
-        upper_limit = FREQ_UPPER;
+    if (lower_limit < 65000 || lower_limit > kDefaultUpperFrequencyKhz || upper_limit <= lower_limit || upper_limit > kDefaultUpperFrequencyKhz) {
+        legacy_log("search", "invalid limits %d-%d, fallback to %d-%d", lower_limit, upper_limit, kDefaultLowerFrequencyKhz, kDefaultUpperFrequencyKhz);
+        lower_limit = kDefaultLowerFrequencyKhz;
+        upper_limit = kDefaultUpperFrequencyKhz;
     }
 
     // Read buffer
-    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_SRCH_LIST);
+    int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufSearchList);
 
     if (bytes < 1) {
         legacy_log("search", "read station list failed");

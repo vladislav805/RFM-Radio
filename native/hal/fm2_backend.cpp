@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "../ctl_server.h"
+#include "../fm_v4l2_controls.h"
 #include "../rds_parser.h"
 #include "fm2_vendor_iface.h"
 #include "utils.h"
@@ -270,24 +271,24 @@ bool vendor_get(int id, int *value, const char *message) {
 }
 
 bool apply_signal_threshold() {
-    return vendor_set(V4L2_CID_PRV_SIGNAL_TH, kDefaultSignalThreshold, "failed to set signal threshold");
+    return vendor_set(kV4l2CtrlSignalThreshold, kDefaultSignalThreshold, "failed to set signal threshold");
 }
 
 bool apply_raw_rds_group_mask() {
-    return vendor_set(V4L2_CID_PRV_RDSGROUP_MASK, kDefaultRawRdsGroupMask, "failed to set raw rds group mask");
+    return vendor_set(kV4l2CtrlRdsGroupMask, kDefaultRawRdsGroupMask, "failed to set raw rds group mask");
 }
 
 bool apply_processed_rds_config(bool auto_af) {
-    if (!vendor_set(V4L2_CID_PRV_RDSON, 1, "failed to set rds on")) {
+    if (!vendor_set(kV4l2CtrlRdsOn, 1, "failed to set rds on")) {
         return false;
     }
-    if (!vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, kDefaultRdsGroupProcMask, "failed to set rds groups")) {
-        vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to roll back rds on");
+    if (!vendor_set(kV4l2CtrlRdsGroupProc, kDefaultRdsGroupProcMask, "failed to set rds groups")) {
+        vendor_set(kV4l2CtrlRdsOn, 0, "failed to roll back rds on");
         return false;
     }
-    if (!vendor_set(V4L2_CID_PRV_AF_JUMP, auto_af ? 1 : 0, "failed to set af jump")) {
-        vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to roll back rds groups");
-        vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to roll back rds on");
+    if (!vendor_set(kV4l2CtrlAfJump, auto_af ? 1 : 0, "failed to set af jump")) {
+        vendor_set(kV4l2CtrlRdsGroupProc, 0, "failed to roll back rds groups");
+        vendor_set(kV4l2CtrlRdsOn, 0, "failed to roll back rds on");
         return false;
     }
 
@@ -296,9 +297,9 @@ bool apply_processed_rds_config(bool auto_af) {
 
 bool disable_processed_rds_config() {
     bool ok = true;
-    ok &= vendor_set(V4L2_CID_PRV_AF_JUMP, 0, "failed to clear af jump");
-    ok &= vendor_set(V4L2_CID_PRV_RDSGROUP_PROC, 0, "failed to clear rds groups");
-    ok &= vendor_set(V4L2_CID_PRV_RDSON, 0, "failed to disable rds");
+    ok &= vendor_set(kV4l2CtrlAfJump, 0, "failed to clear af jump");
+    ok &= vendor_set(kV4l2CtrlRdsGroupProc, 0, "failed to clear rds groups");
+    ok &= vendor_set(kV4l2CtrlRdsOn, 0, "failed to disable rds");
     return ok;
 }
 
@@ -317,7 +318,7 @@ bool apply_post_enable_config() {
         return false;
     }
 
-    if (!vendor_set(V4L2_CID_PRV_LP_MODE, low_power ? 1 : 0, "failed to set power mode")) {
+    if (!vendor_set(kV4l2CtrlLowPowerMode, low_power ? 1 : 0, "failed to set power mode")) {
         return false;
     }
 
@@ -402,7 +403,7 @@ void send_hex_event(int event_id, int value) {
 
 void log_scan_next_cb() {
     int freq = 0;
-    if (vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read scan-next frequency")) {
+    if (vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read scan-next frequency")) {
         hal_log("search", "scan next frequency=%d", freq);
     } else {
         hal_log("search", "scan next");
@@ -434,7 +435,7 @@ void log_scan_next_cb() {
         return;
     }
 
-    vendor_set(V4L2_CID_PRV_SRCHON, 0, "failed to stop completed scan");
+    vendor_set(kV4l2CtrlSearchOn, 0, "failed to stop completed scan");
     std::sort(found, found + found_count);
 
     char payload[5 * kMaxScanStations + 1];
@@ -702,7 +703,7 @@ void tune_cb(int freq) {
 
 void seek_complete_cb(int freq) {
     int current = 0;
-    if (vendor_get(V4L2_CID_PRV_IRIS_FREQ, &current, "failed to read seek-complete frequency")) {
+    if (vendor_get(kV4l2CtrlIrisFreq, &current, "failed to read seek-complete frequency")) {
         hal_log("event", "seek complete frequency=%d current=%d", freq, current);
     } else {
         hal_log("event", "seek complete frequency=%d", freq);
@@ -982,14 +983,14 @@ bool apply_runtime_config() {
             region, lower, upper, spacing, stereo);
 
     bool ok = true;
-    ok &= vendor_set(V4L2_CID_PRV_REGION, region, "failed to set region");
-    ok &= vendor_set(V4L2_CID_PRV_IRIS_UPPER_BAND, upper, "failed to set upper band");
-    ok &= vendor_set(V4L2_CID_PRV_IRIS_LOWER_BAND, lower, "failed to set lower band");
-    ok &= vendor_set(V4L2_CID_PRV_CHAN_SPACING, spacing, "failed to set channel spacing");
-    ok &= vendor_set(V4L2_CID_PRV_EMPHASIS, 1, "failed to set emphasis");
-    ok &= vendor_set(V4L2_CID_PRV_RDS_STD, 1, "failed to set rds standard");
+    ok &= vendor_set(kV4l2CtrlRegion, region, "failed to set region");
+    ok &= vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band");
+    ok &= vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band");
+    ok &= vendor_set(kV4l2CtrlChannelSpacing, spacing, "failed to set channel spacing");
+    ok &= vendor_set(kV4l2CtrlEmphasis, 1, "failed to set emphasis");
+    ok &= vendor_set(kV4l2CtrlRdsStandard, 1, "failed to set rds standard");
     ok &= apply_signal_threshold();
-    ok &= vendor_set(V4L2_CID_PRV_SOFT_MUTE, 1, "failed to enable soft mute");
+    ok &= vendor_set(kV4l2CtrlSoftMute, 1, "failed to enable soft mute");
     return ok;
 }
 
@@ -1055,7 +1056,7 @@ bool fm2_backend_enable() {
         hal_log("enable", "failed to enable slimbus before receiver state");
     }
 
-    if (!vendor_set(V4L2_CID_PRV_STATE, kFmRxState, "failed to enable receiver")) {
+    if (!vendor_set(kV4l2CtrlState, kFmRxState, "failed to enable receiver")) {
         return false;
     }
 
@@ -1095,14 +1096,14 @@ bool fm2_backend_wait_enabled(int timeout_ms) {
 
 bool fm2_backend_disable() {
     hal_log("disable", "requested");
-    const bool disabled = vendor_set(V4L2_CID_PRV_STATE, 0, "failed to disable receiver");
+    const bool disabled = vendor_set(kV4l2CtrlState, 0, "failed to disable receiver");
     const bool slimbus = fm2_backend_set_slimbus(false);
     return disabled && slimbus;
 }
 
 bool fm2_backend_set_frequency(uint32_t frequency_khz) {
     hal_log("tune", "request frequency=%u", frequency_khz);
-    if (!vendor_set(V4L2_CID_PRV_IRIS_FREQ, static_cast<int>(frequency_khz), "failed to tune")) {
+    if (!vendor_set(kV4l2CtrlIrisFreq, static_cast<int>(frequency_khz), "failed to tune")) {
         return false;
     }
 
@@ -1114,7 +1115,7 @@ bool fm2_backend_set_frequency(uint32_t frequency_khz) {
 
 uint32_t fm2_backend_get_frequency() {
     int freq = 0;
-    if (!vendor_get(V4L2_CID_PRV_IRIS_FREQ, &freq, "failed to read frequency")) {
+    if (!vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read frequency")) {
         pthread_mutex_lock(&g_state.lock);
         const int cached = current_frequency_locked();
         pthread_mutex_unlock(&g_state.lock);
@@ -1169,9 +1170,9 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
 
 bool fm2_backend_seek(int direction) {
     hal_log("search", "seek direction=%d", direction);
-    const bool ok = vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeSeek, "failed to set seek mode") &&
-                    vendor_set(V4L2_CID_PRV_SCANDWELL, kDefaultSeekDwell, "failed to set seek dwell") &&
-                    vendor_set(V4L2_CID_PRV_IRIS_SEEK, direction >= 0 ? 1 : 0, "failed to start seek");
+    const bool ok = vendor_set(kV4l2CtrlSearchMode, kSearchModeSeek, "failed to set seek mode") &&
+                    vendor_set(kV4l2CtrlScanDwell, kDefaultSeekDwell, "failed to set seek dwell") &&
+                    vendor_set(kV4l2CtrlIrisSeek, direction >= 0 ? 1 : 0, "failed to start seek");
     return ok;
 }
 
@@ -1187,10 +1188,10 @@ bool fm2_backend_search() {
 
     hal_log("search", "scan start frequency=%d", start_frequency);
 
-    const bool ok = vendor_set(V4L2_CID_PRV_IRIS_FREQ, start_frequency, "failed to tune scan start") &&
-                    vendor_set(V4L2_CID_PRV_SRCHMODE, kSearchModeScan, "failed to set scan mode") &&
-                    vendor_set(V4L2_CID_PRV_SCANDWELL, 1, "failed to set scan dwell") &&
-                    vendor_set(V4L2_CID_PRV_IRIS_SEEK, 1, "failed to start scan");
+    const bool ok = vendor_set(kV4l2CtrlIrisFreq, start_frequency, "failed to tune scan start") &&
+                    vendor_set(kV4l2CtrlSearchMode, kSearchModeScan, "failed to set scan mode") &&
+                    vendor_set(kV4l2CtrlScanDwell, 1, "failed to set scan dwell") &&
+                    vendor_set(kV4l2CtrlIrisSeek, 1, "failed to start scan");
     if (!ok) {
         pthread_mutex_lock(&g_state.lock);
         reset_scan_locked();
@@ -1204,7 +1205,7 @@ bool fm2_backend_cancel_search() {
     pthread_mutex_lock(&g_state.lock);
     reset_scan_locked();
     pthread_mutex_unlock(&g_state.lock);
-    return vendor_set(V4L2_CID_PRV_SRCHON, 0, "failed to cancel search");
+    return vendor_set(kV4l2CtrlSearchOn, 0, "failed to cancel search");
 }
 
 bool fm2_backend_set_rds(bool enabled) {
@@ -1235,7 +1236,7 @@ bool fm2_backend_set_stereo(bool enabled) {
     }
 
     hal_log("audio", "set stereo=%d", enabled ? 1 : 0);
-    return vendor_set(V4L2_CID_PRV_IRIS_AUDIO_MODE, enabled ? 1 : 0, "failed to set stereo mode");
+    return vendor_set(kV4l2CtrlIrisAudioMode, enabled ? 1 : 0, "failed to set stereo mode");
 }
 
 bool fm2_backend_set_spacing_app_value(int app_spacing) {
@@ -1245,7 +1246,7 @@ bool fm2_backend_set_spacing_app_value(int app_spacing) {
     g_state.vendor_spacing = map_app_spacing_to_vendor(app_spacing);
     const int vendor_spacing = g_state.vendor_spacing;
     pthread_mutex_unlock(&g_state.lock);
-    return vendor_set(V4L2_CID_PRV_CHAN_SPACING, vendor_spacing, "failed to set spacing");
+    return vendor_set(kV4l2CtrlChannelSpacing, vendor_spacing, "failed to set spacing");
 }
 
 bool fm2_backend_set_region_app_value(int app_region) {
@@ -1258,9 +1259,9 @@ bool fm2_backend_set_region_app_value(int app_region) {
     pthread_mutex_unlock(&g_state.lock);
 
     hal_log("setup", "apply region=%d lower=%d upper=%d", region, lower, upper);
-    return vendor_set(V4L2_CID_PRV_IRIS_UPPER_BAND, upper, "failed to set upper band") &&
-           vendor_set(V4L2_CID_PRV_IRIS_LOWER_BAND, lower, "failed to set lower band") &&
-           vendor_set(V4L2_CID_PRV_REGION, region, "failed to set region");
+    return vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band") &&
+           vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band") &&
+           vendor_set(kV4l2CtrlRegion, region, "failed to set region");
 }
 
 bool fm2_backend_set_antenna(int antenna) {
@@ -1268,7 +1269,7 @@ bool fm2_backend_set_antenna(int antenna) {
     pthread_mutex_lock(&g_state.lock);
     g_state.antenna = antenna;
     pthread_mutex_unlock(&g_state.lock);
-    return vendor_set(V4L2_CID_PRV_ANTENNA, antenna, "failed to set antenna");
+    return vendor_set(kV4l2CtrlAntenna, antenna, "failed to set antenna");
 }
 
 bool fm2_backend_set_power_mode(bool low_power) {
@@ -1276,7 +1277,7 @@ bool fm2_backend_set_power_mode(bool low_power) {
     pthread_mutex_lock(&g_state.lock);
     g_state.low_power = low_power;
     pthread_mutex_unlock(&g_state.lock);
-    return vendor_set(V4L2_CID_PRV_LP_MODE, low_power ? 1 : 0, "failed to set power mode");
+    return vendor_set(kV4l2CtrlLowPowerMode, low_power ? 1 : 0, "failed to set power mode");
 }
 
 bool fm2_backend_set_auto_af(bool enabled) {
@@ -1284,12 +1285,12 @@ bool fm2_backend_set_auto_af(bool enabled) {
     pthread_mutex_lock(&g_state.lock);
     g_state.auto_af = enabled;
     pthread_mutex_unlock(&g_state.lock);
-    return vendor_set(V4L2_CID_PRV_AF_JUMP, enabled ? 1 : 0, "failed to set auto af");
+    return vendor_set(kV4l2CtrlAfJump, enabled ? 1 : 0, "failed to set auto af");
 }
 
 bool fm2_backend_set_slimbus(bool enabled) {
     hal_log("setup", "set slimbus=%d", enabled ? 1 : 0);
-    if (!vendor_set(V4L2_CID_PRV_ENABLE_SLIMBUS, enabled ? 1 : 0, "failed to set slimbus")) {
+    if (!vendor_set(kV4l2CtrlEnableSlimbus, enabled ? 1 : 0, "failed to set slimbus")) {
         return false;
     }
 
@@ -1314,21 +1315,21 @@ bool fm2_backend_log_snapshot(const char *reason) {
     };
 
     static const CtlProbe probes[] = {
-        {V4L2_CID_PRV_STATE, "state"},
-        {V4L2_CID_PRV_REGION, "region"},
-        {V4L2_CID_PRV_EMPHASIS, "emphasis"},
-        {V4L2_CID_PRV_RDS_STD, "rds_std"},
-        {V4L2_CID_PRV_CHAN_SPACING, "spacing"},
-        {V4L2_CID_PRV_SIGNAL_TH, "signal_th"},
-        {V4L2_CID_PRV_RDSON, "rds_on"},
-        {V4L2_CID_PRV_RDSGROUP_MASK, "rds_mask"},
-        {V4L2_CID_PRV_RDSGROUP_PROC, "rds_proc"},
-        {V4L2_CID_PRV_LP_MODE, "lp_mode"},
-        {V4L2_CID_PRV_ANTENNA, "antenna"},
-        {V4L2_CID_PRV_AF_JUMP, "af_jump"},
-        {V4L2_CID_PRV_SOFT_MUTE, "soft_mute"},
-        {V4L2_CID_PRV_IRIS_FREQ, "freq"},
-        {V4L2_CID_PRV_IRIS_RMSSI, "rmssi"},
+        {kV4l2CtrlState, "state"},
+        {kV4l2CtrlRegion, "region"},
+        {kV4l2CtrlEmphasis, "emphasis"},
+        {kV4l2CtrlRdsStandard, "rds_std"},
+        {kV4l2CtrlChannelSpacing, "spacing"},
+        {kV4l2CtrlSignalThreshold, "signal_th"},
+        {kV4l2CtrlRdsOn, "rds_on"},
+        {kV4l2CtrlRdsGroupMask, "rds_mask"},
+        {kV4l2CtrlRdsGroupProc, "rds_proc"},
+        {kV4l2CtrlLowPowerMode, "lp_mode"},
+        {kV4l2CtrlAntenna, "antenna"},
+        {kV4l2CtrlAfJump, "af_jump"},
+        {kV4l2CtrlSoftMute, "soft_mute"},
+        {kV4l2CtrlIrisFreq, "freq"},
+        {kV4l2CtrlIrisRmssi, "rmssi"},
     };
 
     bool ok = true;

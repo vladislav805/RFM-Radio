@@ -37,11 +37,11 @@ char* int_to_hex_string(uint32 val) {
  * The FREQ_MUL is then: 1 MHz / 62.5 Hz = 16000
  */
 uint32 tunefreq_to_khz(uint32 freq) {
-    return (freq * 1000) / TUNE_MULT;
+    return (freq * 1000) / kTuneMultiplier;
 }
 
 uint32 khz_to_tunefreq(uint32 freq) {
-    return (freq * TUNE_MULT / 1000);
+    return (freq * kTuneMultiplier / 1000);
 }
 
 /**

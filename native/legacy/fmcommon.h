@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sys/types.h>
 #include <zconf.h>
 #include <stdio.h>
@@ -37,20 +39,20 @@ static inline void legacy_log(const char* scope, const char* fmt, ...) {
  * 62.5 kHz otherwise.
  * The tuner is able to have a channel spacing of 50, 100 or 200 kHz.
  * tuner->capability is therefore set to V4L2_TUNER_CAP_LOW
- * The TUNE_MULT is then: 1 MHz / 62.5 Hz = 16000
+ * The kTuneMultiplier is then: 1 MHz / 62.5 Hz = 16000
  */
-#define TUNE_MULT 16000
+constexpr int kTuneMultiplier = 16000;
 
-#define FREQ_LOWER  87500
-#define FREQ_UPPER 108000
+constexpr int kDefaultLowerFrequencyKhz = 87500;
+constexpr int kDefaultUpperFrequencyKhz = 108000;
 
-#define TAVARUA_BUF_SRCH_LIST 0
-#define TAVARUA_BUF_EVENTS    1
-#define TAVARUA_BUF_RT_RDS    2
-#define TAVARUA_BUF_PS_RDS    3
-#define TAVARUA_BUF_RAW_RDS   4
-#define TAVARUA_BUF_AF_LIST   5
-#define TAVARUA_BUF_MAX       6
+constexpr int kTavaruaBufSearchList = 0;
+constexpr int kTavaruaBufEvents = 1;
+constexpr int kTavaruaBufRtRds = 2;
+constexpr int kTavaruaBufPsRds = 3;
+constexpr int kTavaruaBufRawRds = 4;
+constexpr int kTavaruaBufAfList = 5;
+constexpr int kTavaruaBufMax = 6;
 
 #ifndef __FMCOMMON_H
 #define __FMCOMMON_H

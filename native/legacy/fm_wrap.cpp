@@ -15,11 +15,6 @@
 #include "fmcommon.h"
 #include "detector.h"
 
-// In case, if not defined
-#ifndef V4L2_CID_PRIVATE_BASE
-#    define V4L2_CID_PRIVATE_BASE                  0x8000000
-#endif
-
 enum tavarua_evt_t {
     TAVARUA_EVT_RADIO_READY = 0,
     TAVARUA_EVT_TUNE_SUCC,
@@ -270,7 +265,7 @@ void* interrupt_thread(__attribute__((unused)) void* ignore) {
 
     while (1) {
         // Wait and read events
-        bytes = read_data_from_v4l2(buf, sizeof(buf), TAVARUA_BUF_EVENTS);
+        bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufEvents);
 
         // If error occurred
         if (bytes < 0) {
