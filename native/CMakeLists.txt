@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(fmbin)
 
+option(RFM_NATIVE_TESTS "Build host-side native tests" OFF)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -ffunction-sections -fdata-sections")
@@ -20,10 +22,26 @@ elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
 endif()
 
+if(RFM_NATIVE_TESTS)
+    find_package(GTest REQUIRED)
+    enable_testing()
+    add_executable(
+        rfm_native_tests
+        tests/rds_parser_test.cpp
+        rds_parser.cpp
+    )
+    target_include_directories(rfm_native_tests PRIVATE .)
+    target_link_libraries(rfm_native_tests GTest::gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(rfm_native_tests)
+    return()
+endif()
+
 add_executable(
     fmbin
     main.cpp
     ctl_server.c
+    rds_parser.cpp
     backend_factory.cpp
     legacy_backend.cpp
     hal_backend.cpp

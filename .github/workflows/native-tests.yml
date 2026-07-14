@@ -1,0 +1,24 @@
+name: Native Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  native-tests:
+    name: Native host tests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ make libgtest-dev
+
+      - name: Run native tests
+        run: make test-native
