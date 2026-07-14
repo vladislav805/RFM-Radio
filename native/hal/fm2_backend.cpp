@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "../ctl_server.h"
+#include "../rds_parser.h"
 #include "fm2_vendor_iface.h"
 #include "utils.h"
 
@@ -743,23 +744,22 @@ void ps_update_cb(char *ps) {
         return;
     }
 
-    const int ps_count = static_cast<unsigned char>(ps[0]);
-    if (ps_count == 0 || ps_count > 8) {
-        hal_log("rds", "invalid ps count=%d", ps_count);
+    RdsTextPayload parsed;
+    if (!parse_rds_text_payload(
+            reinterpret_cast<const unsigned char *>(ps),
+            kUnknownRdsPayloadLen,
+            RdsTextPayloadKind::kProgramService,
+            sizeof(parsed.text) - 1,
+            &parsed
+    )) {
+        hal_log("rds", "invalid ps count=%d", static_cast<unsigned char>(ps[0]) & 0x0f);
         return;
     }
 
-    const int pty = static_cast<unsigned char>(ps[1]) & 0x1f;
-    const int pi = (static_cast<unsigned char>(ps[2]) << 8) | static_cast<unsigned char>(ps[3]);
-    int text_len = std::min(ps_count * 8, 119);
-
-    char text[120];
-    memset(text, 0, sizeof(text));
-    memcpy(text, ps + 5, text_len);
-    hal_log("rds", "ps count=%d pi=%04x pty=0x%02x text=`%s`", ps_count, pi, pty, text);
-    send_string_event(EVT_UPDATE_PS, text);
-    send_int_event(EVT_UPDATE_PTY, pty);
-    send_hex_event(EVT_UPDATE_PI, pi);
+    hal_log("rds", "ps count=%d pi=%04x pty=0x%02x text=`%s`", parsed.block_count, parsed.pi, parsed.pty, parsed.text);
+    send_string_event(EVT_UPDATE_PS, parsed.text);
+    send_int_event(EVT_UPDATE_PTY, parsed.pty);
+    send_hex_event(EVT_UPDATE_PI, parsed.pi);
 }
 
 /*
@@ -776,36 +776,39 @@ void rt_update_cb(char *rt) {
         return;
     }
 
-    int text_len = static_cast<unsigned char>(rt[0]);
-    if (text_len == 0 || text_len > 64) {
-        hal_log("rds", "invalid rt len=%d", text_len);
+    RdsTextPayload parsed;
+    if (!parse_rds_text_payload(
+            reinterpret_cast<const unsigned char *>(rt),
+            kUnknownRdsPayloadLen,
+            RdsTextPayloadKind::kRadioText,
+            sizeof(parsed.text) - 1,
+            &parsed
+    ) || parsed.text_len == 0) {
+        hal_log("rds", "invalid rt len=%d", static_cast<unsigned char>(rt[0]) & 0x7f);
         return;
     }
 
-    char text[96];
-    memset(text, 0, sizeof(text));
-    memcpy(text, rt + 5, text_len);
-
+    int text_len = parsed.text_len;
     for (int i = 0; i < text_len; ++i) {
-        if (text[i] == '\r') {
+        if (parsed.text[i] == '\r') {
             text_len = i;
-            text[text_len] = '\0';
+            parsed.text[text_len] = '\0';
             break;
         }
     }
-    while (text_len > 0 && text[text_len - 1] == ' ') {
+    while (text_len > 0 && parsed.text[text_len - 1] == ' ') {
         --text_len;
-        text[text_len] = '\0';
+        parsed.text[text_len] = '\0';
     }
 
     pthread_mutex_lock(&g_state.lock);
-    snprintf(g_state.current_rt, sizeof(g_state.current_rt), "%s", text);
+    snprintf(g_state.current_rt, sizeof(g_state.current_rt), "%s", parsed.text);
     g_state.current_rt_len = text_len;
     log_rt_plus_slices_locked();
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("rds", "rt=`%s` (len=%d)", text, text_len);
-    send_string_event(EVT_UPDATE_RT, text);
+    hal_log("rds", "rt=`%s` (len=%d)", parsed.text, text_len);
+    send_string_event(EVT_UPDATE_RT, parsed.text);
 }
 
 /*

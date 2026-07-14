@@ -1,9 +1,11 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
+#include "../rds_parser.h"
 #include "utils.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <linux/videodev2.h>
+#include <stdio.h>
 #include <string.h>
 #ifndef __ANDROID_API__
 #    include <sys/ioctl.h>
@@ -443,28 +445,22 @@ bool extract_program_service(fm_rds_storage* storage) {
         return FALSE;
     }
 
-    const int PROGRAM_SERVICE_OFFSET = 5;
-    const int MAX_PS_CHUNKS = 12;
-
-    const int num_of_ps = std::min((int) (buf[0] & 0x0F), MAX_PS_CHUNKS);
-    int ps_services_len = num_of_ps * 8;
-
-    const int max_storage_len = (int) sizeof(storage->program_name) - 1;
-    const int max_buffer_len = bytes > PROGRAM_SERVICE_OFFSET ? bytes - PROGRAM_SERVICE_OFFSET : 0;
-
-    ps_services_len = std::min(ps_services_len, max_storage_len);
-    ps_services_len = std::min(ps_services_len, max_buffer_len);
-
-    storage->program_id = ((buf[2] & 0xFF) << 8) | (buf[3] & 0xFF);
-    storage->program_type = (int) (buf[1] & 0x1F);
-
-    memset(storage->program_name, 0x0, sizeof(storage->program_name));
-    if (ps_services_len > 0) {
-        memcpy(storage->program_name, &buf[PROGRAM_SERVICE_OFFSET], ps_services_len);
+    RdsTextPayload parsed;
+    if (!parse_rds_text_payload(
+            buf,
+            bytes,
+            RdsTextPayloadKind::kProgramService,
+            sizeof(storage->program_name) - 1,
+            &parsed
+    )) {
+        return FALSE;
     }
-    storage->program_name[ps_services_len] = '\0';
 
-    legacy_log("rds", "ps pi=%04x pty=0x%04x name=`%s` (len=%d)", storage->program_id, storage->program_type, storage->program_name, ps_services_len);
+    storage->program_id = parsed.pi;
+    storage->program_type = parsed.pty;
+    snprintf(storage->program_name, sizeof(storage->program_name), "%s", parsed.text);
+
+    legacy_log("rds", "ps pi=%04x pty=0x%04x name=`%s` (len=%d)", storage->program_id, storage->program_type, storage->program_name, parsed.text_len);
 
     return TRUE;
 }
@@ -493,20 +489,19 @@ bool extract_radio_text(fm_rds_storage* storage) {
         return FALSE;
     }
 
-    const int RADIO_TEXT_OFFSET = 5;
-
-    int radio_text_length = (int) (buf[0] & 0x7F);
-
-    const int max_storage_len = (int) sizeof(storage->radio_text) - 1;
-    const int max_buffer_len = bytes > RADIO_TEXT_OFFSET ? bytes - RADIO_TEXT_OFFSET : 0;
-    radio_text_length = std::min(radio_text_length, max_storage_len);
-    radio_text_length = std::min(radio_text_length, max_buffer_len);
-
-    memset(storage->radio_text, 0x0, sizeof(storage->radio_text));
-    if (radio_text_length > 0) {
-        memcpy(storage->radio_text, &buf[RADIO_TEXT_OFFSET], radio_text_length);
+    RdsTextPayload parsed;
+    if (!parse_rds_text_payload(
+            buf,
+            bytes,
+            RdsTextPayloadKind::kRadioText,
+            sizeof(storage->radio_text) - 1,
+            &parsed
+    )) {
+        return FALSE;
     }
-    legacy_log("rds", "rt=`%s` (len=%d)", storage->radio_text, radio_text_length);
+
+    snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
+    legacy_log("rds", "rt=`%s` (len=%d)", storage->radio_text, parsed.text_len);
 
     return TRUE;
 }
