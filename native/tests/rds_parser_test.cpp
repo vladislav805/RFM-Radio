@@ -271,3 +271,128 @@ TEST(RdsParserTest, RejectsInvalidAfPayloads) {
             nullptr
     ));
 }
+
+TEST(RdsParserTest, ParsesRelativeSearchListPayload) {
+    const unsigned char payload[] = {
+            2,
+            0x00, 0x00,
+            0x00, 0x09,
+    };
+    RdsSearchList parsed;
+
+    EXPECT_TRUE(parse_rds_search_list_payload(
+            payload,
+            sizeof(payload),
+            RdsSearchListKind::kRelativeOffsets,
+            87500,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 2);
+    EXPECT_EQ(parsed.reported_count, 2);
+    EXPECT_EQ(parsed.frequencies_khz[0], 87500);
+    EXPECT_EQ(parsed.frequencies_khz[1], 87950);
+}
+
+TEST(RdsParserTest, ParsesAbsoluteSearchListPayload) {
+    const unsigned char payload[] = {
+            2,
+            0x06, 0xd6,
+            0x06, 0xdf,
+    };
+    RdsSearchList parsed;
+
+    EXPECT_TRUE(parse_rds_search_list_payload(
+            payload,
+            sizeof(payload),
+            RdsSearchListKind::kAbsoluteChannels,
+            0,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 2);
+    EXPECT_EQ(parsed.reported_count, 2);
+    EXPECT_EQ(parsed.frequencies_khz[0], 87500);
+    EXPECT_EQ(parsed.frequencies_khz[1], 88000);
+}
+
+TEST(RdsParserTest, ParsesEmptySearchListPayload) {
+    const unsigned char payload[] = {0};
+    RdsSearchList parsed;
+
+    EXPECT_TRUE(parse_rds_search_list_payload(
+            payload,
+            sizeof(payload),
+            RdsSearchListKind::kRelativeOffsets,
+            87500,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 0);
+    EXPECT_EQ(parsed.reported_count, 0);
+}
+
+TEST(RdsParserTest, LimitsSearchListToAvailablePayloadBytes) {
+    const unsigned char payload[] = {
+            2,
+            0x06, 0xd6,
+    };
+    RdsSearchList parsed;
+
+    EXPECT_TRUE(parse_rds_search_list_payload(
+            payload,
+            sizeof(payload),
+            RdsSearchListKind::kAbsoluteChannels,
+            0,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 1);
+    EXPECT_EQ(parsed.reported_count, 2);
+    EXPECT_EQ(parsed.frequencies_khz[0], 87500);
+}
+
+TEST(RdsParserTest, LimitsSearchListToCallbackCapacity) {
+    unsigned char payload[1 + 21 * 2] = {0};
+    payload[0] = 21;
+    for (int i = 0; i < 21; ++i) {
+        const int raw = 0x06d6 + i;
+        payload[1 + i * 2] = static_cast<unsigned char>((raw >> 8) & 0xff);
+        payload[2 + i * 2] = static_cast<unsigned char>(raw & 0xff);
+    }
+
+    RdsSearchList parsed;
+
+    EXPECT_TRUE(parse_rds_search_list_payload(
+            payload,
+            sizeof(payload),
+            RdsSearchListKind::kAbsoluteChannels,
+            0,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, kMaxRdsSearchCount);
+    EXPECT_EQ(parsed.reported_count, 21);
+}
+
+TEST(RdsParserTest, RejectsInvalidSearchListPayloads) {
+    RdsSearchList parsed;
+    const unsigned char too_short[] = {0};
+
+    EXPECT_FALSE(parse_rds_search_list_payload(
+            too_short,
+            0,
+            RdsSearchListKind::kRelativeOffsets,
+            87500,
+            &parsed
+    ));
+    EXPECT_FALSE(parse_rds_search_list_payload(
+            nullptr,
+            kUnknownRdsPayloadLen,
+            RdsSearchListKind::kRelativeOffsets,
+            87500,
+            &parsed
+    ));
+    EXPECT_FALSE(parse_rds_search_list_payload(
+            too_short,
+            0,
+            RdsSearchListKind::kRelativeOffsets,
+            87500,
+            nullptr
+    ));
+}

@@ -867,9 +867,24 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    const hci_ev_srch_list_compl *list = reinterpret_cast<const hci_ev_srch_list_compl *>(raw);
-    const int count = static_cast<unsigned char>(list->num_stations_found);
-    if (count <= 0) {
+    int lower_band = 87500;
+    pthread_mutex_lock(&g_state.lock);
+    lower_band = g_state.lower_band_khz;
+    pthread_mutex_unlock(&g_state.lock);
+
+    RdsSearchList list;
+    if (!parse_rds_search_list_payload(
+            reinterpret_cast<const unsigned char *>(raw),
+            kUnknownRdsPayloadLen,
+            RdsSearchListKind::kRelativeOffsets,
+            lower_band,
+            &list
+    )) {
+        hal_log("search", "invalid result");
+        return;
+    }
+
+    if (list.count <= 0) {
         pthread_mutex_lock(&g_state.lock);
         const bool duplicate = g_state.last_search_payload_valid && g_state.last_search_payload[0] == '\0';
         g_state.last_search_payload_valid = true;
@@ -884,20 +899,13 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    int lower_band = 87500;
-    pthread_mutex_lock(&g_state.lock);
-    lower_band = g_state.lower_band_khz;
-    pthread_mutex_unlock(&g_state.lock);
-
     char payload[5 * 20 + 1];
     payload[0] = '\0';
     char frequencies[7 * 20 + 1];
     frequencies[0] = '\0';
 
-    for (int i = 0; i < count && i < 20; ++i) {
-        const int rel = ((static_cast<unsigned char>(list->rel_freq[i].rel_freq_msb) << 8) |
-                         static_cast<unsigned char>(list->rel_freq[i].rel_freq_lsb));
-        const int abs_freq = lower_band + (rel * 50);
+    for (int i = 0; i < list.count; ++i) {
+        const int abs_freq = list.frequencies_khz[i];
         char chunk[8];
         snprintf(chunk, sizeof(chunk), "%04d", abs_freq / 100);
         strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
@@ -923,7 +931,7 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    hal_log("search", "result count=%d frequencies=%s", count, frequencies);
+    hal_log("search", "result count=%d reported=%d frequencies=%s", list.count, list.reported_count, frequencies);
     send_string_event(EVT_SEARCH_DONE, payload);
 }
 

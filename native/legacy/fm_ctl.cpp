@@ -511,15 +511,6 @@ uint8 extract_rds_af_list(uint32* frequencies) {
  * @return Count of stations
  */
 uint8 extract_search_station_list(uint32* list) {
-    uint32 station_count;
-
-    // Parts of frequency
-    uint8 freq_upper;
-    uint8 freq_lower;
-
-    // Frequency in kHz, before rounding to the app's compact 100 kHz format.
-    uint32 freq;
-
     // Temporary buffer
     uint8 buf[100] = {0};
 
@@ -552,25 +543,22 @@ uint8 extract_search_station_list(uint32* list) {
         return 0;
     }
 
-    // First byte is count of found stations
-    station_count = (int) buf[0];
-    if (station_count > 25) {
-        station_count = 25;
-    }
-    if (station_count > (uint32) ((bytes - 1) / 2)) {
-        station_count = (uint32) ((bytes - 1) / 2);
+    RdsSearchList stations;
+    if (!parse_rds_search_list_payload(
+            buf,
+            bytes,
+            RdsSearchListKind::kAbsoluteChannels,
+            0,
+            &stations
+    )) {
+        legacy_log("search", "parse station list failed");
+        return 0;
     }
 
     uint8 valid_count = 0;
 
-    for (int i = 0; i < station_count; i++) {
-        freq_upper = buf[i * 2 + 1] & 0xff; // upper part
-        freq_lower = buf[i * 2 + 2] & 0xff; // lower part
-        const uint16 raw = ((uint16) freq_upper << 8) | freq_lower;
-        freq = raw * 50;
-
-        // Search-list entries are absolute 50 kHz channel numbers.
-        const uint32 frequency = ((freq + 50) / 100) * 100;
+    for (int i = 0; i < stations.count; i++) {
+        const uint32 frequency = stations.frequencies_khz[i];
         if (frequency < lower_limit || frequency > upper_limit) {
             legacy_log("search", "skip station[%d]=%d out of range", i, frequency);
             continue;

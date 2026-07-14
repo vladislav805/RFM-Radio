@@ -15,6 +15,9 @@ constexpr int kAfMetadataSize = 7;
 // AF list entries are little-endian int32 kHz frequencies after the AF header.
 constexpr int kAfEntrySize = 4;
 
+// Search-list entries are big-endian 16-bit values after the count byte.
+constexpr int kSearchEntrySize = 2;
+
 // Program Service names are carried as fixed 8-byte blocks after the shared header.
 constexpr int kPsBlockSize = 8;
 
@@ -145,6 +148,53 @@ bool parse_rds_af_payload(
     }
 
     out->count = count;
+
+    return true;
+}
+
+bool parse_rds_search_list_payload(
+        const unsigned char *payload,
+        int payload_len,
+        RdsSearchListKind kind,
+        int lower_frequency_khz,
+        RdsSearchList *out
+) {
+    if (out != nullptr) {
+        *out = RdsSearchList{};
+    }
+
+    if (payload == nullptr || out == nullptr) {
+        return false;
+    }
+
+    if (payload_len >= 0 && payload_len < 1) {
+        return false;
+    }
+
+    const int reported_count = payload[0];
+    int count = std::min(reported_count, kMaxRdsSearchCount);
+
+    if (payload_len >= 0) {
+        count = std::min(count, (payload_len - 1) / kSearchEntrySize);
+    }
+
+    // Search list payload:
+    // [0]=count
+    // [1 + index * 2..]=big-endian uint16.
+    // HAL encodes values as 50 kHz offsets from the current lower band edge.
+    // Legacy V4L2 encodes values as absolute 50 kHz channel numbers.
+    for (int i = 0; i < count; ++i) {
+        const int offset = 1 + i * kSearchEntrySize;
+
+        const int raw = (static_cast<int>(payload[offset]) << 8) | payload[offset + 1];
+
+        out->frequencies_khz[i] = kind == RdsSearchListKind::kRelativeOffsets
+                ? lower_frequency_khz + raw * 50
+                : ((raw * 50 + 50) / 100) * 100;
+    }
+
+    out->count = count;
+    out->reported_count = reported_count;
 
     return true;
 }
