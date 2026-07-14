@@ -1,12 +1,19 @@
 #include "rds_parser.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 
 namespace {
 
 // Shared RDS text payload header: [0]=count/length, [1]=PTY, [2..3]=PI, [4]=vendor/header byte.
 constexpr int kMetadataSize = 5;
+
+// AF list payload header: [0..3]=tuned frequency, [4..5]=PI, [6]=AF count.
+constexpr int kAfMetadataSize = 7;
+
+// AF list entries are little-endian int32 kHz frequencies after the AF header.
+constexpr int kAfEntrySize = 4;
 
 // Program Service names are carried as fixed 8-byte blocks after the shared header.
 constexpr int kPsBlockSize = 8;
@@ -81,6 +88,63 @@ bool parse_rds_text_payload(
     out->pty = payload[1] & 0x1f;
     out->text_len = text_len;
     out->block_count = kind == RdsTextPayloadKind::kProgramService ? unit_count : 0;
+
+    return true;
+}
+
+bool parse_rds_af_payload(
+        const unsigned char *payload,
+        int payload_len,
+        RdsAfList *out
+) {
+    if (out != nullptr) {
+        *out = RdsAfList{};
+    }
+
+    if (payload == nullptr || out == nullptr) {
+        return false;
+    }
+
+    if (payload_len >= 0 && payload_len < kAfMetadataSize) {
+        return false;
+    }
+
+    // AF list payload:
+    // [0..3]=current frequency in kHz
+    // [4..5]=PI
+    // [6]=AF count,
+    // [7 + index * 4..]=little-endian uint32 AF frequency in kHz.
+    const int count = payload[6];
+
+    if (count <= 0 || count > kMaxRdsAfCount) {
+        return false;
+    }
+
+    if (payload_len >= 0 && payload_len < kAfMetadataSize + count * kAfEntrySize) {
+        return false;
+    }
+
+    const uint32_t current_frequency_khz =
+            static_cast<uint32_t>(payload[0]) |
+            (static_cast<uint32_t>(payload[1]) << 8) |
+            (static_cast<uint32_t>(payload[2]) << 16) |
+            (static_cast<uint32_t>(payload[3]) << 24);
+
+    out->current_frequency_khz = static_cast<int>(current_frequency_khz);
+
+    for (int i = 0; i < count; ++i) {
+        const int offset = kAfMetadataSize + i * kAfEntrySize;
+
+        const uint32_t frequency_khz =
+                static_cast<uint32_t>(payload[offset]) |
+                (static_cast<uint32_t>(payload[offset + 1]) << 8) |
+                (static_cast<uint32_t>(payload[offset + 2]) << 16) |
+                (static_cast<uint32_t>(payload[offset + 3]) << 24);
+
+        out->frequencies_khz[i] = static_cast<int>(frequency_khz);
+    }
+
+    out->count = count;
 
     return true;
 }

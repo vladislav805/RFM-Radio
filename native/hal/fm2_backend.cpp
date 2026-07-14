@@ -823,10 +823,14 @@ void af_update_cb(uint16_t *raw) {
         return;
     }
 
-    const hci_ev_af_list *af = reinterpret_cast<const hci_ev_af_list *>(raw);
-    const uint8_t af_size = af->af_size;
-    if (af_size == 0 || af_size > 25) {
-        hal_log("af", "invalid size=%u", af_size);
+    RdsAfList af;
+    if (!parse_rds_af_payload(
+            reinterpret_cast<const unsigned char *>(raw),
+            kUnknownRdsPayloadLen,
+            &af
+    )) {
+        const hci_ev_af_list *raw_af = reinterpret_cast<const hci_ev_af_list *>(raw);
+        hal_log("af", "invalid size=%u", raw_af->af_size);
         return;
     }
 
@@ -835,19 +839,18 @@ void af_update_cb(uint16_t *raw) {
     char frequencies[7 * 25 + 1];
     frequencies[0] = '\0';
 
-    for (uint8_t i = 0; i < af_size; ++i) {
-        int32_t freq = 0;
-        memcpy(&freq, &af->af_list[i * sizeof(int32_t)], sizeof(int32_t));
+    for (int i = 0; i < af.count; ++i) {
+        const int freq = af.frequencies_khz[i];
         char chunk[8];
-        snprintf(chunk, sizeof(chunk), "%04d", static_cast<int>(freq / 100));
+        snprintf(chunk, sizeof(chunk), "%04d", freq / 100);
         strncat(payload, chunk, sizeof(payload) - strlen(payload) - 1);
 
         char frequency_chunk[8];
-        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", static_cast<int>(freq));
+        snprintf(frequency_chunk, sizeof(frequency_chunk), "%s%d", i == 0 ? "" : " ", freq);
         strncat(frequencies, frequency_chunk, sizeof(frequencies) - strlen(frequencies) - 1);
     }
 
-    hal_log("af", "result count=%u frequencies=%s", af_size, frequencies);
+    hal_log("af", "result count=%d frequencies=%s", af.count, frequencies);
     send_string_event(EVT_UPDATE_AF, payload);
 }
 

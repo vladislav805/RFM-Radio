@@ -6,6 +6,7 @@ enum class RdsTextPayloadKind {
 };
 
 constexpr int kUnknownRdsPayloadLen = -1;
+constexpr int kMaxRdsAfCount = 25;
 
 struct RdsTextPayload {
     int pi = 0;
@@ -15,10 +16,22 @@ struct RdsTextPayload {
     char text[120] = "";
 };
 
+struct RdsAfList {
+    int count = 0;
+    int current_frequency_khz = 0;
+    int frequencies_khz[kMaxRdsAfCount] = {};
+};
+
 bool parse_rds_text_payload(
         const unsigned char *payload,
         int payload_len,
         RdsTextPayloadKind kind,
         int max_text_len,
         RdsTextPayload *out
+);
+
+bool parse_rds_af_payload(
+        const unsigned char *payload,
+        int payload_len,
+        RdsAfList *out
 );

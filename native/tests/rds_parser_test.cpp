@@ -188,3 +188,86 @@ TEST(RdsParserTest, RejectsInvalidPayloads) {
             nullptr
     ));
 }
+
+TEST(RdsParserTest, ParsesAfPayload) {
+    const unsigned char payload[] = {
+            0x00, 0x00, 0x00, 0x00,
+            0x12, 0x34,
+            2,
+            0xcc, 0x55, 0x01, 0x00,
+            0x10, 0x8b, 0x01, 0x00,
+    };
+    RdsAfList parsed;
+
+    EXPECT_TRUE(parse_rds_af_payload(
+            payload,
+            sizeof(payload),
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 2);
+    EXPECT_EQ(parsed.current_frequency_khz, 0);
+    EXPECT_EQ(parsed.frequencies_khz[0], 87500);
+    EXPECT_EQ(parsed.frequencies_khz[1], 101136);
+}
+
+TEST(RdsParserTest, ParsesAfPayloadWithUnknownLength) {
+    const unsigned char payload[] = {
+            0xcc, 0x55, 0x01, 0x00,
+            0x12, 0x34,
+            1,
+            0x88, 0xa9, 0x01, 0x00,
+    };
+    RdsAfList parsed;
+
+    EXPECT_TRUE(parse_rds_af_payload(
+            payload,
+            kUnknownRdsPayloadLen,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 1);
+    EXPECT_EQ(parsed.current_frequency_khz, 87500);
+    EXPECT_EQ(parsed.frequencies_khz[0], 108936);
+}
+
+TEST(RdsParserTest, RejectsInvalidAfPayloads) {
+    RdsAfList parsed;
+    const unsigned char zero_count[] = {0, 0, 0, 0, 0, 0, 0};
+    const unsigned char too_many[] = {0, 0, 0, 0, 0, 0, 26};
+    const unsigned char too_short[] = {0, 0, 0, 0, 0, 0};
+    const unsigned char truncated[] = {
+            0, 0, 0, 0, 0, 0, 2,
+            0xcc, 0x55, 0x01, 0x00,
+    };
+
+    EXPECT_FALSE(parse_rds_af_payload(
+            zero_count,
+            sizeof(zero_count),
+            &parsed
+    ));
+    EXPECT_EQ(parsed.count, 0);
+    EXPECT_FALSE(parse_rds_af_payload(
+            too_many,
+            sizeof(too_many),
+            &parsed
+    ));
+    EXPECT_FALSE(parse_rds_af_payload(
+            too_short,
+            sizeof(too_short),
+            &parsed
+    ));
+    EXPECT_FALSE(parse_rds_af_payload(
+            truncated,
+            sizeof(truncated),
+            &parsed
+    ));
+    EXPECT_FALSE(parse_rds_af_payload(
+            nullptr,
+            kUnknownRdsPayloadLen,
+            &parsed
+    ));
+    EXPECT_FALSE(parse_rds_af_payload(
+            zero_count,
+            sizeof(zero_count),
+            nullptr
+    ));
+}

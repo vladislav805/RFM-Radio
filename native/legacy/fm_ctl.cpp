@@ -520,36 +520,19 @@ uint8 extract_rds_af_list(uint32* frequencies) {
         return FALSE;
     }
 
-    // buf[4] | (buf[5] << 8)
-    // buf[6] = count of frequencies
-    // buf[($index * 4) + 6 + (1...4)] with shift = one frequency (uint32)
-    const uint8 af_size = buf[6] & 0xff;
-
-    if (af_size <= 0 || af_size > 25) {
+    RdsAfList af;
+    if (!parse_rds_af_payload(buf, bytes, &af)) {
         legacy_log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
         return FALSE;
     }
 
-    if (bytes < 7 + af_size * 4) {
-        legacy_log("af", "truncated list bytes=%d count=%d", bytes, af_size);
-        return FALSE;
+    for (int i = 0; i < af.count; ++i) {
+        frequencies[i] = af.frequencies_khz[i];
     }
 
-    for (int i = 0; i < af_size; ++i) {
-        uint8 shift = 6 + i * 4;
+    legacy_log("af", "parsed %d frequencies", af.count);
 
-        uint32 freq =
-                (buf[shift + 1] & 0xff) |
-                ((buf[shift + 2] & 0xff) << 8) |
-                ((buf[shift + 3] & 0xff) << 16) |
-                ((buf[shift + 4] & 0xff) << 24);
-
-        frequencies[i] = freq;
-    }
-
-    legacy_log("af", "parsed %d frequencies", af_size);
-
-    return af_size;
+    return af.count;
 }
 
 /**
