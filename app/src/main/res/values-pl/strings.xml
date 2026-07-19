@@ -55,9 +55,6 @@
 	<string name="pref_header_app">Aplikacja</string>
 	<string name="pref_header_info">Info</string>
 	<string name="pref_tuner_spacing">Spacjowanie</string>
-	<string name="pref_tuner_rds_enable">Aktywuj RDS</string>
-	<string name="pref_tuner_rds_enabled">Pokaż RDS takie jak serwis programowy i tekst radiowy</string>
-	<string name="pref_tuner_rds_disabled">Nie pokazuj RDS</string>
 	<string name="pref_app_auto_startup">Autostart</string>
 	<string name="pref_app_auto_startup_enabled">Rozpocznij odtwarzanie dźwięku natychmiast po uruchomieniu aplikacji</string>
 	<string name="pref_auto_startup_disabled">Odtwarzanie dźwięku należy uruchomić ręcznie</string>

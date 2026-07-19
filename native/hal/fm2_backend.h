@@ -15,7 +15,6 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency);
 bool fm2_backend_seek(int direction);
 bool fm2_backend_search();
 bool fm2_backend_cancel_search();
-bool fm2_backend_set_rds(bool enabled);
 bool fm2_backend_set_stereo(bool enabled);
 bool fm2_backend_set_spacing_app_value(int app_spacing);
 bool fm2_backend_set_region_app_value(int app_region);

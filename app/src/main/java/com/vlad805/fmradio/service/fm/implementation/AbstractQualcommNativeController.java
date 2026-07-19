@@ -97,9 +97,6 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
     protected void applyPreferenceImpl(final String key, final String value) {
         switch (key) {
-            case C.PrefKey.RDS_ENABLE:
-                sendCommand(new Request("rds_toggle " + value));
-                break;
             case C.PrefKey.TUNER_SPACING:
                 sendCommand(new Request("set_spacing " + value));
                 break;
@@ -183,7 +180,6 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
     protected String[] getStartupPreferenceKeys() {
         return new String[]{
-                C.PrefKey.RDS_ENABLE,
                 C.PrefKey.TUNER_REGION,
                 C.PrefKey.TUNER_SPACING,
                 C.PrefKey.TUNER_STEREO,
@@ -196,11 +192,6 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         for (final String key : changed) {
             String value = null;
             switch (key) {
-                case C.PrefKey.RDS_ENABLE: {
-                    final boolean isRdsEnabled = Storage.getPrefBoolean(context, key, true);
-                    value = isRdsEnabled ? "1" : "0";
-                    break;
-                }
                 case C.PrefKey.TUNER_REGION: {
                     final int band = Storage.getPrefInt(context, key, C.PrefDefaultValue.TUNER_REGION);
                     value = String.valueOf(band);

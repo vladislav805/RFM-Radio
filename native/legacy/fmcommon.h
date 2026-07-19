@@ -157,7 +157,6 @@ typedef struct fm_config_data {
 	uint8 band;
 	emphasis_t emphasis;
 	channel_space_t spacing;
-	rds_system_t rds_system;
 } fm_config_data;
 
 /**

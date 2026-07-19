@@ -47,10 +47,6 @@ public:
         return set_status(fm2_backend_set_power_mode(low_power));
     }
 
-    bool set_rds(bool enabled) override {
-        return set_status(fm2_backend_set_rds(enabled));
-    }
-
     bool set_stereo(bool enabled) override {
         return set_status(fm2_backend_set_stereo(enabled));
     }

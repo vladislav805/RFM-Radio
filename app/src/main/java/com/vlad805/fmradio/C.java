@@ -99,7 +99,6 @@ final public class C {
 
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 
-		public static final String RDS_ENABLE = "rds_enable";
 		public static final String RDS_AUTO_AF = "rds_auto_af";
 
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
@@ -119,8 +118,6 @@ final public class C {
 		public static final boolean NOTIFICATION_SHOW_RDS = true;
 		public static final boolean NOTIFICATION_SEEK_BY_FAVORITES = false;
 		public static final boolean APP_AUTO_STARTUP = false;
-		public static final boolean RDS_ENABLE = true;
-
 		public static final int TUNER_REGION = 1;
 		public static final int TUNER_SPACING = 2;
 		public static final int TUNER_ANTENNA = 0;

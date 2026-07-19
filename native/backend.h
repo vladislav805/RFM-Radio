@@ -20,7 +20,6 @@ public:
     virtual bool jump(int direction, uint32_t *new_frequency) = 0;
     virtual bool seek(int direction) = 0;
     virtual bool set_power_mode(bool low_power) = 0;
-    virtual bool set_rds(bool enabled) = 0;
     virtual bool set_stereo(bool enabled) = 0;
     virtual bool set_antenna(int antenna) = 0;
     virtual bool set_region(int region) = 0;

@@ -65,7 +65,6 @@ struct RuntimeState {
     fm_interface_t *vendor = nullptr;
     bool initialized = false;
     bool enabled = false;
-    bool rds_enabled = true;
     AudioState audio;
     bool low_power = false;
     bool auto_af = false;
@@ -295,21 +294,11 @@ bool apply_processed_rds_config(bool auto_af) {
     return true;
 }
 
-bool disable_processed_rds_config() {
-    bool ok = true;
-    ok &= vendor_set(kV4l2CtrlAfJump, 0, "failed to clear af jump");
-    ok &= vendor_set(kV4l2CtrlRdsGroupProc, 0, "failed to clear rds groups");
-    ok &= vendor_set(kV4l2CtrlRdsOn, 0, "failed to disable rds");
-    return ok;
-}
-
 bool apply_post_enable_config() {
-    bool rds_enabled = false;
     bool auto_af = false;
     bool low_power = false;
 
     pthread_mutex_lock(&g_state.lock);
-    rds_enabled = g_state.rds_enabled;
     auto_af = g_state.auto_af;
     low_power = g_state.low_power;
     pthread_mutex_unlock(&g_state.lock);
@@ -322,11 +311,7 @@ bool apply_post_enable_config() {
         return false;
     }
 
-    if (rds_enabled) {
-        return apply_processed_rds_config(auto_af);
-    }
-
-    return disable_processed_rds_config();
+    return apply_processed_rds_config(auto_af);
 }
 
 int current_frequency_locked() {
@@ -1169,21 +1154,6 @@ bool fm2_backend_cancel_search() {
     reset_scan_locked();
     pthread_mutex_unlock(&g_state.lock);
     return vendor_set(kV4l2CtrlSearchOn, 0, "failed to cancel search");
-}
-
-bool fm2_backend_set_rds(bool enabled) {
-    hal_log("rds", "set enabled=%d", enabled ? 1 : 0);
-    pthread_mutex_lock(&g_state.lock);
-    g_state.rds_enabled = enabled;
-    const bool auto_af = g_state.auto_af;
-    pthread_mutex_unlock(&g_state.lock);
-
-    if (!enabled) {
-        return disable_processed_rds_config();
-    }
-
-    return apply_raw_rds_group_mask() &&
-           apply_processed_rds_config(auto_af);
 }
 
 bool fm2_backend_set_stereo(bool enabled) {

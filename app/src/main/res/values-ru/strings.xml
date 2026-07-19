@@ -66,9 +66,6 @@
 	<string name="pref_recording_show_notify_summary">По завершению записи показывать уведомление с информаций о сохраненном файле</string>
 	<string name="pref_tuner_antenna">Антенна</string>
 	<string name="pref_tuner_antenna_message">По умолчанию - 0.\nНа некоторых устройствах - 1.</string>
-	<string name="pref_tuner_rds_disabled">Не показывать RDS</string>
-	<string name="pref_tuner_rds_enable">Включить RDS</string>
-	<string name="pref_tuner_rds_enabled">Показывать данные RDS такие как PS и RT</string>
 	<string name="pref_tuner_spacing">Шаг</string>
 	<string name="progress_starting">Запуск тюнера…</string>
 	<string name="seek_down">Поиск назад</string>

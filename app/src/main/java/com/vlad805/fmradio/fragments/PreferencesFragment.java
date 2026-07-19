@@ -143,17 +143,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		description.setEnabled(false);
 		category.addPreference(description);
 
-		final SwitchPreference enable = new SwitchPreference(context);
-		populatePreference(enable, C.PrefKey.RDS_ENABLE, R.string.pref_tuner_rds_enable, R.drawable.ic_rds);
-		enable.setDefaultValue(true);
-		enable.setSummaryOn(R.string.pref_tuner_rds_enabled);
-		enable.setSummaryOff(R.string.pref_tuner_rds_disabled);
-		enable.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.RDS_ENABLE, (boolean) newValue);
-			return true;
-		});
-		category.addPreference(enable);
-
 		final SwitchPreference autoAf = new SwitchPreference(context);
 		populatePreference(autoAf, C.PrefKey.RDS_AUTO_AF, R.string.pref_tuner_rds_auto_af, R.drawable.ic_rds);
 		autoAf.setDefaultValue(C.PrefDefaultValue.RDS_AUTO_AF);

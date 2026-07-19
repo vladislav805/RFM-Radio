@@ -151,17 +151,6 @@ response_t handle_power_mode(const std::vector<std::string> &args) {
     return make_ok();
 }
 
-response_t handle_rds_toggle(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_rds(parse_int_arg(args, 1) == 1)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
 response_t handle_stereo(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
@@ -260,7 +249,6 @@ response_t api_handler(char *request) {
     if (command == "jump") return handle_jump(args);
     if (command == "seekhw") return handle_seek(args);
     if (command == "power_mode") return handle_power_mode(args);
-    if (command == "rds_toggle") return handle_rds_toggle(args);
     if (command == "set_stereo") return handle_stereo(args);
     if (command == "set_antenna") return handle_antenna(args);
     if (command == "set_region") return handle_region(args);

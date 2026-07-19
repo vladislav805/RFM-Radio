@@ -36,10 +36,13 @@ public:
                 .band = FM_RX_US_EUROPE,
                 .emphasis = FM_RX_EMP75,
                 .spacing = FM_RX_SPACE_100KHZ,
-                .rds_system = FM_RX_RDS_SYSTEM,
         };
 
         if (!set_status(fm_command_prepare(&cfg_data) == FM_CMD_SUCCESS, kErrFailed)) {
+            return false;
+        }
+
+        if (!set_status(fm_command_setup_rds(FM_RX_RDS_SYSTEM) == FM_CMD_SUCCESS, kErrFailed)) {
             return false;
         }
 
@@ -72,13 +75,6 @@ public:
     bool set_power_mode(bool low_power) override {
         return set_status(
                 fm_receiver_set_power_mode(low_power ? FM_RX_POWER_MODE_LOW : FM_RX_POWER_MODE_NORMAL) == TRUE,
-                kErrFailed
-        );
-    }
-
-    bool set_rds(bool enabled) override {
-        return set_status(
-                fm_command_setup_rds(enabled ? FM_RX_RDS_SYSTEM : FM_RX_NO_RDS_SYSTEM) == FM_CMD_SUCCESS,
                 kErrFailed
         );
     }
