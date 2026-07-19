@@ -83,18 +83,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (!Utils.isRootEnvironmentAvailable()) {
+            startActivity(StartupBlockedActivity.forMissingRoot(this)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+            return;
+        }
+
+        if (!TunerDriverDetector.isDeviceSupported()) {
+            startActivity(StartupBlockedActivity.forUnsupportedDevice(this)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_main);
 
         mToast = Toast.create(this);
 
         setSupportActionBar(findViewById(R.id.main_toolbar));
-
-        if (!TunerDriverDetector.isDeviceSupported()) {
-            startActivity(new Intent(this, UnsupportedDeviceActivity.class)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-            finish();
-            return;
-        }
 
         mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);

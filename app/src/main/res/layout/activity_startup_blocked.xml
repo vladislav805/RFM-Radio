@@ -6,7 +6,7 @@
         android:background="@color/main_background">
 
     <androidx.appcompat.widget.Toolbar
-            android:id="@+id/unsupported_toolbar"
+            android:id="@+id/startup_blocked_toolbar"
             android:layout_width="0dp"
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
@@ -17,7 +17,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-            android:id="@+id/unsupported_title"
+            android:id="@+id/startup_blocked_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
@@ -28,10 +28,10 @@
             android:textColor="@color/text_primary"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/unsupported_toolbar" />
+            app:layout_constraintTop_toBottomOf="@id/startup_blocked_toolbar" />
 
     <TextView
-            android:id="@+id/unsupported_message"
+            android:id="@+id/startup_blocked_message"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
@@ -42,6 +42,6 @@
             android:textColor="@color/text_secondary"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/unsupported_title" />
+            app:layout_constraintTop_toBottomOf="@id/startup_blocked_title" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

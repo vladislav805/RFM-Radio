@@ -34,8 +34,8 @@
 		<activity
 				android:name=".activity.AboutActivity"/>
 		<activity
-				android:name=".activity.UnsupportedDeviceActivity"
-				android:label="@string/unsupported_device_title"/>
+				android:name=".activity.StartupBlockedActivity"
+				android:label="@string/main_activity_label"/>
 
 		<service
 				android:name=".service.FMService"

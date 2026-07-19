@@ -19,6 +19,7 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -32,6 +33,42 @@ import java.util.Locale;
  * vlad805 (c) 2019
  */
 public class Utils {
+	private static final String[] ROOT_BINARY_PATHS = {
+			"/system/bin/su",
+			"/system/xbin/su",
+			"/sbin/su",
+			"/su/bin/su",
+			"/vendor/bin/su",
+			"/data/local/bin/su",
+			"/data/local/xbin/su",
+			"/data/local/su"
+	};
+
+	/**
+	 * Checks for an available su binary without executing it or requesting root access.
+	 */
+	public static boolean isRootEnvironmentAvailable() {
+		final String path = System.getenv("PATH");
+		if (path != null) {
+			for (final String directory : path.split(":")) {
+				if (isExecutableFile(new File(directory, "su"))) {
+					return true;
+				}
+			}
+		}
+
+		for (final String binaryPath : ROOT_BINARY_PATHS) {
+			if (isExecutableFile(new File(binaryPath))) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static boolean isExecutableFile(final File file) {
+		return file.isFile() && file.canExecute();
+	}
 
 	/**
 	 *

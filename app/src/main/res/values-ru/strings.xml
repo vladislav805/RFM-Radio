@@ -132,4 +132,6 @@
 	<string name="menu_speaker">Выводить звук через динамик</string>
 	<string name="unsupported_device_title">Устройство не поддерживается</string>
 	<string name="unsupported_device_message">RFM Radio не нашло поддерживаемый FM backend на этом устройстве. Для legacy-режима нужен /dev/radio0, для HAL-режима нужен fm_helium.so.</string>
+	<string name="root_required_title">Требуется root-доступ</string>
+	<string name="root_required_message">Приложение не может работать без root.\nНа устройстве не обнаружено su.</string>
 </resources>

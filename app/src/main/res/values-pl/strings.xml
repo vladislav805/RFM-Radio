@@ -130,4 +130,6 @@
 	<string name="favorite_list_search_error_tuner_not_enabled">Nie można wyszukiwać, gdy tuner jest wyłączony.</string>
 	<string name="unsupported_device_title">Urządzenie nie jest obsługiwane</string>
 	<string name="unsupported_device_message">RFM Radio nie znalazło obsługiwanego backendu FM na tym urządzeniu. Tryb legacy wymaga /dev/radio0, a tryb HAL wymaga fm_helium.so.</string>
+	<string name="root_required_title">Wymagany dostęp root</string>
+	<string name="root_required_message">Aplikacja nie może działać bez roota.\nNie znaleziono su na urządzeniu.</string>
 </resources>
