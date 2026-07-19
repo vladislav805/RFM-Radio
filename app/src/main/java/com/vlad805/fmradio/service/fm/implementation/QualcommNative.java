@@ -1,10 +1,10 @@
 package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
-import android.os.Bundle;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.TunerDriver;
+import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.File;
@@ -78,8 +78,8 @@ public class QualcommNative extends AbstractQualcommNativeController {
     }
 
     @Override
-    protected void onServerEvent(final String event, final Bundle bundle) {
-        if (mDriverKind == TunerDriver.HAL && C.Event.FREQUENCY_SET.equals(event)) {
+    protected void onServerStatePatch(final RadioStatePatch patch) {
+        if (mDriverKind == TunerDriver.HAL && patch.getFrequency() != null) {
             sendCommand(new Request("set_stereo 1"));
         }
     }

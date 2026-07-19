@@ -14,6 +14,7 @@ import com.vlad805.fmradio.service.fm.DatagramServer;
 import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
+import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.communication.Poll;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
@@ -365,10 +366,29 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         try {
             closeServerListener();
             mServer = new DatagramServer(SERVER_PORT);
-            mServer.setCallback((event, bundle) -> {
-                onServerEvent(event, bundle);
-                if (mEventCallback != null) {
-                    mEventCallback.onEvent(event, bundle);
+            mServer.setCallback(new FMEventCallback() {
+                @Override
+                public void onEvent(final String event) {
+                    onServerEvent(event);
+                    if (mEventCallback != null) {
+                        mEventCallback.onEvent(event);
+                    }
+                }
+
+                @Override
+                public void onStatePatch(final RadioStatePatch patch) {
+                    onServerStatePatch(patch);
+                    if (mEventCallback != null) {
+                        mEventCallback.onStatePatch(patch);
+                    }
+                }
+
+                @Override
+                public void onSearchDone(final int[] stations) {
+                    onServerSearchDone(stations);
+                    if (mEventCallback != null) {
+                        mEventCallback.onSearchDone(stations);
+                    }
                 }
             });
             mServer.start();
@@ -377,7 +397,13 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         }
     }
 
-    protected void onServerEvent(final String event, final Bundle bundle) {
+    protected void onServerEvent(final String event) {
+    }
+
+    protected void onServerStatePatch(final RadioStatePatch patch) {
+    }
+
+    protected void onServerSearchDone(final int[] stations) {
     }
 
     protected final boolean isNativeBinaryInstalled() {

@@ -379,28 +379,6 @@ int spacing_step_khz_locked() {
     }
 }
 
-void send_frequency_event(int event_id, int frequency_khz) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", frequency_khz);
-    send_interruption_info(event_id, buf);
-}
-
-void send_string_event(int event_id, const char *value) {
-    send_interruption_info(event_id, value == nullptr ? "" : value);
-}
-
-void send_int_event(int event_id, int value) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", value);
-    send_interruption_info(event_id, buf);
-}
-
-void send_hex_event(int event_id, int value) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%x", value);
-    send_interruption_info(event_id, buf);
-}
-
 void log_scan_next_cb() {
     int freq = 0;
     if (vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read scan-next frequency")) {
@@ -438,11 +416,10 @@ void log_scan_next_cb() {
     vendor_set(kV4l2CtrlSearchOn, 0, "failed to stop completed scan");
     std::sort(found, found + found_count);
 
-    const std::string payload = format_frequency_list_khz(found, found_count, FrequencyListFormat::kCompact100Khz);
     const std::string frequencies = format_frequency_list_khz(found, found_count);
 
     hal_log("search", "scan complete count=%d frequencies=%s", found_count, frequencies.c_str());
-    send_string_event(EVT_SEARCH_DONE, payload.c_str());
+    send_search_done(found, found_count);
 }
 
 void log_thread_evt_cb(unsigned int evt) {
@@ -662,7 +639,7 @@ void enabled_cb() {
     g_state.last_enabled_cb_ms = now_ms();
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
-    send_string_event(EVT_ENABLED, "enabled");
+    send_native_event("enabled");
 }
 
 void disabled_cb() {
@@ -672,7 +649,7 @@ void disabled_cb() {
     g_state.audio.mode_valid = false;
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
-    send_string_event(EVT_DISABLED, "disabled");
+    send_native_event("disabled");
 }
 
 void tune_cb(int freq) {
@@ -683,11 +660,14 @@ void tune_cb(int freq) {
     reset_search_result_locked();
     reset_rds_dedup_locked();
     pthread_mutex_unlock(&g_state.lock);
-    send_string_event(EVT_UPDATE_PS, "");
-    send_string_event(EVT_UPDATE_RT, "");
-    send_int_event(EVT_UPDATE_PTY, 0);
-    send_string_event(EVT_UPDATE_PI, "");
-    send_frequency_event(EVT_FREQUENCY_SET, freq);
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.frequency_khz = freq;
+    patch.ps = "";
+    patch.rt = "";
+    patch.pi = "";
+    patch.pty = 0;
+    patch.af_count = 0;
+    send_radio_state_patch(&patch);
 }
 
 void seek_complete_cb(int freq) {
@@ -703,11 +683,14 @@ void seek_complete_cb(int freq) {
     reset_search_result_locked();
     reset_rds_dedup_locked();
     pthread_mutex_unlock(&g_state.lock);
-    send_string_event(EVT_UPDATE_PS, "");
-    send_string_event(EVT_UPDATE_RT, "");
-    send_int_event(EVT_UPDATE_PTY, 0);
-    send_string_event(EVT_UPDATE_PI, "");
-    send_frequency_event(EVT_SEEK_COMPLETE, freq);
+
+    radio_state_patch_t patch = radio_state_patch_empty();
+
+    patch.frequency_khz = freq;
+    patch.ps = patch.rt = patch.pi = "";
+    patch.af_count = patch.pty = 0;
+
+    send_radio_state_patch(&patch);
 }
 
 void stereo_status_cb(bool stereo) {
@@ -715,7 +698,9 @@ void stereo_status_cb(bool stereo) {
     pthread_mutex_lock(&g_state.lock);
     g_state.audio.stereo = stereo;
     pthread_mutex_unlock(&g_state.lock);
-    send_string_event(EVT_STEREO, stereo ? "1" : "0");
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.stereo = stereo ? 1 : 0;
+    send_radio_state_patch(&patch);
 }
 
 /*
@@ -747,9 +732,13 @@ void ps_update_cb(char *ps) {
     }
 
     hal_log("rds", "ps count=%d pi=%04x pty=0x%02x text=`%s`", parsed.block_count, parsed.pi, parsed.pty, parsed.text);
-    send_string_event(EVT_UPDATE_PS, parsed.text);
-    send_int_event(EVT_UPDATE_PTY, parsed.pty);
-    send_hex_event(EVT_UPDATE_PI, parsed.pi);
+    char pi[16];
+    snprintf(pi, sizeof(pi), "%x", parsed.pi);
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.ps = parsed.text;
+    patch.pty = parsed.pty;
+    patch.pi = pi;
+    send_radio_state_patch(&patch);
 }
 
 /*
@@ -798,7 +787,9 @@ void rt_update_cb(char *rt) {
     pthread_mutex_unlock(&g_state.lock);
 
     hal_log("rds", "rt=`%s` (len=%d)", parsed.text, text_len);
-    send_string_event(EVT_UPDATE_RT, parsed.text);
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.rt = parsed.text;
+    send_radio_state_patch(&patch);
 }
 
 /*
@@ -824,11 +815,13 @@ void af_update_cb(uint16_t *raw) {
         return;
     }
 
-    const std::string payload = format_frequency_list_khz(af.frequencies_khz, af.count, FrequencyListFormat::kCompact100Khz);
     const std::string frequencies = format_frequency_list_khz(af.frequencies_khz, af.count);
 
     hal_log("af", "result count=%d frequencies=%s", af.count, frequencies.c_str());
-    send_string_event(EVT_UPDATE_AF, payload.c_str());
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.af_khz = af.frequencies_khz;
+    patch.af_count = af.count;
+    send_radio_state_patch(&patch);
 }
 
 /*
@@ -871,11 +864,10 @@ void search_list_cb(uint16_t *raw) {
         }
 
         hal_log("search", "empty result");
-        send_string_event(EVT_SEARCH_DONE, "");
+        send_search_done(nullptr, 0);
         return;
     }
 
-    const std::string payload = format_frequency_list_khz(list.frequencies_khz, list.count, FrequencyListFormat::kCompact100Khz);
     const std::string frequencies = format_frequency_list_khz(list.frequencies_khz, list.count);
 
     // Qualcomm HAL can replay the last search-list callback after the real
@@ -884,9 +876,9 @@ void search_list_cb(uint16_t *raw) {
     // decoded payload instead of pointer or event ordering.
     pthread_mutex_lock(&g_state.lock);
     const bool duplicate = g_state.last_search_payload_valid &&
-            strcmp(g_state.last_search_payload, payload.c_str()) == 0;
+            strcmp(g_state.last_search_payload, frequencies.c_str()) == 0;
     if (!duplicate) {
-        snprintf(g_state.last_search_payload, sizeof(g_state.last_search_payload), "%s", payload.c_str());
+        snprintf(g_state.last_search_payload, sizeof(g_state.last_search_payload), "%s", frequencies.c_str());
         g_state.last_search_payload_valid = true;
     }
     pthread_mutex_unlock(&g_state.lock);
@@ -895,7 +887,7 @@ void search_list_cb(uint16_t *raw) {
     }
 
     hal_log("search", "result count=%d reported=%d frequencies=%s", list.count, list.reported_count, frequencies.c_str());
-    send_string_event(EVT_SEARCH_DONE, payload.c_str());
+    send_search_done(list.frequencies_khz, list.count);
 }
 
 static fm_hal_callbacks_t g_callbacks = {

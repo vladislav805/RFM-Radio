@@ -36,6 +36,7 @@ import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.IFMEventPoller;
+import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
 import com.vlad805.fmradio.service.fm.implementation.QualcommNative;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
@@ -457,8 +458,18 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      * @param bundle Arguments
      */
     @Override
-    public void onEvent(final String event, final Bundle bundle) {
-        Utils.sendAppBroadcast(this, new Intent(event).putExtras(bundle));
+    public void onEvent(final String event) {
+        Utils.sendAppBroadcast(this, new Intent(event));
+    }
+
+    @Override
+    public void onStatePatch(final RadioStatePatch patch) {
+        Utils.sendAppBroadcast(this, patch.toIntent(C.Event.STATE_CHANGED));
+    }
+
+    @Override
+    public void onSearchDone(final int[] stations) {
+        Utils.sendAppBroadcast(this, new Intent(C.Event.HW_SEARCH_DONE).putExtra(C.Key.STATION_LIST, stations));
     }
 
     private void navigateThroughFavorite(final int direction) {
@@ -553,6 +564,16 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
                     mStorage.put(C.PrefKey.LAST_FREQUENCY, frequency);
                     updateNotification();
+                    break;
+                }
+
+                case C.Event.STATE_CHANGED: {
+                    if (intent.hasExtra(C.Key.FREQUENCY)) {
+                        mStorage.put(C.PrefKey.LAST_FREQUENCY, intent.getIntExtra(C.Key.FREQUENCY, -1));
+                    }
+                    if (intent.hasExtra(C.Key.FREQUENCY) || intent.hasExtra(C.Key.PS) || intent.hasExtra(C.Key.RT)) {
+                        updateNotification();
+                    }
                     break;
                 }
 

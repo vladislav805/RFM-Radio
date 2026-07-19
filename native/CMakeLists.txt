@@ -29,7 +29,9 @@ if(RFM_NATIVE_TESTS)
         rfm_native_tests
         tests/rds_parser_test.cpp
         tests/frequency_format_test.cpp
+        tests/ctl_json_test.cpp
         rds_parser.cpp
+        ctl_json.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
     target_link_libraries(rfm_native_tests GTest::gtest_main)
@@ -41,7 +43,8 @@ endif()
 add_executable(
     fmbin
     main.cpp
-    ctl_server.c
+    ctl_server.cpp
+    ctl_json.cpp
     rds_parser.cpp
     backend_factory.cpp
     legacy_backend.cpp

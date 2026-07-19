@@ -146,6 +146,34 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 break;
             }
 
+            case C.Event.STATE_CHANGED: {
+                if (intent.hasExtra(C.Key.FREQUENCY)) {
+                    mState.setFrequency(intent.getIntExtra(C.Key.FREQUENCY, -1));
+                    mode |= SET_FREQUENCY;
+                }
+                if (intent.hasExtra(C.Key.PS)) {
+                    mState.setPs(intent.getStringExtra(C.Key.PS));
+                    mode |= SET_PS;
+                }
+                if (intent.hasExtra(C.Key.RT)) {
+                    mState.setRt(intent.getStringExtra(C.Key.RT));
+                    mode |= SET_RT;
+                }
+                if (intent.hasExtra(C.Key.PTY)) {
+                    mState.setPty(intent.getIntExtra(C.Key.PTY, 0));
+                    mode |= SET_PTY;
+                }
+                if (intent.hasExtra(C.Key.PI)) {
+                    mState.setPi(intent.getStringExtra(C.Key.PI));
+                    mode |= SET_PI;
+                }
+                if (intent.hasExtra(C.Key.STEREO_MODE)) {
+                    mState.setStereo(intent.getBooleanExtra(C.Key.STEREO_MODE, false));
+                    mode |= SET_STEREO;
+                }
+                break;
+            }
+
             case C.Event.RECORD_STARTED: {
                 mState.setRecording(true);
                 mState.setRecordingStarted(System.currentTimeMillis());
@@ -198,6 +226,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 C.Event.UPDATE_PTY,
                 C.Event.UPDATE_PI,
                 C.Event.UPDATE_STEREO,
+                C.Event.STATE_CHANGED,
                 C.Event.HW_SEARCH_DONE,
                 C.Event.JUMP_COMPLETE,
                 C.Event.HW_SEEK_COMPLETE,

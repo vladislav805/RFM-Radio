@@ -1,257 +1,195 @@
 package com.vlad805.fmradio.service.fm;
 
-import android.os.Bundle;
 import android.util.Log;
-import com.vlad805.fmradio.BuildConfig;
+
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.Utils;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.Arrays;
-
-import static com.vlad805.fmradio.Utils.parseInt;
+import java.nio.charset.StandardCharsets;
 
 /**
  * vlad805 (c) 2019
  */
 public class DatagramServer extends Thread {
-	private final DatagramSocket mDatagramSocketServer;
-	private FMEventCallback mCallback;
+    private final DatagramSocket mDatagramSocketServer;
+    private FMEventCallback mCallback;
 
-	private static final int BUFFER_SIZE = 512;
+    private static final int BUFFER_SIZE = 512;
+    private static final String TAG = "FMELS";
 
-	private boolean mEnabled = false;
+    private boolean mEnabled = false;
 
-	private static final int EVT_ENABLED = 1;
-	private static final int EVT_DISABLED = 2;
+    public DatagramServer(final int port) throws IOException {
+        mDatagramSocketServer = new DatagramSocket(port);
+    }
 
-	private static final int EVT_FREQUENCY_SET = 4;
-	private static final int EVT_UPDATE_PS = 6;
-	private static final int EVT_UPDATE_RT = 7;
-	private static final int EVT_SEEK_COMPLETE = 8;
-	private static final int EVT_STEREO = 9;
-	private static final int EVT_SEARCH_DONE = 10;
-	private static final int EVT_UPDATE_PTY = 11;
-	private static final int EVT_UPDATE_PI = 12;
-	private static final int EVT_UPDATE_AF = 14;
+    public void setCallback(final FMEventCallback callback) {
+        mCallback = callback;
+    }
 
-	public DatagramServer(final int port) throws IOException {
-		mDatagramSocketServer = new DatagramSocket(port);
-	}
+    @Override
+    public void run() {
+        mEnabled = true;
 
-	public void setCallback(final FMEventCallback callback) {
-		mCallback = callback;
-	}
+        byte[] buffer = new byte[BUFFER_SIZE];
+        while (mEnabled) {
+            DatagramPacket dp = new DatagramPacket(buffer, 0, BUFFER_SIZE);
 
-	@Override
-	public void run() {
-		mEnabled = true;
+            try {
+                mDatagramSocketServer.receive(dp);
 
-		byte[] buffer = new byte[BUFFER_SIZE];
-		while (mEnabled) {
-			DatagramPacket dp = new DatagramPacket(buffer, 0, BUFFER_SIZE);
+                final String message = new String(dp.getData(), 0, dp.getLength(), StandardCharsets.UTF_8);
+                handle(message);
 
-			try {
-				mDatagramSocketServer.receive(dp);
+                dp.setData("ok".getBytes(StandardCharsets.UTF_8));
+                mDatagramSocketServer.send(dp);
+            } catch (SocketException e) {
+                if (mEnabled) {
+                    e.printStackTrace();
+                }
+                mEnabled = false;
+            } catch (IOException e) {
+                if (mEnabled) {
+                    e.printStackTrace();
+                }
+            } catch (StopServer e) {
+                mEnabled = false;
+            }
+        }
+    }
 
-				String event = new String(dp.getData(), 0, dp.getLength());
+    private void handle(final String message) throws StopServer {
+        final JSONObject json;
+        try {
+            json = new JSONObject(message);
+        } catch (final JSONException e) {
+            Log.w(TAG, "invalid native JSON", e);
+            return;
+        }
 
-				String result = handle(event);
+        final String type = json.optString("type", "");
+        switch (type) {
+            case "state": {
+                final RadioStatePatch patch = parseStatePatch(json);
+                if (patch != null && !patch.isEmpty() && mCallback != null) {
+                    mCallback.onStatePatch(patch);
+                }
+                break;
+            }
 
-				if (result != null) {
-					dp.setData(result.getBytes());
-					mDatagramSocketServer.send(dp);
-				}
-			} catch (SocketException e) {
-				if (mEnabled) {
-					e.printStackTrace();
-				}
-				mEnabled = false;
-			} catch (IOException e) {
-				if (mEnabled) {
-					e.printStackTrace();
-				}
-			} catch (StopServer e) {
-				mEnabled = false;
-			}
-		}
-	}
+            case "enabled": {
+                if (mCallback != null) {
+                    mCallback.onEvent(C.Event.ENABLED);
+                }
+                break;
+            }
 
-	private static final char FF = 0x0c; // split for messages
+            case "disabled": {
+                throw new StopServer();
+            }
 
-	/**
-	 * Handle event from native client (events such as RSSI change, RDS, etc...)
-	 * @param data String in special format
-	 * @return Response for native server
-	 * @throws StopServer Throws when server should be killed
-	 */
-	private String handle(String data) throws StopServer {
-		final int splitAt = data.indexOf(FF);
-		if (splitAt <= 0) {
-			Log.w("FMELS", "invalid event frame");
-			return null;
-		}
+            case "search_done": {
+                final int[] stations = parseIntArray(json.optJSONArray("stations"));
+                if (stations != null && mCallback != null) {
+                    mCallback.onSearchDone(stations);
+                }
+                break;
+            }
 
-		final String code = data.substring(0, splitAt);
-		data = data.substring(splitAt + 1);
-		if (!isDigits(code)) {
-			Log.w("FMELS", "invalid event code");
-			return null;
-		}
+            default: {
+                Log.w(TAG, "unknown native message type = " + type);
+                break;
+            }
+        }
+    }
 
-		int evt = parseInt(code);
+    private RadioStatePatch parseStatePatch(final JSONObject json) {
+        final RadioStatePatch patch = new RadioStatePatch();
 
-		if (BuildConfig.DEBUG && false) {
-			Log.i("FMELS", "received new event " + code + " = [" + data + "]");
-		}
+        if (json.has("frequency")) {
+            final int frequency = json.optInt("frequency", -1);
+            if (frequency <= 0) {
+                Log.w(TAG, "invalid frequency payload");
+                return null;
+            }
+            patch.setFrequency(frequency);
+        }
 
-		final Bundle bundle = new Bundle();
-		String action;
+        if (json.has("stereo")) {
+            patch.setStereo(json.optBoolean("stereo", false));
+        }
 
-		switch (evt) {
-			case EVT_ENABLED: {
-				action = C.Event.ENABLED;
-				break;
-			}
+        final JSONObject rds = json.optJSONObject("rds");
+        if (rds != null) {
+            if (rds.has("ps")) {
+                patch.setPs(sanitizeRdsText(rds.optString("ps", "")));
+            }
 
-			case EVT_DISABLED: {
-				// action = C.Event.DISABLED;
-				throw new StopServer();
-			}
+            if (rds.has("rt")) {
+                patch.setRt(sanitizeRdsText(rds.optString("rt", "")));
+            }
 
-			case EVT_FREQUENCY_SET: {
-				if (!isDigits(data.trim())) {
-					Log.w("FMELS", "invalid frequency payload");
-					return null;
-				}
+            if (rds.has("pi")) {
+                patch.setPi(rds.optString("pi", ""));
+            }
 
-				action = C.Event.FREQUENCY_SET;
-				bundle.putInt(C.Key.FREQUENCY, Utils.parseInt(data));
-				break;
-			}
+            if (rds.has("pty")) {
+                final int pty = rds.optInt("pty", -1);
+                if (pty < 0) {
+                    Log.w(TAG, "invalid PTY payload");
+                    return null;
+                }
+                patch.setPty(pty);
+            }
 
-			case EVT_UPDATE_PS: {
-				action = C.Event.UPDATE_PS;
-				bundle.putString(C.Key.PS, data.trim().replaceAll("\n", " "));
-				break;
-			}
+            if (rds.has("af")) {
+                final int[] af = parseIntArray(rds.optJSONArray("af"));
+                if (af == null) {
+                    Log.w(TAG, "invalid AF payload");
+                    return null;
+                }
+                patch.setAf(af);
+            }
+        }
 
-			case EVT_UPDATE_RT: {
-				action = C.Event.UPDATE_RT;
-				bundle.putString(C.Key.RT, data.trim().replaceAll("\n", " "));
-				break;
-			}
+        return patch;
+    }
 
-			case EVT_SEARCH_DONE: {
-				final int[] res = parseCompactFrequencyList(data.trim());
-				if (res == null) {
-					Log.w("FMELS", "invalid search result payload");
-					return null;
-				}
+    private static int[] parseIntArray(final JSONArray json) {
+        if (json == null) {
+            return null;
+        }
 
-				Arrays.sort(res);
+        final int[] result = new int[json.length()];
 
-				action = C.Event.HW_SEARCH_DONE;
-				bundle.putIntArray(C.Key.STATION_LIST, res);
-				break;
-			}
+        for (int i = 0; i < json.length(); ++i) {
+            result[i] = json.optInt(i, -1);
 
-			case EVT_STEREO: {
-				final String mode = data.trim();
+            if (result[i] < 0) {
+                return null;
+            }
+        }
 
-				action = C.Event.UPDATE_STEREO;
-				bundle.putBoolean(C.Key.STEREO_MODE, mode.equals("1"));
-				break;
-			}
+        return result;
+    }
 
-			case EVT_UPDATE_PTY: {
-				final String pty = data.trim();
-				if (!pty.isEmpty() && !isDigits(pty)) {
-					Log.w("FMELS", "invalid PTY payload");
-					return null;
-				}
+    private static String sanitizeRdsText(final String value) {
+        return value.trim().replaceAll("\n", " ");
+    }
 
-				action = C.Event.UPDATE_PTY;
+    private static class StopServer extends Throwable { }
 
-				bundle.putInt(C.Key.PTY, pty.isEmpty() ? 0 : Utils.parseInt(pty));
-				break;
-			}
-
-			case EVT_UPDATE_PI: {
-				action = C.Event.UPDATE_PI;
-
-				bundle.putString(C.Key.PI, data);
-				break;
-			}
-
-			case EVT_UPDATE_AF: {
-				final int[] res = parseCompactFrequencyList(data.trim());
-				if (res == null) {
-					Log.w("FMELS", "invalid AF payload");
-					return null;
-				}
-
-				action = C.Event.UPDATE_AF;
-				bundle.putIntArray(C.Key.FREQUENCIES, res);
-				break;
-			}
-
-			default: {
-				Log.w("FMELS", "unknown event = " + evt);
-				return null;
-			}
-		}
-
-		if (mCallback != null) {
-			mCallback.onEvent(action, bundle);
-		}
-
-		return "ok";
-	}
-
-	private static boolean isDigits(final String value) {
-		if (value == null || value.isEmpty()) {
-			return false;
-		}
-
-		for (int i = 0; i < value.length(); ++i) {
-			if (!Character.isDigit(value.charAt(i))) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	private static int[] parseCompactFrequencyList(final String payload) {
-		final int lengthKHz = 4;
-		if (payload.isEmpty()) {
-			return new int[0];
-		}
-
-		if (payload.length() % lengthKHz != 0 || !isDigits(payload)) {
-			return null;
-		}
-
-		final int count = payload.length() / lengthKHz;
-		final int[] res = new int[count];
-		for (int i = 0; i < count; ++i) {
-			final int start = i * lengthKHz;
-			res[i] = Utils.parseInt(payload.substring(start, start + lengthKHz)) * 100;
-		}
-
-		return res;
-	}
-
-	private static class StopServer extends Throwable { }
-
-	public void closeServer() {
-		mEnabled = false;
-		if (!mDatagramSocketServer.isClosed()) {
-			mDatagramSocketServer.close();
-		}
-	}
+    public void closeServer() {
+        mEnabled = false;
+        if (!mDatagramSocketServer.isClosed()) {
+            mDatagramSocketServer.close();
+        }
+    }
 }

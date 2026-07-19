@@ -27,6 +27,7 @@ final public class C {
 		public static final String UPDATE_RT = BASE + "UPDATE_RT";
 		public static final String UPDATE_AF = BASE + "UPDATE_AF";
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
+		public static final String STATE_CHANGED = BASE + "STATE_CHANGED";
 		public static final String HW_SEARCH_DONE = BASE + "HW_SEARCH_DONE";
 		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
 		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";

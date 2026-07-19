@@ -10,17 +10,18 @@ extern "C" {
 #define CS_PORT_SRV 2113
 #define CS_BUF 512
 
-#define EVT_ENABLED 1
-#define EVT_DISABLED 2
-#define EVT_FREQUENCY_SET 4
-#define EVT_UPDATE_PS 6
-#define EVT_UPDATE_RT 7
-#define EVT_SEEK_COMPLETE 8
-#define EVT_STEREO 9
-#define EVT_SEARCH_DONE 10
-#define EVT_UPDATE_PTY 11
-#define EVT_UPDATE_PI 12
-#define EVT_UPDATE_AF 14
+#define RADIO_PATCH_ABSENT_INT -1
+
+typedef struct {
+    int frequency_khz;
+    const char *ps;
+    const char *rt;
+    const char *pi;
+    int pty;
+    const int *af_khz;
+    int af_count;
+    int stereo;
+} radio_state_patch_t;
 
 typedef struct {
     int code;
@@ -30,7 +31,10 @@ typedef struct {
 typedef response_t (*fm_srv_callback)(char *);
 
 int init_server(fm_srv_callback request_callback);
-bool send_interruption_info(int evt, const char *message);
+radio_state_patch_t radio_state_patch_empty(void);
+bool send_radio_state_patch(const radio_state_patch_t *patch);
+bool send_native_event(const char *type);
+bool send_search_done(const int *frequencies_khz, int count);
 
 #ifdef __cplusplus
 }

@@ -84,7 +84,7 @@ bool process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_RADIO_READY: {
             legacy_log("event", "FM enabled");
             fm_storage.state = RX;
-            send_interruption_info(EVT_ENABLED, "enabled");
+            send_native_event("enabled");
             break;
         }
 
@@ -109,11 +109,11 @@ bool process_radio_event(uint8 event_buf) {
             legacy_log("event", "tuned frequency=%d", fm_storage.frequency);
 
             // Notify client about tune
-            send_interruption_info(EVT_FREQUENCY_SET, int_to_string(fm_storage.frequency));
-            send_interruption_info(EVT_UPDATE_PS, "");
-            send_interruption_info(EVT_UPDATE_RT, "");
-            send_interruption_info(EVT_UPDATE_PTY, "");
-            send_interruption_info(EVT_UPDATE_PI, "");
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.frequency_khz = fm_storage.frequency;
+            patch.ps = patch.rt = patch.pi = "";
+            patch.af_count = patch.pty = 0;
+            send_radio_state_patch(&patch);
             break;
         }
 
@@ -121,7 +121,11 @@ bool process_radio_event(uint8 event_buf) {
             fm_storage.frequency = fm_receiver_get_tuned_frequency();
 
             legacy_log("event", "seek complete frequency=%d", fm_storage.frequency);
-            send_interruption_info(EVT_SEEK_COMPLETE, int_to_string(fm_storage.frequency));
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.frequency_khz = fm_storage.frequency;
+            patch.ps = patch.rt = patch.pi = "";
+            patch.pty = patch.af_count = 0;
+            send_radio_state_patch(&patch);
             break;
         }
 
@@ -137,15 +141,19 @@ bool process_radio_event(uint8 event_buf) {
 
         case TAVARUA_EVT_NEW_RT_RDS: {
             ret = extract_radio_text(&fm_storage.rds);
-            send_interruption_info(EVT_UPDATE_RT, fm_storage.rds.radio_text);
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.rt = fm_storage.rds.radio_text;
+            send_radio_state_patch(&patch);
             break;
         }
 
         case TAVARUA_EVT_NEW_PS_RDS: {
             ret = extract_program_service(&fm_storage.rds);
-            send_interruption_info(EVT_UPDATE_PS, fm_storage.rds.program_name);
-            send_interruption_info(EVT_UPDATE_PI, int_to_hex_string(fm_storage.rds.program_id));
-            send_interruption_info(EVT_UPDATE_PTY, int_to_string(fm_storage.rds.program_type));
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.ps = fm_storage.rds.program_name;
+            patch.pi = int_to_hex_string(fm_storage.rds.program_id);
+            patch.pty = fm_storage.rds.program_type;
+            send_radio_state_patch(&patch);
             break;
         }
 
@@ -169,14 +177,18 @@ bool process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_STEREO: {
             legacy_log("event", "stereo mode");
             fm_storage.stereo_type = FM_RX_STEREO;
-            send_interruption_info(EVT_STEREO, "1");
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.stereo = 1;
+            send_radio_state_patch(&patch);
             break;
         }
 
         case TAVARUA_EVT_MONO: {
             legacy_log("event", "mono mode");
             fm_storage.stereo_type = FM_RX_MONO;
-            send_interruption_info(EVT_STEREO, "0");
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.stereo = 0;
+            send_radio_state_patch(&patch);
             break;
         }
 
@@ -197,12 +209,15 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 stations = extract_search_station_list(list);
 
-            const std::string str = format_frequency_list_khz(list, stations, FrequencyListFormat::kCompact100Khz);
             const std::string frequencies = format_frequency_list_khz(list, stations);
 
             legacy_log("search", "result count=%d frequencies=%s", stations, frequencies.c_str());
 
-            send_interruption_info(EVT_SEARCH_DONE, str.c_str());
+            int frequencies_khz[25];
+            for (uint8 i = 0; i < stations; ++i) {
+                frequencies_khz[i] = static_cast<int>(list[i]);
+            }
+            send_search_done(frequencies_khz, stations);
             break;
         }
 
@@ -210,12 +225,18 @@ bool process_radio_event(uint8 event_buf) {
             uint32 list[25];
             uint8 size = extract_rds_af_list(list);
 
-            const std::string str = format_frequency_list_khz(list, size, FrequencyListFormat::kCompact100Khz);
             const std::string frequencies = format_frequency_list_khz(list, size);
 
             legacy_log("af", "result count=%d frequencies=%s", size, frequencies.c_str());
 
-            send_interruption_info(EVT_UPDATE_AF, str.c_str());
+            int frequencies_khz[25];
+            for (uint8 i = 0; i < size; ++i) {
+                frequencies_khz[i] = static_cast<int>(list[i]);
+            }
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.af_khz = frequencies_khz;
+            patch.af_count = size;
+            send_radio_state_patch(&patch);
 
             break;
         }
