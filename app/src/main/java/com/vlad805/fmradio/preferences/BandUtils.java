@@ -14,9 +14,10 @@ public class BandUtils {
         }
     }
 
-    public static final int BAND_EUROPE_US = 1;
+    public static final int BAND_EUROPE = 1;
     public static final int BAND_JAPAN_STANDARD = 2;
     public static final int BAND_JAPAN_WIDE = 3;
+    public static final int BAND_US = 4;
 
     public static final int SPACING_50kHz = 1;
     public static final int SPACING_100kHz = 2;
@@ -36,7 +37,8 @@ public class BandUtils {
                 return LIMIT_JP_WIDE;
             }
 
-            case BAND_EUROPE_US:
+            case BAND_EUROPE:
+            case BAND_US:
             default: {
                 return LIMIT_EU;
             }

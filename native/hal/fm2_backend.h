@@ -4,8 +4,10 @@
 #include <stdint.h>
 
 #include "../types.h"
+#include "../startup_config.h"
 
 bool fm2_backend_init();
+bool fm2_backend_configure_startup(const StartupConfig &config);
 bool fm2_backend_enable();
 bool fm2_backend_disable();
 bool fm2_backend_wait_enabled(int timeout_ms);
@@ -16,8 +18,8 @@ bool fm2_backend_seek(int direction);
 bool fm2_backend_search();
 bool fm2_backend_cancel_search();
 bool fm2_backend_set_stereo(bool enabled);
-bool fm2_backend_set_spacing_app_value(int app_spacing);
-bool fm2_backend_set_region_app_value(int app_region);
+bool fm2_backend_set_spacing_khz(int spacing_khz);
+bool fm2_backend_set_region(StartupRegion region);
 bool fm2_backend_set_antenna(int antenna);
 bool fm2_backend_set_power_mode(bool low_power);
 bool fm2_backend_set_auto_af(bool enabled);

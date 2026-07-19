@@ -154,9 +154,9 @@ typedef enum {
  * FM Config Request structure.
  */
 typedef struct fm_config_data {
-	uint8 band;
 	emphasis_t emphasis;
 	channel_space_t spacing;
+	uint8 antenna;
 } fm_config_data;
 
 /**

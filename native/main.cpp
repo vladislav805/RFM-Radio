@@ -8,11 +8,13 @@
 #include "ctl_server.h"
 #include "backend.h"
 #include "backend_factory.h"
+#include "startup_config.h"
 
 namespace {
 
 constexpr const char *kResponseOk = "ok";
 constexpr const char *kErrNoArg = "ERR_IVD_FRQ";
+constexpr const char *kErrInvalidConfig = "ERR_IVD_CFG";
 constexpr const char *kErrUnknown = "ERR_UNK_CMD";
 constexpr const char *kErrUnsupported = "ERR_UNSUPPORTED";
 constexpr useconds_t kResponseDelayUs = 300000;
@@ -87,9 +89,17 @@ response_t handle_init() {
     return make_ok();
 }
 
-response_t handle_enable() {
+response_t handle_enable(const std::vector<std::string> &args) {
+    StartupConfig config;
+    std::string error;
+
+    if (!parse_startup_config(args, &config, &error)) {
+        printf("server/enable : invalid config: %s\n", error.c_str());
+        return make_error(kErrInvalidConfig);
+    }
+
     Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->enable()) {
+    if (backend == nullptr || !backend->enable(config)) {
         return make_backend_error(backend);
     }
     return make_ok();
@@ -177,8 +187,14 @@ response_t handle_region(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
+
+    StartupRegion region;
+    if (!parse_region_name(args[1], &region)) {
+        return make_error(kErrInvalidConfig);
+    }
+
     Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_region(parse_int_arg(args, 1))) {
+    if (backend == nullptr || !backend->set_region(region)) {
         return make_backend_error(backend);
     }
     return make_ok();
@@ -188,8 +204,14 @@ response_t handle_spacing(const std::vector<std::string> &args) {
     if (args.size() < 2) {
         return make_error(kErrNoArg);
     }
+
+    int spacing_khz = 0;
+    if (!parse_spacing_khz(args[1], &spacing_khz)) {
+        return make_error(kErrInvalidConfig);
+    }
+
     Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_spacing(parse_int_arg(args, 1))) {
+    if (backend == nullptr || !backend->set_spacing(spacing_khz)) {
         return make_backend_error(backend);
     }
     return make_ok();
@@ -243,7 +265,7 @@ response_t api_handler(char *request) {
 
     const std::string &command = args[0];
     if (command == "init") return handle_init();
-    if (command == "enable") return handle_enable();
+    if (command == "enable") return handle_enable(args);
     if (command == "disable") return handle_disable();
     if (command == "setfreq") return handle_setfreq(args);
     if (command == "jump") return handle_jump(args);

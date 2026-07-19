@@ -164,9 +164,18 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
     public final void enable() {
         fireEvent(C.Event.ENABLING);
-        enableImpl(result -> {
-            maybeApplyStartupPreferences();
-            fireEvent(C.Event.ENABLED);
+        enableImpl(new Callback<>() {
+            @Override
+            public void onResult(final Void result) {
+                maybeApplyStartupPreferences();
+                fireEvent(C.Event.ENABLED);
+            }
+
+            @Override
+            public void onError(final Error error) {
+                fireError(error.getMessage());
+                fireEvent(C.Event.DISABLED);
+            }
         });
     }
 

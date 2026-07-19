@@ -13,9 +13,10 @@ public class Vars {
 
     static {
         sTunerRegions = new SparseArray<>();
-        sTunerRegions.put(BandUtils.BAND_EUROPE_US, "Europe/US (87.5-108.0 MHz)");
-        sTunerRegions.put(BandUtils.BAND_JAPAN_STANDARD, "Japan Standard (76-95 MHz)");
-        sTunerRegions.put(BandUtils.BAND_JAPAN_WIDE, "Japan Wide (76-108 MHz)");
+        sTunerRegions.put(BandUtils.BAND_EUROPE, "Europe (87.5-108.0 MHz, 50µs)");
+        sTunerRegions.put(BandUtils.BAND_US, "United States (87.5-108.0 MHz, 75µs)");
+        sTunerRegions.put(BandUtils.BAND_JAPAN_STANDARD, "Japan Standard (76-95 MHz, 50µs)");
+        sTunerRegions.put(BandUtils.BAND_JAPAN_WIDE, "Japan Wide (76-108 MHz, 50µs)");
 
         sTunerSpacing = new SparseArray<>();
         sTunerSpacing.put(BandUtils.SPACING_50kHz, "50 kHz");

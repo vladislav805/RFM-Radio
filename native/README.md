@@ -91,17 +91,16 @@ This protocol is intentionally stable because the Java layer already depends on 
 The unified binary accepts the same external command API used before the merge:
 
 - `init`
-- `enable`
+- `enable freq=<khz> region=<eu|us|jp|jp_wide> spacing=<50|100|200> stereo=<0|1> antenna=<value> af=<0|1>`
 - `disable`
 - `setfreq <khz>`
 - `jump <direction>`
 - `seekhw <direction>`
 - `power_mode <low|normal>`
-- `rds_toggle <0|1>`
 - `set_stereo <0|1>`
 - `set_antenna <value>`
-- `set_region <value>`
-- `set_spacing <value>`
+- `set_region <eu|us|jp|jp_wide>`
+- `set_spacing <50|100|200>`
 - `searchhw`
 - `search_cancel`
 - `auto_af <0|1>`
@@ -113,6 +112,12 @@ Not every command has identical meaning on both backends:
 - some setup commands may be ignored or mapped differently depending on backend capabilities
 
 The external protocol still stays uniform.
+
+The named `enable` parameters are mandatory and may appear in any order. The
+command applies the complete tuner configuration and initial frequency before
+returning. The individual setup commands remain available for runtime changes.
+Emphasis and RDS standard are derived from `region`: Europe uses 50 us/RDS,
+United States uses 75 us/RBDS, and both Japanese profiles use 50 us/RDS.
 
 ## Build
 

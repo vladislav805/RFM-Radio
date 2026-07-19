@@ -30,8 +30,12 @@ if(RFM_NATIVE_TESTS)
         tests/rds_parser_test.cpp
         tests/frequency_format_test.cpp
         tests/ctl_json_test.cpp
+        tests/startup_config_test.cpp
+        tests/region_profile_test.cpp
         rds_parser.cpp
         ctl_json.cpp
+        startup_config.cpp
+        region_profile.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
     target_link_libraries(rfm_native_tests GTest::gtest_main)
@@ -45,6 +49,8 @@ add_executable(
     main.cpp
     ctl_server.cpp
     ctl_json.cpp
+    startup_config.cpp
+    region_profile.cpp
     rds_parser.cpp
     backend_factory.cpp
     legacy_backend.cpp

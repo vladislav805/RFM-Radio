@@ -1,4 +1,5 @@
 #include "backend.h"
+#include "region_profile.h"
 
 #include "legacy/fm_wrap.h"
 #include "legacy/fm_ctl.h"
@@ -9,13 +10,13 @@ constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 
-channel_space_t map_app_spacing(int spacing) {
-    switch (spacing) {
-        case 1:
+channel_space_t map_spacing_to_vendor(int spacing_khz) {
+    switch (spacing_khz) {
+        case 50:
             return FM_RX_SPACE_50KHZ;
-        case 3:
+        case 200:
             return FM_RX_SPACE_200KHZ;
-        case 2:
+        case 100:
         default:
             return FM_RX_SPACE_100KHZ;
     }
@@ -31,22 +32,39 @@ public:
         return set_status(fm_command_open() == FM_CMD_SUCCESS, kErrFailed);
     }
 
-    bool enable() override {
+    bool enable(const StartupConfig &config) override {
+        const RegionProfile &profile = get_region_profile(config.region);
         fm_config_data cfg_data = {
-                .band = FM_RX_US_EUROPE,
-                .emphasis = FM_RX_EMP75,
-                .spacing = FM_RX_SPACE_100KHZ,
+                .emphasis = static_cast<emphasis_t>(profile.emphasis),
+                .spacing = map_spacing_to_vendor(config.spacing_khz),
+                .antenna = static_cast<uint8>(config.antenna),
         };
 
         if (!set_status(fm_command_prepare(&cfg_data) == FM_CMD_SUCCESS, kErrFailed)) {
-            return false;
+            return rollback_enable();
         }
 
-        if (!set_status(fm_command_setup_rds(FM_RX_RDS_SYSTEM) == FM_CMD_SUCCESS, kErrFailed)) {
-            return false;
+        // Driver rejects RDS_ON if the band is configured first. Keep RDS
+        // setup before fm_receiver_set_band(), then tune and unmute last.
+        if (!set_status(fm_command_setup_rds(static_cast<rds_system_t>(profile.rds_standard)) == FM_CMD_SUCCESS, kErrFailed)) {
+            return rollback_enable();
         }
 
-        return set_status(fm_command_set_mute_mode(FM_RX_NO_MUTE) == FM_CMD_SUCCESS, kErrFailed);
+        if (!set_status(
+                fm_receiver_set_band(static_cast<radio_band_t>(profile.legacy_band)) == TRUE,
+                kErrCantSetRegion
+        ) || !set_stereo(config.stereo)) {
+            return rollback_enable();
+        }
+
+        if (!set_auto_af(config.auto_af) || !set_frequency(config.frequency_khz)) {
+            return rollback_enable();
+        }
+
+        if (!set_status(fm_command_set_mute_mode(FM_RX_NO_MUTE) == FM_CMD_SUCCESS, kErrFailed)) {
+            return rollback_enable();
+        }
+        return true;
     }
 
     bool disable() override {
@@ -90,12 +108,40 @@ public:
         return set_status(fm_receiver_set_antenna(static_cast<uint8>(antenna)) == TRUE, kErrInvalidAntenna);
     }
 
-    bool set_region(int region) override {
-        return set_status(fm_receiver_set_band(static_cast<radio_band_t>(region)) == TRUE, kErrCantSetRegion);
+    bool set_region(StartupRegion region) override {
+        const RegionProfile &profile = get_region_profile(region);
+        if (!set_status(
+                fm_receiver_set_band(static_cast<radio_band_t>(profile.legacy_band)) == TRUE,
+                kErrCantSetRegion
+        )) {
+            return false;
+        }
+        if (!set_status(
+                fm_receiver_set_emphasis(static_cast<emphasis_t>(profile.emphasis)) == TRUE,
+                kErrFailed
+        )) {
+            return false;
+        }
+        if (!set_status(
+                fm_receiver_set_rds_system(static_cast<rds_system_t>(profile.rds_standard)) == TRUE,
+                kErrFailed
+        )) {
+            return false;
+        }
+
+        const uint32_t current_frequency = fm_command_get_tuned_frequency();
+
+        if (current_frequency == 0) {
+            return true;
+        }
+
+        const uint32_t target_frequency = clamp_frequency_to_region(profile, current_frequency);
+
+        return target_frequency == current_frequency || set_frequency(target_frequency);
     }
 
-    bool set_spacing(int spacing) override {
-        return set_status(fm_receiver_set_spacing(map_app_spacing(spacing)) == TRUE, kErrFailed);
+    bool set_spacing(int spacing_khz) override {
+        return set_status(fm_receiver_set_spacing(map_spacing_to_vendor(spacing_khz)) == TRUE, kErrFailed);
     }
 
     bool search() override {
@@ -125,6 +171,16 @@ public:
     }
 
 private:
+    bool rollback_enable() {
+        const char *error = last_error_;
+        if (fm_command_disable() != FM_CMD_SUCCESS) {
+            fm_receiver_set_state(OFF);
+            fm_receiver_close();
+        }
+        last_error_ = error;
+        return false;
+    }
+
     bool set_status(bool ok, const char *error) {
         last_error_ = ok ? "" : (error != nullptr ? error : kErrFailed);
         return ok;

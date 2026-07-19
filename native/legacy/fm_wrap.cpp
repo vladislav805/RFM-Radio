@@ -84,7 +84,6 @@ bool process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_RADIO_READY: {
             legacy_log("event", "FM enabled");
             fm_storage.state = RX;
-            send_native_event("enabled");
             break;
         }
 
@@ -441,7 +440,6 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
      * V4L2_CID_PRIVATE_TAVARUA_EMPHASIS
      * V4L2_CID_PRIVATE_TAVARUA_SPACING
      * V4L2_CID_PRIVATE_TAVARUA_RDS_STD
-     * V4L2_CID_PRIVATE_TAVARUA_REGION
      */
 
     // Enable RX (Receiver)
@@ -454,10 +452,13 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
         return FM_CMD_FAILURE;
     }
 
+    ret = fm_receiver_set_mute_mode(FM_RX_MUTE_BOTH);
+    CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "mute receiver during setup");
+
     // Power level
     // set_v4l2_ctrl(fd_radio, V4L2_CID_TUNE_POWER_LEVEL, 7);
 
-    // Emphasis (50/75 kHz)
+    // FM de-emphasis (50/75 microseconds)
     legacy_log("setup", "emphasis=%d", cfg->emphasis);
     ret = fm_receiver_set_emphasis(cfg->emphasis);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change emphasis");
@@ -467,13 +468,8 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     ret = fm_receiver_set_spacing(cfg->spacing);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change channel spacing");
 
-    // Set band and range frequencies
-    //ret = fm_receiver_set_band(cfg->band);
-    //CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change band and limit frequencies");
-
-
     // Set antenna
-    ret = fm_receiver_set_antenna(0);
+    ret = fm_receiver_set_antenna(cfg->antenna);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change antenna");
 
     // Create threads

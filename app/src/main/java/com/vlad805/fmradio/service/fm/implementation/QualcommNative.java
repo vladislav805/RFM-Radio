@@ -2,12 +2,14 @@ package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.TunerDriver;
-import com.vlad805.fmradio.service.fm.RadioStatePatch;
+import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.File;
+import java.util.Locale;
 
 public class QualcommNative extends AbstractQualcommNativeController {
     private static final long DUPLICATE_TUNE_WINDOW_MS = 1500L;
@@ -40,7 +42,61 @@ public class QualcommNative extends AbstractQualcommNativeController {
         toggleCommandPoll(true);
         startServerListener();
         Utils.sleep(300);
-        sendCommand(new Request("init", 5000).onResponse(data -> callback.onResult(null)));
+        sendCommand(new Request("init", 5000).onResponse(data -> {
+            if (isOkResponse(data)) {
+                callback.onResult(null);
+            } else {
+                callback.onError(new Error("Failed to initialize tuner: " + data));
+            }
+        }));
+    }
+
+    @Override
+    protected void enableImpl(final Callback<Void> callback) {
+        final int region = Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+        final int frequency = getStartupFrequency(region);
+        final int spacing = Storage.getPrefInt(context, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+        final boolean stereo = Storage.getPrefBoolean(context, C.PrefKey.TUNER_STEREO, C.PrefDefaultValue.TUNER_STEREO);
+        final int antenna = Storage.getPrefInt(context, C.PrefKey.TUNER_ANTENNA, C.PrefDefaultValue.TUNER_ANTENNA);
+        final boolean autoAf = Storage.getPrefBoolean(context, C.PrefKey.RDS_AUTO_AF, C.PrefDefaultValue.RDS_AUTO_AF);
+
+        final String command = String.format(
+                Locale.US,
+                "enable freq=%d region=%s spacing=%d stereo=%d antenna=%d af=%d",
+                frequency,
+                regionName(region),
+                spacingKhz(spacing),
+                stereo ? 1 : 0,
+                antenna,
+                autoAf ? 1 : 0
+        );
+        sendCommand(new Request(command, 5000).onResponse(result -> {
+            if (!isOkResponse(result)) {
+                callback.onError(new Error("Failed to enable tuner: " + result));
+                return;
+            }
+            callback.onResult(null);
+        }));
+    }
+
+    @Override
+    protected boolean shouldApplyStartupPreferences() {
+        return false;
+    }
+
+    @Override
+    protected void applyPreferenceImpl(final String key, final String value) {
+        switch (key) {
+            case C.PrefKey.TUNER_REGION:
+                sendCommand(new Request("set_region " + regionName(Utils.parseInt(value))));
+                break;
+            case C.PrefKey.TUNER_SPACING:
+                sendCommand(new Request("set_spacing " + spacingKhz(Utils.parseInt(value))));
+                break;
+            default:
+                super.applyPreferenceImpl(key, value);
+                break;
+        }
     }
 
     @Override
@@ -50,15 +106,6 @@ public class QualcommNative extends AbstractQualcommNativeController {
                 fireEvent(C.Event.ERROR_INVALID_ANTENNA);
             }
         }));
-    }
-
-    @Override
-    protected String[] getStartupPreferenceKeys() {
-        if (mDriverKind == TunerDriver.HAL) {
-            return new String[]{C.PrefKey.RDS_AUTO_AF};
-        }
-
-        return super.getStartupPreferenceKeys();
     }
 
     @Override
@@ -77,13 +124,6 @@ public class QualcommNative extends AbstractQualcommNativeController {
         sendCommand(new Request("setfreq " + kHz).onResponse(data -> callback.onResult(kHz)));
     }
 
-    @Override
-    protected void onServerStatePatch(final RadioStatePatch patch) {
-        if (mDriverKind == TunerDriver.HAL && patch.getFrequency() != null) {
-            sendCommand(new Request("set_stereo 1"));
-        }
-    }
-
     public int getRecorderSampleRate() {
         // HAL - 48kHz
         // Legacy - 44.1kHz
@@ -91,11 +131,49 @@ public class QualcommNative extends AbstractQualcommNativeController {
     }
 
     public void refreshAudioRoute() {
-        if (mDriverKind != TunerDriver.HAL) {
-            return;
+        if (mDriverKind == TunerDriver.HAL) {
+            sendCommand(new Request("slimbus 0", 2000));
+            sendCommand(new Request("slimbus 1", 2000));
         }
+    }
 
-        sendCommand(new Request("slimbus 0", 2000));
-        sendCommand(new Request("slimbus 1", 2000));
+    private static String regionName(final int region) {
+        switch (region) {
+            case 2:
+                return "jp";
+            case 3:
+                return "jp_wide";
+            case 4:
+                return "us";
+            case 1:
+            default:
+                return "eu";
+        }
+    }
+
+    private static int spacingKhz(final int spacing) {
+        switch (spacing) {
+            case 1:
+                return 50;
+            case 3:
+                return 200;
+            case 2:
+            default:
+                return 100;
+        }
+    }
+
+    private static boolean isOkResponse(final String response) {
+        return response != null && response.startsWith("ok");
+    }
+
+    private int getStartupFrequency(final int region) {
+        final int savedFrequency = Storage.getInstance(context).getInt(
+                C.PrefKey.LAST_FREQUENCY,
+                C.PrefDefaultValue.LAST_FREQUENCY
+        );
+        final BandUtils.BandLimit band = BandUtils.getBandLimit(region);
+
+        return Math.max(band.lower, Math.min(savedFrequency, band.upper));
     }
 }

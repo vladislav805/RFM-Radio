@@ -13,6 +13,7 @@
 #include "../ctl_server.h"
 #include "../frequency_format.h"
 #include "../fm_v4l2_controls.h"
+#include "../region_profile.h"
 #include "../rds_parser.h"
 #include "fm2_vendor_iface.h"
 #include "utils.h"
@@ -21,10 +22,17 @@ namespace {
 
 constexpr const char *kFmLibraryName = "fm_helium.so";
 constexpr const char *kFmLibrarySymbol = "FM_HELIUM_LIB_INTERFACE";
+
 constexpr int kFmRxState = 1;
+
 constexpr int kSearchModeSeek = 0;
 constexpr int kSearchModeScan = 1;
 constexpr int kSearchModeStrongList = 2;
+
+constexpr int kHeliumSpacing200Khz = 0;
+constexpr int kHeliumSpacing100Khz = 1;
+constexpr int kHeliumSpacing50Khz = 2;
+
 constexpr int kDefaultListSize = 20;
 constexpr int kMaxScanStations = 64;
 constexpr int kEnableWaitTimeoutMs = 2000;
@@ -69,12 +77,14 @@ struct RuntimeState {
     bool low_power = false;
     bool auto_af = false;
     int antenna = 0;
-    int app_band = 1;
+    StartupRegion region = StartupRegion::kEurope;
     int vendor_region = 0;
     int lower_band_khz = 87500;
     int upper_band_khz = 108000;
-    int app_spacing = 2;
+    int spacing_khz = 100;
     int vendor_spacing = 1;
+    int emphasis = kFmEmphasis50Microseconds;
+    int rds_standard = kFmRdsStandardRds;
     int current_frequency_khz = 87500;
     uint64_t last_enabled_cb_ms = 0;
     uint64_t last_tune_cb_ms = 0;
@@ -277,17 +287,17 @@ bool apply_raw_rds_group_mask() {
     return vendor_set(kV4l2CtrlRdsGroupMask, kHalDefaultRawRdsGroupMask, "failed to set raw rds group mask");
 }
 
-bool apply_processed_rds_config(bool auto_af) {
-    if (!vendor_set(kV4l2CtrlRdsOn, 1, "failed to set rds on")) {
+bool apply_processed_rds_config(bool auto_af, int rds_standard) {
+    if (!vendor_set(kV4l2CtrlRdsStandard, rds_standard, "failed to set rds standard")) {
         return false;
     }
+
     if (!vendor_set(kV4l2CtrlRdsGroupProc, kHalDefaultRdsGroupProcMask, "failed to set rds groups")) {
-        vendor_set(kV4l2CtrlRdsOn, 0, "failed to roll back rds on");
         return false;
     }
+
     if (!vendor_set(kV4l2CtrlAfJump, auto_af ? 1 : 0, "failed to set af jump")) {
         vendor_set(kV4l2CtrlRdsGroupProc, 0, "failed to roll back rds groups");
-        vendor_set(kV4l2CtrlRdsOn, 0, "failed to roll back rds on");
         return false;
     }
 
@@ -297,10 +307,12 @@ bool apply_processed_rds_config(bool auto_af) {
 bool apply_post_enable_config() {
     bool auto_af = false;
     bool low_power = false;
+    int rds_standard = 0;
 
     pthread_mutex_lock(&g_state.lock);
     auto_af = g_state.auto_af;
     low_power = g_state.low_power;
+    rds_standard = g_state.rds_standard;
     pthread_mutex_unlock(&g_state.lock);
 
     if (!apply_raw_rds_group_mask()) {
@@ -311,57 +323,37 @@ bool apply_post_enable_config() {
         return false;
     }
 
-    return apply_processed_rds_config(auto_af);
+    return apply_processed_rds_config(auto_af, rds_standard);
 }
 
 int current_frequency_locked() {
     return g_state.current_frequency_khz;
 }
 
-int map_app_spacing_to_vendor(int app_spacing) {
-    switch (app_spacing) {
-        case 1:
-            return 2;
-        case 3:
-            return 0;
-        case 2:
+int map_spacing_to_vendor(int spacing_khz) {
+    switch (spacing_khz) {
+        case 50:
+            return kHeliumSpacing50Khz;
+        case 200:
+            return kHeliumSpacing200Khz;
+        case 100:
         default:
-            return 1;
+            return kHeliumSpacing100Khz;
     }
 }
 
-void apply_band_config_locked(int app_region) {
-    g_state.app_band = app_region;
-    switch (app_region) {
-        case 2:
-            g_state.vendor_region = 2;
-            g_state.lower_band_khz = 76000;
-            g_state.upper_band_khz = 95000;
-            break;
-        case 3:
-            g_state.vendor_region = 3;
-            g_state.lower_band_khz = 76000;
-            g_state.upper_band_khz = 108000;
-            break;
-        case 1:
-        default:
-            g_state.vendor_region = 4;
-            g_state.lower_band_khz = 87500;
-            g_state.upper_band_khz = 108000;
-            break;
-    }
+void apply_region_profile_locked(StartupRegion region) {
+    const RegionProfile &profile = get_region_profile(region);
+    g_state.region = region;
+    g_state.vendor_region = profile.helium_region;
+    g_state.lower_band_khz = static_cast<int>(profile.lower_frequency_khz);
+    g_state.upper_band_khz = static_cast<int>(profile.upper_frequency_khz);
+    g_state.emphasis = profile.emphasis;
+    g_state.rds_standard = profile.rds_standard;
 }
 
 int spacing_step_khz_locked() {
-    switch (g_state.app_spacing) {
-        case 1:
-            return 50;
-        case 3:
-            return 200;
-        case 2:
-        default:
-            return 100;
-    }
+    return g_state.spacing_khz;
 }
 
 void log_scan_next_cb() {
@@ -624,7 +616,6 @@ void enabled_cb() {
     g_state.last_enabled_cb_ms = now_ms();
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
-    send_native_event("enabled");
 }
 
 void disabled_cb() {
@@ -918,27 +909,40 @@ bool apply_runtime_config() {
     int lower = 0;
     int upper = 0;
     int stereo = 0;
+    int antenna = 0;
+    int emphasis = 0;
+    int rds_standard = 0;
 
     pthread_mutex_lock(&g_state.lock);
     spacing = g_state.vendor_spacing;
     region = g_state.vendor_region;
     lower = g_state.lower_band_khz;
     upper = g_state.upper_band_khz;
-    stereo = g_state.audio.stereo ? 1 : 0;
+    stereo = g_state.audio.mode_stereo ? 1 : 0;
+    antenna = g_state.antenna;
+    emphasis = g_state.emphasis;
+    rds_standard = g_state.rds_standard;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d stereo=%d",
-            region, lower, upper, spacing, stereo);
+    hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d emphasis=%d rds=%d stereo=%d antenna=%d",
+            region, lower, upper, spacing, emphasis, rds_standard, stereo, antenna);
 
     bool ok = true;
     ok &= vendor_set(kV4l2CtrlRegion, region, "failed to set region");
     ok &= vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band");
     ok &= vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band");
     ok &= vendor_set(kV4l2CtrlChannelSpacing, spacing, "failed to set channel spacing");
-    ok &= vendor_set(kV4l2CtrlEmphasis, 1, "failed to set emphasis");
-    ok &= vendor_set(kV4l2CtrlRdsStandard, 1, "failed to set rds standard");
+    ok &= vendor_set(kV4l2CtrlIrisAudioMode, stereo, "failed to set stereo mode");
+    ok &= vendor_set(kV4l2CtrlAntenna, antenna, "failed to set antenna");
+    ok &= vendor_set(kV4l2CtrlEmphasis, emphasis, "failed to set emphasis");
+    ok &= vendor_set(kV4l2CtrlRdsStandard, rds_standard, "failed to set rds standard");
     ok &= apply_signal_threshold();
     ok &= vendor_set(kV4l2CtrlSoftMute, 1, "failed to enable soft mute");
+    if (ok) {
+        pthread_mutex_lock(&g_state.lock);
+        g_state.audio.mode_valid = true;
+        pthread_mutex_unlock(&g_state.lock);
+    }
     return ok;
 }
 
@@ -952,8 +956,8 @@ bool fm2_backend_init() {
         return true;
     }
 
-    apply_band_config_locked(g_state.app_band);
-    g_state.vendor_spacing = map_app_spacing_to_vendor(g_state.app_spacing);
+    apply_region_profile_locked(g_state.region);
+    g_state.vendor_spacing = map_spacing_to_vendor(g_state.spacing_khz);
 
     g_state.lib_handle = dlopen(kFmLibraryName, RTLD_NOW);
     if (g_state.lib_handle == nullptr) {
@@ -985,6 +989,19 @@ bool fm2_backend_init() {
 
     g_state.initialized = true;
     clear_error_locked();
+    pthread_mutex_unlock(&g_state.lock);
+    return true;
+}
+
+bool fm2_backend_configure_startup(const StartupConfig &config) {
+    pthread_mutex_lock(&g_state.lock);
+    apply_region_profile_locked(config.region);
+    g_state.spacing_khz = config.spacing_khz;
+    g_state.vendor_spacing = map_spacing_to_vendor(config.spacing_khz);
+    g_state.audio.mode_stereo = config.stereo;
+    g_state.audio.mode_valid = false;
+    g_state.antenna = config.antenna;
+    g_state.auto_af = config.auto_af;
     pthread_mutex_unlock(&g_state.lock);
     return true;
 }
@@ -1063,6 +1080,7 @@ bool fm2_backend_set_frequency(uint32_t frequency_khz) {
 
 uint32_t fm2_backend_get_frequency() {
     int freq = 0;
+
     if (!vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read frequency")) {
         pthread_mutex_lock(&g_state.lock);
         const int cached = current_frequency_locked();
@@ -1172,29 +1190,44 @@ bool fm2_backend_set_stereo(bool enabled) {
     return vendor_set(kV4l2CtrlIrisAudioMode, enabled ? 1 : 0, "failed to set stereo mode");
 }
 
-bool fm2_backend_set_spacing_app_value(int app_spacing) {
-    hal_log("setup", "set app spacing=%d", app_spacing);
+bool fm2_backend_set_spacing_khz(int spacing_khz) {
+    hal_log("setup", "set spacing=%d kHz", spacing_khz);
     pthread_mutex_lock(&g_state.lock);
-    g_state.app_spacing = app_spacing;
-    g_state.vendor_spacing = map_app_spacing_to_vendor(app_spacing);
+    g_state.spacing_khz = spacing_khz;
+    g_state.vendor_spacing = map_spacing_to_vendor(spacing_khz);
     const int vendor_spacing = g_state.vendor_spacing;
     pthread_mutex_unlock(&g_state.lock);
     return vendor_set(kV4l2CtrlChannelSpacing, vendor_spacing, "failed to set spacing");
 }
 
-bool fm2_backend_set_region_app_value(int app_region) {
-    hal_log("setup", "set app region=%d", app_region);
+bool fm2_backend_set_region(StartupRegion startup_region) {
+    hal_log("setup", "set region=%s", get_region_name(startup_region));
     pthread_mutex_lock(&g_state.lock);
-    apply_band_config_locked(app_region);
+    apply_region_profile_locked(startup_region);
     const int region = g_state.vendor_region;
     const int lower = g_state.lower_band_khz;
     const int upper = g_state.upper_band_khz;
+    const int emphasis = g_state.emphasis;
+    const int rds_standard = g_state.rds_standard;
+    const int current_frequency = g_state.current_frequency_khz;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "apply region=%d lower=%d upper=%d", region, lower, upper);
-    return vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band") &&
-           vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band") &&
-           vendor_set(kV4l2CtrlRegion, region, "failed to set region");
+    hal_log("setup", "apply region=%d lower=%d upper=%d emphasis=%d rds=%d",
+            region, lower, upper, emphasis, rds_standard);
+    const bool configured =
+            vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band") &&
+            vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band") &&
+            vendor_set(kV4l2CtrlEmphasis, emphasis, "failed to set emphasis") &&
+            vendor_set(kV4l2CtrlRdsStandard, rds_standard, "failed to set rds standard") &&
+            vendor_set(kV4l2CtrlRegion, region, "failed to set region");
+    if (!configured || current_frequency <= 0) {
+        return configured;
+    }
+
+    const RegionProfile &profile = get_region_profile(startup_region);
+    const uint32_t target_frequency = clamp_frequency_to_region(profile, static_cast<uint32_t>(current_frequency));
+    return target_frequency == static_cast<uint32_t>(current_frequency) ||
+           fm2_backend_set_frequency(target_frequency);
 }
 
 bool fm2_backend_set_antenna(int antenna) {

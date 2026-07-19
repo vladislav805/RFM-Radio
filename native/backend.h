@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include "startup_config.h"
+
 enum class BackendKind {
     kNone = 0,
     kLegacy,
@@ -14,7 +16,7 @@ public:
 
     virtual BackendKind kind() const = 0;
     virtual bool init() = 0;
-    virtual bool enable() = 0;
+    virtual bool enable(const StartupConfig &config) = 0;
     virtual bool disable() = 0;
     virtual bool set_frequency(uint32_t frequency_khz) = 0;
     virtual bool jump(int direction, uint32_t *new_frequency) = 0;
@@ -22,8 +24,8 @@ public:
     virtual bool set_power_mode(bool low_power) = 0;
     virtual bool set_stereo(bool enabled) = 0;
     virtual bool set_antenna(int antenna) = 0;
-    virtual bool set_region(int region) = 0;
-    virtual bool set_spacing(int spacing) = 0;
+    virtual bool set_region(StartupRegion region) = 0;
+    virtual bool set_spacing(int spacing_khz) = 0;
     virtual bool search() = 0;
     virtual bool cancel_search() = 0;
     virtual bool set_auto_af(bool enabled) = 0;

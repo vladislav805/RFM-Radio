@@ -1,5 +1,7 @@
 #include "backend.h"
 
+#include <string>
+
 #include "hal/fm2_backend.h"
 
 namespace {
@@ -16,15 +18,19 @@ public:
         return set_status(fm2_backend_init());
     }
 
-    bool enable() override {
-        if (!set_status(fm2_backend_enable())) {
+    bool enable(const StartupConfig &config) override {
+        if (!set_status(fm2_backend_configure_startup(config))) {
             return false;
         }
 
-        // FM HAL enable is callback-driven. Returning success too early races
-        // with follow-up commands such as tune, so wait until the backend marks
-        // itself enabled.
-        return set_status(fm2_backend_wait_enabled(2000));
+        if (!set_status(fm2_backend_enable())) {
+            return rollback_enable();
+        }
+
+        if (!set_status(fm2_backend_set_frequency(config.frequency_khz))) {
+            return rollback_enable();
+        }
+        return true;
     }
 
     bool disable() override {
@@ -55,12 +61,12 @@ public:
         return set_status(fm2_backend_set_antenna(antenna));
     }
 
-    bool set_region(int region) override {
-        return set_status(fm2_backend_set_region_app_value(region));
+    bool set_region(StartupRegion region) override {
+        return set_status(fm2_backend_set_region(region));
     }
 
-    bool set_spacing(int spacing) override {
-        return set_status(fm2_backend_set_spacing_app_value(spacing));
+    bool set_spacing(int spacing_khz) override {
+        return set_status(fm2_backend_set_spacing_khz(spacing_khz));
     }
 
     bool search() override {
@@ -80,10 +86,17 @@ public:
     }
 
     const char *last_error() const override {
-        return last_error_;
+        return last_error_.c_str();
     }
 
 private:
+    bool rollback_enable() {
+        const std::string error = last_error_;
+        fm2_backend_disable();
+        last_error_ = error;
+        return false;
+    }
+
     bool set_status(bool ok) {
         last_error_ = ok
                 ? ""
@@ -91,7 +104,7 @@ private:
         return ok;
     }
 
-    const char *last_error_ = "";
+    std::string last_error_;
 };
 
 }  // namespace

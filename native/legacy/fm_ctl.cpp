@@ -154,8 +154,9 @@ bool fm_receiver_set_band(radio_band_t band) {
 
     int ret;
 
-    struct v4l2_tuner tuner;
+    struct v4l2_tuner tuner = {};
     tuner.index = 0;
+    tuner.type = V4L2_TUNER_RADIO;
     tuner.signal = 0;
     tuner.rangelow = khz_to_tunefreq(limits.lower_limit);
     tuner.rangehigh = khz_to_tunefreq(limits.upper_limit);
@@ -268,7 +269,7 @@ uint32 fm_receiver_get_tuned_frequency() {
 }
 
 bool fm_receiver_set_mute_mode(mute_t mode) {
-    return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode);
+    return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode == FM_RX_NO_MUTE ? 0 : 1);
 }
 
 /**
@@ -319,7 +320,7 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
         return FALSE;
     }
 
-    struct v4l2_tuner tuner;
+    struct v4l2_tuner tuner = {};
     tuner.index = 0;
     tuner.type = V4L2_TUNER_RADIO;
     tuner.audmode = mode;

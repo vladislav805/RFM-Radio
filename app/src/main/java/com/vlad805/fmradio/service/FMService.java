@@ -547,8 +547,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     if (!isHalDriver()) {
                         mAudioService.startAudio();
                     }
-                    final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-                    mRadioController.setFrequency(frequency);
+                    if (!(mTunerDriver instanceof QualcommNative)) {
+                        final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+                        mRadioController.setFrequency(frequency);
+                    }
                     updateNotification();
                     break;
                 }
