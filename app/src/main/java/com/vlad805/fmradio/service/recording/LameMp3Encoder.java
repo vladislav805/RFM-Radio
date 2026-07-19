@@ -16,7 +16,8 @@ final class LameMp3Encoder {
         }
     }
 
-    int encodeInterleaved(final short[] pcm, final int samplesPerChannel, final byte[] output) throws IOException {
+    synchronized int encodeInterleaved(final short[] pcm, final int samplesPerChannel, final byte[] output) throws IOException {
+        ensureOpen();
         final int written = nativeEncodeInterleaved(mHandle, pcm, samplesPerChannel, output);
         if (written < 0) {
             throw new IOException("MP3 encode failed");
@@ -24,7 +25,8 @@ final class LameMp3Encoder {
         return written;
     }
 
-    int flush(final byte[] output) throws IOException {
+    synchronized int flush(final byte[] output) throws IOException {
+        ensureOpen();
         final int written = nativeFlush(mHandle, output);
         if (written < 0) {
             throw new IOException("MP3 encoder flush failed");
@@ -32,10 +34,16 @@ final class LameMp3Encoder {
         return written;
     }
 
-    void close() {
+    synchronized void close() {
         if (mHandle != 0L) {
             nativeClose(mHandle);
             mHandle = 0L;
+        }
+    }
+
+    private void ensureOpen() throws IOException {
+        if (mHandle == 0L) {
+            throw new IOException("MP3 encoder is closed");
         }
     }
 

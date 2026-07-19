@@ -345,33 +345,55 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	@Override
 	public void stopRecord() {
-		if (mRecordingAudioRecord == null) {
+		final AudioRecord audioRecord = mRecordingAudioRecord;
+		final Thread recordingThread = mRecordingThread;
+		final IFMRecorder recorder = mPcmRecorder;
+
+		if (audioRecord == null) {
 			return;
 		}
 
 		Log.d(TAG, "stopRecord");
 		stopRecordingTimer();
 
-		if (mRecordingThread != null) {
-			mRecordingThread.interrupt();
-			mRecordingThread = null;
+		// Make the PCM loop exit and unblock a pending AudioRecord.read().
+		mRecordingAudioRecord = null;
+		if (recordingThread != null) {
+			recordingThread.interrupt();
 		}
-		if (mRecordingAudioRecord != null) {
-			try {
-				mRecordingAudioRecord.stop();
-			} catch (Throwable t) {
-				Log.w(TAG, "AudioRecord.stop failed", t);
-			}
-			try {
-				mRecordingAudioRecord.release();
-			} catch (Throwable ignored) {
-			}
-			mRecordingAudioRecord = null;
+		try {
+			audioRecord.stop();
+		} catch (Throwable t) {
+			Log.w(TAG, "AudioRecord.stop failed", t);
 		}
-		if (mPcmRecorder != null) {
-			mPcmRecorder.stopRecord();
+
+		// LAME encode must finish before the recorder is flushed and closed.
+		if (recordingThread != null && recordingThread != Thread.currentThread()) {
+			boolean interrupted = false;
+			while (recordingThread.isAlive()) {
+				try {
+					recordingThread.join();
+				} catch (InterruptedException e) {
+					interrupted = true;
+					Log.w(TAG, "Interrupted while waiting for recording thread", e);
+				}
+			}
+			if (interrupted) {
+				Thread.currentThread().interrupt();
+			}
+		}
+
+		// No thread uses AudioRecord or the recorder after this point.
+		try {
+			audioRecord.release();
+		} catch (Throwable ignored) {
+		}
+
+		if (recorder != null) {
+			recorder.stopRecord();
 			mPcmRecorder = null;
 		}
+		mRecordingThread = null;
 		mRecordingStartedMs = 0L;
 	}
 

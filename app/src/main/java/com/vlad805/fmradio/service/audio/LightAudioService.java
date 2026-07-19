@@ -148,9 +148,10 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 	@Override
 	public void stopRecord() {
-		if (mRecorder != null) {
-			mRecorder.stopRecord();
-		}
+		final IFMRecorder recorder = mRecorder;
 		mRecorder = null;
+		if (recorder != null) {
+			recorder.stopRecord();
+		}
 	}
 }

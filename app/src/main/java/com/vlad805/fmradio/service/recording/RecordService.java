@@ -89,7 +89,7 @@ public abstract class RecordService implements IFMRecorder {
      * @throws RecordError If something going wrong
      */
     @Override
-    public final void startRecord() throws RecordError {
+    public final synchronized void startRecord() throws RecordError {
         mStarted = System.currentTimeMillis();
         createFile();
         mState = State.RECORDING;
@@ -97,7 +97,7 @@ public abstract class RecordService implements IFMRecorder {
     }
 
     @Override
-    public final void record(final short[] data, final int length) {
+    public final synchronized void record(final short[] data, final int length) {
         if (mState == State.RECORDING) {
             try {
                 byte[] bufferEncoded = new byte[(int) (7200 + data.length * 2 * 1.75)];
@@ -121,7 +121,7 @@ public abstract class RecordService implements IFMRecorder {
      * Called on user click "Stop record"
      */
     @Override
-    public void stopRecord() {
+    public synchronized void stopRecord() {
         if (mState == State.FINISHING || mState == State.DONE) {
             return;
         }
@@ -130,6 +130,7 @@ public abstract class RecordService implements IFMRecorder {
             return;
         }
 
+        // Reject further PCM data before flushing and closing the encoder.
         mState = State.FINISHING;
 
         onFinishRecording();
@@ -181,7 +182,7 @@ public abstract class RecordService implements IFMRecorder {
      * Returns state
      * @return State
      */
-    public State getState() {
+    public synchronized State getState() {
         return mState;
     }
 
