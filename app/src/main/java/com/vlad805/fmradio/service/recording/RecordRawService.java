@@ -158,6 +158,8 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	 */
 	private void writeFinal() {
 		try {
+			mBufferOutStream.flush();
+
 			final FileChannel channel = getRecordingChannel();
 			if (channel == null) {
 				return;
