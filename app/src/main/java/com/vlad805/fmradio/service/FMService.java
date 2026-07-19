@@ -556,9 +556,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.DISABLED: {
-                    if (!isHalDriver()) {
-                        mAudioService.stopAudio();
-                    }
+                    mAudioService.stopAudio();
                     break;
                 }
 
