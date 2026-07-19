@@ -1,14 +1,9 @@
 package com.vlad805.fmradio;
 
-/**
- * vlad805 (c) 2021
- */
+import com.vlad805.fmradio.preferences.BandUtils;
+
 public class UtilsLocalization {
-    /**
-     * Only Europe
-     * @link <a href="https://www.electronics-notes.com/articles/audio-video/broadcast-audio/rds-radio-data-system-pty-codes.php">Source</a>
-     */
-    private static final String[] mProgramTypeName = new String[] {
+    private static final String[] RDS_PROGRAM_TYPES = new String[] {
             "", // 0
             "News", // 1
             "Current affairs", // 2
@@ -43,13 +38,47 @@ public class UtilsLocalization {
             "Alarm", // 31
     };
 
-    public static String getProgramType(final int pty) {
-        // If in range of names
-        return pty > 0 && pty < mProgramTypeName.length
-                // Return name
-                ? mProgramTypeName[pty]
-                // Else return N/A
-                : mProgramTypeName[0];
+    private static final String[] RBDS_PROGRAM_TYPES = new String[] {
+            "", // 0
+            "News", // 1
+            "Information", // 2
+            "Sports", // 3
+            "Talk", // 4
+            "Rock", // 5
+            "Classic Rock", // 6
+            "Adult Hits", // 7
+            "Soft Rock", // 8
+            "Top 40", // 9
+            "Country", // 10
+            "Oldies", // 11
+            "Soft", // 12
+            "Nostalgia", // 13
+            "Jazz", // 14
+            "Classical", // 15
+            "Rhythm and Blues", // 16
+            "Soft Rhythm and Blues", // 17
+            "Foreign Language", // 18
+            "Religious Music", // 19
+            "Religious Talk", // 20
+            "Personality", // 21
+            "Public", // 22
+            "College", // 23
+            "Spanish Talk", // 24
+            "Spanish Music", // 25
+            "Hip Hop", // 26
+            "Unassigned", // 27
+            "Unassigned", // 28
+            "Weather", // 29
+            "Emergency Test", // 30
+            "Emergency", // 31
+    };
+
+    public static String getProgramType(final int pty, final int region) {
+        final String[] names = region == BandUtils.BAND_US
+                ? RBDS_PROGRAM_TYPES
+                : RDS_PROGRAM_TYPES;
+
+        return pty > 0 && pty < names.length ? names[pty] : names[0];
 
     }
 }

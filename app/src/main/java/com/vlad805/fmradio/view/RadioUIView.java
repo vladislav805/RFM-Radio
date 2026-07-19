@@ -71,7 +71,10 @@ public class RadioUIView extends LinearLayout {
 	public final void setRadioState(final RadioState state) {
 		mRdsPs.setText(state.getPs());
 		mRdsRt.setText(state.getRt());
-		mLastPtyText = UtilsLocalization.getProgramType(state.getPty());
+
+		final int region = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+		mLastPtyText = UtilsLocalization.getProgramType(state.getPty(), region);
+
 		if (!mStatusShown) {
 			mRdsPty.setText(mLastPtyText);
 		}
