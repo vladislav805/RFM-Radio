@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,12 +18,25 @@ namespace {
 pthread_mutex_t g_state_lock = PTHREAD_MUTEX_INITIALIZER;
 RadioStateJsonCache g_last_state;
 
+constexpr int kServerLogIn = 0;
+constexpr int kServerLogOut = 1;
+
+void server_log(const char *scope, const int type, const char *fmt, ...) {
+    printf("server/%-7s%s ", scope, type == kServerLogIn ? ">" : "<");
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+
+    printf("\n");
+}
+
 bool send_json_message(const std::string &json) {
-    // Temporary protocol trace while native -> Java JSON framing is settling.
-    printf("native/udp     : %s\n", json.c_str());
+    server_log("send", kServerLogOut, "%s", json.c_str());
 
     if (json.size() >= CS_BUF) {
-        printf("native/udp     : JSON too large: %zu bytes\n", json.size());
+        server_log("error", kServerLogOut, "JSON too large: %zu bytes", json.size());
         return false;
     }
 
@@ -69,10 +83,13 @@ int init_server(fm_srv_callback request_callback) {
         memset(buf, 0, sizeof(buf));
 
         socklen_t cli_len = sizeof(cli_addr);
-        ssize_t cmd_len = recvfrom(sockfd, buf, sizeof(buf), 0, reinterpret_cast<struct sockaddr *>(&cli_addr), &cli_len);
+        ssize_t cmd_len = recvfrom(sockfd, buf, sizeof(buf) - 1, 0, reinterpret_cast<struct sockaddr *>(&cli_addr), &cli_len);
         if (cmd_len < 0) {
             continue;
         }
+
+        buf[cmd_len] = '\0';
+        server_log("recv", kServerLogIn, "%s", buf);
 
         if (strcmp(buf, "exit") == 0) {
             break;
@@ -88,14 +105,14 @@ int init_server(fm_srv_callback request_callback) {
 
 radio_state_patch_t radio_state_patch_empty(void) {
     radio_state_patch_t patch;
+
     patch.frequency_khz = RADIO_PATCH_ABSENT_INT;
-    patch.ps = nullptr;
-    patch.rt = nullptr;
-    patch.pi = nullptr;
+    patch.ps = patch.rt = patch.pi = nullptr;
     patch.pty = RADIO_PATCH_ABSENT_INT;
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;
     patch.stereo = RADIO_PATCH_ABSENT_INT;
+
     return patch;
 }
 
