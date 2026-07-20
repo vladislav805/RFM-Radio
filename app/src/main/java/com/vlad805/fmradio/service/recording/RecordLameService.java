@@ -15,7 +15,7 @@ import java.util.Locale;
 public class RecordLameService extends RecordService implements IFMRecorder {
 	private static final int CHANNELS = 2;
 	private static final int BITRATE_KBPS = 192;
-	private static final int QUALITY = 8;
+	private static final int QUALITY = 5;
 	// Output buffer for final MP3 frames emitted when LAME flushes its internal delay/padding.
 	private static final int MP3_FLUSH_BUFFER_SIZE = 7200;
 	private LameMp3Encoder mEncoder;
