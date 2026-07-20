@@ -60,3 +60,4 @@ app/src/main/assets/fmbin*
 .codex
 .vscode/settings.json
 .ideas
+/_*
