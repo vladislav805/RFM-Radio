@@ -16,15 +16,18 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.RequiresPermission;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
+import com.vlad805.fmradio.service.recording.PcmRecorderSession;
 import com.vlad805.fmradio.service.recording.RecordService;
 
 /**
@@ -47,15 +50,36 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
 	private boolean mSpeakerEnabled = false;
+
+	/** FM input capture kept alive while pre-roll or on-demand recording is active. */
 	private AudioRecord mRecordingAudioRecord;
+
+	/** Worker continuously reading PCM from {@link #mRecordingAudioRecord}. */
 	private Thread mRecordingThread;
+
+	/** Destination recorder used by the current recording request. */
 	private IFMRecorder mPcmRecorder;
-	private long mRecordingStartedMs;
+
+	/** Session retaining captured PCM and forwarding it to {@link #mPcmRecorder}. */
+	private volatile PcmRecorderSession mPcmSession;
+
+	/** Whether FM PCM history should remain active during playback. */
+	private boolean mPreRollEnabled;
+
+	/** Preference value deferred until the active recording is stopped. */
+	private Boolean mPendingPreRollEnabled;
+
+	/** Whether the current record action had to start an on-demand FM capture. */
+	private boolean mCaptureStartedForRecording;
+
+	/** Main-thread handler publishing recording progress. */
 	private final Handler mRecordingHandler = new Handler(Looper.getMainLooper());
+
+	/** Periodically refreshes duration and file size while recording. */
 	private final Runnable mRecordingUpdateRunnable = new Runnable() {
 		@Override
 		public void run() {
-			if (mRecordingAudioRecord == null) {
+			if (mPcmRecorder == null) {
 				return;
 			}
 
@@ -85,6 +109,12 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	public RoutingAudioService(final Context context) {
 		super(context);
 		mContext = context.getApplicationContext();
+		mPreRollEnabled = Storage.getPrefBoolean(
+				context,
+				C.PrefKey.RECORDING_SAVE_PAST,
+				C.PrefDefaultValue.RECORDING_SAVE_PAST
+		);
+		mPcmSession = createPcmSession(mPreRollEnabled);
 	}
 
 	@Override
@@ -100,6 +130,13 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		registerVolumeListener();
 		mIsActive = true;
 		applyRoute(true, mSpeakerEnabled, true);
+		if (mPreRollEnabled && hasRecordAudioPermission()) {
+			try {
+				startPcmCapture();
+			} catch (RecordError error) {
+				Log.w(TAG, "Cannot start pre-roll capture", error);
+			}
+		}
 	}
 
 	@Override
@@ -110,6 +147,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		}
 
 		stopRecord();
+		stopPcmCapture();
 		Log.d(TAG, "stopAudio: disabling FM route");
 		applyRoute(false, mSpeakerEnabled, false);
 		mIsActive = false;
@@ -248,7 +286,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	@RequiresPermission(Manifest.permission.RECORD_AUDIO)
     @Override
 	public void startRecord(final IFMRecorder recorder) throws RecordError {
-		if (mRecordingAudioRecord != null) {
+		if (mPcmRecorder != null) {
 			Log.d(TAG, "startRecord: already recording");
 			return;
 		}
@@ -261,11 +299,38 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 		ensureRecordingPermissions();
 
-		startAudioRecordRecorder(recorder);
+		mCaptureStartedForRecording = mRecordingAudioRecord == null;
+		if (mCaptureStartedForRecording) {
+			startPcmCapture();
+		}
+
+		try {
+			mPcmSession.start(recorder);
+		} catch (RecordError error) {
+			if (mCaptureStartedForRecording) {
+				stopPcmCapture();
+			}
+			throw error;
+		}
+
+		mPcmRecorder = recorder;
+		startRecordingTimer();
 	}
 
-	@RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    private void startAudioRecordRecorder(final IFMRecorder recorder) throws RecordError {
+	/**
+	 * Starts continuous PCM capture from Android's FM tuner input device.
+	 *
+	 * @throws RecordError If the FM input cannot be opened
+	 */
+	@SuppressLint("MissingPermission")
+	private void startPcmCapture() throws RecordError {
+		if (mRecordingAudioRecord != null) {
+			return;
+		}
+		if (!hasRecordAudioPermission()) {
+			throw new RecordError("Please allow microphone access before recording");
+		}
+
 		final AudioDeviceInfo fmTuner = findFmTunerInputDevice();
 		if (fmTuner == null) {
 			throw new RecordError("FM Tuner input device not found");
@@ -277,7 +342,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				AudioFormat.ENCODING_PCM_16BIT
 		);
 		if (bufferSize <= 0) {
-			recorder.stopRecord();
 			throw new RecordError("AudioRecord buffer init failed");
 		}
 
@@ -315,28 +379,34 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			throw new RecordError("AudioRecord.startRecording failed");
 		}
 
-		try {
-			recorder.startRecord();
-		} catch (RecordError e) {
-			try {
-				audioRecord.stop();
-			} catch (Throwable ignored) {
-			}
-			audioRecord.release();
-			throw e;
-		}
-
 		mRecordingAudioRecord = audioRecord;
-		mPcmRecorder = recorder;
-		mRecordingStartedMs = System.currentTimeMillis();
-		startRecordingTimer();
 
 		mRecordingThread = new Thread(() -> {
 			final short[] buffer = new short[bufferSize / 2];
-			while (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
-				final int read = audioRecord.read(buffer, 0, buffer.length);
-				if (read > 0 && mPcmRecorder != null) {
-					mPcmRecorder.record(buffer, read);
+			try {
+				while (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
+					final int read = audioRecord.read(buffer, 0, buffer.length);
+					if (read > 0) {
+						mPcmSession.append(buffer, read);
+					} else if (read == AudioRecord.ERROR_DEAD_OBJECT) {
+						Log.e(TAG, "FM capture audio server died");
+						break;
+					} else {
+						Log.w(TAG, "FM capture read returned " + read);
+						SystemClock.sleep(read < 0 ? 100 : 10);
+					}
+				}
+			} finally {
+				boolean ownsAudioRecord = false;
+				synchronized (RoutingAudioService.this) {
+					if (mRecordingAudioRecord == audioRecord) {
+						mRecordingAudioRecord = null;
+						mRecordingThread = null;
+						ownsAudioRecord = true;
+					}
+				}
+				if (ownsAudioRecord) {
+					audioRecord.release();
 				}
 			}
 		}, "Fm2RecordPcm");
@@ -345,76 +415,129 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	@Override
 	public void stopRecord() {
-		final AudioRecord audioRecord = mRecordingAudioRecord;
-		final Thread recordingThread = mRecordingThread;
-		final IFMRecorder recorder = mPcmRecorder;
-
-		if (audioRecord == null) {
+		if (mPcmRecorder == null) {
 			return;
 		}
 
 		Log.d(TAG, "stopRecord");
 		stopRecordingTimer();
+		mPcmSession.stop();
+		mPcmRecorder = null;
 
-		// Make the PCM loop exit and unblock a pending AudioRecord.read().
-		mRecordingAudioRecord = null;
+		if (mCaptureStartedForRecording && !mPreRollEnabled) {
+			stopPcmCapture();
+		}
+		mCaptureStartedForRecording = false;
+		if (mPendingPreRollEnabled != null) {
+			applyPreRollEnabled(mPendingPreRollEnabled);
+			mPendingPreRollEnabled = null;
+		}
+	}
+
+	/** Applies a pre-roll preference change or defers it during active recording. */
+	@Override
+	public void setPreRollEnabled(final boolean enabled) {
+		if (mPcmSession.isRecording()) {
+			mPendingPreRollEnabled = enabled;
+			return;
+		}
+		applyPreRollEnabled(enabled);
+	}
+
+	/** Reconfigures PCM history and starts or stops persistent HAL capture. */
+	private void applyPreRollEnabled(final boolean enabled) {
+		if (!enabled) {
+			stopPcmCapture();
+		}
+
+		mPreRollEnabled = enabled;
+		mPcmSession = createPcmSession(enabled);
+		if (enabled && mIsActive && hasRecordAudioPermission()) {
+			try {
+				startPcmCapture();
+			} catch (RecordError error) {
+				Log.w(TAG, "Cannot start pre-roll capture", error);
+			}
+		}
+	}
+
+	/**
+	 * Creates a session matching the fixed HAL FM capture format.
+	 *
+	 * @param enabled Whether the session should retain pre-roll samples
+	 * @return Configured PCM session
+	 */
+	private PcmRecorderSession createPcmSession(final boolean enabled) {
+		return new PcmRecorderSession(
+				48000,
+				2,
+				enabled ? C.Config.RECORDING_PRE_ROLL_SECONDS : 0
+		);
+	}
+
+	/** Stops the HAL capture worker and releases its {@link AudioRecord}. */
+	private void stopPcmCapture() {
+		final AudioRecord audioRecord;
+		final Thread recordingThread;
+
+		// Detach the capture first so the read loop cannot publish more PCM.
+		synchronized (this) {
+			audioRecord = mRecordingAudioRecord;
+			recordingThread = mRecordingThread;
+			mRecordingAudioRecord = null;
+			mRecordingThread = null;
+		}
+
+		if (audioRecord == null) {
+			return;
+		}
+
 		if (recordingThread != null) {
 			recordingThread.interrupt();
 		}
+		// AudioRecord.stop() unblocks a pending read on supported HALs.
 		try {
 			audioRecord.stop();
-		} catch (Throwable t) {
-			Log.w(TAG, "AudioRecord.stop failed", t);
+		} catch (Throwable error) {
+			Log.w(TAG, "AudioRecord.stop failed", error);
 		}
 
-		// LAME encode must finish before the recorder is flushed and closed.
+		// The AudioRecord must not be released while its worker can still use it.
 		if (recordingThread != null && recordingThread != Thread.currentThread()) {
 			boolean interrupted = false;
 			while (recordingThread.isAlive()) {
 				try {
 					recordingThread.join();
-				} catch (InterruptedException e) {
+				} catch (InterruptedException error) {
 					interrupted = true;
-					Log.w(TAG, "Interrupted while waiting for recording thread", e);
 				}
 			}
 			if (interrupted) {
 				Thread.currentThread().interrupt();
 			}
 		}
-
-		// No thread uses AudioRecord or the recorder after this point.
-		try {
-			audioRecord.release();
-		} catch (Throwable ignored) {
-		}
-
-		if (recorder != null) {
-			recorder.stopRecord();
-			mPcmRecorder = null;
-		}
-		mRecordingThread = null;
-		mRecordingStartedMs = 0L;
+		audioRecord.release();
 	}
 
+	/** Starts periodic recording progress broadcasts. */
 	private void startRecordingTimer() {
 		stopRecordingTimer();
 		mRecordingHandler.postDelayed(mRecordingUpdateRunnable, RECORDING_UPDATE_MS);
 	}
 
+	/** Stops periodic recording progress broadcasts. */
 	private void stopRecordingTimer() {
 		mRecordingHandler.removeCallbacks(mRecordingUpdateRunnable);
 	}
 
+	/** Sends current recording metadata to UI and notification receivers. */
 	private void sendRecordingUpdate(final String event) {
 		final String displayPath = getRecordingDisplayPath();
 		if (displayPath == null) {
 			return;
 		}
 
-		final long durationSec = mRecordingStartedMs > 0L
-				? Math.max(0L, (System.currentTimeMillis() - mRecordingStartedMs) / 1000L)
-				: 0L;
+		final long durationSec = getRecordingDurationSeconds();
 		final long fileSize = getRecordingSizeBytes();
 
 		Utils.sendAppBroadcast(mContext, new Intent(event)
@@ -437,8 +560,16 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		return 0L;
 	}
 
+	/** @return Current duration based on accepted PCM samples. */
+	private long getRecordingDurationSeconds() {
+		if (mPcmRecorder instanceof RecordService) {
+			return ((RecordService) mPcmRecorder).getDurationSeconds();
+		}
+		return 0L;
+	}
+
 	private void ensureRecordingPermissions() throws RecordError {
-        if (mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+		if (!hasRecordAudioPermission()) {
 			throw new RecordError("Please allow microphone access before recording");
 		}
 
@@ -446,6 +577,11 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				&& mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 			throw new RecordError("Please allow storage access before recording");
 		}
+	}
+
+	/** @return Whether microphone access needed for FM input capture is granted. */
+	private boolean hasRecordAudioPermission() {
+		return mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
 	}
 
 	private AudioDeviceInfo findFmTunerInputDevice() {

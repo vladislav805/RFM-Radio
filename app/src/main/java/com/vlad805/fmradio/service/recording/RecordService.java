@@ -69,6 +69,12 @@ public abstract class RecordService implements IFMRecorder {
      */
     private long mLast;
 
+    /** Number of interleaved PCM samples accepted by the encoder. */
+    private long mRecordedPcmSamples;
+
+    /** Duration reported before the pre-roll snapshot reaches the encoder. */
+    private int mInitialDurationMillis;
+
     /**
      * Constructor
      * @param context Context
@@ -86,11 +92,14 @@ public abstract class RecordService implements IFMRecorder {
 
     /**
      * Calls when user click "Start recording"
+     * @param initialDurationMillis Duration of included pre-roll PCM in milliseconds
      * @throws RecordError If something going wrong
      */
     @Override
-    public final synchronized void startRecord() throws RecordError {
-        mStarted = System.currentTimeMillis();
+    public final synchronized void startRecord(final int initialDurationMillis) throws RecordError {
+        mStarted = System.currentTimeMillis() - Math.max(0, initialDurationMillis);
+        mInitialDurationMillis = Math.max(0, initialDurationMillis);
+        mRecordedPcmSamples = 0;
         createFile();
         mState = State.RECORDING;
         updateState(C.Event.RECORD_STARTED);
@@ -104,6 +113,7 @@ public abstract class RecordService implements IFMRecorder {
                 int bytesEncoded = onReceivedData(data, length, bufferEncoded);
                 mBufferOutStream.write(bufferEncoded, 0, bytesEncoded);
                 mRecordLength += bytesEncoded;
+                mRecordedPcmSamples += length;
             } catch (IOException e) {
                 e.printStackTrace();
                 mState = State.IDLE;
@@ -173,7 +183,7 @@ public abstract class RecordService implements IFMRecorder {
     private void updateState(final String event) {
         Utils.sendAppBroadcast(mContext, new Intent(event)
                 .putExtra(C.Key.SIZE, mRecordLength)
-                .putExtra(C.Key.DURATION, getDuration())
+                .putExtra(C.Key.DURATION, getDurationSeconds())
                 .putExtra(C.Key.PATH, getDisplayPath())
         );
     }
@@ -187,11 +197,14 @@ public abstract class RecordService implements IFMRecorder {
     }
 
     /**
-     * Returns current duration of record
+     * Returns duration represented by the accepted PCM samples.
+     * Uses the initial pre-roll duration while its queued samples are still being encoded.
+     *
      * @return Duration in seconds
      */
-    private int getDuration() {
-        return (int) (System.currentTimeMillis() - mStarted) / 1000;
+    public synchronized int getDurationSeconds() {
+        final long recordedMillis = (mRecordedPcmSamples * 1000L) / (mSampleRate * 2L);
+        return (int) (Math.max(mInitialDurationMillis, recordedMillis) / 1000L);
     }
 
     /**

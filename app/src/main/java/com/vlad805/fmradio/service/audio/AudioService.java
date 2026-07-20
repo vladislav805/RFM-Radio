@@ -34,6 +34,15 @@ public abstract class AudioService {
 	public abstract void stopAudio();
 
 	/**
+	 * Applies the recording pre-roll preference to the active audio implementation.
+	 *
+	 * @param enabled Whether recent PCM history should be retained
+	 */
+	public void setPreRollEnabled(final boolean enabled) {
+		// Audio services without recording support ignore this preference.
+	}
+
+	/**
 	 * Update FM output route when user toggles speaker mode.
 	 */
 	public void setSpeakerEnabled(final boolean enabled) {

@@ -73,6 +73,10 @@
 	<string name="pref_recording_name_title">Nazwa pliku</string>
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Dostępne zmienne:\n$y - rok\n$m - miesiąc\n$d - dzień miesiąca\n$h - godzina\n$i - minuta\n$s - sekunda\n$f - częstotliwość (np., 103.4 MHz = 1034)\n$r - losowy numer 10000-99999\nNagrania są zapisywane w katalogu Music/RFM-Recordings.\nWartość katalogu musi być ścieżką względną wewnątrz tego katalogu.\nPrzykład:\nKatalog: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nNazwa Pliku: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav</string>
 	<string name="pref_recording_format_title">Format Nagrywania</string>
+	<string name="pref_recording_save_past">Nagrywaj poprzednie 5 sekund</string>
+	<string name="pref_recording_save_past_summary">Dołącz pięć sekund sprzed naciśnięcia przycisku nagrywania</string>
+	<string name="pref_recording_save_past_warning_title">Włączyć historię nagrywania?</string>
+	<string name="pref_recording_save_past_warning_message">Ta opcja utrzymuje przechwytywanie dźwięku FM aktywne podczas odtwarzania radia, co zwiększa zużycie baterii. Android będzie wyświetlać wskaźnik nagrywania, nawet gdy dźwięk nie jest zapisywany do pliku. Jest to ograniczenie systemu Android.</string>
 	<string name="pref_recording_show_notify">Pokaż Powiadomienia</string>
 	<string name="pref_recording_show_notify_summary">Pod koniec nagrania wyświetl informacje o zapisanym pliku</string>
 	<string name="pref_info_version_title">Wersja</string>

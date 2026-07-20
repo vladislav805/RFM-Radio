@@ -1,7 +1,9 @@
 package com.vlad805.fmradio.fragments;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -10,6 +12,7 @@ import android.widget.Toast;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.StringRes;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.preference.*;
 import com.vlad805.fmradio.*;
 import com.vlad805.fmradio.R;
@@ -29,6 +32,9 @@ import static com.vlad805.fmradio.Utils.*;
  * vlad805 (c) 2020
  */
 public class PreferencesFragment extends PreferenceFragmentCompat implements Preference.OnPreferenceClickListener {
+	/** Permission request used when enabling continuous FM capture. */
+	private static final int REQUEST_RECORD_AUDIO_FOR_PRE_ROLL = 1001;
+
 	private ProgressDialog mProgress;
 	private AppPreferences mPreferences;
 
@@ -191,6 +197,26 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		});
 		category.addPreference(format);
 
+		final SwitchPreferenceCompat savePast = new SwitchPreferenceCompat(context);
+		populatePreference(savePast, C.PrefKey.RECORDING_SAVE_PAST, R.string.pref_recording_save_past, R.drawable.ic_record_on);
+		savePast.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_PAST);
+		savePast.setSummary(R.string.pref_recording_save_past_summary);
+		savePast.setOnPreferenceChangeListener((preference, newValue) -> {
+			if (!(boolean) newValue) {
+				mPreferences.put(C.PrefKey.RECORDING_SAVE_PAST, false);
+				return true;
+			}
+
+			new AlertDialog.Builder(requireContext())
+					.setTitle(R.string.pref_recording_save_past_warning_title)
+					.setMessage(R.string.pref_recording_save_past_warning_message)
+					.setNegativeButton(android.R.string.cancel, null)
+					.setPositiveButton(android.R.string.ok, (dialog, which) -> enablePreRoll(savePast))
+					.show();
+			return false;
+		});
+		category.addPreference(savePast);
+
 		final SwitchPreferenceCompat notify = new SwitchPreferenceCompat(context);
 		populatePreference(notify, C.PrefKey.RECORDING_SHOW_NOTIFY, R.string.pref_recording_show_notify, R.drawable.ic_info);
 		notify.setDefaultValue(C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
@@ -200,6 +226,39 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			return true;
 		});
 		category.addPreference(notify);
+	}
+
+	/** Requests microphone access before enabling persistent pre-roll capture. */
+	private void enablePreRoll(final SwitchPreferenceCompat preference) {
+		if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
+				== PackageManager.PERMISSION_GRANTED) {
+			setPreRollEnabled(preference);
+			return;
+		}
+
+		requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_FOR_PRE_ROLL);
+	}
+
+	/** Persists the enabled preference and synchronizes the visible switch. */
+	private void setPreRollEnabled(final SwitchPreferenceCompat preference) {
+		mPreferences.put(C.PrefKey.RECORDING_SAVE_PAST, true);
+		preference.setChecked(true);
+	}
+
+	@Override
+	public void onRequestPermissionsResult(final int requestCode, final String[] permissions, final int[] grantResults) {
+		if (requestCode == REQUEST_RECORD_AUDIO_FOR_PRE_ROLL) {
+			final SwitchPreferenceCompat preference = findPreference(C.PrefKey.RECORDING_SAVE_PAST);
+			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+					&& preference != null) {
+				setPreRollEnabled(preference);
+			} else {
+				Toast.makeText(requireContext(), R.string.record_permissions_required, Toast.LENGTH_LONG).show();
+			}
+			return;
+		}
+
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 	}
 
 	private void makeApplicationCategoryPreferences(final Context context, final PreferenceScreen screen) {

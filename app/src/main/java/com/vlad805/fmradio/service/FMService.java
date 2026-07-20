@@ -510,6 +510,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         int i = 0;
         for (final TrayItem item : changed) {
             keys[i++] = item.key();
+            if (C.PrefKey.RECORDING_SAVE_PAST.equals(item.key())) {
+                final boolean enabled = Storage.getPrefBoolean(
+                        this,
+                        C.PrefKey.RECORDING_SAVE_PAST,
+                        C.PrefDefaultValue.RECORDING_SAVE_PAST
+                );
+                mAudioService.setPreRollEnabled(enabled);
+            }
         }
 
         this.mTunerDriver.setupTunerByPreferences(keys);

@@ -176,12 +176,13 @@ public class RadioStateUpdater extends BroadcastReceiver {
 
             case C.Event.RECORD_STARTED: {
                 mState.setRecording(true);
-                mState.setRecordingStarted(System.currentTimeMillis());
+                updateRecordingStarted(intent);
                 mode = SET_RECORDING;
                 break;
             }
 
             case C.Event.RECORD_TIME_UPDATE: {
+                updateRecordingStarted(intent);
                 mode = SET_RECORDING;
                 break;
             }
@@ -204,6 +205,16 @@ public class RadioStateUpdater extends BroadcastReceiver {
         if (mCallback != null && mode > 0) {
             mCallback.onStateUpdated(mState, mode);
         }
+    }
+
+    /**
+     * Aligns the UI timer with the duration reported by the recorder.
+     *
+     * @param intent Recording event containing duration in seconds
+     */
+    private void updateRecordingStarted(final Intent intent) {
+        final long durationSeconds = Math.max(0, intent.getIntExtra(C.Key.DURATION, 0));
+        mState.setRecordingStarted(System.currentTimeMillis() - durationSeconds * 1000L);
     }
 
     /**

@@ -108,7 +108,8 @@ final public class C {
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
 		public static final String RECORDING_FORMAT = "recording_mode";
-		// public static final String RECORDING_SAVE_PAST = "recording_save_past";
+		/** Enables retaining recent PCM before the Record command. */
+		public static final String RECORDING_SAVE_PAST = "recording_save_past";
 
 		public static final String BINARY_VERSION_NATIVE = "bin_version_native";
     }
@@ -126,13 +127,17 @@ final public class C {
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
 		public static final int RECORDING_FORMAT = 0;
-		// public static final boolean RECORDING_SAVE_PAST = false;
+		/** Pre-roll capture is opt-in because it keeps audio capture active. */
+		public static final boolean RECORDING_SAVE_PAST = false;
         public static final boolean RDS_AUTO_AF = false;
     }
 
 	private C() {}
 
 	public static final class Config {
+		/** Number of seconds retained for recording pre-roll. */
+		public static final int RECORDING_PRE_ROLL_SECONDS = 5;
+
 		public static final class Polling {
 			public static final int DELAY = 3000;
 			public static final int INTERVAL = 1000;

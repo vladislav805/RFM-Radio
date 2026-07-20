@@ -36,7 +36,7 @@ public final class RadioState implements Parcelable {
     // Is recording started
     private boolean recording = false;
 
-    // Date in unixtime of start of recording
+    // Effective recording start timestamp, shifted back by included pre-roll
     private long recordingStarted = -1L;
 
     // Outputting sound from speakers
@@ -118,7 +118,12 @@ public final class RadioState implements Parcelable {
         return recordingStarted;
     }
 
-    void setRecordingStarted(long recordingStarted) {
+    /**
+     * Sets the effective recording start, including any pre-roll duration.
+     *
+     * @param recordingStarted Start timestamp in milliseconds
+     */
+    void setRecordingStarted(final long recordingStarted) {
         this.recordingStarted = recordingStarted;
     }
 
