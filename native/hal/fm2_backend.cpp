@@ -297,7 +297,16 @@ bool apply_processed_rds_config(bool auto_af, int rds_standard) {
     }
 
     if (!vendor_set(kV4l2CtrlAfJump, auto_af ? 1 : 0, "failed to set af jump")) {
+        char original_error[sizeof(g_state.last_error)];
+        pthread_mutex_lock(&g_state.lock);
+        snprintf(original_error, sizeof(original_error), "%s", g_state.last_error);
+        pthread_mutex_unlock(&g_state.lock);
+
         vendor_set(kV4l2CtrlRdsGroupProc, 0, "failed to roll back rds groups");
+
+        pthread_mutex_lock(&g_state.lock);
+        snprintf(g_state.last_error, sizeof(g_state.last_error), "%s", original_error);
+        pthread_mutex_unlock(&g_state.lock);
         return false;
     }
 
@@ -927,23 +936,25 @@ bool apply_runtime_config() {
     hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d emphasis=%d rds=%d stereo=%d antenna=%d",
             region, lower, upper, spacing, emphasis, rds_standard, stereo, antenna);
 
-    bool ok = true;
-    ok &= vendor_set(kV4l2CtrlRegion, region, "failed to set region");
-    ok &= vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band");
-    ok &= vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band");
-    ok &= vendor_set(kV4l2CtrlChannelSpacing, spacing, "failed to set channel spacing");
-    ok &= vendor_set(kV4l2CtrlIrisAudioMode, stereo, "failed to set stereo mode");
-    ok &= vendor_set(kV4l2CtrlAntenna, antenna, "failed to set antenna");
-    ok &= vendor_set(kV4l2CtrlEmphasis, emphasis, "failed to set emphasis");
-    ok &= vendor_set(kV4l2CtrlRdsStandard, rds_standard, "failed to set rds standard");
-    ok &= apply_signal_threshold();
-    ok &= vendor_set(kV4l2CtrlSoftMute, 1, "failed to enable soft mute");
-    if (ok) {
-        pthread_mutex_lock(&g_state.lock);
-        g_state.audio.mode_valid = true;
-        pthread_mutex_unlock(&g_state.lock);
+    if (
+        !vendor_set(kV4l2CtrlEmphasis, emphasis, "failed to set emphasis") ||
+        !vendor_set(kV4l2CtrlRdsStandard, rds_standard, "failed to set rds standard") ||
+        !vendor_set(kV4l2CtrlChannelSpacing, spacing, "failed to set channel spacing") ||
+        !vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band") ||
+        !vendor_set(kV4l2CtrlIrisLowerBand, lower, "failed to set lower band") ||
+        !vendor_set(kV4l2CtrlRegion, region, "failed to set region") ||
+        !vendor_set(kV4l2CtrlIrisAudioMode, stereo, "failed to set stereo mode") ||
+        !vendor_set(kV4l2CtrlAntenna, antenna, "failed to set antenna") ||
+        !apply_signal_threshold() ||
+        !vendor_set(kV4l2CtrlSoftMute, 1, "failed to enable soft mute")
+    ) {
+        return false;
     }
-    return ok;
+
+    pthread_mutex_lock(&g_state.lock);
+    g_state.audio.mode_valid = true;
+    pthread_mutex_unlock(&g_state.lock);
+    return true;
 }
 
 }  // namespace
@@ -1029,10 +1040,12 @@ bool fm2_backend_enable() {
         return false;
     }
 
-    const bool runtime_ok = apply_runtime_config();
+    if (!apply_runtime_config()) {
+        return false;
+    }
+
     fm2_backend_log_snapshot("after-runtime-config");
-    const bool post_ok = apply_post_enable_config();
-    return runtime_ok && post_ok;
+    return apply_post_enable_config();
 }
 
 bool fm2_backend_wait_enabled(int timeout_ms) {
