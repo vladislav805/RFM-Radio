@@ -36,6 +36,7 @@ constexpr int kHeliumSpacing50Khz = 2;
 constexpr int kDefaultListSize = 20;
 constexpr int kMaxScanStations = 64;
 constexpr int kEnableWaitTimeoutMs = 2000;
+constexpr uint64_t kStationMetricTimeoutMs = 5000;
 
 // Qualcomm's stock WEAK threshold. Device scans found no useful benefit from
 // stricter values, while the previous value (0x40) matched no known ABI scale.
@@ -65,6 +66,12 @@ struct ScanState {
     int found_count = 0;
 };
 
+enum class StationMetric {
+    kNone,
+    kRmssi,
+    kSinr,
+};
+
 struct RuntimeState {
     void *lib_handle = nullptr;
     fm_interface_t *vendor = nullptr;
@@ -86,6 +93,9 @@ struct RuntimeState {
     uint64_t last_enabled_cb_ms = 0;
     uint64_t last_tune_cb_ms = 0;
     uint64_t last_seek_cb_ms = 0;
+    // Helium reports RMSSI and SINR through one callback after vendor_get returns.
+    StationMetric pending_station_metric = StationMetric::kNone;
+    uint64_t station_metric_requested_at_ms = 0;
     bool last_search_payload_valid = false;
     char last_search_payload[5 * 20 + 1] = "";
     ScanState scan;
@@ -593,7 +603,26 @@ void fm_set_blend_cb(int status) {
 }
 
 void fm_get_station_param_cb(int value, int status) {
-    hal_log("vendor", "fm_get_station_param_cb value=%d status=%d", value, status);
+    pthread_mutex_lock(&g_state.lock);
+
+    const StationMetric metric = g_state.pending_station_metric;
+
+    g_state.pending_station_metric = StationMetric::kNone;
+    g_state.station_metric_requested_at_ms = 0;
+
+    pthread_mutex_unlock(&g_state.lock);
+
+    const char *name = metric == StationMetric::kRmssi
+            ? "rmssi"
+            : (metric == StationMetric::kSinr ? "sinr" : "unexpected");
+
+    const unsigned int raw_value = static_cast<unsigned int>(value) & 0xffU;
+
+    const int signed_value = raw_value >= 0x80U
+            ? static_cast<int>(raw_value) - 0x100
+            : static_cast<int>(raw_value);
+
+    hal_log("metric", "%s status=%d value=%d raw=0x%02x", name, status, signed_value, raw_value);
 }
 
 void fm_get_station_debug_param_cb(int value, int status) {
@@ -1284,6 +1313,50 @@ bool fm2_backend_raw_get(int id, int *value) {
     return vendor_get(id, value, "failed raw get");
 }
 
+namespace {
+
+bool request_station_metric(StationMetric metric, int control, const char *name) {
+    const uint64_t requested_at = now_ms();
+
+    pthread_mutex_lock(&g_state.lock);
+    if (g_state.pending_station_metric != StationMetric::kNone) {
+        const uint64_t elapsed = requested_at - g_state.station_metric_requested_at_ms;
+        if (elapsed < kStationMetricTimeoutMs) {
+            set_error_locked("station metric request already pending");
+            pthread_mutex_unlock(&g_state.lock);
+            return false;
+        }
+        hal_log("metric", "previous request timed out after %llu ms", static_cast<unsigned long long>(elapsed));
+    }
+    g_state.pending_station_metric = metric;
+    g_state.station_metric_requested_at_ms = requested_at;
+    pthread_mutex_unlock(&g_state.lock);
+
+    int unused = 0;
+    if (!vendor_get(control, &unused, "failed to request station metric")) {
+        pthread_mutex_lock(&g_state.lock);
+        if (g_state.pending_station_metric == metric) {
+            g_state.pending_station_metric = StationMetric::kNone;
+            g_state.station_metric_requested_at_ms = 0;
+        }
+        pthread_mutex_unlock(&g_state.lock);
+        return false;
+    }
+
+    hal_log("metric", "%s requested", name);
+    return true;
+}
+
+}  // namespace
+
+bool fm2_backend_request_rmssi() {
+    return request_station_metric(StationMetric::kRmssi, kV4l2CtrlIrisRmssi, "rmssi");
+}
+
+bool fm2_backend_request_sinr() {
+    return request_station_metric(StationMetric::kSinr, kV4l2CtrlIrisSinr, "sinr");
+}
+
 bool fm2_backend_log_snapshot(const char *reason) {
     struct CtlProbe {
         int id;
@@ -1305,7 +1378,6 @@ bool fm2_backend_log_snapshot(const char *reason) {
         {kV4l2CtrlAfJump, "af_jump"},
         {kV4l2CtrlSoftMute, "soft_mute"},
         {kV4l2CtrlIrisFreq, "freq"},
-        {kV4l2CtrlIrisRmssi, "rmssi"},
     };
 
     bool ok = true;

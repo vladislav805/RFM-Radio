@@ -8,7 +8,7 @@ constexpr int kV4l2CtrlIrisSeek        = 0x00980930;
 constexpr int kV4l2CtrlIrisUpperBand   = 0x00980931;
 constexpr int kV4l2CtrlIrisLowerBand   = 0x00980932;
 constexpr int kV4l2CtrlIrisAudioMode   = 0x00980933;
-constexpr int kV4l2CtrlIrisRmssi       = 0x00980943;
+constexpr int kV4l2CtrlIrisRmssi       = 0x00980934;
 constexpr int kV4l2CtrlEnableSlimbus   = 0x00980940;
 
 typedef void (*enb_result_cb)(void);
