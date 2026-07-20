@@ -71,6 +71,7 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 	private void closeAll() {
 		mIsActive = false;
 		stopRecord();
+		mPcmSession.clearHistory();
 
 		if (mAudioTrack != null) {
 			mAudioTrack.release();

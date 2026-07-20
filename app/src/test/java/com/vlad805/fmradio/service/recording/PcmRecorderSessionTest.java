@@ -60,6 +60,20 @@ public class PcmRecorderSessionTest {
     }
 
     @Test
+    public void clearsHistoryBetweenPlaybackSessions() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 1);
+        final FakeRecorder recorder = new FakeRecorder();
+
+        session.append(sequence(0, 20), 20);
+        session.clearHistory();
+        session.append(sequence(20, 6), 6);
+        assertEquals(300, session.start(recorder));
+        session.stop();
+
+        assertArrayEquals(sequence(20, 6), recorder.samples());
+    }
+
+    @Test
     public void failedRecorderStartDoesNotLeaveActiveSession() {
         final PcmRecorderSession session = new PcmRecorderSession(10, 2, 1);
         final IFMRecorder recorder = new FakeRecorder() {

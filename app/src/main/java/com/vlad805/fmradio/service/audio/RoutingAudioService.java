@@ -148,6 +148,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 		stopRecord();
 		stopPcmCapture();
+		mPcmSession.clearHistory();
 		Log.d(TAG, "stopAudio: disabling FM route");
 		applyRoute(false, mSpeakerEnabled, false);
 		mIsActive = false;

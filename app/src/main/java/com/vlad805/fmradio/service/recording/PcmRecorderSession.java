@@ -108,6 +108,18 @@ public final class PcmRecorderSession {
         return writer != null;
     }
 
+    /**
+     * Discards PCM retained from the current playback session.
+     * Active recording data is never removed.
+     */
+    public synchronized void clearHistory() {
+        if (writer != null) {
+            return;
+        }
+        ringSize = 0;
+        ringWritePosition = 0;
+    }
+
     /** Appends samples to the circular history buffer. */
     private void appendToRing(final short[] data, final int length) {
         if (ring.length == 0 || length == 0) {
