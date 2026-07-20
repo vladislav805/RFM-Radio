@@ -88,6 +88,36 @@ TEST(CtlJsonTest, BuildsAfPatch) {
     EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"af\":[107200,106000,104900]}}");
 }
 
+TEST(CtlJsonTest, BuildsMaximumAfPatchWithinUdpLimit) {
+    RadioStateJsonCache cache;
+    int af[kRadioJsonMaxAfCount];
+    for (int &frequency : af) {
+        frequency = 108000;
+    }
+
+    radio_state_patch_t patch = make_empty_patch();
+    patch.af_khz = af;
+    patch.af_count = kRadioJsonMaxAfCount;
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_LT(json.size(), static_cast<size_t>(CS_BUF));
+
+    std::string expected = "{\"type\":\"state\",\"rds\":{\"af\":[";
+    for (int i = 0; i < kRadioJsonMaxAfCount; ++i) {
+        if (i > 0) {
+            expected += ',';
+        }
+        expected += "108000";
+    }
+    expected += "]}}";
+    EXPECT_EQ(json, expected);
+
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_EQ(cache.af_count, kRadioJsonMaxAfCount);
+    EXPECT_EQ(cache.af_khz[kRadioJsonMaxAfCount - 1], 108000);
+}
+
 TEST(CtlJsonTest, BuildsAfClearPatch) {
     RadioStateJsonCache cache;
     cache.af_count = 2;

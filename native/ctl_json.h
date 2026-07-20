@@ -4,7 +4,7 @@
 
 #include "ctl_server.h"
 
-constexpr int kRadioJsonMaxAfCount = 25;
+constexpr int kRadioJsonMaxAfCount = 50;
 
 struct RadioStateJsonCache {
     int frequency_khz = RADIO_PATCH_ABSENT_INT;

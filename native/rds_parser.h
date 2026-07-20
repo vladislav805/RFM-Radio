@@ -14,7 +14,8 @@ enum class RdsSearchListKind {
 };
 
 constexpr int kUnknownRdsPayloadLen = -1;
-constexpr int kMaxRdsAfCount = 25;
+// Helium carries up to 200 bytes of AF entries, with one int32 frequency per entry.
+constexpr int kMaxRdsAfCount = 50;
 
 // HAL search-list callback struct has rel_freq[20]. Full-band HAL scan can
 // collect more stations through scan-next callbacks, but this payload is capped.

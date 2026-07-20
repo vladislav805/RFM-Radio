@@ -1,6 +1,27 @@
 #include "rds_parser.h"
 
 #include <gtest/gtest.h>
+#include <vector>
+
+namespace {
+
+std::vector<unsigned char> make_af_payload(int count) {
+    std::vector<unsigned char> payload(7 + count * 4, 0);
+    payload[6] = static_cast<unsigned char>(count);
+
+    for (int i = 0; i < count; ++i) {
+        const int frequency_khz = 76000 + i * 500;
+        const int offset = 7 + i * 4;
+        payload[offset] = static_cast<unsigned char>(frequency_khz);
+        payload[offset + 1] = static_cast<unsigned char>(frequency_khz >> 8);
+        payload[offset + 2] = static_cast<unsigned char>(frequency_khz >> 16);
+        payload[offset + 3] = static_cast<unsigned char>(frequency_khz >> 24);
+    }
+
+    return payload;
+}
+
+}  // namespace
 
 TEST(RdsParserTest, ParsesProgramServicePayload) {
     const unsigned char payload[] = {
@@ -229,10 +250,27 @@ TEST(RdsParserTest, ParsesAfPayloadWithUnknownLength) {
     EXPECT_EQ(parsed.frequencies_khz[0], 108936);
 }
 
+TEST(RdsParserTest, ParsesAfPayloadUpToHeliumCapacity) {
+    for (const int count : {25, 26, 50}) {
+        SCOPED_TRACE(count);
+        const std::vector<unsigned char> payload = make_af_payload(count);
+        RdsAfList parsed;
+
+        ASSERT_TRUE(parse_rds_af_payload(
+                payload.data(),
+                static_cast<int>(payload.size()),
+                &parsed
+        ));
+        EXPECT_EQ(parsed.count, count);
+        EXPECT_EQ(parsed.frequencies_khz[0], 76000);
+        EXPECT_EQ(parsed.frequencies_khz[count - 1], 76000 + (count - 1) * 500);
+    }
+}
+
 TEST(RdsParserTest, RejectsInvalidAfPayloads) {
     RdsAfList parsed;
     const unsigned char zero_count[] = {0, 0, 0, 0, 0, 0, 0};
-    const unsigned char too_many[] = {0, 0, 0, 0, 0, 0, 26};
+    const unsigned char too_many[] = {0, 0, 0, 0, 0, 0, 51};
     const unsigned char too_short[] = {0, 0, 0, 0, 0, 0};
     const unsigned char truncated[] = {
             0, 0, 0, 0, 0, 0, 2,
