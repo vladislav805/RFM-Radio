@@ -37,12 +37,9 @@ constexpr int kDefaultListSize = 20;
 constexpr int kMaxScanStations = 64;
 constexpr int kEnableWaitTimeoutMs = 2000;
 
-// FM_RX_RSSI_LEVEL_VERY_WEAK   = -105;
-// FM_RX_RSSI_LEVEL_WEAK        = -100;
-// FM_RX_RSSI_LEVEL_STRONG      = -96;
-// FM_RX_RSSI_LEVEL_VERY_STRONG = -90;
-// set_ctrl(V4L2_CID_PRIVATE_IRIS_SIGNAL_TH, kDefaultSignalThreshold - 105)
-constexpr int kDefaultSignalThreshold = 0x40;
+// Qualcomm's stock WEAK threshold. Device scans found no useful benefit from
+// stricter values, while the previous value (0x40) matched no known ABI scale.
+constexpr int kDefaultSignalThreshold = -100;
 // sweeping across the entire frequency range, it stops at each station found and pauses for N seconds
 constexpr int kDefaultSeekDwell = 2;
 
