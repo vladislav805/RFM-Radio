@@ -255,6 +255,18 @@ response_t handle_slimbus(const std::vector<std::string> &args) {
     return make_ok();
 }
 
+response_t handle_soft_mute(const std::vector<std::string> &args) {
+    if (args.size() != 2 || (args[1] != "0" && args[1] != "1")) {
+        return make_error(kErrInvalidConfig);
+    }
+
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_soft_mute(args[1] == "1")) {
+        return make_backend_error(backend);
+    }
+    return make_ok();
+}
+
 }  // namespace
 
 response_t api_handler(char *request) {
@@ -279,6 +291,7 @@ response_t api_handler(char *request) {
     if (command == "search_cancel") return handle_search_cancel();
     if (command == "auto_af") return handle_auto_af(args);
     if (command == "slimbus") return handle_slimbus(args);
+    if (command == "set_soft_mute") return handle_soft_mute(args);
     return make_error(kErrUnknown);
 }
 

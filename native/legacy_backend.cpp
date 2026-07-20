@@ -1,4 +1,5 @@
 #include "backend.h"
+#include "fm_v4l2_controls.h"
 #include "region_profile.h"
 
 #include "legacy/fm_wrap.h"
@@ -57,7 +58,11 @@ public:
             return rollback_enable();
         }
 
-        if (!set_auto_af(config.auto_af) || !set_frequency(config.frequency_khz)) {
+        if (
+            !set_auto_af(config.auto_af) ||
+            !set_soft_mute(config.soft_mute) ||
+            !set_frequency(config.frequency_khz)
+        ) {
             return rollback_enable();
         }
 
@@ -160,6 +165,10 @@ public:
 
     bool set_auto_af(bool enabled) override {
         return set_status(fm_receiver_toggle_af_jump(enabled ? 1 : 0) == TRUE, kErrFailed);
+    }
+
+    bool set_soft_mute(bool enabled) override {
+        return set_status(set_v4l2_ctrl(kV4l2CtrlSoftMute, enabled ? 1 : 0), kErrFailed);
     }
 
     bool set_slimbus(bool /*enabled*/) override {

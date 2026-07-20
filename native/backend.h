@@ -29,6 +29,7 @@ public:
     virtual bool search() = 0;
     virtual bool cancel_search() = 0;
     virtual bool set_auto_af(bool enabled) = 0;
+    virtual bool set_soft_mute(bool enabled) = 0;
     virtual bool set_slimbus(bool enabled) = 0;
     virtual const char *last_error() const = 0;
 };

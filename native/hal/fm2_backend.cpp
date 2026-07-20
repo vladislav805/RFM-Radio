@@ -54,6 +54,7 @@ struct AudioState {
     bool stereo = true;
     bool mode_valid = false;
     bool mode_stereo = true;
+    bool soft_mute = true;
     bool slimbus_enabled = false;
 };
 
@@ -944,6 +945,7 @@ bool apply_runtime_config() {
     int lower = 0;
     int upper = 0;
     int stereo = 0;
+    int soft_mute = 0;
     int antenna = 0;
     int emphasis = 0;
     int rds_standard = 0;
@@ -954,13 +956,14 @@ bool apply_runtime_config() {
     lower = g_state.lower_band_khz;
     upper = g_state.upper_band_khz;
     stereo = g_state.audio.mode_stereo ? 1 : 0;
+    soft_mute = g_state.audio.soft_mute ? 1 : 0;
     antenna = g_state.antenna;
     emphasis = g_state.emphasis;
     rds_standard = g_state.rds_standard;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d emphasis=%d rds=%d stereo=%d antenna=%d",
-            region, lower, upper, spacing, emphasis, rds_standard, stereo, antenna);
+    hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d emphasis=%d rds=%d stereo=%d softmute=%d antenna=%d",
+            region, lower, upper, spacing, emphasis, rds_standard, stereo, soft_mute, antenna);
 
     if (
         !vendor_set(kV4l2CtrlEmphasis, emphasis, "failed to set emphasis") ||
@@ -972,7 +975,7 @@ bool apply_runtime_config() {
         !vendor_set(kV4l2CtrlIrisAudioMode, stereo, "failed to set stereo mode") ||
         !vendor_set(kV4l2CtrlAntenna, antenna, "failed to set antenna") ||
         !apply_signal_threshold() ||
-        !vendor_set(kV4l2CtrlSoftMute, 1, "failed to enable soft mute")
+        !vendor_set(kV4l2CtrlSoftMute, soft_mute, "failed to set soft mute")
     ) {
         return false;
     }
@@ -1037,6 +1040,7 @@ bool fm2_backend_configure_startup(const StartupConfig &config) {
     g_state.vendor_spacing = map_spacing_to_vendor(config.spacing_khz);
     g_state.audio.mode_stereo = config.stereo;
     g_state.audio.mode_valid = false;
+    g_state.audio.soft_mute = config.soft_mute;
     g_state.antenna = config.antenna;
     g_state.auto_af = config.auto_af;
     pthread_mutex_unlock(&g_state.lock);
@@ -1291,6 +1295,18 @@ bool fm2_backend_set_auto_af(bool enabled) {
     g_state.auto_af = enabled;
     pthread_mutex_unlock(&g_state.lock);
     return vendor_set(kV4l2CtrlAfJump, enabled ? 1 : 0, "failed to set auto af");
+}
+
+bool fm2_backend_set_soft_mute(bool enabled) {
+    hal_log("audio", "set softmute=%d", enabled ? 1 : 0);
+    if (!vendor_set(kV4l2CtrlSoftMute, enabled ? 1 : 0, "failed to set soft mute")) {
+        return false;
+    }
+
+    pthread_mutex_lock(&g_state.lock);
+    g_state.audio.soft_mute = enabled;
+    pthread_mutex_unlock(&g_state.lock);
+    return true;
 }
 
 bool fm2_backend_set_slimbus(bool enabled) {

@@ -59,14 +59,16 @@ public class QualcommNative extends AbstractQualcommNativeController {
         final boolean stereo = Storage.getPrefBoolean(context, C.PrefKey.TUNER_STEREO, C.PrefDefaultValue.TUNER_STEREO);
         final int antenna = Storage.getPrefInt(context, C.PrefKey.TUNER_ANTENNA, C.PrefDefaultValue.TUNER_ANTENNA);
         final boolean autoAf = Storage.getPrefBoolean(context, C.PrefKey.RDS_AUTO_AF, C.PrefDefaultValue.RDS_AUTO_AF);
+        final boolean softMute = Storage.getPrefBoolean(context, C.PrefKey.TUNER_SOFT_MUTE, C.PrefDefaultValue.TUNER_SOFT_MUTE);
 
         final String command = String.format(
                 Locale.US,
-                "enable freq=%d region=%s spacing=%d stereo=%d antenna=%d af=%d",
+                "enable freq=%d region=%s spacing=%d stereo=%d soft_mute=%d antenna=%d af=%d",
                 frequency,
                 regionName(region),
                 spacingKhz(spacing),
                 stereo ? 1 : 0,
+                softMute ? 1 : 0,
                 antenna,
                 autoAf ? 1 : 0
         );

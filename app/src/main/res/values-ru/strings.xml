@@ -114,6 +114,9 @@
 	<string name="pref_tuner_stereo">Стерео</string>
 	<string name="pref_tuner_stereo_on">Воспроизводить стерео, когда доступно</string>
 	<string name="pref_tuner_stereo_off">Всегда воспроизводить моно</string>
+	<string name="pref_tuner_soft_mute">Подавление шума</string>
+	<string name="pref_tuner_soft_mute_on">Подавлять шум при слабом FM-сигнале</string>
+	<string name="pref_tuner_soft_mute_off">Не подавлять шум слабого сигнала</string>
 	<string name="pref_warning_applying_only_after_restart">Внимание! Эта настройка вступит в силу только после полного
 		перезапуска приложения.
 	</string>

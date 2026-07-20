@@ -81,6 +81,10 @@ public:
         return set_status(fm2_backend_set_auto_af(enabled));
     }
 
+    bool set_soft_mute(bool enabled) override {
+        return set_status(fm2_backend_set_soft_mute(enabled));
+    }
+
     bool set_slimbus(bool enabled) override {
         return set_status(fm2_backend_set_slimbus(enabled));
     }

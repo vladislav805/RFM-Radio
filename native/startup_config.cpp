@@ -78,8 +78,8 @@ bool parse_startup_config(
         return fail(error, "missing output config");
     }
 
-    if (args.size() != 7 || args[0] != "enable") {
-        return fail(error, "enable requires six named parameters");
+    if (args.size() != 8 || args[0] != "enable") {
+        return fail(error, "enable requires seven named parameters");
     }
 
     StartupConfig parsed;
@@ -87,6 +87,7 @@ bool parse_startup_config(
     bool has_region = false;
     bool has_spacing = false;
     bool has_stereo = false;
+    bool has_soft_mute = false;
     bool has_antenna = false;
     bool has_af = false;
 
@@ -144,6 +145,16 @@ bool parse_startup_config(
             }
 
             has_stereo = true;
+        } else if (name == "soft_mute") {
+            if (has_soft_mute) {
+                return fail(error, "duplicate soft_mute");
+            }
+
+            if (!parse_bool(value, &parsed.soft_mute)) {
+                return fail(error, "invalid soft_mute");
+            }
+
+            has_soft_mute = true;
         } else if (name == "antenna") {
             if (has_antenna) {
                 return fail(error, "duplicate antenna");
@@ -169,7 +180,7 @@ bool parse_startup_config(
         }
     }
 
-    if (!has_frequency || !has_region || !has_spacing || !has_stereo || !has_antenna || !has_af) {
+    if (!has_frequency || !has_region || !has_spacing || !has_stereo || !has_soft_mute || !has_antenna || !has_af) {
         return fail(error, "missing required parameter");
     }
 

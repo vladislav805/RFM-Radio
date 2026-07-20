@@ -114,6 +114,17 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		});
 		category.addPreference(stereo);
 
+		final SwitchPreference softMute = new SwitchPreference(context);
+		populatePreference(softMute, C.PrefKey.TUNER_SOFT_MUTE, R.string.pref_tuner_soft_mute, 0);
+		softMute.setDefaultValue(C.PrefDefaultValue.TUNER_SOFT_MUTE);
+		softMute.setSummaryOn(R.string.pref_tuner_soft_mute_on);
+		softMute.setSummaryOff(R.string.pref_tuner_soft_mute_off);
+		softMute.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_SOFT_MUTE, (boolean) newValue);
+			return true;
+		});
+		category.addPreference(softMute);
+
 
 		final EditTextPreference antenna = new EditTextPreference(context);
 		populatePreference(antenna, C.PrefKey.TUNER_ANTENNA, R.string.pref_tuner_antenna, R.drawable.ic_antenna);

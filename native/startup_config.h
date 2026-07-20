@@ -18,6 +18,7 @@ struct StartupConfig {
     StartupRegion region = StartupRegion::kEurope;
     int spacing_khz = 0;
     bool stereo = false;
+    bool soft_mute = true;
     int antenna = 0;
     bool auto_af = false;
 };

@@ -7,7 +7,7 @@ namespace {
 TEST(StartupConfigTest, ParsesNamedParametersInAnyOrder) {
     const std::vector<std::string> args = {
             "enable", "af=1", "spacing=50", "freq=106300",
-            "antenna=0", "region=eu", "stereo=1",
+            "soft_mute=0", "antenna=0", "region=eu", "stereo=1",
     };
     StartupConfig config;
     std::string error;
@@ -17,6 +17,7 @@ TEST(StartupConfigTest, ParsesNamedParametersInAnyOrder) {
     EXPECT_EQ(config.region, StartupRegion::kEurope);
     EXPECT_EQ(config.spacing_khz, 50);
     EXPECT_TRUE(config.stereo);
+    EXPECT_FALSE(config.soft_mute);
     EXPECT_EQ(config.antenna, 0);
     EXPECT_TRUE(config.auto_af);
 }
@@ -24,15 +25,15 @@ TEST(StartupConfigTest, ParsesNamedParametersInAnyOrder) {
 TEST(StartupConfigTest, ParsesAllRegionsAndSpacingValues) {
     const std::vector<std::string> united_states = {
             "enable", "freq=87500", "region=us", "spacing=200",
-            "stereo=1", "antenna=0", "af=0",
+            "stereo=1", "soft_mute=1", "antenna=0", "af=0",
     };
     const std::vector<std::string> japan = {
             "enable", "freq=76000", "region=jp", "spacing=100",
-            "stereo=0", "antenna=1", "af=0",
+            "stereo=0", "soft_mute=0", "antenna=1", "af=0",
     };
     const std::vector<std::string> japan_wide = {
             "enable", "freq=108000", "region=jp_wide", "spacing=200",
-            "stereo=1", "antenna=2", "af=1",
+            "stereo=1", "soft_mute=1", "antenna=2", "af=1",
     };
     StartupConfig config;
 
@@ -43,6 +44,7 @@ TEST(StartupConfigTest, ParsesAllRegionsAndSpacingValues) {
     EXPECT_EQ(config.region, StartupRegion::kJapan);
     EXPECT_EQ(config.spacing_khz, 100);
     EXPECT_FALSE(config.stereo);
+    EXPECT_FALSE(config.soft_mute);
     EXPECT_EQ(config.antenna, 1);
     EXPECT_FALSE(config.auto_af);
 
@@ -54,7 +56,7 @@ TEST(StartupConfigTest, ParsesAllRegionsAndSpacingValues) {
 TEST(StartupConfigTest, RejectsMissingParameter) {
     const std::vector<std::string> args = {
             "enable", "freq=106300", "region=eu", "spacing=100",
-            "stereo=1", "antenna=0",
+            "stereo=1", "soft_mute=1", "antenna=0",
     };
     StartupConfig config;
 
@@ -64,7 +66,7 @@ TEST(StartupConfigTest, RejectsMissingParameter) {
 TEST(StartupConfigTest, RejectsUnknownParameter) {
     const std::vector<std::string> args = {
             "enable", "freq=106300", "region=eu", "spacing=100",
-            "stereo=1", "antenna=0", "rds=1",
+            "stereo=1", "soft_mute=1", "antenna=0", "rds=1",
     };
     StartupConfig config;
 
@@ -74,7 +76,7 @@ TEST(StartupConfigTest, RejectsUnknownParameter) {
 TEST(StartupConfigTest, RejectsDuplicateParameter) {
     const std::vector<std::string> args = {
             "enable", "freq=106300", "region=eu", "spacing=100",
-            "stereo=1", "antenna=0", "freq=87500",
+            "stereo=1", "soft_mute=1", "antenna=0", "freq=87500",
     };
     StartupConfig config;
 
@@ -83,14 +85,15 @@ TEST(StartupConfigTest, RejectsDuplicateParameter) {
 
 TEST(StartupConfigTest, RejectsMalformedAndOutOfRangeValues) {
     const std::vector<std::vector<std::string>> invalid = {
-            {"enable", "freq=no", "region=eu", "spacing=100", "stereo=1", "antenna=0", "af=0"},
-            {"enable", "freq=75000", "region=eu", "spacing=100", "stereo=1", "antenna=0", "af=0"},
-            {"enable", "freq=106300", "region=other", "spacing=100", "stereo=1", "antenna=0", "af=0"},
-            {"enable", "freq=106300", "region=eu", "spacing=1", "stereo=1", "antenna=0", "af=0"},
-            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=true", "antenna=0", "af=0"},
-            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "antenna=-1", "af=0"},
-            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "antenna=256", "af=0"},
-            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "antenna=0", "af=2"},
+            {"enable", "freq=no", "region=eu", "spacing=100", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=75000", "region=eu", "spacing=100", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=106300", "region=other", "spacing=100", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=106300", "region=eu", "spacing=1", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=true", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "soft_mute=2", "antenna=0", "af=0"},
+            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "soft_mute=1", "antenna=-1", "af=0"},
+            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "soft_mute=1", "antenna=256", "af=0"},
+            {"enable", "freq=106300", "region=eu", "spacing=100", "stereo=1", "soft_mute=1", "antenna=0", "af=2"},
     };
     StartupConfig config;
 
@@ -101,7 +104,7 @@ TEST(StartupConfigTest, RejectsMalformedAndOutOfRangeValues) {
 
 TEST(StartupConfigTest, RejectsPositionalParameters) {
     const std::vector<std::string> args = {
-            "enable", "106300", "eu", "100", "1", "0", "1",
+            "enable", "106300", "eu", "100", "1", "1", "0", "1",
     };
     StartupConfig config;
 
@@ -110,9 +113,9 @@ TEST(StartupConfigTest, RejectsPositionalParameters) {
 
 TEST(StartupConfigTest, RejectsFrequencyOutsideRegion) {
     const std::vector<std::vector<std::string>> invalid = {
-            {"enable", "freq=76000", "region=eu", "spacing=100", "stereo=1", "antenna=0", "af=0"},
-            {"enable", "freq=76000", "region=us", "spacing=200", "stereo=1", "antenna=0", "af=0"},
-            {"enable", "freq=108000", "region=jp", "spacing=100", "stereo=1", "antenna=0", "af=0"},
+            {"enable", "freq=76000", "region=eu", "spacing=100", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=76000", "region=us", "spacing=200", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
+            {"enable", "freq=108000", "region=jp", "spacing=100", "stereo=1", "soft_mute=1", "antenna=0", "af=0"},
     };
     StartupConfig config;
 

@@ -117,6 +117,9 @@
     <string name="pref_tuner_stereo">Stereo</string>
 	<string name="pref_tuner_stereo_on">Używaj stereo jeśli dostępne</string>
 	<string name="pref_tuner_stereo_off">Zawsze mono</string>
+	<string name="pref_tuner_soft_mute">Wyciszanie szumów</string>
+	<string name="pref_tuner_soft_mute_on">Tłum szum przy słabym sygnale FM</string>
+	<string name="pref_tuner_soft_mute_off">Nie tłum szumu słabego sygnału</string>
     <string name="pref_tuner_antenna_error">Błąd podczas ustawiania anteny. Proszę zwrócić prawidłową wartość (zwykle 0)</string>
     <string name="pref_version_check_error">Wystąpił błąd podczas żądania: %s</string>
     <string name="menu_favorite_list_search">Wyszukaj stacje</string>

@@ -106,6 +106,9 @@ public abstract class AbstractQualcommNativeController implements IFMController,
             case C.PrefKey.TUNER_STEREO:
                 sendCommand(new Request("set_stereo " + value));
                 break;
+            case C.PrefKey.TUNER_SOFT_MUTE:
+                sendCommand(new Request("set_soft_mute " + value));
+                break;
             case C.PrefKey.TUNER_ANTENNA:
                 onApplyAntennaPreference(value);
                 break;
@@ -192,6 +195,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
                 C.PrefKey.TUNER_REGION,
                 C.PrefKey.TUNER_SPACING,
                 C.PrefKey.TUNER_STEREO,
+                C.PrefKey.TUNER_SOFT_MUTE,
                 C.PrefKey.TUNER_ANTENNA,
                 C.PrefKey.RDS_AUTO_AF,
         };
@@ -209,6 +213,11 @@ public abstract class AbstractQualcommNativeController implements IFMController,
                 case C.PrefKey.TUNER_STEREO: {
                     final boolean stereo = Storage.getPrefBoolean(context, key, C.PrefDefaultValue.TUNER_STEREO);
                     value = stereo ? "1" : "0";
+                    break;
+                }
+                case C.PrefKey.TUNER_SOFT_MUTE: {
+                    final boolean enabled = Storage.getPrefBoolean(context, key, C.PrefDefaultValue.TUNER_SOFT_MUTE);
+                    value = enabled ? "1" : "0";
                     break;
                 }
                 case C.PrefKey.TUNER_SPACING: {
