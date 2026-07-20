@@ -132,6 +132,17 @@ final public class C {
         public static final boolean RDS_AUTO_AF = false;
     }
 
+	/** Stable values persisted by the recording format preference. */
+	public static final class RecordFormat {
+		public static final int WAV = 0;
+		/** Existing value retained for compatibility with saved preferences. */
+		public static final int MP3_192 = 1;
+		public static final int MP3_128 = 2;
+		public static final int AAC_128 = 3;
+
+		private RecordFormat() {}
+	}
+
 	private C() {}
 
 	public static final class Config {

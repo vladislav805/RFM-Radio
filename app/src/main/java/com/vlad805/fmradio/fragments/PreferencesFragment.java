@@ -190,7 +190,15 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final ListPreference format = new ListPreference(context);
 		populatePreference(format, C.PrefKey.RECORDING_FORMAT, R.string.pref_recording_format_title, R.drawable.ic_recording_format);
 		format.setDefaultValue(String.valueOf(C.PrefDefaultValue.RECORDING_FORMAT));
-		setListProviderAndEntries(format, Vars.sRecordFormat);
+		setListProviderAndEntries(
+				format,
+				new int[]{C.RecordFormat.WAV, C.RecordFormat.MP3_128, C.RecordFormat.MP3_192},
+				new String[]{
+						getString(R.string.pref_recording_format_wav),
+						getString(R.string.pref_recording_format_mp3_128),
+						getString(R.string.pref_recording_format_mp3_192)
+				}
+		);
 		format.setOnPreferenceChangeListener((preference, newValue) -> {
 			Storage.getInstance(context).put(C.PrefKey.RECORDING_FORMAT, Utils.parseInt((String) newValue));
 			return true;
@@ -343,6 +351,36 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		});
 		lp.setEntries(values.toArray(new String[0]));
 		lp.setEntryValues(keys.toArray(new String[0]));
+	}
+
+	/**
+	 * Configures ordered list entries whose persisted integer values need not match display order.
+	 *
+	 * @param preference List preference to configure
+	 * @param keys Stable integer values persisted for each entry
+	 * @param values User-visible entry labels in display order
+	 */
+	private void setListProviderAndEntries(
+			final ListPreference preference,
+			final int[] keys,
+			final String[] values
+	) {
+		final String[] entryValues = new String[keys.length];
+		for (int i = 0; i < keys.length; i++) {
+			entryValues[i] = String.valueOf(keys[i]);
+		}
+
+		preference.setSummaryProvider((Preference.SummaryProvider<ListPreference>) selected -> {
+			final String value = selected.getValue();
+			for (int i = 0; i < entryValues.length; i++) {
+				if (entryValues[i].equals(value)) {
+					return values[i];
+				}
+			}
+			return values[0];
+		});
+		preference.setEntries(values);
+		preference.setEntryValues(entryValues);
 	}
 
 	@Override

@@ -9,8 +9,6 @@ public class Vars {
     public static final SparseArray<String> sTunerRegions;
     public static final SparseArray<String> sTunerSpacing;
 
-    public static final SparseArray<String> sRecordFormat;
-
     static {
         sTunerRegions = new SparseArray<>();
         sTunerRegions.put(BandUtils.BAND_EUROPE, "Europe (87.5-108.0 MHz, 50µs)");
@@ -22,9 +20,5 @@ public class Vars {
         sTunerSpacing.put(BandUtils.SPACING_50kHz, "50 kHz");
         sTunerSpacing.put(BandUtils.SPACING_100kHz, "100 kHz");
         sTunerSpacing.put(BandUtils.SPACING_200kHz, "200 kHz");
-
-        sRecordFormat = new SparseArray<>();
-        sRecordFormat.put(0, "WAV PCM 16bit (raw, large size)");
-        sRecordFormat.put(1, "MP3 192kbps (compressed, small size)");
     }
 }

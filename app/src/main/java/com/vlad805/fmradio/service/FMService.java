@@ -440,12 +440,16 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 : 44100;
 
         switch (mode) {
-            case 0: {
+            case C.RecordFormat.WAV: {
                 return new RecordRawService(this, kHz, sampleRate);
             }
 
-            case 1: {
-                return new RecordLameService(this, kHz, sampleRate);
+            case C.RecordFormat.MP3_192: {
+                return new RecordLameService(this, kHz, sampleRate, 192);
+            }
+
+            case C.RecordFormat.MP3_128: {
+                return new RecordLameService(this, kHz, sampleRate, 128);
             }
         }
 

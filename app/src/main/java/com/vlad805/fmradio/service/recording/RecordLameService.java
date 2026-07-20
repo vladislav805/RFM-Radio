@@ -14,18 +14,27 @@ import java.util.Locale;
  */
 public class RecordLameService extends RecordService implements IFMRecorder {
 	private static final int CHANNELS = 2;
-	private static final int BITRATE_KBPS = 192;
 	private static final int QUALITY = 5;
 	// Output buffer for final MP3 frames emitted when LAME flushes its internal delay/padding.
 	private static final int MP3_FLUSH_BUFFER_SIZE = 7200;
+	/** CBR bitrate selected by the recording format preference. */
+	private final int mBitrateKbps;
 	private LameMp3Encoder mEncoder;
 
 	/**
 	 * @param context Context
 	 * @param kHz Current frequency in kHz
+	 * @param sampleRate PCM sample rate in Hz
+	 * @param bitrateKbps MP3 CBR bitrate in kbps
 	 */
-	public RecordLameService(final Context context, final int kHz, final int sampleRate) {
+	public RecordLameService(
+			final Context context,
+			final int kHz,
+			final int sampleRate,
+			final int bitrateKbps
+	) {
 		super(context, kHz, sampleRate);
+		mBitrateKbps = bitrateKbps;
 	}
 
 	@Override
@@ -44,7 +53,7 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	@Override
 	protected void onFileCreated() throws IOException {
 		writeId3v23Tag();
-		mEncoder = new LameMp3Encoder(getSampleRate(), CHANNELS, BITRATE_KBPS, QUALITY);
+		mEncoder = new LameMp3Encoder(getSampleRate(), CHANNELS, mBitrateKbps, QUALITY);
 	}
 
 	/**
