@@ -624,7 +624,7 @@ bool extract_ert() {
 
 /**
  * Extract alternative frequencies list
- * @param frequencies Array of uint32, with size at least 25
+ * @param frequencies Array of uint32, with size at least kMaxRdsAfCount
  * @return Count of frequencies
  */
 uint8 extract_rds_af_list(uint32* frequencies) {

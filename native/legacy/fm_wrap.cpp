@@ -12,6 +12,7 @@
 #include <utils.h>
 #include "../ctl_server.h"
 #include "../frequency_format.h"
+#include "../rds_parser.h"
 #include "utils.h"
 #include "fm_ctl.h"
 #include "fmcommon.h"
@@ -221,14 +222,14 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_NEW_AF_LIST: {
-            uint32 list[25];
+            uint32 list[kMaxRdsAfCount];
             uint8 size = extract_rds_af_list(list);
 
             const std::string frequencies = format_frequency_list_khz(list, size);
 
             legacy_log("af", "result count=%d frequencies=%s", size, frequencies.c_str());
 
-            int frequencies_khz[25];
+            int frequencies_khz[kMaxRdsAfCount];
             for (uint8 i = 0; i < size; ++i) {
                 frequencies_khz[i] = static_cast<int>(list[i]);
             }
