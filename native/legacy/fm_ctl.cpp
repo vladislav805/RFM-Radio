@@ -276,7 +276,7 @@ uint32 fm_receiver_get_tuned_frequency() {
 }
 
 bool fm_receiver_set_mute_mode(mute_t mode) {
-    return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode == FM_RX_NO_MUTE ? 0 : 1);
+    return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode);
 }
 
 /**
