@@ -564,8 +564,17 @@ void ext_country_code_cb(char *payload) {
         if (variant == 0) {
             const int country_code = (pi >> 12) & 0x0f;
             const int ecc = slow_labelling & 0xff;
-            hal_log("rds", "ecc len=%d pi=%04x pty=%d cc=0x%x ecc=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
-                    len, pi, pty, country_code, ecc, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
+            char country[3];
+            if (decode_rds_country_iso(ecc, country_code, country)) {
+                hal_log("rds", "ecc len=%d pi=%04x pty=%d cc=0x%x ecc=0x%02x country=%s sl=0x%04x block_d=0x%04x data=%s%s",
+                        len, pi, pty, country_code, ecc, country, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
+                radio_state_patch_t patch = radio_state_patch_empty();
+                patch.country = country;
+                send_radio_state_patch(&patch);
+            } else {
+                hal_log("rds", "ecc len=%d pi=%04x pty=%d cc=0x%x ecc=0x%02x country=unknown sl=0x%04x block_d=0x%04x data=%s%s",
+                        len, pi, pty, country_code, ecc, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
+            }
             return;
         }
 
@@ -674,11 +683,8 @@ void tune_cb(int freq) {
     pthread_mutex_unlock(&g_state.lock);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.frequency_khz = freq;
-    patch.ps = "";
-    patch.rt = "";
-    patch.pi = "";
-    patch.pty = 0;
-    patch.af_count = 0;
+    patch.ps = patch.rt = patch.pi = patch.country = "";
+    patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
 }
 
@@ -699,7 +705,7 @@ void seek_complete_cb(int freq) {
     radio_state_patch_t patch = radio_state_patch_empty();
 
     patch.frequency_khz = freq;
-    patch.ps = patch.rt = patch.pi = "";
+    patch.ps = patch.rt = patch.pi = patch.country = "";
     patch.af_count = patch.pty = 0;
 
     send_radio_state_patch(&patch);

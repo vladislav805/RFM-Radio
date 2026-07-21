@@ -6,14 +6,12 @@ namespace {
 
 radio_state_patch_t make_empty_patch() {
     radio_state_patch_t patch;
-    patch.frequency_khz = RADIO_PATCH_ABSENT_INT;
-    patch.ps = nullptr;
-    patch.rt = nullptr;
-    patch.pi = nullptr;
-    patch.pty = RADIO_PATCH_ABSENT_INT;
+
+    patch.ps = patch.rt = patch.pi = patch.country = nullptr;
+
+    patch.frequency_khz = patch.pty = patch.af_count = patch.stereo = RADIO_PATCH_ABSENT_INT;
     patch.af_khz = nullptr;
-    patch.af_count = RADIO_PATCH_ABSENT_INT;
-    patch.stereo = RADIO_PATCH_ABSENT_INT;
+
     return patch;
 }
 
@@ -74,6 +72,24 @@ TEST(CtlJsonTest, EscapesRdsStrings) {
     std::string json;
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
     EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"ps\":\"A\\\"B\\\\C\\nD\"}}");
+}
+
+TEST(CtlJsonTest, BuildsAndClearsCountryPatch) {
+    RadioStateJsonCache cache;
+    radio_state_patch_t patch = make_empty_patch();
+    patch.country = "UA";
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"country\":\"UA\"}}");
+
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_EQ(cache.country, "UA");
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+
+    patch.country = "";
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"country\":\"\"}}");
 }
 
 TEST(CtlJsonTest, BuildsAfPatch) {
@@ -154,6 +170,7 @@ TEST(CtlJsonTest, AppliesPatchAfterSuccessfulSend) {
     patch.ps = "PS";
     patch.rt = "RT";
     patch.pi = "7756";
+    patch.country = "RU";
     patch.pty = 7;
     patch.af_khz = af;
     patch.af_count = 2;
@@ -165,6 +182,7 @@ TEST(CtlJsonTest, AppliesPatchAfterSuccessfulSend) {
     EXPECT_EQ(cache.ps, "PS");
     EXPECT_EQ(cache.rt, "RT");
     EXPECT_EQ(cache.pi, "7756");
+    EXPECT_EQ(cache.country, "RU");
     EXPECT_EQ(cache.pty, 7);
     EXPECT_EQ(cache.af_count, 2);
     EXPECT_EQ(cache.af_khz[0], 87500);

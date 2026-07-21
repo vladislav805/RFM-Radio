@@ -111,7 +111,7 @@ bool process_radio_event(uint8 event_buf) {
             // Notify client about tune
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.frequency_khz = fm_storage.frequency;
-            patch.ps = patch.rt = patch.pi = "";
+            patch.ps = patch.rt = patch.pi = patch.country = "";
             patch.af_count = patch.pty = 0;
             send_radio_state_patch(&patch);
             break;

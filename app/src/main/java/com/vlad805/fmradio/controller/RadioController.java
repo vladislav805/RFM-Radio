@@ -31,6 +31,10 @@ public class RadioController {
             mState.setFrequency(state.getFrequency());
             mState.setStereo(state.isStereo());
             mState.setPs(state.getPs());
+            mState.setRt(state.getRt());
+            mState.setPi(state.getPi());
+            mState.setPty(state.getPty());
+            mState.setCountry(state.getCountry());
             mState.setRecording(state.isRecording());
             mState.setRecordingStarted(state.getRecordingStarted());
 

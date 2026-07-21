@@ -140,6 +140,15 @@ public class DatagramServer extends Thread {
                 patch.setPi(rds.optString("pi", ""));
             }
 
+            if (rds.has("country")) {
+                final String country = rds.optString("country", "");
+                if (!country.isEmpty() && !country.matches("[A-Z]{2}")) {
+                    Log.w(TAG, "invalid country payload");
+                    return null;
+                }
+                patch.setCountry(country);
+            }
+
             if (rds.has("pty")) {
                 final int pty = rds.optInt("pty", -1);
                 if (pty < 0) {

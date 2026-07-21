@@ -434,3 +434,28 @@ TEST(RdsParserTest, RejectsInvalidSearchListPayloads) {
             nullptr
     ));
 }
+
+TEST(RdsParserTest, DecodesRegisteredRdsCountries) {
+    char country[3];
+
+    ASSERT_TRUE(decode_rds_country_iso(0xe4, 6, country));
+    EXPECT_STREQ(country, "UA");
+    ASSERT_TRUE(decode_rds_country_iso(0xe0, 7, country));
+    EXPECT_STREQ(country, "RU");
+    ASSERT_TRUE(decode_rds_country_iso(0xe0, 1, country));
+    EXPECT_STREQ(country, "DE");
+    ASSERT_TRUE(decode_rds_country_iso(0xf2, 9, country));
+    EXPECT_STREQ(country, "JP");
+    ASSERT_TRUE(decode_rds_country_iso(0xa2, 10, country));
+    EXPECT_STREQ(country, "AR");
+}
+
+TEST(RdsParserTest, RejectsUnknownRdsCountries) {
+    char country[3] = "XX";
+
+    EXPECT_FALSE(decode_rds_country_iso(0xe0, 14, country));
+    EXPECT_STREQ(country, "");
+    EXPECT_FALSE(decode_rds_country_iso(0xe0, 0, country));
+    EXPECT_FALSE(decode_rds_country_iso(0x00, 7, country));
+    EXPECT_FALSE(decode_rds_country_iso(0xe0, 7, nullptr));
+}

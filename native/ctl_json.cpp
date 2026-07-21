@@ -136,6 +136,10 @@ bool build_radio_state_patch_json(
         append_field(rds, first_rds, "pi", json_escape(patch->pi));
     }
 
+    if (patch->country != nullptr && cache.country != patch->country) {
+        append_field(rds, first_rds, "country", json_escape(patch->country));
+    }
+
     if (patch->pty != RADIO_PATCH_ABSENT_INT && patch->pty != cache.pty) {
         append_field(rds, first_rds, "pty", std::to_string(patch->pty));
     }
@@ -195,6 +199,10 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
 
     if (patch->pi != nullptr) {
         cache->pi = patch->pi;
+    }
+
+    if (patch->country != nullptr) {
+        cache->country = patch->country;
     }
 
     if (patch->pty != RADIO_PATCH_ABSENT_INT) {

@@ -21,6 +21,9 @@ public final class RadioState implements Parcelable {
     // PI - Program ID (hex)
     private String pi;
 
+    // ISO 3166-1 alpha-2 country code decoded from RDS ECC and PI
+    private String country = "";
+
     // PTY - Program TYpe
     private int pty;
 
@@ -68,6 +71,14 @@ public final class RadioState implements Parcelable {
 
     void setPi(final String pi) {
         this.pi = pi;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    void setCountry(final String country) {
+        this.country = country;
     }
 
     public int getPty() {
@@ -139,6 +150,7 @@ public final class RadioState implements Parcelable {
         status = (TunerStatus) in.readValue(TunerStatus.class.getClassLoader());
         frequency = in.readInt();
         pi = in.readString();
+        country = in.readString();
         pty = in.readInt();
         ps = in.readString();
         rt = in.readString();
@@ -158,6 +170,7 @@ public final class RadioState implements Parcelable {
         dest.writeValue(status);
         dest.writeInt(frequency);
         dest.writeString(pi);
+        dest.writeString(country);
         dest.writeInt(pty);
         dest.writeString(ps);
         dest.writeString(rt);

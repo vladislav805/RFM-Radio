@@ -166,7 +166,7 @@
 		android:layout_marginStart="8dp"
 		android:fontFamily="monospace"
 		android:minEms="4"
-		android:maxEms="4"
+		android:maxEms="7"
 		android:gravity="end"
 		android:maxLines="1"
 		android:textIsSelectable="true"

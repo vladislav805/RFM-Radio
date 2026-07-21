@@ -78,7 +78,9 @@ public class RadioUIView extends LinearLayout {
 		if (!mStatusShown) {
 			mRdsPty.setText(mLastPtyText);
 		}
-		mRdsPi.setText(state.getPi() != null ? state.getPi() : "");
+		final String pi = state.getPi() != null ? state.getPi() : "";
+		final String country = state.getCountry() != null ? state.getCountry() : "";
+		mRdsPi.setText(country.isEmpty() || pi.isEmpty() ? pi : country + ", " + pi);
 	}
 
 	public final void showStatus(@StringRes final int stringRes) {

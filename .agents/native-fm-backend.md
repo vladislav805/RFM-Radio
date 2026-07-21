@@ -273,6 +273,7 @@ State is sent as partial patches:
     "ps": "STATION",
     "rt": "Radio text",
     "pi": "7756",
+    "country": "UA",
     "pty": 7,
     "af": [99500, 103200]
   }
@@ -280,7 +281,8 @@ State is sent as partial patches:
 ```
 
 Only changed/present fields are included. Supported state fields are frequency,
-stereo, PS, RT, PI, PTY, and AF frequencies.
+stereo, PS, RT, PI, country, PTY, and AF frequencies. Country is a two-letter
+code decoded from the registered ECC and PI country-code combination.
 
 Search completion:
 
@@ -459,8 +461,8 @@ local to repeated search-list payloads and does not unify both mechanisms.
 ### HAL RDS and Audio
 
 Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS availability.
-App-facing state currently includes only PS, RT, PI, PTY, AF, and stereo. RT+
-and ECC are diagnostic/logging data.
+App-facing state includes PS, RT, PI, PTY, AF, stereo, and the country decoded
+from ECC plus the PI country nibble. RT+ remains diagnostic/logging data.
 
 PS/RT/AF/search callback signatures do not provide explicit buffer lengths.
 Parsers use count/length fields inside payloads and must trust vendor memory.

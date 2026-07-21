@@ -72,3 +72,5 @@ bool parse_rds_search_list_payload(
         int lower_frequency_khz,
         RdsSearchList *out
 );
+
+bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]);

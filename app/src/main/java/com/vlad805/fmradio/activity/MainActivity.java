@@ -483,7 +483,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if ((mode & RadioStateUpdater.SET_STATUS) > 0) {
             handleChangingState(state.getStatus());
-            return;
+            if ((mode & RadioStateUpdater.SET_INITIAL) == 0 || state.getStatus() != TunerStatus.ENABLED) {
+                return;
+            }
         }
 
         if ((mode & RadioStateUpdater.SET_FREQUENCY) > 0) {
@@ -501,7 +503,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             (mode & RadioStateUpdater.SET_PS) > 0 ||
             (mode & RadioStateUpdater.SET_PI) > 0 ||
             (mode & RadioStateUpdater.SET_RT) > 0 ||
-            (mode & RadioStateUpdater.SET_PTY) > 0
+            (mode & RadioStateUpdater.SET_PTY) > 0 ||
+            (mode & RadioStateUpdater.SET_COUNTRY) > 0
         ) {
             mFrequencyInfo.setRadioState(state);
         }

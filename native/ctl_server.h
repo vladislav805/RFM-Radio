@@ -17,6 +17,7 @@ typedef struct {
     const char *ps;
     const char *rt;
     const char *pi;
+    const char *country;
     int pty;
     const int *af_khz;
     int af_count;

@@ -30,6 +30,35 @@ constexpr int kMaxRtTextLen = 64;
 // Leave room for the terminating null in RdsTextPayload::text.
 constexpr int kMaxOutputTextLen = sizeof(RdsTextPayload::text) - 1;
 
+struct RdsCountryRow {
+    int ecc;
+    char iso_codes[31];
+};
+
+// IEC 62106 registered country identifiers, indexed by the country nibble in PI.
+constexpr RdsCountryRow kRdsCountryRows[] = {
+        {0xa0, "USUSUSUSUSUSUSUSUSUSUS--USUS--"},
+        {0xa1, "--------------------CACACACAGL"},
+        {0xa2, "AIAGECFKBBBZKYCRCUARBRBMANGPBS"},
+        {0xa3, "BOCOJMMQGFPYNI--PADMDOCLGDTCGY"},
+        {0xa4, "GTHNAW--MSTTPESRUYKNLCSVHTVE--"},
+        {0xa5, "--------------------MXVCMXMXMX"},
+        {0xa6, "----------------------------PM"},
+        {0xd0, "CMCFDJMGMLAOGQGAGNZABFCGTGBJMW"},
+        {0xd1, "NALRGHMRSTCVSNGMBI--BWKMTZETBG"},
+        {0xd2, "SLZWMZUGSZKESONETDGWZRCITZZM--"},
+        {0xd3, "----EH--RWLS--SC--MU--SD------"},
+        {0xe0, "DEDZADILITBERUPSALATHUMTDE--EG"},
+        {0xe1, "GRCYSMCHJOFILUBGDKGIIQGBLYROFR"},
+        {0xe2, "MACZPLVASKSYTN--LIISMCLTRSESNO"},
+        {0xe3, "MEIETRMK------NLLVLBAZHRKZSEBY"},
+        {0xe4, "MDEEKG----UAKSPTSIAM--GE----BA"},
+        {0xf0, "AUAUAUAUAUAUAUAUSAAFMMCNKPBHMY"},
+        {0xf1, "KIBTBDPKFJOMNRIRNZSBBNLKTWKRHK"},
+        {0xf2, "KWQAKHWSINMOVNPHJPSGMVIDAENPVU"},
+        {0xf3, "LATHTO----------PG--YE----FMMN"},
+};
+
 }  // namespace
 
 bool parse_rds_text_payload(
@@ -197,4 +226,37 @@ bool parse_rds_search_list_payload(
     out->reported_count = reported_count;
 
     return true;
+}
+
+bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]) {
+    if (country_iso == nullptr) {
+        return false;
+    }
+
+    country_iso[0] = '\0';
+    if (country_code < 1 || country_code > 15) {
+        return false;
+    }
+
+    for (const RdsCountryRow &row : kRdsCountryRows) {
+        if (row.ecc != ecc) {
+            continue;
+        }
+
+        const int offset = (country_code - 1) * 2;
+        if (
+            row.iso_codes[offset] == '-' ||
+            row.iso_codes[offset] == '\0' ||
+            row.iso_codes[offset + 1] == '\0'
+        ) {
+            return false;
+        }
+
+        country_iso[0] = row.iso_codes[offset];
+        country_iso[1] = row.iso_codes[offset + 1];
+        country_iso[2] = '\0';
+        return true;
+    }
+
+    return false;
 }

@@ -107,7 +107,7 @@ radio_state_patch_t radio_state_patch_empty(void) {
     radio_state_patch_t patch;
 
     patch.frequency_khz = RADIO_PATCH_ABSENT_INT;
-    patch.ps = patch.rt = patch.pi = nullptr;
+    patch.ps = patch.rt = patch.pi = patch.country = nullptr;
     patch.pty = RADIO_PATCH_ABSENT_INT;
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;

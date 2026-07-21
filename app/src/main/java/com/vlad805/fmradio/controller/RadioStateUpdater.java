@@ -25,6 +25,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
     public static final int SET_STEREO = 1 << 6;
     public static final int SET_RECORDING = 1 << 7;
     public static final int SET_SPEAKER = 1 << 8;
+    public static final int SET_COUNTRY = 1 << 9;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
@@ -166,6 +167,10 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 if (intent.hasExtra(C.Key.PI)) {
                     mState.setPi(intent.getStringExtra(C.Key.PI));
                     mode |= SET_PI;
+                }
+                if (intent.hasExtra(C.Key.COUNTRY)) {
+                    mState.setCountry(intent.getStringExtra(C.Key.COUNTRY));
+                    mode |= SET_COUNTRY;
                 }
                 if (intent.hasExtra(C.Key.STEREO_MODE)) {
                     mState.setStereo(intent.getBooleanExtra(C.Key.STEREO_MODE, false));

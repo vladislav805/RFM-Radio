@@ -9,6 +9,7 @@ public final class RadioStatePatch {
     private String ps;
     private String rt;
     private String pi;
+    private String country;
     private Integer pty;
     private int[] af;
     private Boolean stereo;
@@ -45,6 +46,14 @@ public final class RadioStatePatch {
         this.pi = pi;
     }
 
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(final String country) {
+        this.country = country;
+    }
+
     public Integer getPty() {
         return pty;
     }
@@ -70,7 +79,7 @@ public final class RadioStatePatch {
     }
 
     public boolean isEmpty() {
-        return frequency == null && ps == null && rt == null && pi == null && pty == null && af == null && stereo == null;
+        return frequency == null && ps == null && rt == null && pi == null && country == null && pty == null && af == null && stereo == null;
     }
 
     public Intent toIntent(final String action) {
@@ -90,6 +99,10 @@ public final class RadioStatePatch {
 
         if (pi != null) {
             intent.putExtra(C.Key.PI, pi);
+        }
+
+        if (country != null) {
+            intent.putExtra(C.Key.COUNTRY, country);
         }
 
         if (pty != null) {
