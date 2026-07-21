@@ -4,6 +4,7 @@
 #include "../fm_v4l2_controls.h"
 #include "utils.h"
 #include <algorithm>
+#include <errno.h>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <stdio.h>
@@ -179,13 +180,14 @@ bool fm_receiver_set_rds_system(rds_system_t system) {
 }
 
 uint8 fm_receiver_get_rds_group_options() {
-    struct v4l2_control control;
+    struct v4l2_control control = {};
     control.id = kV4l2CtrlRdsGroupProc;
 
-    uint32 err = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
+    int err = ioctl(fd_radio, VIDIOC_G_CTRL, &control);
 
     if (err < 0) {
-        legacy_log("rds", "get group options failed, err=%d", err);
+        const int saved_errno = errno;
+        legacy_log("rds", "get group options failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return 0;
     }
 
@@ -225,8 +227,13 @@ bool fm_receiver_set_antenna(uint8 antenna) {
 }
 
 bool fm_receiver_query_capabilities(struct v4l2_capability* cap) {
-    uint32 ret = ioctl(fd_radio, VIDIOC_QUERYCAP, cap);
-    return ret >= 0; // Zero or positive - success
+    const int ret = ioctl(fd_radio, VIDIOC_QUERYCAP, cap);
+    if (ret < 0) {
+        const int saved_errno = errno;
+        legacy_log("v4l2", "query capabilities failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        return FALSE;
+    }
+    return TRUE;
 }
 
 bool fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
