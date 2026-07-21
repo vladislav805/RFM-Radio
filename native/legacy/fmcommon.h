@@ -21,7 +21,7 @@
 #define RFM_LEGACY_LOG_HELPERS
 
 static inline void legacy_log(const char* scope, const char* fmt, ...) {
-    printf("legacy/%-7s: ", scope);
+    printf("leg/%-7s: ", scope);
 
     va_list args;
     va_start(args, fmt);

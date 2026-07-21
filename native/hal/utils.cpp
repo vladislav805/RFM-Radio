@@ -5,7 +5,7 @@
 #include <string.h>
 
 void hal_log(const char *scope, const char *fmt, ...) {
-    printf("hal/%-10s: ", scope);
+    printf("hal/%-7s: ", scope);
 
     va_list args;
     va_start(args, fmt);

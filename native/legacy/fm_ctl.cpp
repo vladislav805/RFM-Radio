@@ -108,7 +108,8 @@ bool set_v4l2_ctrl(uint32 id, int32 value) {
     int32 err = ioctl(fd_radio, VIDIOC_S_CTRL, &control);
 
     if (err < 0) {
-        legacy_log("v4l2", "set control 0x%x=%d failed, err=%d", control.id, value, err);
+        const int saved_errno = errno;
+        legacy_log("v4l2", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)", control.id, value, err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
@@ -118,13 +119,13 @@ bool set_v4l2_ctrl(uint32 id, int32 value) {
 bool fm_receiver_open() {
     fd_radio = open("/dev/radio0", O_RDWR | O_NONBLOCK);
 
-    legacy_log("v4l2", "opened /dev/radio0 fd=%d", fd_radio);
-
     if (fd_radio < 0) {
-        legacy_log("v4l2", "open /dev/radio0 failed, fd=%d", fd_radio);
+        const int saved_errno = errno;
+        legacy_log("open", "path=/dev/radio0 failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
+    legacy_log("open", "path=/dev/radio0 fd=%d", fd_radio);
     return TRUE;
 }
 
@@ -249,7 +250,8 @@ bool fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
     int32 err = ioctl(fd_radio, VIDIOC_S_FREQUENCY, &freq_struct);
 
     if (err < 0) {
-        legacy_log("tune", "set frequency %d kHz failed, err=%d", frequency_khz, err);
+        const int saved_errno = errno;
+        legacy_log("tune", "set frequency_khz=%d failed, ret=%d errno=%d (%s)", frequency_khz, err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
@@ -270,7 +272,8 @@ uint32 fm_receiver_get_tuned_frequency() {
     if (err == 0) {
         return tunefreq_to_khz(freq_struct.frequency);
     } else {
-        legacy_log("tune", "get frequency failed, err=%d", err);
+        const int saved_errno = errno;
+        legacy_log("tune", "get frequency failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return 0;
     }
 }
@@ -335,7 +338,8 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
     int32 ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
 
     if (ret < 0) {
-        legacy_log("audio", "set stereo mode failed, ret=%d", ret);
+        const int saved_errno = errno;
+        legacy_log("audio", "set stereo failed, ret=%d errno=%d (%s)", ret, saved_errno, strerror(saved_errno));
     }
 
     return ret == 0;
@@ -346,7 +350,7 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     bool ret;
 
-    legacy_log("search", "start seek");
+    legacy_log("search", "seek requested direction=%d dwell=%d", search_dir, dwell_period);
 
     if (fd_radio < 0) {
         return FALSE;
@@ -370,11 +374,12 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hw_seek);
 
     if (err < 0) {
-        legacy_log("search", "seek failed");
+        const int saved_errno = errno;
+        legacy_log("search", "seek failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
-    legacy_log("search", "seek started");
+    legacy_log("search", "seek direction=%d accepted", search_dir);
     return TRUE;
 }
 
@@ -387,7 +392,7 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     struct v4l2_hw_freq_seek hwseek;
 
     hwseek.type = V4L2_TUNER_RADIO;
-    legacy_log("search", "start station list scan");
+    legacy_log("search", "scan requested mode=%d direction=%d count=%d pty=%d", options.search_mode, options.search_dir, options.srch_list_max, options.program_type);
     if (fd_radio < 0) {
         return FALSE;
     }
@@ -414,11 +419,12 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     err = ioctl(fd_radio, VIDIOC_S_HW_FREQ_SEEK, &hwseek);
 
     if (err < 0) {
-        legacy_log("search", "list scan failed");
+        const int saved_errno = errno;
+        legacy_log("search", "scan failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
-    legacy_log("search", "station list scan started");
+    legacy_log("search", "scan accepted");
     return TRUE;
 }
 
@@ -461,7 +467,8 @@ int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
     err = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
 
     if (err < 0) {
-        legacy_log("v4l2", "read buffer 0x%x failed, err=%d", index, err);
+        const int saved_errno = errno;
+        legacy_log("v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, err, saved_errno, strerror(saved_errno));
         return -1;
     }
 
@@ -508,7 +515,8 @@ bool extract_program_service(fm_rds_storage* storage) {
     storage->program_type = parsed.pty;
     snprintf(storage->program_name, sizeof(storage->program_name), "%s", parsed.text);
 
-    legacy_log("rds", "ps pi=%04x pty=0x%04x name=`%s` (len=%d)", storage->program_id, storage->program_type, storage->program_name, parsed.text_len);
+    legacy_log("rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
+            parsed.block_count, storage->program_id, storage->program_type, storage->program_name, parsed.text_len);
 
     return TRUE;
 }
@@ -549,7 +557,7 @@ bool extract_radio_text(fm_rds_storage* storage) {
     }
 
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
-    legacy_log("rds", "rt=`%s` (len=%d)", storage->radio_text, parsed.text_len);
+    legacy_log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
     log_rt_plus_slices();
 
     return TRUE;

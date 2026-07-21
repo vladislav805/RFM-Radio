@@ -94,7 +94,7 @@ response_t handle_enable(const std::vector<std::string> &args) {
     std::string error;
 
     if (!parse_startup_config(args, &config, &error)) {
-        printf("server/enable : invalid config: %s\n", error.c_str());
+        printf("srv/enable : invalid config: %s\n", error.c_str());
         return make_error(kErrInvalidConfig);
     }
 

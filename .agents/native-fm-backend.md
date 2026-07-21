@@ -601,8 +601,31 @@ of these places:
 ## Error Handling and Logging
 
 Native logs go to stdout/stderr and are forwarded to logcat under `RFM-QCOM`.
-Shared server logs use `server/<scope>`, HAL logs use the HAL utility formatter,
-and legacy logs use macros from `fmcommon.h`.
+Shared server logs use `srv/<scope>`, HAL logs use `hal/<scope>`, and legacy
+logs use `leg/<scope>`. All three prefixes reserve seven characters for scope.
+
+Legacy and HAL backend logs use the same shape:
+
+```text
+<backend>/<scope>: <operation> key=value...
+```
+
+Common formatting rules:
+
+- PTY is a decimal program-type number: `pty=%d`.
+- PI is a four-digit hexadecimal identifier without a prefix: `pi=%04x`.
+- Frequencies and band limits use explicit kHz field names such as
+  `frequency_khz`, `lower_khz`, `upper_khz`, and `frequencies_khz`.
+- Vendor spacing enums use `spacing_vendor`; 50/100/200 kHz values use
+  `spacing_khz`.
+- Booleans use `0` or `1`; callback result codes retain the name `status`.
+- Control IDs, masks, flags, and raw bytes remain hexadecimal.
+- Common asynchronous state logs use the `event` scope. Backend-specific API
+  diagnostics remain under `v4l2`, `vendor`, `metric`, or `snap`.
+
+Do not force identical messages for operations with different semantics, such
+as legacy station-list search versus HAL sequential scan, or the different
+legacy/HAL RT+, ERT, ODA, and ECC payloads.
 
 HAL stores a human-readable `last_error`. Legacy generally maps failures to
 fixed public error strings. Legacy control failures often log only a generic

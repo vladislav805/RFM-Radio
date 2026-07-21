@@ -106,7 +106,7 @@ bool process_radio_event(uint8 event_buf) {
             fm_storage.rds.radio_text[0] = '\0';
             clear_rt_plus_tags();
 
-            legacy_log("event", "tuned frequency=%d", fm_storage.frequency);
+            legacy_log("event", "tune frequency_khz=%d", fm_storage.frequency);
 
             // Notify client about tune
             radio_state_patch_t patch = radio_state_patch_empty();
@@ -125,12 +125,12 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_SCAN_NEXT: {
-            legacy_log("event", "scan next frequency=%d", fm_receiver_get_tuned_frequency());
+            legacy_log("search", "scan next frequency_khz=%d", fm_receiver_get_tuned_frequency());
             break;
         }
 
         case TAVARUA_EVT_NEW_RAW_RDS:
-            legacy_log("event", "raw RDS available");
+            legacy_log("event", "raw_rds_available=1");
             extract_raw_rds();
             break;
 
@@ -176,7 +176,7 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_STEREO: {
-            legacy_log("event", "stereo mode");
+            legacy_log("event", "stereo=1");
             fm_storage.stereo_type = FM_RX_STEREO;
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.stereo = 1;
@@ -185,7 +185,7 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_MONO: {
-            legacy_log("event", "mono mode");
+            legacy_log("event", "stereo=0");
             fm_storage.stereo_type = FM_RX_MONO;
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.stereo = 0;
@@ -194,25 +194,25 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_RDS_AVAIL: {
-            legacy_log("event", "RDS available");
+            legacy_log("event", "rds_available=1");
             // fm_global_params.rds_sync_status = FM_RDS_SYNCED;
             break;
         }
 
         case TAVARUA_EVT_RDS_NOT_AVAIL: {
-            legacy_log("event", "RDS not available");
+            legacy_log("event", "rds_available=0");
             // fm_global_params.rds_sync_status = FM_RDS_NOT_SYNCED;
             break;
         }
 
         case TAVARUA_EVT_NEW_SRCH_LIST: {
-            legacy_log("event", "search list available");
+            legacy_log("event", "search_list_available=1");
             uint32 list[25];
             uint8 stations = extract_search_station_list(list);
 
             const std::string frequencies = format_frequency_list_khz(list, stations);
 
-            legacy_log("search", "result count=%d frequencies=%s", stations, frequencies.c_str());
+            legacy_log("search", "result count=%d frequencies_khz=%s", stations, frequencies.c_str());
 
             int frequencies_khz[25];
             for (uint8 i = 0; i < stations; ++i) {
@@ -228,7 +228,7 @@ bool process_radio_event(uint8 event_buf) {
 
             const std::string frequencies = format_frequency_list_khz(list, size);
 
-            legacy_log("af", "result count=%d frequencies=%s", size, frequencies.c_str());
+            legacy_log("af", "result count=%d frequencies_khz=%s", size, frequencies.c_str());
 
             int frequencies_khz[kMaxRdsAfCount];
             for (uint8 i = 0; i < size; ++i) {
@@ -243,19 +243,19 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_NEW_ODA: {
-            legacy_log("event", "ODA available");
+            legacy_log("event", "oda_available=1");
             fm_receiver_set_rds_group_mask(0);
             break;
         }
 
         case TAVARUA_EVT_NEW_RT_PLUS: {
-            legacy_log("event", "RT+ available");
+            legacy_log("event", "rt_plus_available=1");
             extract_rt_plus();
             break;
         }
 
         case TAVARUA_EVT_NEW_ERT: {
-            legacy_log("event", "ERT available");
+            legacy_log("event", "ert_available=1");
             extract_ert();
             break;
         }
@@ -376,21 +376,21 @@ fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
     char version_str[40] = {'\0'};
     struct v4l2_capability cap = {};
 
-    legacy_log("prepare", "reading driver version");
+    legacy_log("prep", "reading driver version");
 
     // Read the driver version
     ret = fm_receiver_query_capabilities(&cap);
 
-    legacy_log("prepare", "VIDIOC_QUERYCAP ret=%d version=0x%x", ret, cap.version);
+    legacy_log("prep", "VIDIOC_QUERYCAP ret=%d version=0x%x", ret, cap.version);
 
     if (ret == TRUE) {
-        legacy_log("prepare", "driver version=0x%x", cap.version);
+        legacy_log("prep", "driver version=0x%x", cap.version);
 
         // Convert the integer to string
         ret = snprintf(version_str, sizeof(version_str), "%d", cap.version);
 
         if (ret >= sizeof(version_str)) {
-            legacy_log("prepare", "version string overflow");
+            legacy_log("prep", "version string overflow");
             fm_receiver_close();
             return FM_CMD_FAILURE;
         }
@@ -399,19 +399,19 @@ fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
         __system_property_set("hw.fm.version", version_str);
 #endif
 
-        legacy_log("prepare", "hw.fm.version=%s", version_str);
+        legacy_log("prep", "hw.fm.version=%s", version_str);
 
         asprintf(&qsoc_poweron_path, "fm_qsoc_patches %d 0", cap.version);
 
         if (qsoc_poweron_path != NULL) {
-            legacy_log("prepare", "qsoc_onpath=%s", qsoc_poweron_path);
+            legacy_log("prep", "qsoc_onpath=%s", qsoc_poweron_path);
         }
     } else {
-        legacy_log("prepare", "query capabilities failed");
+        legacy_log("prep", "query capabilities failed");
         return FM_CMD_FAILURE;
     }
 
-    legacy_log("prepare", "receiver opened");
+    legacy_log("prep", "completed");
     return fm_command_setup_receiver(config_ptr);
 }
 
@@ -554,7 +554,7 @@ fm_cmd_status_t fm_command_disable() {
     __system_property_set("ctl.stop", "fm_dl");
 #endif
 
-    legacy_log("disable", "success");
+    legacy_log("disable", "accepted");
 
     return FM_CMD_SUCCESS;
 }
@@ -564,16 +564,16 @@ fm_cmd_status_t fm_command_disable() {
  * Tune to specified frequency.
  */
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency) {
-    legacy_log("tune", "request frequency=%d", frequency);
+    legacy_log("tune", "request frequency_khz=%d", frequency);
 
     bool ret = fm_receiver_set_tuned_frequency(frequency);
 
     if (ret == FALSE) {
-        legacy_log("tune", "request failed");
+        legacy_log("tune", "request frequency_khz=%d failed", frequency);
         return FM_CMD_FAILURE;
     }
 
-    legacy_log("tune", "request sent");
+    legacy_log("tune", "request frequency_khz=%d accepted", frequency);
 
     return FM_CMD_SUCCESS;
 }
@@ -617,7 +617,7 @@ fm_cmd_status_t fm_command_set_mute_mode(mute_t mode) {
     int ret = fm_receiver_set_mute_mode(mode);
 
     if (ret == TRUE) {
-        legacy_log("audio", "mute mode set");
+        legacy_log("audio", "set mute=%d accepted", mode);
         return FM_CMD_SUCCESS;
     }
 

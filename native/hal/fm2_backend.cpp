@@ -148,7 +148,7 @@ void add_scan_frequency_locked(int freq) {
     }
 
     if (g_state.scan.found_count >= kMaxScanStations) {
-        hal_log("search", "scan result full, dropping frequency=%d", freq);
+        hal_log("search", "scan result full, dropping frequency_khz=%d", freq);
         return;
     }
 
@@ -376,7 +376,7 @@ int spacing_step_khz_locked() {
 void log_scan_next_cb() {
     int freq = 0;
     if (vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read scan-next frequency")) {
-        hal_log("search", "scan next frequency=%d", freq);
+        hal_log("search", "scan next frequency_khz=%d", freq);
     } else {
         hal_log("search", "scan next");
         return;
@@ -412,7 +412,7 @@ void log_scan_next_cb() {
 
     const std::string frequencies = format_frequency_list_khz(found, found_count);
 
-    hal_log("search", "scan complete count=%d frequencies=%s", found_count, frequencies.c_str());
+    hal_log("search", "scan complete count=%d frequencies_khz=%s", found_count, frequencies.c_str());
     send_search_done(found, found_count);
 }
 
@@ -421,7 +421,7 @@ void log_thread_evt_cb(unsigned int evt) {
 }
 
 void oda_update_cb() {
-    hal_log("rds", "oda update");
+    hal_log("rds", "oda_update=1");
 }
 
 /*
@@ -475,7 +475,7 @@ void rt_plus_update_cb(char *payload) {
         log_rt_plus_slices_locked();
         pthread_mutex_unlock(&g_state.lock);
 
-        hal_log("rds", "rt+ len=%d pi=0x%04x pty=0x%02x flags=0x%08x tag1=(ct=%d,start=%d,len=%d) tag2=(ct=%d,start=%d,len=%d) data=%s%s",
+        hal_log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x tag1=(ct=%d,start=%d,len=%d) tag2=(ct=%d,start=%d,len=%d) data=%s%s",
                 len, pi, pty, flags,
                 tag1_type, tag1_start, tag1_type == 0 ? 0 : tag1_len + 1,
                 tag2_type, tag2_start, tag2_type == 0 ? 0 : tag2_len + 1,
@@ -486,7 +486,7 @@ void rt_plus_update_cb(char *payload) {
     if (len >= 4) {
         const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
         const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
-        hal_log("rds", "rt+ len=%d pi=0x%04x pty=0x%02x data=%s%s",
+        hal_log("rds", "rt+ len=%d pi=%04x pty=%d data=%s%s",
                 len, pi, pty, dump, len > 32 ? " ..." : "");
         return;
     }
@@ -564,7 +564,7 @@ void ext_country_code_cb(char *payload) {
         if (variant == 0) {
             const int country_code = (pi >> 12) & 0x0f;
             const int ecc = slow_labelling & 0xff;
-            hal_log("rds", "ecc len=%d pi=0x%04x pty=0x%02x cc=0x%x ecc=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
+            hal_log("rds", "ecc len=%d pi=%04x pty=%d cc=0x%x ecc=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
                     len, pi, pty, country_code, ecc, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
             return;
         }
@@ -631,11 +631,11 @@ void fm_get_station_debug_param_cb(int value, int status) {
 }
 
 void enable_softmute_cb(int status) {
-    hal_log("audio", "softmute status=%d", status);
+    hal_log("audio", "soft_mute status=%d", status);
 }
 
 void rds_avail_status_cb(bool rds_available) {
-    hal_log("event", "RDS available=%d", rds_available ? 1 : 0);
+    hal_log("event", "rds_available=%d", rds_available ? 1 : 0);
 }
 
 void enable_slimbus_cb(int status) {
@@ -665,7 +665,7 @@ void disabled_cb() {
 }
 
 void tune_cb(int freq) {
-    hal_log("event", "tuned frequency=%d", freq);
+    hal_log("event", "tune frequency_khz=%d", freq);
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_tune_cb_ms = now_ms();
@@ -685,9 +685,9 @@ void tune_cb(int freq) {
 void seek_complete_cb(int freq) {
     int current = 0;
     if (vendor_get(kV4l2CtrlIrisFreq, &current, "failed to read seek-complete frequency")) {
-        hal_log("event", "seek complete frequency=%d current=%d", freq, current);
+        hal_log("event", "seek complete frequency_khz=%d current_frequency_khz=%d", freq, current);
     } else {
-        hal_log("event", "seek complete frequency=%d", freq);
+        hal_log("event", "seek complete frequency_khz=%d", freq);
     }
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
@@ -743,7 +743,8 @@ void ps_update_cb(char *ps) {
         return;
     }
 
-    hal_log("rds", "ps count=%d pi=%04x pty=0x%02x text=`%s`", parsed.block_count, parsed.pi, parsed.pty, parsed.text);
+    hal_log("rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
+            parsed.block_count, parsed.pi, parsed.pty, parsed.text, parsed.text_len);
     char pi[16];
     snprintf(pi, sizeof(pi), "%x", parsed.pi);
     radio_state_patch_t patch = radio_state_patch_empty();
@@ -798,7 +799,7 @@ void rt_update_cb(char *rt) {
     log_rt_plus_slices_locked();
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("rds", "rt=`%s` (len=%d)", parsed.text, text_len);
+    hal_log("rds", "rt text=`%s` (len=%d)", parsed.text, text_len);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rt = parsed.text;
     send_radio_state_patch(&patch);
@@ -829,7 +830,7 @@ void af_update_cb(uint16_t *raw) {
 
     const std::string frequencies = format_frequency_list_khz(af.frequencies_khz, af.count);
 
-    hal_log("af", "result count=%d frequencies=%s", af.count, frequencies.c_str());
+    hal_log("af", "result count=%d frequencies_khz=%s", af.count, frequencies.c_str());
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.af_khz = af.frequencies_khz;
     patch.af_count = af.count;
@@ -898,7 +899,7 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    hal_log("search", "result count=%d reported=%d frequencies=%s", list.count, list.reported_count, frequencies.c_str());
+    hal_log("search", "result count=%d reported=%d frequencies_khz=%s", list.count, list.reported_count, frequencies.c_str());
     send_search_done(list.frequencies_khz, list.count);
 }
 
@@ -962,7 +963,7 @@ bool apply_runtime_config() {
     rds_standard = g_state.rds_standard;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "runtime region=%d lower=%d upper=%d spacing=%d emphasis=%d rds=%d stereo=%d softmute=%d antenna=%d",
+    hal_log("setup", "runtime region=%d lower_khz=%d upper_khz=%d spacing=%d emphasis=%d rds=%d stereo=%d soft_mute=%d antenna=%d",
             region, lower, upper, spacing, emphasis, rds_standard, stereo, soft_mute, antenna);
 
     if (
@@ -1075,7 +1076,11 @@ bool fm2_backend_enable() {
     }
 
     fm2_backend_log_snapshot("after-runtime-config");
-    return apply_post_enable_config();
+    if (!apply_post_enable_config()) {
+        return false;
+    }
+    hal_log("enable", "accepted");
+    return true;
 }
 
 bool fm2_backend_wait_enabled(int timeout_ms) {
@@ -1106,14 +1111,19 @@ bool fm2_backend_disable() {
     hal_log("disable", "requested");
     const bool disabled = vendor_set(kV4l2CtrlState, 0, "failed to disable receiver");
     const bool slimbus = fm2_backend_set_slimbus(false);
-    return disabled && slimbus;
+    const bool accepted = disabled && slimbus;
+    if (accepted) {
+        hal_log("disable", "accepted");
+    }
+    return accepted;
 }
 
 bool fm2_backend_set_frequency(uint32_t frequency_khz) {
-    hal_log("tune", "request frequency=%u", frequency_khz);
+    hal_log("tune", "request frequency_khz=%u", frequency_khz);
     if (!vendor_set(kV4l2CtrlIrisFreq, static_cast<int>(frequency_khz), "failed to tune")) {
         return false;
     }
+    hal_log("tune", "request frequency_khz=%u accepted", frequency_khz);
 
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = static_cast<int>(frequency_khz);
@@ -1128,7 +1138,7 @@ uint32_t fm2_backend_get_frequency() {
         pthread_mutex_lock(&g_state.lock);
         const int cached = current_frequency_locked();
         pthread_mutex_unlock(&g_state.lock);
-        hal_log("tune", "get frequency failed, using cached=%d", cached);
+        hal_log("tune", "get frequency failed, using cached (frequency_khz=%d)", cached);
         return cached > 0 ? static_cast<uint32_t>(cached) : 0;
     }
 
@@ -1137,7 +1147,7 @@ uint32_t fm2_backend_get_frequency() {
         const int cached = current_frequency_locked();
         clear_error_locked();
         pthread_mutex_unlock(&g_state.lock);
-        hal_log("tune", "invalid frequency=%d, using cached=%d", freq, cached);
+        hal_log("tune", "invalid frequency_khz=%d, using cached (frequency_khz=%d)", freq, cached);
         return cached > 0 ? static_cast<uint32_t>(cached) : 0;
     }
 
@@ -1178,10 +1188,13 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
 }
 
 bool fm2_backend_seek(int direction) {
-    hal_log("search", "seek direction=%d", direction);
+    hal_log("search", "seek requested direction=%d dwell=%d", direction, kDefaultSeekDwell);
     const bool ok = vendor_set(kV4l2CtrlSearchMode, kSearchModeSeek, "failed to set seek mode") &&
                     vendor_set(kV4l2CtrlScanDwell, kDefaultSeekDwell, "failed to set seek dwell") &&
                     vendor_set(kV4l2CtrlIrisSeek, direction >= 0 ? 1 : 0, "failed to start seek");
+    if (ok) {
+        hal_log("search", "seek direction=%d accepted", direction);
+    }
     return ok;
 }
 
@@ -1195,7 +1208,7 @@ bool fm2_backend_search() {
     g_state.scan.last_frequency_khz = start_frequency;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("search", "scan start frequency=%d", start_frequency);
+    hal_log("search", "scan start frequency_khz=%d", start_frequency);
 
     const bool ok = vendor_set(kV4l2CtrlIrisFreq, start_frequency, "failed to tune scan start") &&
                     vendor_set(kV4l2CtrlSearchMode, kSearchModeScan, "failed to set scan mode") &&
@@ -1234,7 +1247,7 @@ bool fm2_backend_set_stereo(bool enabled) {
 }
 
 bool fm2_backend_set_spacing_khz(int spacing_khz) {
-    hal_log("setup", "set spacing=%d kHz", spacing_khz);
+    hal_log("setup", "set spacing_khz=%d", spacing_khz);
     pthread_mutex_lock(&g_state.lock);
     g_state.spacing_khz = spacing_khz;
     g_state.vendor_spacing = map_spacing_to_vendor(spacing_khz);
@@ -1255,7 +1268,7 @@ bool fm2_backend_set_region(StartupRegion startup_region) {
     const int current_frequency = g_state.current_frequency_khz;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "apply region=%d lower=%d upper=%d emphasis=%d rds=%d",
+    hal_log("setup", "apply region=%d lower_khz=%d upper_khz=%d emphasis=%d rds=%d",
             region, lower, upper, emphasis, rds_standard);
     const bool configured =
             vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band") &&
@@ -1298,7 +1311,7 @@ bool fm2_backend_set_auto_af(bool enabled) {
 }
 
 bool fm2_backend_set_soft_mute(bool enabled) {
-    hal_log("audio", "set softmute=%d", enabled ? 1 : 0);
+    hal_log("audio", "set soft_mute=%d", enabled ? 1 : 0);
     if (!vendor_set(kV4l2CtrlSoftMute, enabled ? 1 : 0, "failed to set soft mute")) {
         return false;
     }
@@ -1397,12 +1410,12 @@ bool fm2_backend_log_snapshot(const char *reason) {
     };
 
     bool ok = true;
-    hal_log("snapshot", "reason=%s", reason ? reason : "(null)");
+    hal_log("snap", "reason=%s", reason ? reason : "(null)");
     for (const CtlProbe &probe : probes) {
         int value = 0;
         const bool probe_ok = vendor_get(probe.id, &value, "failed snapshot read");
         ok &= probe_ok;
-        hal_log("snapshot", "%s id=0x%x ok=%d value=%d", probe.name, probe.id, probe_ok ? 1 : 0, value);
+        hal_log("snap", "%-9s id=0x%07x value=%d (ok=%d)", probe.name, probe.id, value, probe_ok ? 1 : 0);
     }
 
     return ok;

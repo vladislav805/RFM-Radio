@@ -22,7 +22,7 @@ constexpr int kServerLogIn = 0;
 constexpr int kServerLogOut = 1;
 
 void server_log(const char *scope, const int type, const char *fmt, ...) {
-    printf("server/%-7s%s ", scope, type == kServerLogIn ? ">" : "<");
+    printf("srv/%-7s%s ", scope, type == kServerLogIn ? ">" : "<");
 
     va_list args;
     va_start(args, fmt);

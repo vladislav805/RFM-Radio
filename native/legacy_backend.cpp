@@ -41,6 +41,18 @@ public:
                 .antenna = static_cast<uint8>(config.antenna),
         };
 
+        legacy_log("enable", "requested");
+        legacy_log("setup", "runtime region_vendor=%d lower_khz=%u upper_khz=%u spacing_vendor=%d emphasis=%d rds_vendor=%d stereo=%d soft_mute=%d antenna=%d",
+                profile.legacy_band,
+                profile.lower_frequency_khz,
+                profile.upper_frequency_khz,
+                cfg_data.spacing,
+                cfg_data.emphasis,
+                profile.rds_standard,
+                config.stereo ? 1 : 0,
+                config.soft_mute ? 1 : 0,
+                config.antenna);
+
         if (!set_status(fm_command_prepare(&cfg_data) == FM_CMD_SUCCESS, kErrFailed)) {
             return rollback_enable();
         }
@@ -69,6 +81,7 @@ public:
         if (!set_status(fm_command_set_mute_mode(FM_RX_NO_MUTE) == FM_CMD_SUCCESS, kErrFailed)) {
             return rollback_enable();
         }
+        legacy_log("enable", "accepted");
         return true;
     }
 
@@ -96,6 +109,7 @@ public:
     }
 
     bool set_power_mode(bool low_power) override {
+        legacy_log("setup", "set low_power=%d", low_power ? 1 : 0);
         return set_status(
                 fm_receiver_set_power_mode(low_power ? FM_RX_POWER_MODE_LOW : FM_RX_POWER_MODE_NORMAL) == TRUE,
                 kErrFailed
@@ -103,6 +117,7 @@ public:
     }
 
     bool set_stereo(bool enabled) override {
+        legacy_log("audio", "set stereo=%d", enabled ? 1 : 0);
         return set_status(
                 fm_command_set_stereo_mode(enabled ? FM_RX_STEREO : FM_RX_MONO) == FM_CMD_SUCCESS,
                 kErrFailed
@@ -110,11 +125,19 @@ public:
     }
 
     bool set_antenna(int antenna) override {
+        legacy_log("setup", "set antenna=%d", antenna);
         return set_status(fm_receiver_set_antenna(static_cast<uint8>(antenna)) == TRUE, kErrInvalidAntenna);
     }
 
     bool set_region(StartupRegion region) override {
         const RegionProfile &profile = get_region_profile(region);
+        legacy_log("setup", "set region=%s", get_region_name(region));
+        legacy_log("setup", "apply region_vendor=%d lower_khz=%u upper_khz=%u emphasis=%d rds_vendor=%d",
+                profile.legacy_band,
+                profile.lower_frequency_khz,
+                profile.upper_frequency_khz,
+                profile.emphasis,
+                profile.rds_standard);
         if (!set_status(
                 fm_receiver_set_band(static_cast<radio_band_t>(profile.legacy_band)) == TRUE,
                 kErrCantSetRegion
@@ -146,6 +169,7 @@ public:
     }
 
     bool set_spacing(int spacing_khz) override {
+        legacy_log("setup", "set spacing_khz=%d", spacing_khz);
         return set_status(fm_receiver_set_spacing(map_spacing_to_vendor(spacing_khz)) == TRUE, kErrFailed);
     }
 
@@ -164,10 +188,12 @@ public:
     }
 
     bool set_auto_af(bool enabled) override {
+        legacy_log("af", "set auto=%d", enabled ? 1 : 0);
         return set_status(fm_receiver_toggle_af_jump(enabled ? 1 : 0) == TRUE, kErrFailed);
     }
 
     bool set_soft_mute(bool enabled) override {
+        legacy_log("audio", "set soft_mute=%d", enabled ? 1 : 0);
         return set_status(set_v4l2_ctrl(kV4l2CtrlSoftMute, enabled ? 1 : 0), kErrFailed);
     }
 
