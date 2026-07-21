@@ -1,6 +1,7 @@
 #include "rds_parser.h"
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <vector>
 
 namespace {
@@ -86,6 +87,39 @@ TEST(RdsParserTest, ParsesRadioTextPayload) {
     EXPECT_EQ(parsed.pi, 0xabcd);
     EXPECT_EQ(parsed.text_len, 5);
     EXPECT_STREQ(parsed.text, "Hello");
+}
+
+TEST(RdsParserTest, TrimsRadioTextTerminatorAndVendorPadding) {
+    std::vector<unsigned char> payload(5 + 60, 0xff);
+    payload[0] = 60;
+    payload[1] = 10;
+    payload[2] = 0x77;
+    payload[3] = 0x34;
+    payload[4] = 1;
+    const char text[] = "Radio_Kek 90.0 FM";
+    std::copy(text, text + sizeof(text) - 1, payload.begin() + 5);
+
+    RdsTextPayload parsed;
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload.data(),
+            payload.size(),
+            RdsTextPayloadKind::kRadioText,
+            64,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.text_len, 17);
+    EXPECT_STREQ(parsed.text, "Radio_Kek 90.0 FM");
+
+    payload[5 + 9] = '\r';
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload.data(),
+            payload.size(),
+            RdsTextPayloadKind::kRadioText,
+            64,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.text_len, 9);
+    EXPECT_STREQ(parsed.text, "Radio_Kek");
 }
 
 TEST(RdsParserTest, AllowsEmptyRadioTextPayload) {

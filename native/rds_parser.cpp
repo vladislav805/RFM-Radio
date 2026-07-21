@@ -114,6 +114,22 @@ bool parse_rds_text_payload(
     if (text_len > 0) {
         memcpy(out->text, payload + kMetadataSize, static_cast<size_t>(text_len));
     }
+
+    if (kind == RdsTextPayloadKind::kRadioText) {
+        for (int i = 0; i < text_len; ++i) {
+            if (static_cast<unsigned char>(out->text[i]) == '\r') {
+                text_len = i;
+                break;
+            }
+        }
+        while (text_len > 0) {
+            const unsigned char last = static_cast<unsigned char>(out->text[text_len - 1]);
+            if (last != ' ' && last != 0xff) {
+                break;
+            }
+            --text_len;
+        }
+    }
     out->text[text_len] = '\0';
 
     out->pi = (payload[2] << 8) | payload[3];

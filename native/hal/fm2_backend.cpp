@@ -786,26 +786,13 @@ void rt_update_cb(char *rt) {
         return;
     }
 
-    int text_len = parsed.text_len;
-    for (int i = 0; i < text_len; ++i) {
-        if (parsed.text[i] == '\r') {
-            text_len = i;
-            parsed.text[text_len] = '\0';
-            break;
-        }
-    }
-    while (text_len > 0 && parsed.text[text_len - 1] == ' ') {
-        --text_len;
-        parsed.text[text_len] = '\0';
-    }
-
     pthread_mutex_lock(&g_state.lock);
     snprintf(g_state.current_rt, sizeof(g_state.current_rt), "%s", parsed.text);
-    g_state.current_rt_len = text_len;
+    g_state.current_rt_len = parsed.text_len;
     log_rt_plus_slices_locked();
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("rds", "rt text=`%s` (len=%d)", parsed.text, text_len);
+    hal_log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rt = parsed.text;
     send_radio_state_patch(&patch);
