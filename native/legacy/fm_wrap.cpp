@@ -140,7 +140,10 @@ bool process_radio_event(uint8 event_buf) {
             break;
 
         case TAVARUA_EVT_NEW_RT_RDS: {
-            ret = extract_radio_text(&fm_storage.rds);
+            if (!extract_radio_text(&fm_storage.rds)) {
+                legacy_log("rds", "failed to extract RT");
+                break;
+            }
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.rt = fm_storage.rds.radio_text;
             send_radio_state_patch(&patch);
@@ -148,7 +151,10 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_NEW_PS_RDS: {
-            ret = extract_program_service(&fm_storage.rds);
+            if (!extract_program_service(&fm_storage.rds)) {
+                legacy_log("rds", "failed to extract PS");
+                break;
+            }
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.ps = fm_storage.rds.program_name;
             patch.pi = int_to_hex_string(fm_storage.rds.program_id);
