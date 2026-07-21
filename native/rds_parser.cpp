@@ -190,7 +190,7 @@ bool parse_rds_search_list_payload(
 
         out->frequencies_khz[i] = kind == RdsSearchListKind::kRelativeOffsets
                 ? lower_frequency_khz + raw * 50
-                : ((raw * 50 + 50) / 100) * 100;
+                : raw * 50;
     }
 
     out->count = count;

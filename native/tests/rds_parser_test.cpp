@@ -349,7 +349,7 @@ TEST(RdsParserTest, ParsesAbsoluteSearchListPayload) {
     EXPECT_EQ(parsed.count, 2);
     EXPECT_EQ(parsed.reported_count, 2);
     EXPECT_EQ(parsed.frequencies_khz[0], 87500);
-    EXPECT_EQ(parsed.frequencies_khz[1], 88000);
+    EXPECT_EQ(parsed.frequencies_khz[1], 87950);
 }
 
 TEST(RdsParserTest, ParsesEmptySearchListPayload) {
