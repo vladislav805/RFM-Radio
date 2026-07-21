@@ -36,6 +36,19 @@ calls `create_detected_backend()`, and the selected singleton is retained for
 the life of the process. There is currently no fallback from a failed legacy
 initialization to HAL.
 
+## Hardware Verification
+
+Live device verification has been performed on:
+
+| Device | Backend | Platform context |
+| --- | --- | --- |
+| Xiaomi Mi A1 | Legacy V4L2 | Qualcomm Snapdragon 625 (MSM8953), AOSP Android 7.1.2 |
+| Xiaomi Poco X3 Pro | HAL/FM2 | Qualcomm Snapdragon 860 (SM8150-AD), cdDroid 11.2 |
+
+Treat behavior observed on these devices as evidence for the corresponding
+backend, not as a universal Qualcomm contract. Re-test hardware-sensitive
+changes on the matching backend whenever possible.
+
 High-level data flow:
 
 ```text
@@ -415,14 +428,9 @@ HAL `jump` uses configured spacing and wraps at region limits. Direction is
 normalized by sign.
 
 Seek configures search mode and dwell, then writes the IRIS seek control. The
-seek callback updates frequency and clears RDS. There is no separate JSON
-`seek_complete`; completion is represented by the asynchronous frequency state
-patch.
-
-Native `seekhw` nevertheless returns only `ok`, while Java's generic
-`hwSeekImpl()` attempts to parse the command response as an integer frequency.
-This is a known semantic mismatch. The real frequency generally arrives via
-the state event path.
+immediate `seekhw` response only acknowledges command acceptance. Java does not
+parse it as a frequency. The asynchronous callback updates frequency, clears
+RDS, and emits the authoritative state patch.
 
 ### Full Search
 
@@ -548,12 +556,15 @@ Legacy tune writes `VIDIOC_S_FREQUENCY`.
 Legacy `jump` applies one spacing delta to the current frequency but does not
 wrap at regional boundaries, unlike HAL.
 
-Legacy seek uses V4L2 hardware seek with mode `SEEK` and dwell value 7.
+Legacy seek uses V4L2 hardware seek with mode `SEEK` and dwell value 7. On
+verified legacy hardware, the seek-complete event arrives while
+`VIDIOC_G_FREQUENCY` still returns the starting frequency. It is diagnostic
+only; the subsequent tune event carries the final frequency and emits the
+authoritative state patch.
 
 Full search requests `SCAN_FOR_STRONG` with a maximum of 20 stations. Results
-arrive in the `NEW_SRCH_LIST` event and are emitted as `search_done`. The shared
-legacy station-list parser rounds decoded channels to 100 kHz, even when the
-configured spacing is 50 kHz. This behavior is currently asserted by tests.
+arrive in the `NEW_SRCH_LIST` event and are emitted as `search_done`. Absolute
+legacy channel values retain their native 50 kHz precision.
 
 ### Legacy RDS and Disable
 
@@ -664,8 +675,6 @@ Use this list as a pre-change checklist:
 | Two HAL search completion paths | Duplicate/conflicting station lists are possible |
 | UDP state dedup without acknowledgement | Lost packet may suppress later identical state |
 | Command responses include NUL | Java numeric parsing can be inconsistent |
-| `seekhw` response mismatch | Native returns `ok`; Java expects an integer |
-| Legacy 50 kHz list rounding | Valid half-step stations can be changed |
 | Legacy jump lacks band wrap | Out-of-band tune can be requested |
 | `exit` is not hardware shutdown | Radio/HAL/thread cleanup is skipped |
 

@@ -118,14 +118,9 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_SEEK_COMPLETE: {
-            fm_storage.frequency = fm_receiver_get_tuned_frequency();
-
-            legacy_log("event", "seek complete frequency=%d", fm_storage.frequency);
-            radio_state_patch_t patch = radio_state_patch_empty();
-            patch.frequency_khz = fm_storage.frequency;
-            patch.ps = patch.rt = patch.pi = "";
-            patch.pty = patch.af_count = 0;
-            send_radio_state_patch(&patch);
+            // Some legacy drivers report search completion before switching
+            // to the found station. TUNE_SUCC carries the final frequency.
+            legacy_log("event", "seek operation complete, waiting for tune event");
             break;
         }
 

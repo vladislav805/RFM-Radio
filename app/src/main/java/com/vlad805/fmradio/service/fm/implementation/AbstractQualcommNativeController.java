@@ -284,18 +284,16 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         });
     }
 
-    protected void hwSeekImpl(final int direction, final Callback<Integer> callback) {
-        sendCommand(new Request("seekhw " + direction, 4000).onResponse(data -> callback.onResult(Utils.parseInt(data))));
+    protected void hwSeekImpl(final int direction) {
+        sendCommand(new Request("seekhw " + direction, 4000).onResponse(data -> {
+            if (data == null || !data.startsWith("ok")) {
+                fireError("Error while hwSeek: " + data);
+            }
+        }));
     }
 
     public void hwSeek(final int direction) {
-        hwSeekImpl(direction, result -> {
-            if (result < 0) {
-                fireError("Error while hwSeek");
-                return;
-            }
-            fireFrequencyEvent(C.Event.HW_SEEK_COMPLETE, result);
-        });
+        hwSeekImpl(direction);
     }
 
     protected void hwSearchImpl() {
