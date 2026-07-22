@@ -122,19 +122,19 @@
 	<string name="pref_tuner_soft_mute_off">Nie tłum szumu słabego sygnału</string>
     <string name="pref_tuner_antenna_error">Błąd podczas ustawiania anteny. Proszę zwrócić prawidłową wartość (zwykle 0)</string>
     <string name="pref_version_check_error">Wystąpił błąd podczas żądania: %s</string>
-    <string name="menu_favorite_list_search">Wyszukaj stacje</string>
-	<string name="favorite_list_search_confirm_title">Uwaga!</string>
-	<string name="favorite_list_search_confirm_message">Ta lista ulubionych zostanie wyczyszczona i zastąpiona znalezionymi stacjami.</string>
-	<string name="favorite_list_search_confirm_continue">Usuń i zeskanuj</string>
-	<string name="favorite_list_search_confirm_discard">Odrzuć</string>
-	<string name="favorite_list_search_progress">Proszę, poczekaj… próbuję znaleźć stacje.</string>
+    <string name="menu_scan_stations">Wyszukaj stacje</string>
+	<string name="scan_stations_confirm_title">Uwaga!</string>
+	<string name="scan_stations_confirm_message">Bieżąca lista ulubionych zostanie wyczyszczona i zastąpiona znalezionymi stacjami.</string>
+	<string name="scan_stations_confirm_continue">Usuń i zeskanuj</string>
+	<string name="scan_stations_confirm_discard">Odrzuć</string>
+	<string name="scan_stations_progress">Proszę, poczekaj… próbuję znaleźć stacje.</string>
     <string name="pref_tuner_rds_auto_af">Automatyczne przeskakiwanie przez AF</string>
 	<string name="pref_tuner_rds_auto_afenabled">Gdy sygnał ulega pogorszeniu i występują alternatywne częstotliwości
 		stacji radiowej, tuner automatycznie przełączy się na częstotliwość o najlepszej jakości.
 	</string>
 	<string name="pref_tuner_rds_auto_af_disabled">Jeśli sygnał się pogorszy, nic się nie stanie, dane o alternatywnych częstotliwościach ze stacji radiowej zostaną zignorowane.</string>
 	<string name="menu_speaker">Graj przez głośnik</string>
-	<string name="favorite_list_search_error_tuner_not_enabled">Nie można wyszukiwać, gdy tuner jest wyłączony.</string>
+	<string name="scan_stations_error_tuner_not_enabled">Nie można wyszukiwać, gdy tuner jest wyłączony.</string>
 	<string name="unsupported_device_title">Urządzenie nie jest obsługiwane</string>
 	<string name="unsupported_device_message">RFM Radio nie znalazło obsługiwanego backendu FM na tym urządzeniu. Tryb legacy wymaga /dev/radio0, a tryb HAL wymaga fm_helium.so.</string>
 	<string name="root_required_title">Wymagany dostęp root</string>

@@ -127,19 +127,19 @@
 	<string name="pref_tuner_soft_mute_off">Do not suppress weak-signal noise</string>
     <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
     <string name="pref_version_check_error">An error occurred during the request: %s</string>
-    <string name="menu_favorite_list_search">Scan for stations</string>
-	<string name="favorite_list_search_confirm_title">Attention!</string>
-	<string name="favorite_list_search_confirm_message">This favorite list will be cleared and replaced by found stations.</string>
-	<string name="favorite_list_search_confirm_continue">Remove and scan</string>
-	<string name="favorite_list_search_confirm_discard">Discard</string>
-	<string name="favorite_list_search_progress">Please, wait… I trying to find stations.</string>
+    <string name="menu_scan_stations">Scan for stations</string>
+	<string name="scan_stations_confirm_title">Attention!</string>
+	<string name="scan_stations_confirm_message">The current favorites list will be cleared and replaced with the stations found.</string>
+	<string name="scan_stations_confirm_continue">Remove and scan</string>
+	<string name="scan_stations_confirm_discard">Discard</string>
+	<string name="scan_stations_progress">Please, wait… I trying to find stations.</string>
     <string name="pref_tuner_rds_auto_af">Automatic jump by AF</string>
 	<string name="pref_tuner_rds_auto_afenabled">When the signal deteriorates and there are alternative frequencies of
 		the radio station, the tuner will automatically switch to the frequency with the best quality.
 	</string>
 	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
 	<string name="menu_speaker">Play through speaker</string>
-	<string name="favorite_list_search_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="scan_stations_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
 	<string name="unsupported_device_title">Device not supported</string>
 	<string name="unsupported_device_message">RFM Radio could not find a supported FM backend on this device. Legacy mode requires /dev/radio0, and HAL mode requires fm_helium.so.</string>
 	<string name="root_required_title">Root access required</string>

@@ -3,9 +3,12 @@ package com.vlad805.fmradio.activity;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Build;
@@ -34,6 +37,7 @@ import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
+import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
@@ -48,6 +52,7 @@ import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 import net.grandcentrix.tray.AppPreferences;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @SuppressLint("NonConstantResourceId")
@@ -58,6 +63,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private FavoritesView mFavoritesView;
 
     private RadioController mRadioController;
+    private FavoriteController mFavoriteController;
+    private ProgressDialog mSearchProgress;
 
     private AppPreferences mPreferences;
 
@@ -106,6 +113,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);
+        mFavoriteController = new FavoriteController(this);
         mRadioController.requestForCurrentState(this);
         mRadioController.registerForUpdates(this);
         mRadioController.setPowerMode(PowerMode.NORMAL);
@@ -310,6 +318,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             startActivity(new Intent(this, AboutActivity.class));
         } else if (itemId == R.id.menu_settings) {
             startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
+        } else if (itemId == R.id.menu_scan_stations) {
+            showSearchDialog();
         } else if (itemId == R.id.menu_record) {
             if (mRadioController.getState().isRecording()) {
                 mRadioController.record(false);
@@ -343,6 +353,76 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         return super.onOptionsItemSelected(item);
     }
+
+    private void showSearchDialog() {
+        mRadioController.getCurrentState(state -> {
+            if (state.getStatus() != TunerStatus.ENABLED) {
+                mToast.text(R.string.scan_stations_error_tuner_not_enabled).show();
+                return;
+            }
+
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.scan_stations_confirm_title)
+                    .setMessage(R.string.scan_stations_confirm_message)
+                    .setCancelable(false)
+                    .setPositiveButton(R.string.scan_stations_confirm_continue, (dialog, buttonId) -> startSearch())
+                    .setNegativeButton(R.string.scan_stations_confirm_discard, null)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        });
+    }
+
+    private void startSearch() {
+        mRadioController.hwSearch();
+
+        mSearchProgress = ProgressDialog.create(this)
+                .text(R.string.scan_stations_progress)
+                .negativeButton(android.R.string.cancel, (dialog, buttonId) -> {
+                    mRadioController.cancelHwSearch();
+                    unregisterSearchReceiver();
+                    mSearchProgress = null;
+                })
+                .show();
+
+        Utils.registerAppReceiver(this, mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
+    }
+
+    private void unregisterSearchReceiver() {
+        try {
+            unregisterReceiver(mSearchDone);
+        } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    private final BroadcastReceiver mSearchDone = new BroadcastReceiver() {
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            if (intent == null || intent.getAction() == null) {
+                return;
+            }
+
+            unregisterSearchReceiver();
+
+            final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
+            mFavoriteController.reload();
+            final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
+            stations.clear();
+
+            for (final int kHz : frequencies) {
+                stations.add(new FavoriteStation(kHz, ""));
+            }
+
+            mFavoriteController.save();
+            Utils.sendAppBroadcast(MainActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
+            mFavoritesView.reload(true);
+            updateFavoriteFrequencyMarkers();
+
+            if (mSearchProgress != null) {
+                mSearchProgress.hide();
+                mSearchProgress = null;
+            }
+        }
+    };
 
     private void setEnabledToggleButton(final boolean enabled) {
         mCtlToggle.setEnabled(enabled);

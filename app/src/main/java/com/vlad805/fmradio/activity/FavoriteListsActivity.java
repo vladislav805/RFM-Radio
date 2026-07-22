@@ -3,10 +3,7 @@ package com.vlad805.fmradio.activity;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -27,12 +24,8 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
-import com.vlad805.fmradio.controller.RadioController;
-import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.helper.EditTextDialog;
-import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
-import com.vlad805.fmradio.models.FavoriteStation;
 
 import java.io.FileNotFoundException;
 import java.io.ByteArrayInputStream;
@@ -54,11 +47,8 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	private static final int MENU_LIST_RENAME = 1;
 	private static final int MENU_LIST_REMOVE = 2;
 	private static final int MENU_LIST_EXPORT = 3;
-	private ProgressDialog mProgress;
 	private Menu mMenu;
 	private String mCurrentNameList;
-
-	private RadioController mRadioCtl;
 
 	private FavoriteController mController;
 	private List<FavoriteListItem> mFavoriteListItems = new ArrayList<>();
@@ -96,8 +86,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_favorite_lists);
-
-		mRadioCtl = new RadioController(this);
 
 		mToast = Toast.create(this);
 		mController = new FavoriteController(this);
@@ -269,7 +257,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		final boolean hasSelection = !mSelectedLists.isEmpty();
 		menu.findItem(R.id.menu_favorite_add).setVisible(!mSelectionMode);
 		menu.findItem(R.id.menu_favorite_import).setVisible(!mSelectionMode);
-		menu.findItem(R.id.menu_favorite_search).setVisible(!mSelectionMode);
 		menu.findItem(R.id.menu_favorite_export_all).setVisible(!mSelectionMode);
 		menu.findItem(R.id.menu_favorite_export_selected).setVisible(mSelectionMode && hasSelection);
 		menu.findItem(R.id.menu_favorite_remove_selected).setVisible(mSelectionMode && hasSelection);
@@ -285,8 +272,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			addDialog();
 		} else if (itemId == R.id.menu_favorite_import) {
 			openImportFavoritePicker();
-		} else if (itemId == R.id.menu_favorite_search) {
-			searchDialog();
 		} else if (itemId == R.id.menu_favorite_export_all) {
 			openExportAllFavoritesPicker();
 		} else if (itemId == R.id.menu_favorite_export_selected) {
@@ -661,78 +646,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 				.setIcon(android.R.drawable.ic_dialog_alert)
 				.show();
 	}
-
-	private void searchDialog() {
-		mRadioCtl.getCurrentState(state -> {
-			if (state.getStatus() != TunerStatus.ENABLED) {
-				mToast.text(R.string.favorite_list_search_error_tuner_not_enabled).show();
-				return;
-			}
-
-			final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
-					.setTitle(R.string.favorite_list_search_confirm_title)
-					.setMessage(R.string.favorite_list_search_confirm_message)
-					.setCancelable(false)
-					.setPositiveButton(R.string.favorite_list_search_confirm_continue, (dlg, buttonId) -> searchStart())
-					.setNegativeButton(R.string.favorite_list_search_confirm_discard, (dlg, buttonId) -> {
-					})
-					.setIcon(android.R.drawable.ic_dialog_alert);
-			dialog.create().show();
-		});
-	}
-
-	private void searchStart() {
-		mRadioCtl.hwSearch();
-
-		mProgress = ProgressDialog.create(this)
-				.text(R.string.favorite_list_search_progress)
-				.negativeButton(android.R.string.cancel, (dlg, buttonId) -> {
-					mRadioCtl.cancelHwSearch();
-					unregisterSearchReceiver();
-					mProgress = null;
-				})
-				.show();
-
-		Utils.registerAppReceiver(this, mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
-	}
-
-	private void unregisterSearchReceiver() {
-		try {
-			unregisterReceiver(mSearchDone);
-		} catch (IllegalArgumentException ignored) {
-		}
-	}
-
-	private final BroadcastReceiver mSearchDone = new BroadcastReceiver() {
-		@Override
-		public void onReceive(final Context context, final Intent intent) {
-			if (intent == null || intent.getAction() == null) {
-				return;
-			}
-
-			unregisterSearchReceiver();
-
-			final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
-
-			final List<FavoriteStation> stations = mController.getStationsInCurrentList();
-			stations.clear();
-
-			for (final int kHz : frequencies) {
-				stations.add(new FavoriteStation(kHz, ""));
-			}
-
-			mController.save();
-			FavoriteListsActivity.this.setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-			Utils.sendAppBroadcast(FavoriteListsActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
-
-			reloadLists();
-			reloadContent();
-
-			if (mProgress != null) {
-				mProgress.hide();
-			}
-		}
-	};
 
 	private class FavoriteListsAdapter extends RecyclerView.Adapter<FavoriteListsAdapter.ViewHolder> {
 		@Override

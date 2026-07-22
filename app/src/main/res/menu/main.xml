@@ -17,6 +17,11 @@
 				android:icon="@drawable/ic_settings"/>
 
 		<item
+				android:id="@+id/menu_scan_stations"
+				android:title="@string/menu_scan_stations"
+				android:icon="@drawable/ic_search" />
+
+		<item
 				android:checkable="true"
 				android:id="@+id/menu_speaker"
 				android:title="@string/menu_speaker" />
