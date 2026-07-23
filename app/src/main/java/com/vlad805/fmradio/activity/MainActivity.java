@@ -158,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (needStartup) {
             if (ensurePlaybackPermissionForLegacyAudio()) {
-                mRadioController.setup();
+                startRadio();
             }
         } else {
             setEnabledUi(false);
@@ -227,7 +227,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (requestCode == REQUEST_CODE_PLAYBACK_PERMISSION) {
             final boolean granted = hasPlaybackPermission();
             if (granted && mPendingPlaybackStart) {
-                mRadioController.setup();
+                startRadio();
             } else if (mPendingPlaybackStart) {
                 mToast.text(getString(R.string.playback_permission_required)).show();
             }
@@ -267,20 +267,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             switch (mRadioController.getState().getStatus()) {
                 case IDLE: {
                     if (ensurePlaybackPermissionForLegacyAudio()) {
-                        mRadioController.setup();
-                    }
-                    break;
-                }
-
-                case INSTALLED:
-                case LAUNCHED: {
-                    if (ensurePlaybackPermissionForLegacyAudio()) {
-                        mRadioController.enable();
+                        startRadio();
                     }
                     break;
                 }
 
                 case ENABLED: {
+                    setEnabledToggleButton(false);
                     mRadioController.disable();
                     break;
                 }
@@ -298,6 +291,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (id == R.id.favorite_button) {
             startActivityForResult(new Intent(this, FavoriteListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
         }
+    }
+
+    private void startRadio() {
+        setEnabledToggleButton(false);
+        mRadioController.setup();
     }
 
     @Override
@@ -426,6 +424,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void setEnabledToggleButton(final boolean enabled) {
         mCtlToggle.setEnabled(enabled);
+        mCtlToggle.setAlpha(enabled ? 1f : .5f);
     }
 
     private boolean hasRecordingPermissions() {
@@ -637,17 +636,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case INSTALLED:
             case LAUNCHED: {
                 mFrequencyInfo.hideStatus();
+                setEnabledToggleButton(false);
                 break;
             }
 
             case LAUNCHING: {
                 mFrequencyInfo.showStatus(R.string.status_launching);
+                setEnabledToggleButton(false);
                 break;
             }
 
-            case LAUNCH_FAILED: {
+            case LAUNCH_FAILED:
+            case FATAL_ERROR: {
                 mFrequencyInfo.clearMetadata();
                 mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
+                setEnabledToggleButton(false);
 
                 Utils.alert(
                         this,
@@ -660,6 +663,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case ENABLING: {
                 mFrequencyInfo.hideStatus();
+                setEnabledToggleButton(false);
+                break;
+            }
+
+            case DISABLING: {
+                setEnabledToggleButton(false);
                 break;
             }
 
