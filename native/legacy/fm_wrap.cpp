@@ -254,13 +254,13 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_RDS_AVAIL: {
-            legacy_log("event", "rds_available=1");
+            legacy_log("event", "rds_sync=1");
             // fm_global_params.rds_sync_status = FM_RDS_SYNCED;
             break;
         }
 
         case TAVARUA_EVT_RDS_NOT_AVAIL: {
-            legacy_log("event", "rds_available=0");
+            legacy_log("event", "rds_sync=0");
             // fm_global_params.rds_sync_status = FM_RDS_NOT_SYNCED;
             break;
         }

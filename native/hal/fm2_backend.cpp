@@ -621,7 +621,7 @@ void enable_softmute_cb(int status) {
 }
 
 void rds_avail_status_cb(bool rds_available) {
-    hal_log("event", "rds_available=%d", rds_available ? 1 : 0);
+    hal_log("event", "rds_sync=%d", rds_available ? 1 : 0);
 }
 
 void enable_slimbus_cb(int status) {
@@ -709,7 +709,7 @@ void seek_complete_cb(int freq) {
 }
 
 void stereo_status_cb(bool stereo) {
-    hal_log("event", "stereo=%d", stereo ? 1 : 0);
+    hal_log("event", "stereo=%d", stereo);
     pthread_mutex_lock(&g_state.lock);
     g_state.audio.stereo = stereo;
     pthread_mutex_unlock(&g_state.lock);

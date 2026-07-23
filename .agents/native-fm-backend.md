@@ -469,9 +469,16 @@ local to repeated search-list payloads and does not unify both mechanisms.
 
 ### HAL RDS and Audio
 
-Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS availability.
+Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
 App-facing state includes PS, RT, PI, PTY, AF, stereo, and the country decoded
 from ECC plus the PI country nibble. RT+ remains diagnostic/logging data.
+
+The `rds_avail_status_cb` boolean is a decoder sync/lock snapshot, not a gate
+for processed RDS data. A tune-status callback commonly reports `rds_sync=0`
+before separate PS or RT events arrive, sometimes without a later sync-true
+callback. Both backends therefore log this state as `rds_sync` and continue to
+accept valid RDS payloads regardless of the latest value. Station metadata is
+cleared on tune/seek context changes, not on transient sync loss.
 
 PS/RT/AF/search callback signatures do not provide explicit buffer lengths.
 Parsers use count/length fields inside payloads and must trust vendor memory.
@@ -599,8 +606,16 @@ Legacy configures processed RDS/RBDS groups, raw group masks, data buffers, and
 PS-all behavior. PS, RT, PI, PTY, and AF are forwarded. RT+ and ERT are parsed
 or logged but are not represented in the Android state protocol.
 
+The verified msm8953 IRIS kernel interface does not expose ECC to userspace.
+Its HCI dispatcher drops `HCI_EV_EXT_COUNTRY_CODE` (`0x17`), while raw RDS
+groups are consumed inside the driver for ODA/RT+/ERT and are not written to
+the allocated raw-RDS FIFO. Consequently the legacy backend cannot emit a
+reliable country without a kernel change. The country nibble in PI alone is
+ambiguous across ECC regions and must not be used as a substitute.
+
 ODA events adjust the raw RDS group mask so the driver includes the detected
-carrier.
+carrier. ODA and the following RT+ event are unrelated to ECC; ODA discovery
+uses group 3A, while ECC would come from group 1A or the dropped HCI event.
 
 Disable writes receiver state off and stops `fm_dl`, then returns before the
 hardware disabled event. The event thread closes the descriptor later. This
