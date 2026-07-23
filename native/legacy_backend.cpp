@@ -86,14 +86,24 @@ public:
     }
 
     bool disable() override {
-        return set_status(fm_command_disable() == FM_CMD_SUCCESS, kErrFailed);
+        const bool accepted = fm_command_disable() == FM_CMD_SUCCESS;
+        if (accepted) {
+            fm_command_abandon_search();
+        }
+        return set_status(accepted, kErrFailed);
     }
 
     bool set_frequency(uint32_t frequency_khz) override {
+        if (fm_command_search_busy()) {
+            return set_status(false, kErrFailed);
+        }
         return set_status(fm_command_tune_frequency(frequency_khz) == FM_CMD_SUCCESS, kErrFailed);
     }
 
     bool jump(int direction, uint32_t *new_frequency) override {
+        if (fm_command_search_busy()) {
+            return set_status(false, kErrFailed);
+        }
         if (!set_status(fm_command_tune_frequency_by_delta(direction >= 0 ? 1 : -1) == FM_CMD_SUCCESS, kErrFailed)) {
             return false;
         }
@@ -105,10 +115,13 @@ public:
     }
 
     bool seek(int direction) override {
-        return set_status(fm_receiver_search_station_seek(SEEK, direction >= 0 ? 1 : 0, 7) == TRUE, kErrFailed);
+        return set_status(fm_command_start_seek(direction >= 0 ? 1 : 0, 7) == TRUE, kErrFailed);
     }
 
     bool set_power_mode(bool low_power) override {
+        if (fm_command_search_busy()) {
+            return set_status(false, kErrFailed);
+        }
         legacy_log("setup", "set low_power=%d", low_power ? 1 : 0);
         return set_status(
                 fm_receiver_set_power_mode(low_power ? FM_RX_POWER_MODE_LOW : FM_RX_POWER_MODE_NORMAL) == TRUE,
@@ -130,6 +143,9 @@ public:
     }
 
     bool set_region(StartupRegion region) override {
+        if (fm_command_search_busy()) {
+            return set_status(false, kErrFailed);
+        }
         const RegionProfile &profile = get_region_profile(region);
         legacy_log("setup", "set region=%s", get_region_name(region));
         legacy_log("setup", "apply region_vendor=%d lower_khz=%u upper_khz=%u emphasis=%d rds_vendor=%d",
@@ -169,22 +185,19 @@ public:
     }
 
     bool set_spacing(int spacing_khz) override {
+        if (fm_command_search_busy()) {
+            return set_status(false, kErrFailed);
+        }
         legacy_log("setup", "set spacing_khz=%d", spacing_khz);
         return set_status(fm_receiver_set_spacing(map_spacing_to_vendor(spacing_khz)) == TRUE, kErrFailed);
     }
 
     bool search() override {
-        fm_search_list_stations options = {
-                .search_mode = SCAN_FOR_STRONG,
-                .search_dir = 0,
-                .srch_list_max = 20,
-                .program_type = 0,
-        };
-        return set_status(fm_receiver_search_station_list(options) == TRUE, kErrFailed);
+        return set_status(fm_command_start_scan() == TRUE, kErrFailed);
     }
 
     bool cancel_search() override {
-        return set_status(fm_receiver_cancel_search() == TRUE, kErrFailed);
+        return set_status(fm_command_cancel_scan() == TRUE, kErrFailed);
     }
 
     bool set_auto_af(bool enabled) override {

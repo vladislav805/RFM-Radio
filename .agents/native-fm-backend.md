@@ -98,6 +98,7 @@ Android QualcommNative
 | --- | --- |
 | `native/legacy/fm_wrap.cpp` | Lifecycle, Android properties, event thread, event translation |
 | `native/legacy/fm_ctl.cpp` | Device open, ioctl controls, tuning, search, RDS buffers |
+| `native/legacy/scan_state.cpp` | Testable sequential-scan collection and cancellation state |
 | `native/legacy/fmcommon.h` | Legacy constants, state, structs, and event enums |
 | `native/legacy/detector.cpp` | Platform detection through Android properties |
 | `native/legacy/utils.cpp` | Frequency conversion, band limits, filesystem helpers |
@@ -568,9 +569,25 @@ verified legacy hardware, the seek-complete event arrives while
 only; the subsequent tune event carries the final frequency and emits the
 authoritative state patch.
 
-Full search requests `SCAN_FOR_STRONG` with a maximum of 20 stations. Results
-arrive in the `NEW_SRCH_LIST` event and are emitted as `search_done`. Absolute
-legacy channel values retain their native 50 kHz precision.
+Legacy full search uses ordinary `SCAN` mode so it is not limited to the 20
+stations available from Qualcomm's `SCAN_FOR_STRONG` list payload. Native first
+tunes to the current region's lower bound, then the driver traverses the band
+after one hardware-seek request. `TUNE_SUCC` records a
+pending frequency, `SCAN_NEXT` confirms and collects it, and `SEEK_COMPLETE`
+sorts and emits the result as `search_done`. At most 64 unique stations are
+retained to keep the JSON event inside the 512-byte UDP buffer. Normal
+completion emits an empty list when no stations were found. Device testing of
+ordinary legacy scan returned 42 stations, confirming that this path exceeds
+the former 20-station list limit.
+
+The collector has explicit seeking, scanning, and cancelling states protected
+by its own mutex. This prevents an ordinary seek callback from completing an
+active full scan. Tune, jump, region, spacing, low-power, and overlapping search
+commands are rejected while a search operation is unresolved. Cancelled scans consume
+their terminal `SEEK_COMPLETE` without sending a result, and disable abandons
+the operation immediately. The old `NEW_SRCH_LIST` payload is still drained and
+logged if received, but no longer completes application full search.
+Frequencies retain their native kHz precision.
 
 ### Legacy RDS and Disable
 
@@ -655,6 +672,7 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 - strict startup configuration parsing
 - region profiles and frequency clamping
 - frequency-list formatting
+- legacy sequential-scan state transitions
 
 Current host tests do not cover:
 
@@ -700,7 +718,7 @@ Use this list as a pre-change checklist:
 | No legacy-to-HAL fallback | Mere existence of `/dev/radio0` fixes selection |
 | Detection path differs from `dlopen` path | HAL detection can pass while loading fails |
 | Weak runtime argument parsing | Invalid input silently becomes zero |
-| HAL scan has no timeout | Search can remain active forever |
+| Sequential scans have no timeout | HAL or legacy search can remain active if terminal events are lost |
 | Two HAL search completion paths | Duplicate/conflicting station lists are possible |
 | UDP state dedup without acknowledgement | Lost packet may suppress later identical state |
 | Command responses include NUL | Java numeric parsing can be inconsistent |

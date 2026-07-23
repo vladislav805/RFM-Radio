@@ -17,6 +17,7 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
 #include "detector.h"
+#include "scan_state.h"
 
 enum tavarua_evt_t {
     TAVARUA_EVT_RADIO_READY = 0,
@@ -46,6 +47,46 @@ constexpr int kLegacyRdsMask = 23;
 constexpr int kLegacyRds3aGroupMask = 0x40;
 
 volatile bool is_power_on_completed = FALSE;
+
+static LegacyScanState legacy_scan;
+static pthread_mutex_t legacy_scan_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void record_scan_tune(int frequency_khz) {
+    pthread_mutex_lock(&legacy_scan_lock);
+    legacy_scan.on_tune(frequency_khz);
+    pthread_mutex_unlock(&legacy_scan_lock);
+}
+
+static int record_scan_next(int fallback_frequency_khz) {
+    pthread_mutex_lock(&legacy_scan_lock);
+    const int frequency_khz = legacy_scan.on_scan_next(fallback_frequency_khz);
+    pthread_mutex_unlock(&legacy_scan_lock);
+    return frequency_khz;
+}
+
+static LegacyScanTerminal finish_scan(LegacyScanResult *result) {
+    pthread_mutex_lock(&legacy_scan_lock);
+    const LegacyScanTerminal terminal = legacy_scan.on_seek_complete(result);
+    pthread_mutex_unlock(&legacy_scan_lock);
+    return terminal;
+}
+
+static void reset_search() {
+    pthread_mutex_lock(&legacy_scan_lock);
+    legacy_scan.reset();
+    pthread_mutex_unlock(&legacy_scan_lock);
+}
+
+bool fm_command_search_busy() {
+    pthread_mutex_lock(&legacy_scan_lock);
+    const bool busy = legacy_scan.busy();
+    pthread_mutex_unlock(&legacy_scan_lock);
+    return busy;
+}
+
+void fm_command_abandon_search() {
+    reset_search();
+}
 
 #define CHECK_EXEC_LAST_COMMAND(X,Y) if (ret == FALSE) {\
     legacy_log("cmd", "%.*s failed to set %s, ret=%d", 16, X, Y, ret);\
@@ -90,6 +131,7 @@ bool process_radio_event(uint8 event_buf) {
 
         case TAVARUA_EVT_RADIO_DISABLED: {
             legacy_log("event", "FM disabled");
+            reset_search();
             fm_storage.state = OFF;
             fm_receiver_close();
             pthread_exit(NULL);
@@ -100,6 +142,7 @@ bool process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_TUNE_SUCC: {
             // Update current frequency
             fm_storage.frequency = fm_receiver_get_tuned_frequency();
+            record_scan_tune(static_cast<int>(fm_storage.frequency));
 
             // Remove last RDS data
             fm_storage.rds.program_name[0] = '\0';
@@ -118,6 +161,19 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_SEEK_COMPLETE: {
+            LegacyScanResult result;
+            const LegacyScanTerminal terminal = finish_scan(&result);
+            if (terminal == LegacyScanTerminal::kCompleted) {
+                const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
+                legacy_log("search", "scan complete count=%d frequencies_khz=%s", result.count, frequencies.c_str());
+                send_search_done(result.frequencies_khz, result.count);
+                break;
+            }
+            if (terminal == LegacyScanTerminal::kCancelled) {
+                legacy_log("search", "scan cancel complete");
+                break;
+            }
+
             // Some legacy drivers report search completion before switching
             // to the found station. TUNE_SUCC carries the final frequency.
             legacy_log("event", "seek operation complete, waiting for tune event");
@@ -125,7 +181,10 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_SCAN_NEXT: {
-            legacy_log("search", "scan next frequency_khz=%d", fm_receiver_get_tuned_frequency());
+            const int current_frequency = static_cast<int>(fm_receiver_get_tuned_frequency());
+            const int collected_frequency = record_scan_next(current_frequency);
+            legacy_log("search", "scan next frequency_khz=%d collected_frequency_khz=%d",
+                    current_frequency, collected_frequency);
             break;
         }
 
@@ -160,6 +219,7 @@ bool process_radio_event(uint8 event_buf) {
 
         case TAVARUA_EVT_ERROR: {
             legacy_log("event", "driver error");
+            reset_search();
             break;
         }
 
@@ -212,13 +272,8 @@ bool process_radio_event(uint8 event_buf) {
 
             const std::string frequencies = format_frequency_list_khz(list, stations);
 
-            legacy_log("search", "result count=%d frequencies_khz=%s", stations, frequencies.c_str());
-
-            int frequencies_khz[25];
-            for (uint8 i = 0; i < stations; ++i) {
-                frequencies_khz[i] = static_cast<int>(list[i]);
-            }
-            send_search_done(frequencies_khz, stations);
+            legacy_log("search", "unexpected station-list result count=%d frequencies_khz=%s",
+                    stations, frequencies.c_str());
             break;
         }
 
@@ -295,6 +350,7 @@ void* interrupt_thread(__attribute__((unused)) void* ignore) {
 
         // If error occurred
         if (bytes < 0) {
+            reset_search();
             break;
         }
 
@@ -364,6 +420,73 @@ fm_cmd_status_t fm_command_open() {
     wait(700);
 
     return FM_CMD_SUCCESS;
+}
+
+bool fm_command_start_scan() {
+    pthread_mutex_lock(&legacy_scan_lock);
+    const bool started = legacy_scan.start();
+    pthread_mutex_unlock(&legacy_scan_lock);
+    if (!started) {
+        legacy_log("search", "scan rejected because another scan is active");
+        return FALSE;
+    }
+
+    band_limit_freq limits = {};
+    make_frequency_limit_by_band(fm_storage.band_type, &limits);
+    legacy_log("search", "scan start frequency_khz=%d", limits.lower_limit);
+    if (fm_command_tune_frequency(limits.lower_limit) != FM_CMD_SUCCESS) {
+        pthread_mutex_lock(&legacy_scan_lock);
+        legacy_scan.start_failed();
+        pthread_mutex_unlock(&legacy_scan_lock);
+        return FALSE;
+    }
+
+    legacy_log("search", "scan requested mode=%d direction=%d dwell=%d", SCAN, 1, 1);
+    if (fm_receiver_search_station_seek(SCAN, 1, 1)) {
+        return TRUE;
+    }
+
+    pthread_mutex_lock(&legacy_scan_lock);
+    legacy_scan.start_failed();
+    pthread_mutex_unlock(&legacy_scan_lock);
+    return FALSE;
+}
+
+bool fm_command_start_seek(int8 direction, uint8 dwell_period) {
+    pthread_mutex_lock(&legacy_scan_lock);
+    const bool started = legacy_scan.start_seek();
+    pthread_mutex_unlock(&legacy_scan_lock);
+    if (!started) {
+        legacy_log("search", "seek rejected because another search is active");
+        return FALSE;
+    }
+
+    if (fm_receiver_search_station_seek(SEEK, direction, dwell_period)) {
+        return TRUE;
+    }
+
+    pthread_mutex_lock(&legacy_scan_lock);
+    legacy_scan.seek_failed();
+    pthread_mutex_unlock(&legacy_scan_lock);
+    return FALSE;
+}
+
+bool fm_command_cancel_scan() {
+    pthread_mutex_lock(&legacy_scan_lock);
+    const bool cancelling = legacy_scan.begin_cancel();
+    pthread_mutex_unlock(&legacy_scan_lock);
+
+    legacy_log("search", "cancel requested");
+    if (fm_receiver_cancel_search()) {
+        return TRUE;
+    }
+
+    if (cancelling) {
+        pthread_mutex_lock(&legacy_scan_lock);
+        legacy_scan.cancel_failed();
+        pthread_mutex_unlock(&legacy_scan_lock);
+    }
+    return FALSE;
 }
 
 

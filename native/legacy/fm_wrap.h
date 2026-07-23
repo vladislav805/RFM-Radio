@@ -16,6 +16,11 @@ fm_cmd_status_t fm_command_disable();
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency);
 fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction);
 uint32 fm_command_get_tuned_frequency();
+bool fm_command_start_seek(int8 direction, uint8 dwell_period);
+bool fm_command_start_scan();
+bool fm_command_cancel_scan();
+bool fm_command_search_busy();
+void fm_command_abandon_search();
 
 fm_cmd_status_t fm_command_set_mute_mode(mute_t mode);
 fm_cmd_status_t fm_command_set_stereo_mode(stereo_t is_stereo);

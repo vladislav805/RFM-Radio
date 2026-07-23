@@ -38,6 +38,17 @@ TEST(CtlJsonTest, BuildsEmptySearchDone) {
     EXPECT_EQ(json, "{\"type\":\"search_done\",\"stations\":[]}");
 }
 
+TEST(CtlJsonTest, BuildsMaximumScanResultWithinUdpLimit) {
+    int stations[64];
+    for (int &station : stations) {
+        station = 108000;
+    }
+    std::string json;
+
+    ASSERT_TRUE(build_search_done_json(stations, 64, &json));
+    EXPECT_LT(json.size() + 1, 512u);
+}
+
 TEST(CtlJsonTest, RejectsInvalidSearchDone) {
     std::string json;
 

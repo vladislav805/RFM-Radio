@@ -32,10 +32,12 @@ if(RFM_NATIVE_TESTS)
         tests/ctl_json_test.cpp
         tests/startup_config_test.cpp
         tests/region_profile_test.cpp
+        tests/legacy_scan_state_test.cpp
         rds_parser.cpp
         ctl_json.cpp
         startup_config.cpp
         region_profile.cpp
+        legacy/scan_state.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
     target_link_libraries(rfm_native_tests GTest::gtest_main)
@@ -59,6 +61,7 @@ add_executable(
     hal/utils.cpp
     legacy/fm_wrap.cpp
     legacy/fm_ctl.cpp
+    legacy/scan_state.cpp
     legacy/utils.cpp
     legacy/detector.cpp
 )
