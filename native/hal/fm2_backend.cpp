@@ -315,8 +315,20 @@ bool apply_post_enable_config() {
         return false;
     }
 
-    if (!vendor_set(kV4l2CtrlLowPowerMode, low_power ? 1 : 0, "failed to set power mode")) {
-        return false;
+    if (low_power) {
+        if (!vendor_set(kV4l2CtrlLowPowerMode, 1, "failed to set power mode")) {
+            return false;
+        }
+    } else {
+        // Helium initializes its cached power mode to normal and only sends the
+        // async event mask when that value changes. Force a low-to-normal edge
+        // so stereo, RDS sync, and signal interrupts are armed on first enable.
+        // Keep this best-effort because the receiver still works without async
+        // transitions, and always attempt to restore the requested normal mode.
+        // Reference: https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L1183-L1213
+        hal_log("setup", "arm async events through low-to-normal transition");
+        vendor_set(kV4l2CtrlLowPowerMode, 1, "failed to enter low power while arming async events");
+        vendor_set(kV4l2CtrlLowPowerMode, 0, "failed to restore normal power while arming async events");
     }
 
     return apply_processed_rds_config(auto_af, rds_standard);

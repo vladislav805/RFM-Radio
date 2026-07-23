@@ -419,6 +419,17 @@ antenna, emphasis, RDS/RBDS standard, signal threshold, and soft mute.
 Post-enable setup configures raw and processed RDS masks, low-power state, and
 AF jump.
 
+For a normal-power startup, post-enable setup deliberately writes low power and
+then normal power before reapplying processed RDS configuration. Reference
+Helium initializes its cached power mode to normal and sends the asynchronous
+signal, RDS-sync, and stereo event mask only when that cached value changes. A
+direct initial normal request is therefore a no-op and leaves only tune-status
+snapshots. Device testing confirmed that one low-to-normal transition enables
+subsequent stereo-to-mono events when the headphone antenna is disconnected.
+This workaround is best-effort: both writes are attempted, but failure does not
+abort receiver enable because tuning and synchronous status snapshots still
+work without the asynchronous event mask.
+
 Disable writes receiver state off, then disables Slimbus. It does not wait for
 `disabled_cb`. The callback clears enabled/mode state and sends the JSON
 `disabled` event. The library is not unloaded during normal shutdown.
