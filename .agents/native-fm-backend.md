@@ -80,6 +80,7 @@ Android QualcommNative
 | `native/startup_config.cpp` | Strict parser for the complete `enable` command |
 | `native/region_profile.cpp` | Region limits and vendor mappings |
 | `native/rds_parser.cpp` | Shared parsers for PS, RT, AF, and station lists |
+| `native/scan_result.cpp` | Shared bounded, deduplicated, sorted sequential-scan results |
 | `native/fm_v4l2_controls.h` | Qualcomm private V4L2 control identifiers |
 | `native/frequency_format.h` | Frequency-list formatting used by logging/dedup |
 | `native/types.h` | Primitive compatibility types and booleans |
@@ -451,7 +452,10 @@ sort frequencies
 send search_done
 ```
 
-At most 64 frequencies are retained. The scan has no timeout. If callback
+Both sequential backends use the shared `ScanResultCollector` for validation,
+deduplication, the 64-station bound, and sorted result snapshots. HAL retains
+its own callback lifecycle and wrap fallback. At most 64 frequencies are
+retained. The scan has no timeout. If callback
 ordering provides neither terminal completion nor a detectable wrap, search may
 remain active indefinitely. Terminal completion sends an empty station list when
 the scan found no stations. Device testing confirmed that the HAL may emit the
@@ -672,6 +676,7 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 - strict startup configuration parsing
 - region profiles and frequency clamping
 - frequency-list formatting
+- shared sequential-scan result collection
 - legacy sequential-scan state transitions
 
 Current host tests do not cover:

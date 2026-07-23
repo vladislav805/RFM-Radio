@@ -1,8 +1,5 @@
 #include "scan_state.h"
 
-#include <algorithm>
-#include <cstring>
-
 bool LegacyScanState::start_seek() {
     if (status_ != Status::kIdle) {
         return false;
@@ -25,7 +22,7 @@ bool LegacyScanState::start() {
 
     status_ = Status::kScanning;
     pending_frequency_khz_ = 0;
-    count_ = 0;
+    stations_.reset();
     return true;
 }
 
@@ -72,19 +69,11 @@ int LegacyScanState::on_scan_next(int fallback_frequency_khz) {
         return 0;
     }
 
-    for (int i = 0; i < count_; ++i) {
-        if (frequencies_khz_[i] == frequency_khz) {
-            return frequency_khz;
-        }
-    }
-
-    if (count_ < kLegacyMaxScanStations) {
-        frequencies_khz_[count_++] = frequency_khz;
-    }
+    stations_.add(frequency_khz);
     return frequency_khz;
 }
 
-LegacyScanTerminal LegacyScanState::on_seek_complete(LegacyScanResult *result) {
+LegacyScanTerminal LegacyScanState::on_seek_complete(ScanResult *result) {
     if (status_ == Status::kCancelling) {
         reset();
         return LegacyScanTerminal::kCancelled;
@@ -93,13 +82,7 @@ LegacyScanTerminal LegacyScanState::on_seek_complete(LegacyScanResult *result) {
         return LegacyScanTerminal::kNone;
     }
 
-    result->count = count_;
-    std::memcpy(
-            result->frequencies_khz,
-            frequencies_khz_,
-            static_cast<size_t>(count_) * sizeof(frequencies_khz_[0])
-    );
-    std::sort(result->frequencies_khz, result->frequencies_khz + result->count);
+    stations_.copy_sorted(result);
     reset();
     return LegacyScanTerminal::kCompleted;
 }
@@ -111,5 +94,5 @@ bool LegacyScanState::busy() const {
 void LegacyScanState::reset() {
     status_ = Status::kIdle;
     pending_frequency_khz_ = 0;
-    count_ = 0;
+    stations_.reset();
 }

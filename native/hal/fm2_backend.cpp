@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <algorithm>
 #include <string>
 
 #include "../ctl_server.h"
@@ -15,6 +14,7 @@
 #include "../fm_v4l2_controls.h"
 #include "../region_profile.h"
 #include "../rds_parser.h"
+#include "../scan_result.h"
 #include "fm2_vendor_iface.h"
 #include "utils.h"
 
@@ -34,7 +34,6 @@ constexpr int kHeliumSpacing100Khz = 1;
 constexpr int kHeliumSpacing50Khz = 2;
 
 constexpr int kDefaultListSize = 20;
-constexpr int kMaxScanStations = 64;
 constexpr int kEnableWaitTimeoutMs = 2000;
 constexpr uint64_t kStationMetricTimeoutMs = 5000;
 
@@ -63,8 +62,7 @@ struct ScanState {
     bool wrapped = false;
     int start_frequency_khz = 0;
     int last_frequency_khz = 0;
-    int found[kMaxScanStations] = {};
-    int found_count = 0;
+    ScanResultCollector stations;
 };
 
 enum class StationMetric {
@@ -133,26 +131,7 @@ void reset_scan_locked() {
     g_state.scan.wrapped = false;
     g_state.scan.start_frequency_khz = 0;
     g_state.scan.last_frequency_khz = 0;
-    g_state.scan.found_count = 0;
-}
-
-void add_scan_frequency_locked(int freq) {
-    if (freq <= 0) {
-        return;
-    }
-
-    for (int i = 0; i < g_state.scan.found_count; ++i) {
-        if (g_state.scan.found[i] == freq) {
-            return;
-        }
-    }
-
-    if (g_state.scan.found_count >= kMaxScanStations) {
-        hal_log("search", "scan result full, dropping frequency_khz=%d", freq);
-        return;
-    }
-
-    g_state.scan.found[g_state.scan.found_count++] = freq;
+    g_state.scan.stations.reset();
 }
 
 void reset_rds_dedup_locked() {
@@ -382,13 +361,14 @@ void log_scan_next_cb() {
         return;
     }
 
-    int found[kMaxScanStations];
-    int found_count = 0;
+    ScanResult result;
     bool complete = false;
 
     pthread_mutex_lock(&g_state.lock);
     if (g_state.scan.active) {
-        add_scan_frequency_locked(freq);
+        if (g_state.scan.stations.add(freq) == ScanAddResult::kFull) {
+            hal_log("search", "scan result full, dropping frequency_khz=%d", freq);
+        }
         if (g_state.scan.last_frequency_khz > 0 && freq < g_state.scan.last_frequency_khz) {
             g_state.scan.wrapped = true;
         }
@@ -397,8 +377,7 @@ void log_scan_next_cb() {
         if (g_state.scan.wrapped && freq >= g_state.scan.start_frequency_khz) {
             complete = true;
             g_state.scan.active = false;
-            found_count = g_state.scan.found_count;
-            memcpy(found, g_state.scan.found, static_cast<size_t>(found_count) * sizeof(found[0]));
+            g_state.scan.stations.copy_sorted(&result);
         }
     }
     pthread_mutex_unlock(&g_state.lock);
@@ -408,12 +387,10 @@ void log_scan_next_cb() {
     }
 
     vendor_set(kV4l2CtrlSearchOn, 0, "failed to stop completed scan");
-    std::sort(found, found + found_count);
+    const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
 
-    const std::string frequencies = format_frequency_list_khz(found, found_count);
-
-    hal_log("search", "scan complete count=%d frequencies_khz=%s", found_count, frequencies.c_str());
-    send_search_done(found, found_count);
+    hal_log("search", "scan complete count=%d frequencies_khz=%s", result.count, frequencies.c_str());
+    send_search_done(result.frequencies_khz, result.count);
 }
 
 void log_thread_evt_cb(unsigned int evt) {
@@ -696,8 +673,7 @@ void seek_complete_cb(int freq) {
         hal_log("event", "seek complete frequency_khz=%d", freq);
     }
 
-    int found[kMaxScanStations];
-    int found_count = 0;
+    ScanResult result;
     bool scan_complete = false;
 
     pthread_mutex_lock(&g_state.lock);
@@ -711,17 +687,15 @@ void seek_complete_cb(int freq) {
     if (g_state.scan.active) {
         scan_complete = true;
         g_state.scan.active = false;
-        found_count = g_state.scan.found_count;
-        memcpy(found, g_state.scan.found, static_cast<size_t>(found_count) * sizeof(found[0]));
+        g_state.scan.stations.copy_sorted(&result);
     }
     pthread_mutex_unlock(&g_state.lock);
 
     if (scan_complete) {
-        std::sort(found, found + found_count);
-        const std::string frequencies = format_frequency_list_khz(found, found_count);
+        const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
         hal_log("search", "scan complete source=seek_complete count=%d frequencies_khz=%s",
-                found_count, frequencies.c_str());
-        send_search_done(found, found_count);
+                result.count, frequencies.c_str());
+        send_search_done(result.frequencies_khz, result.count);
         return;
     }
 

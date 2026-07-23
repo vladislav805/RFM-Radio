@@ -64,7 +64,7 @@ static int record_scan_next(int fallback_frequency_khz) {
     return frequency_khz;
 }
 
-static LegacyScanTerminal finish_scan(LegacyScanResult *result) {
+static LegacyScanTerminal finish_scan(ScanResult *result) {
     pthread_mutex_lock(&legacy_scan_lock);
     const LegacyScanTerminal terminal = legacy_scan.on_seek_complete(result);
     pthread_mutex_unlock(&legacy_scan_lock);
@@ -161,7 +161,7 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_SEEK_COMPLETE: {
-            LegacyScanResult result;
+            ScanResult result;
             const LegacyScanTerminal terminal = finish_scan(&result);
             if (terminal == LegacyScanTerminal::kCompleted) {
                 const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);

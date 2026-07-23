@@ -11,7 +11,7 @@ TEST(LegacyScanStateTest, CollectsConfirmedStationsAndSortsResult) {
     state.on_tune(87950);
     EXPECT_EQ(state.on_scan_next(88000), 87950);
 
-    LegacyScanResult result;
+    ScanResult result;
     EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
     ASSERT_EQ(result.count, 2);
     EXPECT_EQ(result.frequencies_khz[0], 87950);
@@ -24,7 +24,7 @@ TEST(LegacyScanStateTest, FallsBackToFrequencyReadAtScanNext) {
 
     EXPECT_EQ(state.on_scan_next(90600), 90600);
 
-    LegacyScanResult result;
+    ScanResult result;
     ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
     ASSERT_EQ(result.count, 1);
     EXPECT_EQ(result.frequencies_khz[0], 90600);
@@ -39,7 +39,7 @@ TEST(LegacyScanStateTest, DeduplicatesStations) {
     state.on_tune(101700);
     state.on_scan_next(101700);
 
-    LegacyScanResult result;
+    ScanResult result;
     ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
     EXPECT_EQ(result.count, 1);
 }
@@ -48,7 +48,7 @@ TEST(LegacyScanStateTest, CompletesEmptyScanOnlyOnce) {
     LegacyScanState state;
     ASSERT_TRUE(state.start());
 
-    LegacyScanResult result;
+    ScanResult result;
     EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
     EXPECT_EQ(result.count, 0);
     EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kNone);
@@ -61,7 +61,7 @@ TEST(LegacyScanStateTest, CancelSuppressesCompletion) {
     state.on_scan_next(101700);
     ASSERT_TRUE(state.begin_cancel());
 
-    LegacyScanResult result;
+    ScanResult result;
     EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCancelled);
     EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kNone);
     EXPECT_EQ(result.count, 0);
@@ -75,7 +75,7 @@ TEST(LegacyScanStateTest, FailedCancelContinuesScan) {
     state.on_tune(96400);
     state.on_scan_next(96400);
 
-    LegacyScanResult result;
+    ScanResult result;
     ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
     ASSERT_EQ(result.count, 1);
     EXPECT_EQ(result.frequencies_khz[0], 96400);
@@ -85,14 +85,14 @@ TEST(LegacyScanStateTest, LimitsResultToUdpSafeCapacity) {
     LegacyScanState state;
     ASSERT_TRUE(state.start());
 
-    for (int i = 0; i < kLegacyMaxScanStations + 5; ++i) {
+    for (int i = 0; i < kMaxScanStations + 5; ++i) {
         state.on_tune(76000 + i * 50);
         state.on_scan_next(0);
     }
 
-    LegacyScanResult result;
+    ScanResult result;
     ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
-    EXPECT_EQ(result.count, kLegacyMaxScanStations);
+    EXPECT_EQ(result.count, kMaxScanStations);
 }
 
 TEST(LegacyScanStateTest, RejectsOverlappingScans) {
@@ -110,7 +110,7 @@ TEST(LegacyScanStateTest, SeekBlocksScanUntilTuneCompletesIt) {
     EXPECT_TRUE(state.busy());
     EXPECT_FALSE(state.start());
 
-    LegacyScanResult result;
+    ScanResult result;
     EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kNone);
     EXPECT_TRUE(state.busy());
 
