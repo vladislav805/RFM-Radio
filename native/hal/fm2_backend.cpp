@@ -695,12 +695,35 @@ void seek_complete_cb(int freq) {
     } else {
         hal_log("event", "seek complete frequency_khz=%d", freq);
     }
+
+    int found[kMaxScanStations];
+    int found_count = 0;
+    bool scan_complete = false;
+
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.last_seek_cb_ms = now_ms();
     reset_search_result_locked();
     reset_rds_dedup_locked();
+
+    // Helium reports terminal SEARCH_COMPLETE through the seek callback and may
+    // repeat it, so claim the active scan under the lock before sending results.
+    if (g_state.scan.active) {
+        scan_complete = true;
+        g_state.scan.active = false;
+        found_count = g_state.scan.found_count;
+        memcpy(found, g_state.scan.found, static_cast<size_t>(found_count) * sizeof(found[0]));
+    }
     pthread_mutex_unlock(&g_state.lock);
+
+    if (scan_complete) {
+        std::sort(found, found + found_count);
+        const std::string frequencies = format_frequency_list_khz(found, found_count);
+        hal_log("search", "scan complete source=seek_complete count=%d frequencies_khz=%s",
+                found_count, frequencies.c_str());
+        send_search_done(found, found_count);
+        return;
+    }
 
     radio_state_patch_t patch = radio_state_patch_empty();
 

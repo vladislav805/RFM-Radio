@@ -444,14 +444,18 @@ tune to lower band
 set scan search mode and dwell
 seek upward
 collect unique frequencies from scan_next_cb
-detect wrap when reported frequency decreases
-finish after returning to the starting area
+finish when seek_complete_cb reports the vendor's terminal SEARCH_COMPLETE
+retain wrap detection as a fallback for vendor variants
 sort frequencies
 send search_done
 ```
 
 At most 64 frequencies are retained. The scan has no timeout. If callback
-ordering never satisfies wrap detection, search may remain active indefinitely.
+ordering provides neither terminal completion nor a detectable wrap, search may
+remain active indefinitely. Terminal completion sends an empty station list when
+the scan found no stations. Device testing confirmed that the HAL may emit the
+terminal seek-complete callback twice and then tune back to the lower band; only
+the first callback completes the active scan and sends `search_done`.
 
 A Qualcomm search-list callback is also registered and can independently parse
 and emit station results. If a vendor emits both scan-next and search-list
