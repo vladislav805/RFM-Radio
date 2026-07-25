@@ -152,14 +152,19 @@ Gradle invokes `native/build.sh` before application `preBuild`. The separate
 ## Process and Android Lifecycle
 
 `QualcommNative.getBinaryName()` selects `fmbin-<arch>`. The controller copies
-that asset to `/data/data/<application-id>/files/`, applies mode `755`, kills an
-old process, and launches the executable through `su`. Native stdout and stderr
-are piped to Android logcat with tag `RFM-QCOM`.
+that asset to `/data/data/<application-id>/files/` and applies mode `755` as the
+application UID before recording the installed version. An up-to-date binary
+which has lost its execute bits is repaired in place during preparation. The
+controller then verifies root access, kills an old process, and launches the
+executable through `su`. Native stdout and stderr are piped to Android logcat
+with tag `RFM-QCOM`.
 
 Normal launch sequence:
 
 ```text
 copy/install asset if needed
+repair and verify executable mode
+verify root access with a bounded background request
 kill old fmbin process
 start fmbin as root
 enable Java command Poll
@@ -193,6 +198,12 @@ a complete shutdown operation.
 
 Root access is effectively required for device nodes, system properties,
 module setup, and vendor controls.
+
+Root denial or a timed-out root probe terminates launch with
+`ROOT_ACCESS_DENIED`, which shows a root-specific error. A non-zero native
+launch result, listener setup failure, and an `init` UDP timeout terminate with
+`LAUNCH_FAILED`. Both paths stop the service instead of leaving the controller
+in `LAUNCHING`.
 
 ## UDP Protocol
 

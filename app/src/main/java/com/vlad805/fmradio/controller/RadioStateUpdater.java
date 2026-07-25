@@ -87,6 +87,12 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 break;
             }
 
+            case C.Event.ROOT_ACCESS_DENIED: {
+                mState.setStatus(TunerStatus.ROOT_ACCESS_DENIED);
+                mode = SET_STATUS;
+                break;
+            }
+
             case C.Event.ENABLING: {
                 mState.setStatus(TunerStatus.ENABLING);
                 mode = SET_STATUS;
@@ -233,6 +239,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 C.Event.INSTALLED,
                 C.Event.LAUNCHING,
                 C.Event.LAUNCHED,
+                C.Event.LAUNCH_FAILED,
+                C.Event.ROOT_ACCESS_DENIED,
                 C.Event.ENABLING,
                 C.Event.ENABLED,
 

@@ -17,6 +17,7 @@ public class QualcommNative extends AbstractQualcommNativeController {
     private final TunerDriver mDriverKind;
     private int mLastRequestedFrequencyKhz = Integer.MIN_VALUE;
     private long mLastRequestedFrequencyAtMs = 0L;
+    private volatile boolean mNativeProcessStarted;
 
     public QualcommNative(final Context context, final TunerDriver driverKind) {
         super(context);
@@ -35,20 +36,88 @@ public class QualcommNative extends AbstractQualcommNativeController {
 
     @Override
     protected void launchImpl(final Callback<Void> callback) {
-        closeServerListener();
-        killRunningBinary();
-        Utils.sleep(150);
-        Utils.shell(String.format("sh -c '%s 2>&1 | while IFS= read -r line; do log -t RFM-QCOM \"$line\"; done' &", getBinaryPath()), true);
-        toggleCommandPoll(true);
-        startServerListener();
-        Utils.sleep(300);
-        sendCommand(new Request("init", 5000).onResponse(data -> {
-            if (isOkResponse(data)) {
-                callback.onResult(null);
-            } else {
-                callback.onError(new Error("Failed to initialize tuner: " + data));
+        new Thread(() -> {
+            closeServerListener();
+            mNativeProcessStarted = false;
+
+            if (Utils.runAsRoot("true") != 0) {
+                failLaunch(callback, new RootAccessDeniedError("Root access was not granted"));
+                return;
             }
-        }));
+
+            killRunningBinary();
+            Utils.sleep(150);
+            final int launchResult = Utils.runAsRoot(
+                    String.format("sh -c '%s 2>&1 | while IFS= read -r line; do log -t RFM-QCOM \"$line\"; done' &", getBinaryPath())
+            );
+
+            if (launchResult != 0) {
+                failLaunch(callback, "Failed to launch native tuner process, exit code " + launchResult, null);
+                return;
+            }
+
+            mNativeProcessStarted = true;
+
+            toggleCommandPoll(true);
+
+            if (!startServerListener()) {
+                failLaunch(callback, "Failed to start native event listener", null);
+                return;
+            }
+
+            Utils.sleep(300);
+
+            sendCommand(new Request("init", 5000)
+                    .onResponse(data -> {
+                        if (isOkResponse(data)) {
+                            callback.onResult(null);
+                        } else {
+                            failLaunch(callback, "Failed to initialize tuner: " + data, null);
+                        }
+                    })
+                    .onError(error -> failLaunch(callback, "Native tuner did not respond to init", error)));
+        }, "QualcommNativeLaunch").start();
+    }
+
+    @Override
+    protected void killImpl(final Callback<Void> callback) {
+        if (!mNativeProcessStarted) {
+            toggleCommandPoll(false);
+            closeServerListener();
+            callback.onResult(null);
+            return;
+        }
+
+        super.killImpl(new Callback<>() {
+            @Override
+            public void onResult(final Void result) {
+                mNativeProcessStarted = false;
+                callback.onResult(null);
+            }
+
+            @Override
+            public void onError(final Error error) {
+                mNativeProcessStarted = false;
+                callback.onError(error);
+            }
+        });
+    }
+
+    private void failLaunch(
+            final Callback<Void> callback,
+            final String message,
+            final Throwable cause
+    ) {
+        failLaunch(callback, new Error(message, cause));
+    }
+
+    private void failLaunch(
+            final Callback<Void> callback,
+            final Error error
+    ) {
+        toggleCommandPoll(false);
+        closeServerListener();
+        callback.onError(error);
     }
 
     @Override

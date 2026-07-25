@@ -33,6 +33,7 @@ import java.util.Locale;
  * vlad805 (c) 2019
  */
 public class Utils {
+	private static final long SHELL_TIMEOUT_MS = 15_000L;
 	private static final String[] ROOT_BINARY_PATHS = {
 			"/system/bin/su",
 			"/system/xbin/su",
@@ -90,23 +91,67 @@ public class Utils {
 	}
 
 	/**
-	 * Perform shell command
-	 * @param cmd Command
-	 * @param su true, if root needed
+	 * Performs a shell command with root privileges.
+	 * @param command command to execute
 	 * @return exit code
 	 */
-	public static int shell(final String cmd, final boolean su) {
+	public static int runAsRoot(final String command) {
+		Process process = null;
+
 		try {
-			Log.d("Shell", cmd);
-			final String prefix = su ? "su" : "sh";
-			final Process p = Runtime.getRuntime().exec(prefix);
-			final DataOutputStream os = new DataOutputStream(p.getOutputStream());
-			os.writeBytes(cmd + "\n");
-			os.writeBytes("exit\n");
-			os.flush();
-			return p.waitFor();
-		} catch (final Exception e) {
-			e.printStackTrace();
+			process = new ProcessBuilder("su").redirectErrorStream(true).start();
+
+			final Process runningProcess = process;
+
+			final Thread outputReader = new Thread(() -> {
+				try (
+					BufferedReader reader = new BufferedReader(
+						new InputStreamReader(
+							runningProcess.getInputStream()
+						)
+					)
+				) {
+					String line;
+
+					while ((line = reader.readLine()) != null) {
+						Log.d("Shell", line);
+					}
+				} catch (final IOException e) {
+					Log.d("Shell", "Shell output stream closed", e);
+				}
+			}, "ShellOutput");
+
+			outputReader.setDaemon(true);
+			outputReader.start();
+
+			try (DataOutputStream os = new DataOutputStream(process.getOutputStream())) {
+				os.writeBytes(command + "\n");
+				os.writeBytes("exit\n");
+				os.flush();
+			}
+
+			final long deadline = System.currentTimeMillis() + SHELL_TIMEOUT_MS;
+
+			while (System.currentTimeMillis() < deadline) {
+				try {
+					final int exitCode = process.exitValue();
+					outputReader.join(500L);
+					return exitCode;
+				} catch (final IllegalThreadStateException ignored) {
+					Thread.sleep(50L);
+				}
+			}
+
+			Log.e("Shell", "Shell command timed out: " + command);
+			process.destroy();
+		} catch (final InterruptedException e) {
+			Thread.currentThread().interrupt();
+			if (process != null) {
+				process.destroy();
+			}
+			Log.e("Shell", "Shell command interrupted: " + command, e);
+		} catch (final IOException | SecurityException e) {
+			Log.e("Shell", "Failed to run shell command: " + command, e);
 		}
 		return -1;
 	}
@@ -115,7 +160,7 @@ public class Utils {
 		try {
 			Thread.sleep(ms);
 		} catch (final InterruptedException e) {
-			e.printStackTrace();
+			Thread.currentThread().interrupt();
 		}
 	}
 

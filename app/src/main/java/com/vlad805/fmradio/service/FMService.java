@@ -550,8 +550,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     break;
                 }
 
-                case C.Event.LAUNCH_FAILED: {
-                    kill();
+                case C.Event.LAUNCH_FAILED:
+                case C.Event.ROOT_ACCESS_DENIED: {
+                    stopSelf();
                     break;
                 }
 

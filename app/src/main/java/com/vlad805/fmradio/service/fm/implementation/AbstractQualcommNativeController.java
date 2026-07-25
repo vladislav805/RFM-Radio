@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.system.ErrnoException;
+import android.system.Os;
 import android.util.Log;
 
 import com.vlad805.fmradio.BuildConfig;
@@ -33,6 +35,12 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         void onResult(T result);
 
         default void onError(final Error e) {
+        }
+    }
+
+    protected static final class RootAccessDeniedError extends Error {
+        RootAccessDeniedError(final String message) {
+            super(message);
         }
     }
 
@@ -75,7 +83,18 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
     public final void install() {
         fireEvent(C.Event.INSTALLING);
-        installImpl(result -> fireEvent(C.Event.INSTALLED));
+        installImpl(new Callback<>() {
+            @Override
+            public void onResult(final Void result) {
+                fireEvent(C.Event.INSTALLED);
+            }
+
+            @Override
+            public void onError(final Error error) {
+                Log.e("RFM-QCOM", "Failed to install native binary", error);
+                fireEvent(C.Event.LAUNCH_FAILED);
+            }
+        });
     }
 
     protected abstract void launchImpl(final Callback<Void> callback);
@@ -90,7 +109,10 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
             @Override
             public void onError(final Error e) {
-                fireEvent(C.Event.LAUNCH_FAILED);
+                Log.e("RFM-QCOM", "Failed to launch native tuner", e);
+                fireEvent(e instanceof RootAccessDeniedError
+                        ? C.Event.ROOT_ACCESS_DENIED
+                        : C.Event.LAUNCH_FAILED);
             }
         });
     }
@@ -127,8 +149,14 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
     public final void prepareBinary() {
         fireEvent(C.Event.PREPARING);
-        if (isInstalled() && !isObsolete()) {
-            fireEvent(C.Event.INSTALLED);
+        final File binary = new File(getBinaryPath());
+        if (binary.isFile() && !isObsolete()) {
+            if (ensureNativeBinaryExecutable(binary)) {
+                fireEvent(C.Event.INSTALLED);
+            } else {
+                Log.e("RFM-QCOM", "Failed to restore native binary permissions: " + binary);
+                fireEvent(C.Event.LAUNCH_FAILED);
+            }
             return;
         }
 
@@ -369,7 +397,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         }
     }
 
-    protected final void startServerListener() {
+    protected final boolean startServerListener() {
         try {
             closeServerListener();
             mServer = new DatagramServer(SERVER_PORT);
@@ -399,8 +427,10 @@ public abstract class AbstractQualcommNativeController implements IFMController,
                 }
             });
             mServer.start();
+            return true;
         } catch (final IOException e) {
-            e.printStackTrace();
+            Log.e("RFM-QCOM", "Failed to start native event listener", e);
+            return false;
         }
     }
 
@@ -414,7 +444,8 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected final boolean isNativeBinaryInstalled() {
-        return new File(getBinaryPath()).exists();
+        final File binary = new File(getBinaryPath());
+        return binary.isFile() && binary.canExecute();
     }
 
     protected final boolean isNativeBinaryObsolete() {
@@ -435,7 +466,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
                 return;
             }
         } catch (final FileNotFoundException e) {
-            Utils.shell("killall " + getBinaryName(), true);
+            Utils.runAsRoot("killall " + getBinaryName());
             try {
                 if (!copyBinary()) {
                     callback.onError(new Error("Error while copy binary after kill busy binary"));
@@ -447,14 +478,28 @@ public abstract class AbstractQualcommNativeController implements IFMController,
             }
         }
 
+        if (!ensureNativeBinaryExecutable(new File(getBinaryPath()))) {
+            callback.onError(new Error("Failed to make native binary executable"));
+            return;
+        }
+
         Storage.getInstance(context).put(getBinaryVersionKey(), BuildConfig.VERSION_CODE);
-        Utils.shell("chmod 755 " + getBinaryPath() + " 1>/dev/null 2>/dev/null", true);
         callback.onResult(null);
     }
 
+    private boolean ensureNativeBinaryExecutable(final File binary) {
+        try {
+            //noinspection OctalInteger
+            Os.chmod(binary.getAbsolutePath(), 0755);
+            return binary.isFile() && binary.canExecute();
+        } catch (final ErrnoException | SecurityException e) {
+            Log.e("RFM-QCOM", "Failed to chmod native binary: " + binary, e);
+            return false;
+        }
+    }
+
     protected final void killRunningBinary() {
-        Log.i("QQQ", String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName()));
-        Utils.shell(String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName()), true);
+        Utils.runAsRoot(String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName()));
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")

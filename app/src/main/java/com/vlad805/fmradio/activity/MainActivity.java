@@ -646,7 +646,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
 
-            case LAUNCH_FAILED:
+            case ROOT_ACCESS_DENIED: {
+                mFrequencyInfo.clearMetadata();
+                mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
+                setEnabledToggleButton(false);
+
+                Utils.alert(
+                        this,
+                        R.string.root_required_title,
+                        R.string.root_access_denied_message,
+                        android.R.string.ok
+                );
+                break;
+            }
+
             case FATAL_ERROR: {
                 mFrequencyInfo.clearMetadata();
                 mFrequencyInfo.showStatus(R.string.status_tuner_stopped);

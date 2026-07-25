@@ -8,7 +8,7 @@ public enum TunerStatus {
     INSTALLING,
     INSTALLED,
     LAUNCHING,
-    LAUNCH_FAILED,
+    ROOT_ACCESS_DENIED,
     LAUNCHED,
     ENABLING,
     ENABLED,
