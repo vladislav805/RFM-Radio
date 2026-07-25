@@ -36,6 +36,7 @@ final public class C {
 		public static final String RECORD_STARTED = BASE + "RECORD_STARTED";
 		public static final String RECORD_TIME_UPDATE = BASE + "RECORD_TIME_UPDATED";
 		public static final String RECORD_ENDED = BASE + "RECORD_ENDED";
+		public static final String RECORD_FAILED = BASE + "RECORD_FAILED";
 
 		public static final String CHANGE_SPEAKER_MODE = BASE + "CHANGE_SPEAKER_MODE";
 
@@ -85,6 +86,9 @@ final public class C {
 		public static final String SIZE = "size";
 		public static final String DURATION = "duration";
 		public static final String PATH = "filename";
+		public static final String DISPLAY_NAME = "display_name";
+		public static final String RECORDING_URI = "recording_uri";
+		public static final String RECORDING_FILE_PATH = "recording_file_path";
 		public static final String FREQUENCIES = "frequencies";
 		public static final String STATE = "state";
 		public static final String IS_SPEAKER = "is_speaker";

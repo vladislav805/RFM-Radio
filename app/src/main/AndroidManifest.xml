@@ -36,6 +36,12 @@
 		<activity
 				android:name=".activity.StartupBlockedActivity"
 				android:label="@string/main_activity_label"/>
+		<activity
+				android:name=".activity.RecordingDeleteActivity"
+				android:excludeFromRecents="true"
+				android:exported="false"
+				android:noHistory="true"
+				android:theme="@style/DialogActivityTheme"/>
 
 		<service
 				android:name=".service.FMService"

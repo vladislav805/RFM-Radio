@@ -1,8 +1,10 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.provider.MediaStore;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -67,6 +69,47 @@ public final class RecordingStorage {
                 mimeType,
                 displayPath
         );
+    }
+
+    public static boolean deletePublished(
+            final Context context,
+            final String uriValue,
+            final String filePath
+    ) throws IOException {
+        try {
+            if (uriValue != null) {
+                final Uri uri = Uri.parse(uriValue);
+
+                if (!"content".equals(uri.getScheme()) || !MediaStore.AUTHORITY.equals(uri.getAuthority())) {
+                    throw new IOException("Unexpected recording URI");
+                }
+
+                return context.getContentResolver().delete(uri, null, null) > 0;
+            }
+
+            if (filePath == null) {
+                throw new IOException("Recording location is missing");
+            }
+
+            final File root = new File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    ROOT_DIRECTORY
+            );
+            final File recording = new File(filePath);
+
+            if (!isFileInsideDirectory(root, recording) || !recording.isFile()) {
+                throw new IOException("Recording path is outside the recording directory");
+            }
+
+            return recording.delete();
+        } catch (final SecurityException e) {
+            throw new IOException("Recording cannot be deleted", e);
+        }
+    }
+
+    static boolean isFileInsideDirectory(final File directory, final File file) throws IOException {
+        final String directoryPath = directory.getCanonicalPath() + File.separator;
+        return file.getCanonicalPath().startsWith(directoryPath);
     }
 
     /**

@@ -24,6 +24,7 @@ public final class RecordingTarget {
     private final String mDisplayPath;
 
     private FileOutputStream mOutputStream;
+    private Uri mPublishedUri;
 
     RecordingTarget(
             final ContentResolver resolver,
@@ -114,6 +115,14 @@ public final class RecordingTarget {
         return mDisplayName;
     }
 
+    public Uri getPublishedUri() {
+        return mPublishedUri;
+    }
+
+    public String getPublishedFilePath() {
+        return mFinalFile != null ? mFinalFile.getAbsolutePath() : null;
+    }
+
     /**
      * Moves or copies the finished temporary file into the legacy shared Music directory.
      */
@@ -184,6 +193,7 @@ public final class RecordingTarget {
         final ContentValues ready = new ContentValues();
         ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
         mResolver.update(uri, ready, null, null);
+        mPublishedUri = uri;
 
         if (mTemporaryFile.exists()) {
             //noinspection ResultOfMethodCallIgnored

@@ -104,6 +104,12 @@
 	<string name="playback_permission_required">FM playback on this device requires microphone access. Open app settings to allow it.</string>
 	<string name="notification_recording">Recording: %1$s (%2$.1f MB)</string>
 	<string name="notification_recorded">Recording %3$s completed: %1$s (%2$.1f MB)</string>
+	<string name="record_delete_action">Delete</string>
+	<string name="record_delete_title">Delete recording?</string>
+	<string name="record_delete_confirm">Delete “%1$s”? This action cannot be undone.</string>
+	<string name="record_delete_success">Recording deleted</string>
+	<string name="record_delete_failed">Could not delete the recording.</string>
+	<string name="record_save_failed">Could not save the recording.</string>
 	<string name="toast_record_ended">Record saved as %1$s\nDuration: %3$s (%2$.1f MB)</string>
 	<string name="main_warning_pref_changed_title">Attention!</string>
 	<string name="main_warning_pref_changed_content">To apply some settings that you changed, you need to completely restart the application:\n1. Stop the tuner (shutdown button at the top)\n2. Close and swipe the application out of multitasking\n3. Launch the application.</string>

@@ -21,6 +21,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.activity.MainActivity;
+import com.vlad805.fmradio.activity.RecordingDeleteActivity;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
@@ -47,7 +48,6 @@ import net.grandcentrix.tray.AppPreferences;
 import net.grandcentrix.tray.core.OnTrayPreferenceChangeListener;
 import net.grandcentrix.tray.core.TrayItem;
 
-import java.io.File;
 import java.util.*;
 
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
@@ -632,6 +632,15 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     }
                     break;
                 }
+
+                case C.Event.RECORD_FAILED: {
+                    mRecordingNow = false;
+                    mNeedRecreateNotification = true;
+                    updateNotification();
+                    mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
+                    Toast.makeText(FMService.this, R.string.record_save_failed, Toast.LENGTH_LONG).show();
+                    break;
+                }
             }
         }
     }
@@ -807,19 +816,35 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         final int size = extras.getInt(C.Key.SIZE);
         final int duration = extras.getInt(C.Key.DURATION);
-        final String path = extras.getString(C.Key.PATH);
-        final File file = new File(path);
-        final String filename = file.getName();
+        final String filename = extras.getString(C.Key.DISPLAY_NAME);
+        final String uri = extras.getString(C.Key.RECORDING_URI);
+        final String filePath = extras.getString(C.Key.RECORDING_FILE_PATH);
 
         if (needNotification) {
+            final String location = uri != null ? uri : filePath;
+            final String notificationTag = "recording:" + location;
+            final Intent deleteIntent = RecordingDeleteActivity.createIntent(
+                    this,
+                    uri,
+                    filePath,
+                    filename,
+                    notificationTag
+            );
+            final PendingIntent pendingDelete = PendingIntent.getActivity(
+                    this,
+                    location.hashCode(),
+                    deleteIntent,
+                    FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
+            );
             final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
                     .setSmallIcon(R.drawable.ic_radio)
                     .setContentTitle(getString(R.string.app_name))
                     .setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, filename))
                     .setPriority(NotificationCompat.PRIORITY_LOW)
-                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .addAction(R.drawable.ic_favorite_list_remove, getString(R.string.record_delete_action), pendingDelete);
 
-            mNotificationManager.notify(NOTIFICATION_RECORD_ID + size, n.build());
+            mNotificationManager.notify(notificationTag, RecordingDeleteActivity.NOTIFICATION_ID, n.build());
         }
 
         Toast.makeText(this, getString(

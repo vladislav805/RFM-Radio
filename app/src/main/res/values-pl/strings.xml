@@ -99,6 +99,12 @@
 	<string name="playback_permission_required">Odtwarzanie FM na tym urządzeniu wymaga dostępu do mikrofonu. Otwórz ustawienia aplikacji i nadaj uprawnienie.</string>
 	<string name="notification_recording">Nagrywanie: %1$s (%2$.1f MB)</string>
 	<string name="notification_recorded">Nagranie %3$s skończone: %1$s (%2$.1f MB)</string>
+	<string name="record_delete_action">Usuń</string>
+	<string name="record_delete_title">Usunąć nagranie?</string>
+	<string name="record_delete_confirm">Usunąć „%1$s”? Tej operacji nie można cofnąć.</string>
+	<string name="record_delete_success">Nagranie zostało usunięte</string>
+	<string name="record_delete_failed">Nie udało się usunąć nagrania.</string>
+	<string name="record_save_failed">Nie udało się zapisać nagrania.</string>
 	<string name="toast_record_ended">Nagranie zapisane jako %1$s\nTrwanie: %3$s (%2$.1f MB)</string>
 	<string name="main_warning_pref_changed_title">Uwaga!</string>
 	<string name="main_warning_pref_changed_content">Aby zastosować niektóre zmienione ustawienia, musisz całkowicie ponownie uruchomić aplikację:\n1. Zatrzymaj tuner (przycisk wyłączania u góry)\n2. Zamknij i przesuń aplikację z wielozadaniowości\n3. Uruchom aplikację.</string>

@@ -164,13 +164,16 @@ public abstract class RecordService implements IFMRecorder {
         }
 
         if (mRecordingTarget != null) {
+            final RecordingTarget target = mRecordingTarget;
             try {
-                mRecordingTarget.commit();
+                target.commit();
+                updateCompletedState(target);
             } catch (IOException e) {
                 e.printStackTrace();
+                target.abort();
+                updateState(C.Event.RECORD_FAILED);
             }
-            updateState(C.Event.RECORD_ENDED);
-            mRecordingTarget.closeQuietly();
+            target.closeQuietly();
             mRecordingTarget = null;
         }
         mState = State.DONE;
@@ -186,6 +189,22 @@ public abstract class RecordService implements IFMRecorder {
                 .putExtra(C.Key.DURATION, getDurationSeconds())
                 .putExtra(C.Key.PATH, getDisplayPath())
         );
+    }
+
+    private void updateCompletedState(final RecordingTarget target) {
+        final Intent intent = new Intent(C.Event.RECORD_ENDED)
+                .putExtra(C.Key.SIZE, mRecordLength)
+                .putExtra(C.Key.DURATION, getDurationSeconds())
+                .putExtra(C.Key.PATH, target.getDisplayPath())
+                .putExtra(C.Key.DISPLAY_NAME, target.getDisplayName());
+
+        if (target.getPublishedUri() != null) {
+            intent.putExtra(C.Key.RECORDING_URI, target.getPublishedUri().toString());
+        } else {
+            intent.putExtra(C.Key.RECORDING_FILE_PATH, target.getPublishedFilePath());
+        }
+
+        Utils.sendAppBroadcast(mContext, intent);
     }
 
     /**

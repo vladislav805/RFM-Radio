@@ -26,6 +26,12 @@
 	<string name="menu_settings">Настройки</string>
 	<string name="notification_mhz">%.1f МГц</string>
 	<string name="notification_recorded">Запись %3$s завершена: %1$s (%2$.1f МБ)</string>
+	<string name="record_delete_action">Удалить</string>
+	<string name="record_delete_title">Удалить запись?</string>
+	<string name="record_delete_confirm">Удалить «%1$s»? Это действие нельзя отменить.</string>
+	<string name="record_delete_success">Запись удалена</string>
+	<string name="record_delete_failed">Не удалось удалить запись.</string>
+	<string name="record_save_failed">Не удалось сохранить запись.</string>
 	<string name="notification_recording">Запись: %1$s (%2$.1f МБ)</string>
 	<string name="popup_favorite_list_create">Создать список избранного</string>
 	<string name="popup_favorite_list_rename">Переименовать список избранного</string>

@@ -198,7 +198,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 break;
             }
 
-            case C.Event.RECORD_ENDED: {
+            case C.Event.RECORD_ENDED:
+            case C.Event.RECORD_FAILED: {
                 mState.setRecording(false);
                 mState.setRecordingStarted(-1L);
                 mode = SET_RECORDING;
@@ -260,6 +261,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 C.Event.RECORD_STARTED,
                 C.Event.RECORD_TIME_UPDATE,
                 C.Event.RECORD_ENDED,
+                C.Event.RECORD_FAILED,
 
                 C.Event.DISABLING,
                 C.Event.DISABLED,
