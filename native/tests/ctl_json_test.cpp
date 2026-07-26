@@ -10,6 +10,7 @@ radio_state_patch_t make_empty_patch() {
     patch.ps = patch.rt = patch.pi = patch.country = nullptr;
 
     patch.frequency_khz = patch.pty = patch.af_count = patch.stereo = RADIO_PATCH_ABSENT_INT;
+    patch.rmssi = RADIO_PATCH_ABSENT_RMSSI;
     patch.af_khz = nullptr;
 
     return patch;
@@ -171,6 +172,43 @@ TEST(CtlJsonTest, SkipsUnchangedPatch) {
     std::string json = "keep";
     EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
     EXPECT_EQ(json, "");
+}
+
+TEST(CtlJsonTest, BuildsAndDeduplicatesRmssiPatch) {
+    RadioStateJsonCache cache;
+    radio_state_patch_t patch = make_empty_patch();
+    patch.rmssi = -66;
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rmssi\":-66}");
+
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_EQ(cache.rmssi, -66);
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+}
+
+TEST(CtlJsonTest, TreatsMinusOneAsValidRmssi) {
+    RadioStateJsonCache cache;
+    radio_state_patch_t patch = make_empty_patch();
+    patch.rmssi = -1;
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rmssi\":-1}");
+}
+
+TEST(CtlJsonTest, FrequencyChangeInvalidatesCachedRmssi) {
+    RadioStateJsonCache cache;
+    cache.frequency_khz = 101700;
+    cache.rmssi = -66;
+    radio_state_patch_t patch = make_empty_patch();
+    patch.frequency_khz = 99500;
+
+    apply_radio_state_patch(&cache, &patch);
+
+    EXPECT_EQ(cache.frequency_khz, 99500);
+    EXPECT_EQ(cache.rmssi, RADIO_PATCH_ABSENT_RMSSI);
 }
 
 TEST(CtlJsonTest, AppliesPatchAfterSuccessfulSend) {

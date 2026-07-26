@@ -16,6 +16,7 @@
 	<string name="favorites_edit">Edit</string>
 	<string name="favorites_done">Done</string>
 	<string name="stereo_indicator">Stereo or mono indicator</string>
+	<string name="signal_strength_indicator">Signal strength</string>
 	<string name="drag_to_reorder">Drag to reorder station</string>
 	<string name="progress_starting">Enabling tuner…</string>
 	<string name="menu_settings">Settings</string>

@@ -126,6 +126,15 @@ public class DatagramServer extends Thread {
             patch.setStereo(json.optBoolean("stereo", false));
         }
 
+        if (json.has("rmssi")) {
+            final int rmssi = json.optInt("rmssi", Integer.MIN_VALUE);
+            if (rmssi < -128 || rmssi > 127) {
+                Log.w(TAG, "invalid RMSSI payload");
+            } else {
+                patch.setRmssi(rmssi);
+            }
+        }
+
         final JSONObject rds = json.optJSONObject("rds");
         if (rds != null) {
             if (rds.has("ps")) {

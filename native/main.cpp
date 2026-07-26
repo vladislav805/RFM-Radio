@@ -269,6 +269,12 @@ response_t handle_soft_mute(const std::vector<std::string> &args) {
 
 }  // namespace
 
+void poll_rmssi() {
+    if (g_backend != nullptr) {
+        g_backend->request_rmssi();
+    }
+}
+
 response_t api_handler(char *request) {
     const std::vector<std::string> args = split_args(request);
     if (args.empty()) {

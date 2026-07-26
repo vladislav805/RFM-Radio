@@ -197,6 +197,12 @@ bool process_radio_event(uint8 event_buf) {
             patch.ps = patch.rt = patch.pi = patch.country = "";
             patch.af_count = patch.pty = 0;
             send_radio_state_patch(&patch);
+
+            // The tune event is authoritative for the new station. Full scans
+            // remain busy here and use the periodic refresh after completion.
+            if (!fm_command_search_busy()) {
+                fm_command_publish_rmssi();
+            }
             break;
         }
 
@@ -833,6 +839,19 @@ fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction) {
  */
 uint32 fm_command_get_tuned_frequency() {
     return fm_receiver_get_tuned_frequency();
+}
+
+bool fm_command_publish_rmssi() {
+    int rmssi = 0;
+    if (!fm_receiver_get_rmssi(&rmssi)) {
+        return false;
+    }
+
+    legacy_log("rmssi", "value=%d", rmssi);
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.rmssi = rmssi;
+    send_radio_state_patch(&patch);
+    return true;
 }
 
 

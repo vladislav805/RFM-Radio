@@ -1,6 +1,7 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
 #include "../rds_parser.h"
+#include "../rmssi.h"
 #include "../fm_v4l2_controls.h"
 #include "utils.h"
 #include <algorithm>
@@ -276,6 +277,25 @@ uint32 fm_receiver_get_tuned_frequency() {
         legacy_log("tune", "get frequency failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return 0;
     }
+}
+
+bool fm_receiver_get_rmssi(int *rmssi) {
+    if (fd_radio < 0 || rmssi == nullptr) {
+        return FALSE;
+    }
+
+    struct v4l2_tuner tuner = {};
+    tuner.index = 0;
+    tuner.type = V4L2_TUNER_RADIO;
+
+    if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) < 0) {
+        const int saved_errno = errno;
+        legacy_log("metric", "get rmssi failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        return FALSE;
+    }
+
+    *rmssi = decode_rmssi(tuner.signal);
+    return TRUE;
 }
 
 bool fm_receiver_set_mute_mode(mute_t mode) {

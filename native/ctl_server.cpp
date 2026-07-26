@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,6 +13,8 @@
 
 #include "ctl_json.h"
 #include "ctl_server.h"
+#include "monotonic_clock.h"
+#include "periodic_deadline.h"
 
 namespace {
 
@@ -20,6 +23,8 @@ RadioStateJsonCache g_last_state;
 
 constexpr int kServerLogIn = 0;
 constexpr int kServerLogOut = 1;
+
+constexpr uint64_t kRmssiPollIntervalMs = 2000;
 
 void server_log(const char *scope, const int type, const char *fmt, ...) {
     printf("srv/%-7s%s ", scope, type == kServerLogIn ? ">" : "<");
@@ -78,7 +83,33 @@ int init_server(fm_srv_callback request_callback) {
         return -2;
     }
 
+    PeriodicDeadline rmssi_deadline(kRmssiPollIntervalMs, monotonic_ms);
+
+    // pollfd only describes what to wait for; poll() fills revents on each call.
+    struct pollfd descriptor = {sockfd, POLLIN, 0};
+
     while (1) {
+        descriptor.revents = 0;
+
+        // Wait until either a UDP command arrives or the next RMSSI sample is due.
+        const int ready = poll(&descriptor, 1, rmssi_deadline.remaining_ms());
+
+        if (ready < 0) {
+            continue;
+        }
+
+        if (ready == 0) {
+            // A zero result is a timeout, not a socket error.
+            poll_rmssi();
+            rmssi_deadline.restart();
+            continue;
+        }
+
+        // poll() may report socket errors without readable command data.
+        if ((descriptor.revents & POLLIN) == 0) {
+            continue;
+        }
+
         char buf[CS_BUF];
         memset(buf, 0, sizeof(buf));
 
@@ -97,6 +128,13 @@ int init_server(fm_srv_callback request_callback) {
 
         response_t res = request_callback(buf);
         sendto(sockfd, res.data, strlen(res.data) + 1, 0, reinterpret_cast<struct sockaddr *>(&cli_addr), cli_len);
+
+        // Command handling can cross the deadline because successful responses
+        // intentionally wait 300 ms. Sample immediately instead of another 2 s later.
+        if (rmssi_deadline.is_due()) {
+            poll_rmssi();
+            rmssi_deadline.restart();
+        }
     }
 
     close(sockfd);
@@ -112,6 +150,7 @@ radio_state_patch_t radio_state_patch_empty(void) {
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;
     patch.stereo = RADIO_PATCH_ABSENT_INT;
+    patch.rmssi = RADIO_PATCH_ABSENT_RMSSI;
 
     return patch;
 }

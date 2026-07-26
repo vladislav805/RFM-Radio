@@ -16,6 +16,7 @@ fm_cmd_status_t fm_command_disable();
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency);
 fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction);
 uint32 fm_command_get_tuned_frequency();
+bool fm_command_publish_rmssi();
 bool fm_command_start_seek(int8 direction, uint8 dwell_period);
 bool fm_command_start_scan();
 bool fm_command_cancel_scan();

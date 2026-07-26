@@ -16,6 +16,7 @@
 	<string name="favorites_edit">Edytuj</string>
 	<string name="favorites_done">Gotowe</string>
 	<string name="stereo_indicator">Wskaźnik stereo lub mono</string>
+	<string name="signal_strength_indicator">Siła sygnału</string>
 	<string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność stacji</string>
 	<string name="progress_starting">Włączanie tunera…</string>
 	<string name="menu_settings">Ustawienia</string>

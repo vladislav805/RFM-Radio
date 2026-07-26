@@ -45,6 +45,7 @@ import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.view.FavoritesView;
 import com.vlad805.fmradio.view.FrequencyBarView;
 import com.vlad805.fmradio.view.RadioUIView;
+import com.vlad805.fmradio.view.SignalStrengthView;
 
 import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
@@ -71,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ImageButton mCtlToggle;
 
     private ImageView mViewStereoMode;
+    private SignalStrengthView mSignalStrength;
 
     private TextView mRecordDuration;
 
@@ -243,6 +245,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
         mViewStereoMode = findViewById(R.id.stereo_mono);
+        mSignalStrength = findViewById(R.id.signal_strength);
 
         final int[] ids = {
                 R.id.ctl_toggle,
@@ -560,6 +563,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onStateUpdated(final RadioState state, final int mode) {
         mLastState = state;
 
+        if ((mode & RadioStateUpdater.SET_RMSSI) > 0) {
+            final boolean available = state.getRmssi() != RadioState.RMSSI_UNKNOWN;
+            if (available) {
+                mSignalStrength.setRmssi(state.getRmssi());
+            } else {
+                mSignalStrength.clear();
+            }
+        }
+
         if ((mode & RadioStateUpdater.SET_STATUS) > 0) {
             handleChangingState(state.getStatus());
             if ((mode & RadioStateUpdater.SET_INITIAL) == 0 || state.getStatus() != TunerStatus.ENABLED) {
@@ -717,6 +729,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_seek,
                 R.id.record_duration,
                 R.id.stereo_mono,
+                R.id.signal_strength,
                 R.id.favorite_list
         };
 

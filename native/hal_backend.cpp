@@ -89,6 +89,10 @@ public:
         return set_status(fm2_backend_set_slimbus(enabled));
     }
 
+    bool request_rmssi() override {
+        return fm2_backend_request_rmssi();
+    }
+
     const char *last_error() const override {
         return last_error_.c_str();
     }

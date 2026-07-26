@@ -74,6 +74,7 @@ final public class C {
 		public static final String PTY = "pty";
 		public static final String PI = "pi";
 		public static final String COUNTRY = "country";
+		public static final String RMSSI = "rmssi";
 
 		public static final String STEREO_MODE = "stereo_mode";
 		public static final String MUTE = "mute";

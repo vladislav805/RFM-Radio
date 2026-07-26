@@ -1,5 +1,7 @@
 #include "backend.h"
+#include "ctl_server.h"
 #include "fm_v4l2_controls.h"
+#include "monotonic_clock.h"
 #include "region_profile.h"
 
 #include "legacy/fm_wrap.h"
@@ -10,6 +12,7 @@ namespace {
 constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
+constexpr uint64_t kMetricSettleMs = 750;
 
 channel_space_t map_spacing_to_vendor(int spacing_khz) {
     switch (spacing_khz) {
@@ -82,10 +85,12 @@ public:
             return rollback_enable();
         }
         legacy_log("enable", "accepted");
+        enabled_ = true;
         return true;
     }
 
     bool disable() override {
+        enabled_ = false;
         const bool accepted = fm_command_disable() == FM_CMD_SUCCESS;
         if (accepted) {
             fm_command_abandon_search();
@@ -97,7 +102,11 @@ public:
         if (fm_command_search_busy()) {
             return set_status(false, kErrFailed);
         }
-        return set_status(fm_command_tune_frequency(frequency_khz) == FM_CMD_SUCCESS, kErrFailed);
+        const bool accepted = fm_command_tune_frequency(frequency_khz) == FM_CMD_SUCCESS;
+        if (accepted) {
+            metric_resume_at_ms_ = monotonic_ms() + kMetricSettleMs;
+        }
+        return set_status(accepted, kErrFailed);
     }
 
     bool jump(int direction, uint32_t *new_frequency) override {
@@ -107,6 +116,7 @@ public:
         if (!set_status(fm_command_tune_frequency_by_delta(direction >= 0 ? 1 : -1) == FM_CMD_SUCCESS, kErrFailed)) {
             return false;
         }
+        metric_resume_at_ms_ = monotonic_ms() + kMetricSettleMs;
 
         if (new_frequency != nullptr) {
             *new_frequency = fm_command_get_tuned_frequency();
@@ -214,12 +224,21 @@ public:
         return set_status(true, nullptr);
     }
 
+    bool request_rmssi() override {
+        if (!enabled_ || fm_command_search_busy() || monotonic_ms() < metric_resume_at_ms_) {
+            return false;
+        }
+
+        return fm_command_publish_rmssi();
+    }
+
     const char *last_error() const override {
         return last_error_;
     }
 
 private:
     bool rollback_enable() {
+        enabled_ = false;
         const char *error = last_error_;
         if (fm_command_disable() != FM_CMD_SUCCESS) {
             fm_receiver_set_state(OFF);
@@ -235,6 +254,8 @@ private:
     }
 
     const char *last_error_ = "";
+    bool enabled_ = false;
+    uint64_t metric_resume_at_ms_ = 0;
 };
 
 }  // namespace

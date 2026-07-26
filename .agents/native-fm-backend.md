@@ -59,7 +59,7 @@ Android QualcommNative
   -> main.cpp command router
   -> Backend interface
   -> Legacy V4L2 or Qualcomm fm_helium.so
-  -> asynchronous hardware event/callback
+  -> asynchronous hardware event/callback or periodic RMSSI sample
   -> JSON UDP message to 127.0.0.1:2113
   -> Android DatagramServer
   -> RadioStatePatch / application event
@@ -82,6 +82,8 @@ Android QualcommNative
 | `native/region_profile.cpp` | Region limits and vendor mappings |
 | `native/rds_parser.cpp` | Shared parsers for PS, RT, AF, and station lists |
 | `native/scan_result.cpp` | Shared bounded, deduplicated, sorted sequential-scan results |
+| `native/periodic_deadline.cpp` | Testable monotonic deadline arithmetic for native RMSSI polling |
+| `native/monotonic_clock.h` | Shared monotonic millisecond clock for native timing |
 | `native/fm_v4l2_controls.h` | Qualcomm private V4L2 control identifiers |
 | `native/frequency_format.h` | Frequency-list formatting used by logging/dedup |
 | `native/types.h` | Primitive compatibility types and booleans |
@@ -248,6 +250,12 @@ contract.
 | `auto_af <0|1>` | Toggle automatic AF jump | `ok` |
 | `slimbus <0|1>` | Toggle HAL audio transport; no-op success on legacy | `ok` |
 
+While the tuner is enabled, the native command loop requests RMSSI from the
+selected backend every two seconds. Legacy reads `VIDIOC_G_TUNER.signal`; HAL
+uses the asynchronous station-parameter callback. Polling is suppressed while
+the receiver is disabled or a tune, seek, or full scan is in progress. Android
+does not send a polling command.
+
 The `enable` parser is strict. It requires exactly six unique named parameters,
 rejects unknown or duplicate keys, validates booleans, spacing, antenna, and
 region, and requires the initial frequency to be inside the selected region.
@@ -295,7 +303,8 @@ State is sent as partial patches:
 ```
 
 Only changed/present fields are included. Supported state fields are frequency,
-stereo, PS, RT, PI, country, PTY, and AF frequencies. Country is a two-letter
+stereo, RMSSI, PS, RT, PI, country, PTY, and AF frequencies. RMSSI is a signed
+receiver value serialized as a top-level `rmssi` field. Country is a two-letter
 code decoded from the registered ECC and PI country-code combination.
 
 Search completion:
@@ -490,6 +499,32 @@ and emit station results. If a vendor emits both scan-next and search-list
 callbacks, two different completion messages are possible. Deduplication is
 local to repeated search-list payloads and does not unify both mechanisms.
 
+### RMSSI and SINR
+
+The app-facing signal indicator uses RMSSI only. HAL requests
+`kV4l2CtrlIrisRmssi` (`0x00980934`) and receives the signed low byte through
+`fm_get_station_param_cb`. `RmssiState` keeps the pending request, request
+frequency, pause state, and timeout-log state together so late callbacks from a
+previous frequency are not published for the current station.
+
+RMSSI remains paused from the start of enable until `tune_cb`, and from the
+start of disable through `disabled_cb`. The vendor callbacks are authoritative
+for `RuntimeState.enabled`; a failed disable only resumes RMSSI when that state
+still reports the receiver as enabled.
+
+`tune_cb` requests one immediate RMSSI refresh after publishing the new
+frequency. The two-second command-loop polling remains the periodic fallback.
+If an older request is still pending, the immediate refresh is skipped and the
+normal pending-request guard prevents overlap.
+
+Qualcomm drivers also expose SINR through `kV4l2CtrlIrisSinr`
+(`V4L2_PRIVATE_BASE + 0x2c`). Earlier diagnostic code requested it through the
+same station-parameter callback, but the current backend has no SINR request API
+and does not publish SINR in the JSON state protocol. The control definition is
+retained because the hardware capability exists and may be useful for future
+diagnostics. Restoring it would require tracking which metric owns the shared
+callback and calibrating vendor-specific values before exposing them in UI.
+
 ### HAL RDS and Audio
 
 Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
@@ -576,11 +611,18 @@ The low-level layer uses:
 | Private controls | `VIDIOC_S_CTRL` |
 | Band | `VIDIOC_S_TUNER` |
 | Tune/get frequency | `VIDIOC_S_FREQUENCY` / `VIDIOC_G_FREQUENCY` |
+| RMSSI | `VIDIOC_G_TUNER.signal` |
 | Stereo mode | `VIDIOC_S_TUNER.audmode` |
 | Seek/search | `VIDIOC_S_HW_FREQ_SEEK` |
 | RDS and event buffers | `VIDIOC_DQBUF` |
 
 Frequency conversion uses V4L2 units of 62.5 Hz.
+
+`TAVARUA_EVT_TUNE_SUCC` publishes the new frequency and immediately reads one
+RMSSI sample. Sequential full scans skip this one-shot while their scan state
+is busy; the native two-second polling supplies the next sample after scan
+completion. Both the tune event and periodic adapter path use
+`fm_command_publish_rmssi()` so decoding and state-patch behavior stay shared.
 
 ### Event Thread and Concurrency
 

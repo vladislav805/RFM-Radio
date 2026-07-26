@@ -113,6 +113,14 @@
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent" />
 
+	<com.vlad805.fmradio.view.SignalStrengthView
+		android:id="@+id/signal_strength"
+		android:layout_width="@dimen/icon_size"
+		android:layout_height="@dimen/icon_size"
+		android:contentDescription="@string/signal_strength_indicator"
+		app:layout_constraintStart_toEndOf="@+id/stereo_mono"
+		app:layout_constraintTop_toTopOf="@+id/stereo_mono" />
+
 	<TextView
 		android:id="@+id/frequency_ps"
 		style="@style/RDS_PS"
@@ -137,7 +145,7 @@
 		android:textColor="@color/record_active"
 		android:visibility="gone"
 		app:layout_constraintBottom_toBottomOf="@+id/stereo_mono"
-		app:layout_constraintStart_toEndOf="@+id/stereo_mono"
+		app:layout_constraintStart_toEndOf="@+id/signal_strength"
 		app:layout_constraintTop_toTopOf="@+id/stereo_mono"
 		tools:text="00:00"
 		tools:visibility="visible" />

@@ -124,6 +124,11 @@ bool build_radio_state_patch_json(
         changed = true;
     }
 
+    if (patch->rmssi != RADIO_PATCH_ABSENT_RMSSI && patch->rmssi != cache.rmssi) {
+        append_field(*json, first_top, "rmssi", std::to_string(patch->rmssi));
+        changed = true;
+    }
+
     if (patch->ps != nullptr && cache.ps != patch->ps) {
         append_field(rds, first_rds, "ps", json_escape(patch->ps));
     }
@@ -186,6 +191,9 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
     }
 
     if (patch->frequency_khz != RADIO_PATCH_ABSENT_INT) {
+        if (patch->frequency_khz != cache->frequency_khz) {
+            cache->rmssi = RADIO_PATCH_ABSENT_RMSSI;
+        }
         cache->frequency_khz = patch->frequency_khz;
     }
 
@@ -219,5 +227,9 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
 
     if (patch->stereo != RADIO_PATCH_ABSENT_INT) {
         cache->stereo = patch->stereo;
+    }
+
+    if (patch->rmssi != RADIO_PATCH_ABSENT_RMSSI) {
+        cache->rmssi = patch->rmssi;
     }
 }

@@ -4,6 +4,8 @@
 extern "C" {
 #endif
 
+#include <limits.h>
+
 #include "types.h"
 
 #define CS_PORT 2112
@@ -11,6 +13,7 @@ extern "C" {
 #define CS_BUF 512
 
 #define RADIO_PATCH_ABSENT_INT -1
+#define RADIO_PATCH_ABSENT_RMSSI INT_MIN
 
 typedef struct {
     int frequency_khz;
@@ -22,6 +25,7 @@ typedef struct {
     const int *af_khz;
     int af_count;
     int stereo;
+    int rmssi;
 } radio_state_patch_t;
 
 typedef struct {
@@ -31,6 +35,7 @@ typedef struct {
 
 typedef response_t (*fm_srv_callback)(char *);
 
+void poll_rmssi(void);
 int init_server(fm_srv_callback request_callback);
 radio_state_patch_t radio_state_patch_empty(void);
 bool send_radio_state_patch(const radio_state_patch_t *patch);

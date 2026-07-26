@@ -13,6 +13,7 @@ public final class RadioStatePatch {
     private Integer pty;
     private int[] af;
     private Boolean stereo;
+    private Integer rmssi;
 
     public Integer getFrequency() {
         return frequency;
@@ -78,8 +79,16 @@ public final class RadioStatePatch {
         this.stereo = stereo;
     }
 
+    public Integer getRmssi() {
+        return rmssi;
+    }
+
+    public void setRmssi(final Integer rmssi) {
+        this.rmssi = rmssi;
+    }
+
     public boolean isEmpty() {
-        return frequency == null && ps == null && rt == null && pi == null && country == null && pty == null && af == null && stereo == null;
+        return frequency == null && ps == null && rt == null && pi == null && country == null && pty == null && af == null && stereo == null && rmssi == null;
     }
 
     public Intent toIntent(final String action) {
@@ -115,6 +124,10 @@ public final class RadioStatePatch {
 
         if (stereo != null) {
             intent.putExtra(C.Key.STEREO_MODE, stereo);
+        }
+
+        if (rmssi != null) {
+            intent.putExtra(C.Key.RMSSI, rmssi);
         }
 
         return intent;

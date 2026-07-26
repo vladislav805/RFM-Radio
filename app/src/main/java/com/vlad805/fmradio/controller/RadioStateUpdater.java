@@ -26,6 +26,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
     public static final int SET_RECORDING = 1 << 7;
     public static final int SET_SPEAKER = 1 << 8;
     public static final int SET_COUNTRY = 1 << 9;
+    public static final int SET_RMSSI = 1 << 10;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
@@ -113,13 +114,20 @@ public class RadioStateUpdater extends BroadcastReceiver {
 
             case C.Event.DISABLED: {
                 mState.setStatus(TunerStatus.IDLE);
-                mode = SET_STATUS;
+                mState.setRmssi(RadioState.RMSSI_UNKNOWN);
+                mode = SET_STATUS | SET_RMSSI;
                 break;
             }
 
             case C.Event.FREQUENCY_SET: {
-                mState.setFrequency(intent.getIntExtra(C.Key.FREQUENCY, -1));
-                mode = SET_FREQUENCY;
+                final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
+                if (frequency != mState.getFrequency()) {
+                    mState.setRmssi(RadioState.RMSSI_UNKNOWN);
+                    mode = SET_FREQUENCY | SET_RMSSI;
+                } else {
+                    mode = SET_FREQUENCY;
+                }
+                mState.setFrequency(frequency);
                 break;
             }
 
@@ -155,7 +163,12 @@ public class RadioStateUpdater extends BroadcastReceiver {
 
             case C.Event.STATE_CHANGED: {
                 if (intent.hasExtra(C.Key.FREQUENCY)) {
-                    mState.setFrequency(intent.getIntExtra(C.Key.FREQUENCY, -1));
+                    final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
+                    if (frequency != mState.getFrequency()) {
+                        mState.setRmssi(RadioState.RMSSI_UNKNOWN);
+                        mode |= SET_RMSSI;
+                    }
+                    mState.setFrequency(frequency);
                     mode |= SET_FREQUENCY;
                 }
                 if (intent.hasExtra(C.Key.PS)) {
@@ -181,6 +194,10 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 if (intent.hasExtra(C.Key.STEREO_MODE)) {
                     mState.setStereo(intent.getBooleanExtra(C.Key.STEREO_MODE, false));
                     mode |= SET_STEREO;
+                }
+                if (intent.hasExtra(C.Key.RMSSI)) {
+                    mState.setRmssi(intent.getIntExtra(C.Key.RMSSI, RadioState.RMSSI_UNKNOWN));
+                    mode |= SET_RMSSI;
                 }
                 break;
             }

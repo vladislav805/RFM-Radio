@@ -34,12 +34,15 @@ if(RFM_NATIVE_TESTS)
         tests/region_profile_test.cpp
         tests/scan_result_test.cpp
         tests/legacy_scan_state_test.cpp
+        tests/rmssi_test.cpp
+        tests/periodic_deadline_test.cpp
         rds_parser.cpp
         ctl_json.cpp
         startup_config.cpp
         region_profile.cpp
         scan_result.cpp
         legacy/scan_state.cpp
+        periodic_deadline.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
     target_link_libraries(rfm_native_tests GTest::gtest_main)
@@ -57,6 +60,7 @@ add_executable(
     region_profile.cpp
     scan_result.cpp
     rds_parser.cpp
+    periodic_deadline.cpp
     backend_factory.cpp
     legacy_backend.cpp
     hal_backend.cpp

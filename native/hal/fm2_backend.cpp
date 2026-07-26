@@ -12,9 +12,11 @@
 #include "../ctl_server.h"
 #include "../frequency_format.h"
 #include "../fm_v4l2_controls.h"
+#include "../monotonic_clock.h"
 #include "../region_profile.h"
 #include "../rds_parser.h"
 #include "../scan_result.h"
+#include "../rmssi.h"
 #include "fm2_vendor_iface.h"
 #include "utils.h"
 
@@ -35,7 +37,7 @@ constexpr int kHeliumSpacing50Khz = 2;
 
 constexpr int kDefaultListSize = 20;
 constexpr int kEnableWaitTimeoutMs = 2000;
-constexpr uint64_t kStationMetricTimeoutMs = 5000;
+constexpr uint64_t kRmssiRequestTimeoutMs = 5000;
 
 // Qualcomm's stock WEAK threshold. Device scans found no useful benefit from
 // stricter values, while the previous value (0x40) matched no known ABI scale.
@@ -65,10 +67,19 @@ struct ScanState {
     ScanResultCollector stations;
 };
 
-enum class StationMetric {
-    kNone,
-    kRmssi,
-    kSinr,
+struct RmssiState {
+    bool pending = false;
+    uint64_t requested_at_ms = 0;
+    int request_frequency_khz = 0;
+    bool timeout_logged = false;
+    bool paused = false;
+
+    void clear_request() {
+        pending = false;
+        requested_at_ms = 0;
+        request_frequency_khz = 0;
+        timeout_logged = false;
+    }
 };
 
 struct RuntimeState {
@@ -92,9 +103,7 @@ struct RuntimeState {
     uint64_t last_enabled_cb_ms = 0;
     uint64_t last_tune_cb_ms = 0;
     uint64_t last_seek_cb_ms = 0;
-    // Helium reports RMSSI and SINR through one callback after vendor_get returns.
-    StationMetric pending_station_metric = StationMetric::kNone;
-    uint64_t station_metric_requested_at_ms = 0;
+    RmssiState rmssi;
     bool last_search_payload_valid = false;
     char last_search_payload[5 * 20 + 1] = "";
     ScanState scan;
@@ -209,13 +218,6 @@ void log_rt_plus_slices_locked() {
         text[tag.length] = '\0';
         hal_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
     }
-}
-
-uint64_t now_ms() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return static_cast<uint64_t>(ts.tv_sec) * 1000ULL +
-           static_cast<uint64_t>(ts.tv_nsec / 1000000ULL);
 }
 
 bool vendor_set(int id, int value, const char *message) {
@@ -604,24 +606,29 @@ void fm_set_blend_cb(int status) {
 void fm_get_station_param_cb(int value, int status) {
     pthread_mutex_lock(&g_state.lock);
 
-    const StationMetric metric = g_state.pending_station_metric;
+    const bool pending = g_state.rmssi.pending;
+    const int requested_frequency = g_state.rmssi.request_frequency_khz;
+    const bool publish = pending &&
+            g_state.enabled &&
+            !g_state.rmssi.paused &&
+            !g_state.scan.active &&
+            requested_frequency == g_state.current_frequency_khz;
 
-    g_state.pending_station_metric = StationMetric::kNone;
-    g_state.station_metric_requested_at_ms = 0;
+    g_state.rmssi.clear_request();
 
     pthread_mutex_unlock(&g_state.lock);
 
-    const char *name = metric == StationMetric::kRmssi
-            ? "rmssi"
-            : (metric == StationMetric::kSinr ? "sinr" : "unexpected");
-
     const unsigned int raw_value = static_cast<unsigned int>(value) & 0xffU;
+    const int signed_value = decode_rmssi(value);
 
-    const int signed_value = raw_value >= 0x80U
-            ? static_cast<int>(raw_value) - 0x100
-            : static_cast<int>(raw_value);
+    hal_log("metric", "%s status=%d value=%d raw=0x%02x",
+            pending ? "rmssi" : "unexpected", status, signed_value, raw_value);
 
-    hal_log("metric", "%s status=%d value=%d raw=0x%02x", name, status, signed_value, raw_value);
+    if (status == 0 && publish) {
+        radio_state_patch_t patch = radio_state_patch_empty();
+        patch.rmssi = signed_value;
+        send_radio_state_patch(&patch);
+    }
 }
 
 void fm_get_station_debug_param_cb(int value, int status) {
@@ -647,18 +654,22 @@ void enabled_cb() {
     hal_log("event", "FM enabled");
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = true;
-    g_state.last_enabled_cb_ms = now_ms();
+    g_state.last_enabled_cb_ms = monotonic_ms();
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
 }
 
 void disabled_cb() {
     hal_log("event", "FM disabled");
+
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
     g_state.audio.mode_valid = false;
+    g_state.rmssi.clear_request();
+    g_state.rmssi.paused = true;
     pthread_cond_broadcast(&g_state.cond);
     pthread_mutex_unlock(&g_state.lock);
+
     send_native_event("disabled");
 }
 
@@ -666,7 +677,8 @@ void tune_cb(int freq) {
     hal_log("event", "tune frequency_khz=%d", freq);
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
-    g_state.last_tune_cb_ms = now_ms();
+    g_state.rmssi.paused = false;
+    g_state.last_tune_cb_ms = monotonic_ms();
     reset_search_result_locked();
     reset_rds_dedup_locked();
     pthread_mutex_unlock(&g_state.lock);
@@ -675,6 +687,10 @@ void tune_cb(int freq) {
     patch.ps = patch.rt = patch.pi = patch.country = "";
     patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
+
+    // The tune callback is the first authoritative point at which RMSSI belongs
+    // to the new station. Refresh now instead of waiting for the periodic tick.
+    fm2_backend_request_rmssi();
 }
 
 void seek_complete_cb(int freq) {
@@ -690,7 +706,8 @@ void seek_complete_cb(int freq) {
 
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
-    g_state.last_seek_cb_ms = now_ms();
+    g_state.rmssi.paused = false;
+    g_state.last_seek_cb_ms = monotonic_ms();
     reset_search_result_locked();
     reset_rds_dedup_locked();
 
@@ -1059,6 +1076,8 @@ bool fm2_backend_enable() {
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
     g_state.last_enabled_cb_ms = 0;
+    g_state.rmssi.clear_request();
+    g_state.rmssi.paused = true;
     pthread_mutex_unlock(&g_state.lock);
 
     if (!fm2_backend_set_slimbus(true)) {
@@ -1111,18 +1130,34 @@ bool fm2_backend_wait_enabled(int timeout_ms) {
 
 bool fm2_backend_disable() {
     hal_log("disable", "requested");
+    pthread_mutex_lock(&g_state.lock);
+    g_state.rmssi.paused = true;
+    g_state.rmssi.clear_request();
+    pthread_mutex_unlock(&g_state.lock);
+
     const bool disabled = vendor_set(kV4l2CtrlState, 0, "failed to disable receiver");
     const bool slimbus = fm2_backend_set_slimbus(false);
     const bool accepted = disabled && slimbus;
+
     if (accepted) {
         hal_log("disable", "accepted");
     }
+
     return accepted;
 }
 
 bool fm2_backend_set_frequency(uint32_t frequency_khz) {
     hal_log("tune", "request frequency_khz=%u", frequency_khz);
+
+    pthread_mutex_lock(&g_state.lock);
+    g_state.rmssi.paused = true;
+    pthread_mutex_unlock(&g_state.lock);
+
     if (!vendor_set(kV4l2CtrlIrisFreq, static_cast<int>(frequency_khz), "failed to tune")) {
+        pthread_mutex_lock(&g_state.lock);
+        g_state.rmssi.paused = false;
+        pthread_mutex_unlock(&g_state.lock);
+
         return false;
     }
     hal_log("tune", "request frequency_khz=%u accepted", frequency_khz);
@@ -1191,11 +1226,20 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
 
 bool fm2_backend_seek(int direction) {
     hal_log("search", "seek requested direction=%d dwell=%d", direction, kDefaultSeekDwell);
+
+    pthread_mutex_lock(&g_state.lock);
+    g_state.rmssi.paused = true;
+    pthread_mutex_unlock(&g_state.lock);
+
     const bool ok = vendor_set(kV4l2CtrlSearchMode, kSearchModeSeek, "failed to set seek mode") &&
                     vendor_set(kV4l2CtrlScanDwell, kDefaultSeekDwell, "failed to set seek dwell") &&
                     vendor_set(kV4l2CtrlIrisSeek, direction >= 0 ? 1 : 0, "failed to start seek");
     if (ok) {
         hal_log("search", "seek direction=%d accepted", direction);
+    } else {
+        pthread_mutex_lock(&g_state.lock);
+        g_state.rmssi.paused = false;
+        pthread_mutex_unlock(&g_state.lock);
     }
     return ok;
 }
@@ -1344,48 +1388,67 @@ bool fm2_backend_raw_get(int id, int *value) {
     return vendor_get(id, value, "failed raw get");
 }
 
-namespace {
-
-bool request_station_metric(StationMetric metric, int control, const char *name) {
-    const uint64_t requested_at = now_ms();
+bool fm2_backend_request_rmssi() {
+    const uint64_t requested_at = monotonic_ms();
 
     pthread_mutex_lock(&g_state.lock);
-    if (g_state.pending_station_metric != StationMetric::kNone) {
-        const uint64_t elapsed = requested_at - g_state.station_metric_requested_at_ms;
-        if (elapsed < kStationMetricTimeoutMs) {
-            set_error_locked("station metric request already pending");
-            pthread_mutex_unlock(&g_state.lock);
-            return false;
-        }
-        hal_log("metric", "previous request timed out after %llu ms", static_cast<unsigned long long>(elapsed));
-    }
-    g_state.pending_station_metric = metric;
-    g_state.station_metric_requested_at_ms = requested_at;
-    pthread_mutex_unlock(&g_state.lock);
 
-    int unused = 0;
-    if (!vendor_get(control, &unused, "failed to request station metric")) {
-        pthread_mutex_lock(&g_state.lock);
-        if (g_state.pending_station_metric == metric) {
-            g_state.pending_station_metric = StationMetric::kNone;
-            g_state.station_metric_requested_at_ms = 0;
-        }
+    if (
+            !g_state.enabled ||
+            g_state.scan.active ||
+            g_state.rmssi.paused ||
+            g_state.vendor == nullptr
+    ) {
         pthread_mutex_unlock(&g_state.lock);
         return false;
     }
 
-    hal_log("metric", "%s requested", name);
+    if (g_state.rmssi.pending) {
+        const uint64_t elapsed = requested_at - g_state.rmssi.requested_at_ms;
+
+        if (
+                elapsed >= kRmssiRequestTimeoutMs &&
+                !g_state.rmssi.timeout_logged
+        ) {
+            hal_log("rmssi", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
+            g_state.rmssi.timeout_logged = true;
+        }
+
+        pthread_mutex_unlock(&g_state.lock);
+
+        return false;
+    }
+
+    g_state.rmssi.pending = true;
+    g_state.rmssi.requested_at_ms = requested_at;
+    g_state.rmssi.request_frequency_khz = g_state.current_frequency_khz;
+    g_state.rmssi.timeout_logged = false;
+
+    fm_interface_t *vendor = g_state.vendor;
+    pthread_mutex_unlock(&g_state.lock);
+
+    int unused = 0;
+    errno = 0;
+
+    const int ret = vendor->get_fm_ctrl(kV4l2CtrlIrisRmssi, &unused);
+    if (ret < 0) {
+        const int saved_errno = errno;
+
+        pthread_mutex_lock(&g_state.lock);
+
+        if (g_state.rmssi.pending) {
+            g_state.rmssi.clear_request();
+        }
+
+        pthread_mutex_unlock(&g_state.lock);
+
+        hal_log("vendor", "get id=0x%x failed, ret=%d errno=%d (%s)", kV4l2CtrlIrisRmssi, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
+
+        return false;
+    }
+
+    hal_log("rmssi", "requested");
     return true;
-}
-
-}  // namespace
-
-bool fm2_backend_request_rmssi() {
-    return request_station_metric(StationMetric::kRmssi, kV4l2CtrlIrisRmssi, "rmssi");
-}
-
-bool fm2_backend_request_sinr() {
-    return request_station_metric(StationMetric::kSinr, kV4l2CtrlIrisSinr, "sinr");
 }
 
 bool fm2_backend_log_snapshot(const char *reason) {

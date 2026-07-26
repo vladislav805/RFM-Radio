@@ -16,6 +16,7 @@ struct RadioStateJsonCache {
     int af_khz[kRadioJsonMaxAfCount] = {};
     int af_count = RADIO_PATCH_ABSENT_INT;
     int stereo = RADIO_PATCH_ABSENT_INT;
+    int rmssi = RADIO_PATCH_ABSENT_RMSSI;
 };
 
 std::string build_native_event_json(const char *type);

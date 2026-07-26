@@ -35,6 +35,7 @@ public class RadioController {
             mState.setPi(state.getPi());
             mState.setPty(state.getPty());
             mState.setCountry(state.getCountry());
+            mState.setRmssi(state.getRmssi());
             mState.setRecording(state.isRecording());
             mState.setRecordingStarted(state.getRecordingStarted());
 
@@ -42,6 +43,7 @@ public class RadioController {
                 final int mode =
                         RadioStateUpdater.SET_STATUS |
                         RadioStateUpdater.SET_FREQUENCY |
+                        RadioStateUpdater.SET_RMSSI |
                         RadioStateUpdater.SET_INITIAL |
                         RadioStateUpdater.SET_RECORDING;
 

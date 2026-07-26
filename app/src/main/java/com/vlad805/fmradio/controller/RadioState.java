@@ -12,6 +12,8 @@ import android.os.Parcelable;
  * vlad805 (c) 2021
  */
 public final class RadioState implements Parcelable {
+    public static final int RMSSI_UNKNOWN = Integer.MIN_VALUE;
+
     // State of tuner
     private TunerStatus status = TunerStatus.IDLE;
 
@@ -35,6 +37,9 @@ public final class RadioState implements Parcelable {
 
     // Stereo - is stereo audio?
     private boolean stereo;
+
+    // Signed receiver signal strength reported by the tuner.
+    private int rmssi = RMSSI_UNKNOWN;
 
     // Is recording started
     private boolean recording = false;
@@ -113,6 +118,14 @@ public final class RadioState implements Parcelable {
         this.stereo = stereo;
     }
 
+    public int getRmssi() {
+        return rmssi;
+    }
+
+    void setRmssi(final int rmssi) {
+        this.rmssi = rmssi;
+    }
+
     public boolean isRecording() {
         return recording;
     }
@@ -155,6 +168,7 @@ public final class RadioState implements Parcelable {
         ps = in.readString();
         rt = in.readString();
         stereo = in.readInt() > 0;
+        rmssi = in.readInt();
         recording = in.readInt() > 0;
         recordingStarted = in.readLong();
         forceSpeaker = in.readInt() > 0;
@@ -175,6 +189,7 @@ public final class RadioState implements Parcelable {
         dest.writeString(ps);
         dest.writeString(rt);
         dest.writeInt(stereo ? 1 : 0);
+        dest.writeInt(rmssi);
         dest.writeInt(recording ? 1 : 0);
         dest.writeLong(recordingStarted);
         dest.writeInt(forceSpeaker ? 1 : 0);

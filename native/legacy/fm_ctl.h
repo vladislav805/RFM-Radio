@@ -50,6 +50,7 @@ bool fm_receiver_set_antenna(uint8 antenna);
 bool fm_receiver_query_capabilities(struct v4l2_capability* cap);
 bool fm_receiver_set_tuned_frequency(uint32 frequency_khz);
 uint32 fm_receiver_get_tuned_frequency();
+bool fm_receiver_get_rmssi(int *rmssi);
 bool fm_receiver_set_mute_mode(mute_t mode);
 bool fm_receiver_toggle_af_jump(uint8 enable);
 bool fm_receiver_set_power_mode(power_mode_t mode);
