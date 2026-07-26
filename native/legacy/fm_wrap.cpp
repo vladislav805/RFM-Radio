@@ -47,9 +47,46 @@ constexpr int kLegacyRdsMask = 23;
 constexpr int kLegacyRds3aGroupMask = 0x40;
 
 volatile bool is_power_on_completed = FALSE;
+static bool g_direct_v4l2_transport = false;
 
 static LegacyScanState legacy_scan;
 static pthread_mutex_t legacy_scan_lock = PTHREAD_MUTEX_INITIALIZER;
+constexpr size_t kPropertyValueBufferSize = 128;
+
+static int read_property(const char *name, char *value) {
+#ifdef __ANDROID_API__
+    const int length = __system_property_get(name, value);
+    if (length <= 0) {
+        value[0] = '\0';
+    }
+    return length;
+#else
+    value[0] = '\0';
+    return 0;
+#endif
+}
+
+static void clear_direct_init_marker() {
+#ifdef __ANDROID_API__
+    if (g_direct_v4l2_transport && __system_property_set("hw.fm.init", "0") != 0) {
+        legacy_log("setup", "failed to clear hw.fm.init");
+    }
+#endif
+}
+
+static bool has_fm_patch_downloader() {
+    constexpr const char *paths[] = {
+            "/system/bin/fm_qsoc_patches",
+            "/vendor/bin/fm_qsoc_patches",
+            "/system/xbin/fm_qsoc_patches",
+    };
+    for (const char *path : paths) {
+        if (access(path, X_OK) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static void record_scan_tune(int frequency_khz) {
     pthread_mutex_lock(&legacy_scan_lock);
@@ -126,6 +163,7 @@ bool process_radio_event(uint8 event_buf) {
         case TAVARUA_EVT_RADIO_READY: {
             legacy_log("event", "FM enabled");
             fm_storage.state = RX;
+            is_power_on_completed = TRUE;
             break;
         }
 
@@ -133,6 +171,8 @@ bool process_radio_event(uint8 event_buf) {
             legacy_log("event", "FM disabled");
             reset_search();
             fm_storage.state = OFF;
+            is_power_on_completed = FALSE;
+            clear_direct_init_marker();
             fm_receiver_close();
             pthread_exit(NULL);
             ret = FALSE;
@@ -374,36 +414,44 @@ exit:
  * @return FM command status
  */
 fm_cmd_status_t fm_command_open() {
-    int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
+    g_direct_v4l2_transport = false;
+    char service[kPropertyValueBufferSize] = {};
+    const int service_length = read_property("init.svc.fm_dl", service);
+    const bool patch_downloader_available = has_fm_patch_downloader();
 
-    legacy_log("open", "setprop exit=%d", exit_code);
+    // The legacy backend was already selected from /dev/radio0. If neither
+    // bootstrap mechanism exists, use the stock no-firmware path. Decide this
+    // before reading hw.fm.init because a killed previous direct session may
+    // have left that process-external marker at 1.
+    if (service_length == 0 && !patch_downloader_available) {
+        g_direct_v4l2_transport = true;
+        legacy_log("open", "mode=direct_v4l2 reason=fm_dl_absent");
+    } else {
+        int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
+        legacy_log("open", "setprop exit=%d", exit_code);
 
-    if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
-        legacy_log("open", "found radio-iris-transport.ko, loading");
-        system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
-    }
+        if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
+            legacy_log("open", "found radio-iris-transport.ko, loading");
+            system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
+        }
 
-    char value[4] = {0x41, 0x42, 0x43, 0x44};
+        char value[kPropertyValueBufferSize] = {};
+        int attempt;
+        int init_success = 0;
 
-    uint16 attempt;
-    int init_success = 0;
-
-
-    for (attempt = 0; attempt < 600; ++attempt) {
-        __system_property_get("hw.fm.init", value);
-        if (value[0] == '1') {
-            init_success = 1;
-            break;
-        } else {
+        for (attempt = 0; attempt < 600; ++attempt) {
+            read_property("hw.fm.init", value);
+            if (value[0] == '1') {
+                init_success = 1;
+                break;
+            }
             wait(10);
         }
-    }
 
-    if (init_success) {
-        legacy_log("open", "init success after %d attempts", attempt + 1);
-    } else {
-        legacy_log("open", "init failed after %d attempts", attempt);
-        return FM_CMD_FAILURE;
+        if (!init_success) {
+            legacy_log("open", "fm_dl init failed after %d attempts", attempt);
+            return FM_CMD_FAILURE;
+        }
     }
 
     wait(500);
@@ -544,14 +592,30 @@ fm_cmd_status_t fm_command_prepare(fm_config_data *config_ptr) {
  */
 fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     int ret;
+    int thread_ret = 0;
 
     fm_config_data* cfg = (fm_config_data*) ptr;
+    is_power_on_completed = FALSE;
 
 #ifdef __ANDROID_API__
-    if (is_smd_transport_layer()) {
+    if (g_direct_v4l2_transport) {
+        const int property_result = __system_property_set("hw.fm.init", "1");
+
+        if (property_result != 0) {
+            legacy_log("setup", "failed to set hw.fm.init");
+            return FM_CMD_FAILURE;
+        }
+
+        // Stock no-firmware libfmjni.so waits for the transport to settle
+        // after publishing readiness and before starting the event listener.
+        wait(200);
+    } else if (is_smd_transport_layer()) {
         __system_property_set("ctl.start", "fm_dl");
         sleep(1);
     } else if (!is_rome_chip()) {
+        if (qsoc_poweron_path == NULL) {
+            return FM_CMD_FAILURE;
+        }
         ret = system(qsoc_poweron_path);
         if (ret != 0) {
             legacy_log("setup", "patch download failed, ret=%d", ret);
@@ -559,6 +623,19 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
         }
     }
 #endif
+
+    // The newer no-firmware Qualcomm path starts a blocking event listener
+    // before STATE=RX and then waits for RADIO_READY. Start it before the
+    // power control here; the established legacy path keeps its old ordering.
+    if (g_direct_v4l2_transport) {
+        thread_ret = pthread_create(&fm_interrupt_thread, NULL, interrupt_thread, NULL);
+
+        if (thread_ret != 0) {
+            legacy_log("event", "pthread_create failed ret=%d (%s)", thread_ret, strerror(thread_ret));
+            clear_direct_init_marker();
+            return FM_CMD_FAILURE;
+        }
+    }
 
     /**
      * V4L2_CID_PRIVATE_TAVARUA_STATE
@@ -573,8 +650,24 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     // If cannot set state, finish
     if (ret == FALSE) {
         legacy_log("setup", "set radio state failed, ret=%d", ret);
+        clear_direct_init_marker();
         fm_receiver_close();
         return FM_CMD_FAILURE;
+    }
+
+    if (g_direct_v4l2_transport) {
+        int ready_attempt = 0;
+
+        while (is_power_on_completed != TRUE && ready_attempt < 500) {
+            wait(10);
+            ++ready_attempt;
+        }
+
+        if (is_power_on_completed != TRUE) {
+            legacy_log("setup", "RADIO_READY timeout attempts=%d state=%d", ready_attempt, fm_storage.state);
+            clear_direct_init_marker();
+            return FM_CMD_FAILURE;
+        }
     }
 
     ret = fm_receiver_set_mute_mode(FM_RX_MUTE_BOTH);
@@ -598,9 +691,16 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change antenna");
 
     // Create threads
-    pthread_create(&fm_interrupt_thread, NULL, interrupt_thread, NULL);
+    if (!g_direct_v4l2_transport) {
+        thread_ret = pthread_create(&fm_interrupt_thread, NULL, interrupt_thread, NULL);
+        if (thread_ret != 0) {
+            legacy_log("event", "pthread_create failed ret=%d (%s)", thread_ret, strerror(thread_ret));
+        }
+    }
 
-    is_power_on_completed = TRUE;
+    if (!g_direct_v4l2_transport) {
+        is_power_on_completed = TRUE;
+    }
     return FM_CMD_SUCCESS;
 }
 
@@ -674,7 +774,11 @@ fm_cmd_status_t fm_command_disable() {
     }
 
 #ifdef __ANDROID_API__
-    __system_property_set("ctl.stop", "fm_dl");
+    if (!g_direct_v4l2_transport) {
+        __system_property_set("ctl.stop", "fm_dl");
+    } else {
+        clear_direct_init_marker();
+    }
 #endif
 
     legacy_log("disable", "accepted");

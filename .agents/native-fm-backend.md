@@ -40,10 +40,11 @@ initialization to HAL.
 
 Live device verification has been performed on:
 
-| Device | Backend | Platform context |
-| --- | --- | --- |
-| Xiaomi Mi A1 | Legacy V4L2 | Qualcomm Snapdragon 625 (MSM8953), AOSP Android 7.1.2 |
-| Xiaomi Poco X3 Pro | HAL/FM2 | Qualcomm Snapdragon 860 (SM8150-AD), cdDroid 11.2 |
+| Device | Platform context | OS | Backend |
+| --- | --- | --- | --- |
+| Xiaomi Redmi 4A | Qualcomm Snapdragon 425 (MSM8937) | Android 10 (Resurrection Remix 8.6.5) | Legacy V4L2, direct no-firmware bootstrap |
+| Xiaomi Mi A1 | Qualcomm Snapdragon 625 (MSM8953) | Android 7.1.2 (AOSP) | Legacy V4L2 |
+| Xiaomi Poco X3 Pro | Qualcomm Snapdragon 860 (SM8150-AD) | Android 15 (cdDroid 11.2) | HAL/FM2 |
 
 Treat behavior observed on these devices as evidence for the corresponding
 backend, not as a universal Qualcomm contract. Re-test hardware-sensitive
@@ -530,7 +531,19 @@ open /dev/radio0 with O_RDWR | O_NONBLOCK
 wait again before use
 ```
 
-The readiness poll can run for roughly six seconds, followed by fixed delays.
+The legacy backend has two bootstrap modes. The firmware path above can spend
+roughly six seconds waiting for `hw.fm.init`, followed by fixed delays, and may
+run `fm_qsoc_patches` during receiver setup.
+
+If both `init.svc.fm_dl` and an executable `fm_qsoc_patches` are absent, the
+backend selects the no-firmware direct V4L2 path before inspecting
+`hw.fm.init`, which may be stale from a killed process. During enable this path
+sets `hw.fm.init=1`, waits 200 ms, starts the event listener before `STATE=RX`,
+and waits for `RADIO_READY`. Disable clears `hw.fm.init` instead of stopping
+`fm_dl`.
+
+The downloader present on Xiaomi Mi A1 keeps it on the firmware path. Xiaomi
+Redmi 4A Android 10 uses the direct path.
 
 ### Enable and Required Ordering
 

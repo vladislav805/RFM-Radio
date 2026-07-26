@@ -67,7 +67,9 @@ public class QualcommNative extends AbstractQualcommNativeController {
 
             Utils.sleep(300);
 
-            sendCommand(new Request("init", 5000)
+            // Legacy initialization can spend six seconds waiting for fm_dl,
+            // followed by device stabilization delays and the native response delay.
+            sendCommand(new Request("init", 10000)
                     .onResponse(data -> {
                         if (isOkResponse(data)) {
                             callback.onResult(null);

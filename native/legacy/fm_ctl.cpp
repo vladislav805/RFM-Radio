@@ -439,7 +439,9 @@ bool fm_receiver_cancel_search() {
  * Close file descriptor
  */
 void fm_receiver_close() {
-    close(fd_radio);
+    if (fd_radio >= 0) {
+        close(fd_radio);
+    }
     fd_radio = -1;
 }
 
