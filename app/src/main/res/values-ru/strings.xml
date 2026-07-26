@@ -23,6 +23,7 @@
 	<string name="favorite_lists_selected_count">Выбрано: %d</string>
 	<string name="menu_open_list_favorites">Избранное</string>
 	<string name="menu_record">Запись</string>
+	<string name="recording_duration">Длительность записи</string>
 	<string name="menu_settings">Настройки</string>
 	<string name="notification_mhz">%.1f МГц</string>
 	<string name="notification_recorded">Запись %3$s завершена: %1$s (%2$.1f МБ)</string>
@@ -90,8 +91,11 @@
 	<string name="open_favorites_lists">Открыть списки избранного</string>
 	<string name="favorites_edit">Изменить</string>
 	<string name="favorites_done">Готово</string>
-	<string name="stereo_indicator">Индикатор стерео или моно</string>
 	<string name="signal_strength_indicator">Уровень сигнала</string>
+	<string name="stereo_mode_label">Стерео</string>
+	<string name="mono_mode_label">Моно</string>
+	<string name="stereo_mode_active">Стереоприём</string>
+	<string name="mono_mode_active">Моноприём</string>
 	<string name="drag_to_reorder">Перетащите для изменения порядка станции</string>
 	<string name="seek_up">Поиск вперёд</string>
 	<string name="service_record_unsupported">Запись эфира не поддерживается этим драйвером.</string>

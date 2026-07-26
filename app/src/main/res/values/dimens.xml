@@ -9,6 +9,7 @@
 
 	<!-- Icons -->
 	<dimen name="icon_size">30dp</dimen>
+	<dimen name="audio_mode_badge_width">50dp</dimen>
 
 	<!-- Control image buttons -->
 	<dimen name="ctl_size_seek">48dp</dimen>

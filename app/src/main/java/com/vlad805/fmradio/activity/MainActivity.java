@@ -17,7 +17,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
@@ -71,14 +70,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private ImageButton mCtlToggle;
 
-    private ImageView mViewStereoMode;
+    private TextView mViewStereoMode;
     private SignalStrengthView mSignalStrength;
 
     private TextView mRecordDuration;
 
     private RadioState mLastState;
 
-    private Menu mMenu;
+    private MenuItem mRecordDurationMenuItem;
+    private MenuItem mRecordMenuItem;
+    private MenuItem mSpeakerMenuItem;
 
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
@@ -139,8 +140,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
 
         mSeek = findViewById(R.id.frequency_seek);
-
-        mRecordDuration = findViewById(R.id.record_duration);
 
         final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
         mFrequencyInfo.setFrequency(kHz);
@@ -304,9 +303,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public boolean onCreateOptionsMenu(final Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
-        mMenu = menu;
+        mRecordDurationMenuItem = menu.findItem(R.id.menu_record_duration);
+        mRecordMenuItem = menu.findItem(R.id.menu_record);
+        mSpeakerMenuItem = menu.findItem(R.id.menu_speaker);
+        mRecordDuration = (TextView) mRecordDurationMenuItem.getActionView();
         if (mLastState != null) {
             updateMenuState();
+            updateRecordingUi(mLastState);
         }
         return super.onCreateOptionsMenu(menu);
     }
@@ -601,29 +604,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
-            mViewStereoMode.setImageResource(state.isStereo() ? R.drawable.ic_stereo : R.drawable.ic_mono);
+            mViewStereoMode.setText(state.isStereo()
+                    ? R.string.stereo_mode_label
+                    : R.string.mono_mode_label
+            );
+            mViewStereoMode.setContentDescription(getString(state.isStereo()
+                    ? R.string.stereo_mode_active
+                    : R.string.mono_mode_active
+            ));
         }
 
         if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
-            final boolean isRecording = state.isRecording();
-
-            mRecordDuration.setVisibility(isRecording ? View.VISIBLE : View.GONE);
-            if (isRecording) {
-                mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
-            }
-
-            if (mMenu != null) {
-                final MenuItem recordButtonMenuItem = mMenu.findItem(R.id.menu_record);
-
-                recordButtonMenuItem.setIcon(isRecording ? R.drawable.ic_led_on : R.drawable.ic_led_off);
-            }
+            updateRecordingUi(state);
         }
 
         if ((mode & RadioStateUpdater.SET_SPEAKER) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
             final boolean isSpeaker = state.isForceSpeaker();
 
-            if (mMenu != null) {
-                mMenu.findItem(R.id.menu_speaker).setChecked(isSpeaker);
+            if (mSpeakerMenuItem != null) {
+                mSpeakerMenuItem.setChecked(isSpeaker);
             }
         }
     }
@@ -727,7 +726,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_rt,
                 R.id.frequency_pty,
                 R.id.frequency_seek,
-                R.id.record_duration,
                 R.id.stereo_mono,
                 R.id.signal_strength,
                 R.id.favorite_list
@@ -743,15 +741,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void updateMenuState() {
-        if (mMenu == null) {
+        if (mRecordMenuItem == null || mSpeakerMenuItem == null) {
             return;
         }
 
         final boolean state = TunerStatus.ENABLED.equals(mLastState.getStatus());
 
-        mMenu.findItem(R.id.menu_record).setEnabled(state);
-        mMenu.findItem(R.id.menu_speaker).setEnabled(state);
-        mMenu.findItem(R.id.menu_speaker).setChecked(mLastState.isForceSpeaker());
+        mRecordMenuItem.setEnabled(state);
+        mSpeakerMenuItem.setEnabled(state);
+        mSpeakerMenuItem.setChecked(mLastState.isForceSpeaker());
+    }
+
+    private void updateRecordingUi(final RadioState state) {
+        if (
+                mRecordDurationMenuItem == null ||
+                mRecordMenuItem == null
+        ) {
+            return;
+        }
+
+        final boolean isRecording = state.isRecording();
+        mRecordDurationMenuItem.setVisible(isRecording);
+        mRecordMenuItem.setIcon(isRecording
+                ? R.drawable.ic_led_on
+                : R.drawable.ic_led_off
+        );
+
+        if (isRecording && mRecordDuration != null) {
+            mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
+        }
     }
 
 }

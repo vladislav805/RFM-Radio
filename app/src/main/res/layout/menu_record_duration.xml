@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/record_duration"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:clickable="false"
+    android:contentDescription="@string/recording_duration"
+    android:focusable="false"
+    android:fontFamily="monospace"
+    android:gravity="center"
+    android:paddingStart="8dp"
+    android:paddingEnd="4dp"
+    android:text="00:00"
+    android:textColor="@color/record_active"
+    android:textSize="14sp" />

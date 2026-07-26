@@ -15,12 +15,16 @@
 	<string name="open_favorites_lists">Otwórz listy ulubionych</string>
 	<string name="favorites_edit">Edytuj</string>
 	<string name="favorites_done">Gotowe</string>
-	<string name="stereo_indicator">Wskaźnik stereo lub mono</string>
 	<string name="signal_strength_indicator">Siła sygnału</string>
+	<string name="stereo_mode_label">Stereo</string>
+	<string name="mono_mode_label">Mono</string>
+	<string name="stereo_mode_active">Odbiór stereo</string>
+	<string name="mono_mode_active">Odbiór mono</string>
 	<string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność stacji</string>
 	<string name="progress_starting">Włączanie tunera…</string>
 	<string name="menu_settings">Ustawienia</string>
 	<string name="menu_record">Nagraj</string>
+	<string name="recording_duration">Czas nagrywania</string>
 	<string name="menu_about">O aplikacji</string>
 	<string name="menu_open_list_favorites">Ulubione</string>
 	<string name="popup_station_create">Stwórz</string>

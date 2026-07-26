@@ -5,11 +5,18 @@
 	<group
 			android:id="@+id/menu_main">
 		<item
+				android:id="@+id/menu_record_duration"
+				android:title="@string/recording_duration"
+				android:visible="false"
+				app:actionLayout="@layout/menu_record_duration"
+				app:showAsAction="always" />
+
+		<item
 				android:id="@+id/menu_record"
 				android:title="@string/menu_record"
 				android:icon="@drawable/ic_led_off"
 				android:enabled="false"
-				app:showAsAction="ifRoom"/>
+				app:showAsAction="always"/>
 
 		<item
 				android:id="@+id/menu_settings"
