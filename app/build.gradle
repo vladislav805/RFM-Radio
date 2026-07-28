@@ -7,6 +7,8 @@ def versionPatch = 0
 def dev = false
 def appId = dev ? "com.vlad805.fmradio.dev" : "com.vlad805.fmradio"
 def appVersionName = "${versionMajor}.${versionMinor}.${versionPatch}"
+def requiredNdkVersion = "29.0.14033849"
+def requiredCmakeVersion = "3.22.1"
 def requiredNativeAssets = [
         "fmbin-armv7a",
         "fmbin-aarch64",
@@ -25,6 +27,7 @@ def hasReleaseSigning =
 android {
     compileSdk = 36
     namespace = "com.vlad805.fmradio"
+    ndkVersion = requiredNdkVersion
 
     defaultConfig {
         applicationId = appId
@@ -72,6 +75,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
+            version = requiredCmakeVersion
         }
     }
 
@@ -141,6 +145,8 @@ tasks.register("buildFmbinNative", Exec) {
             ?: localProperties.getProperty("sdk.dir")
 
     inputs.dir(nativeDir)
+    inputs.property("ndkVersion", requiredNdkVersion)
+    inputs.property("cmakeVersion", requiredCmakeVersion)
     outputs.files(requiredNativeAssets.collect { assetName ->
         assetsDir.file(assetName)
     })
@@ -148,6 +154,7 @@ tasks.register("buildFmbinNative", Exec) {
     if (androidSdkPath != null) {
         environment "ANDROID_HOME", androidSdkPath
         environment "ANDROID_SDK_ROOT", androidSdkPath
+        environment "ANDROID_NDK_HOME", new File(androidSdkPath, "ndk/${requiredNdkVersion}").absolutePath
     }
     commandLine "bash", nativeDir.file("build.sh").asFile.absolutePath
 }

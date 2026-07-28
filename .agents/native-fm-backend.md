@@ -129,6 +129,11 @@ legacy sources into `fmbin`. The executable links `dl` for runtime HAL loading.
 | `armeabi-v7a` | `app/src/main/assets/fmbin-armv7a` |
 | `arm64-v8a` | `app/src/main/assets/fmbin-aarch64` |
 
+Android builds pin NDK `29.0.14033849` and CMake `3.22.1` for both `fmbin` and
+the app's JNI library. `native/build.sh` resolves those exact versions from the
+Android SDK and fails when they are unavailable instead of selecting another
+installed toolchain.
+
 The minimum native platform is Android 21. Build output is staged under
 `BUILD_ROOT`, defaulting to `/tmp/rfm-radio-native`. Asset binaries are ignored
 by Git and must be regenerated.

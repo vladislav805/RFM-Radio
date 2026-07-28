@@ -50,11 +50,6 @@ jobs:
             "cmake;3.22.1" \
             "ndk;29.0.14033849"
 
-      - name: Build native assets
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/29.0.14033849
-        run: ./native/build.sh
-
       - name: Decode release keystore
         run: |
           if [[ -n "${ANDROID_RELEASE_KEYSTORE_BASE64}" ]]; then

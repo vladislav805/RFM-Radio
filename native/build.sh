@@ -6,25 +6,31 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_ROOT="${BUILD_ROOT:-/tmp/rfm-radio-native}"
 ASSETS_DIR="${ROOT_DIR}/app/src/main/assets"
+REQUIRED_NDK_VERSION="29.0.14033849"
+REQUIRED_CMAKE_VERSION="3.22.1"
 
-resolve_ndk() {
-    if [[ -n "${ANDROID_NDK_HOME:-}" ]]; then
-        :
-    elif [[ -n "${ANDROID_HOME:-}" && -d "${ANDROID_HOME}/ndk/29.0.14033849" ]]; then
-        export ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/29.0.14033849"
-    elif [[ -n "${ANDROID_HOME:-}" && -d "${ANDROID_HOME}/ndk/27.3.13750724" ]]; then
-        export ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/27.3.13750724"
-    elif [[ -n "${ANDROID_SDK_ROOT:-}" && -d "${ANDROID_SDK_ROOT}/ndk/29.0.14033849" ]]; then
-        export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/29.0.14033849"
-    elif [[ -n "${ANDROID_SDK_ROOT:-}" && -d "${ANDROID_SDK_ROOT}/ndk/27.3.13750724" ]]; then
-        export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/27.3.13750724"
-    else
-        echo "ANDROID_NDK_HOME is not set and no known NDK was found under ANDROID_HOME/ANDROID_SDK_ROOT" >&2
+resolve_toolchain() {
+    local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+
+    if [[ -z "${sdk_root}" && -n "${ANDROID_NDK_HOME:-}" ]]; then
+        sdk_root="$(cd "${ANDROID_NDK_HOME}/../.." && pwd)"
+    fi
+
+    if [[ -z "${sdk_root}" ]]; then
+        echo "ANDROID_SDK_ROOT or ANDROID_HOME must point to the Android SDK" >&2
         exit 1
     fi
 
+    export ANDROID_NDK_HOME="${sdk_root}/ndk/${REQUIRED_NDK_VERSION}"
+    CMAKE="${sdk_root}/cmake/${REQUIRED_CMAKE_VERSION}/bin/cmake"
+
     if [[ ! -f "${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" ]]; then
-        echo "Invalid ANDROID_NDK_HOME: ${ANDROID_NDK_HOME}" >&2
+        echo "Android NDK ${REQUIRED_NDK_VERSION} is not installed at ${ANDROID_NDK_HOME}" >&2
+        exit 1
+    fi
+
+    if [[ ! -x "${CMAKE}" ]]; then
+        echo "CMake ${REQUIRED_CMAKE_VERSION} is not installed at ${CMAKE}" >&2
         exit 1
     fi
 }
@@ -36,7 +42,7 @@ build_android_abi() {
 
     rm -rf "${build_dir}"
     mkdir -p "${build_dir}"
-    cmake \
+    "${CMAKE}" \
         -S "${source_dir}" \
         -B "${build_dir}" \
         -DCMAKE_BUILD_TYPE=Release \
@@ -44,7 +50,7 @@ build_android_abi() {
         -DANDROID_ABI="${abi}" \
         -DANDROID_PLATFORM=android-21 \
         "${source_dir}"
-    cmake --build "${build_dir}" --clean-first
+    "${CMAKE}" --build "${build_dir}" --clean-first
 }
 
 copy_asset() {
@@ -62,7 +68,7 @@ copy_asset() {
 }
 
 main() {
-    resolve_ndk
+    resolve_toolchain
 
     echo "Building unified Qualcomm native assets"
 
