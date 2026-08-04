@@ -50,7 +50,7 @@ If the option is enabled, then with the "Enable RDS" option enabled, the Program
 
 ## Screenshots
 
-<img src="images/main.png" width="33%" alt="Main screen"/><img src="images/settings.png" width="33%" alt="Settings screen"/><img src="images/favorites.png" width="33%" alt="Favorites screen"/>
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="33%" alt="Main screen"/><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="33%" alt="Searching"/><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="33%" alt="Settings screen"/>
 
 ## Building
 

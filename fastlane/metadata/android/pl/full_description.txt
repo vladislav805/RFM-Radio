@@ -1,0 +1,20 @@
+**RFM Radio** to odbiornik FM offline dla urządzeń z Androidem wyposażonych w obsługiwany moduł radiowy Qualcomm Snapdragon. Aplikacja korzysta z wbudowanego tunera FM telefonu zamiast internetowych transmisji stacji radiowych.
+
+**Ważne:**
+
+* Wymagany jest dostęp root.
+* Wymagany jest Android 6.0 lub nowszy.
+* Zgodność zależy od modułu FM, sterowników producenta oraz komponentów fabrycznego lub niestandardowego ROM-u. Sam procesor Qualcomm Snapdragon nie gwarantuje obsługi.
+* Aplikacja obsługuje urządzenia Qualcomm z klasycznym interfejsem radiowym V4L2 lub nowszym FM HAL.
+* Przewodowe słuchawki nie są wymagane jako antena FM.
+
+**Funkcje:**
+
+* Odbiór radia FM bez połączenia z internetem.
+* Ręczne strojenie, wyszukiwanie sprzętowe i skanowanie całego pasma.
+* Wskaźniki siły sygnału oraz odbioru stereo/mono w czasie rzeczywistym.
+* Metadane RDS i RBDS, w tym PS, RT, PTY, PI, kraj i częstotliwości alternatywne, jeśli są nadawane przez stację i obsługiwane przez sterownik.
+* Regiony tunera: Europa, Stany Zjednoczone, standardowa Japonia i rozszerzone pasmo japońskie.
+* Ulubione stacje z własnymi nazwami, wiele list, zmiana kolejności metodą przeciągnij i upuść oraz import i eksport archiwów ZIP.
+* Nagrywanie do 16-bitowego PCM WAV lub MP3 128/192 kbit/s.
+* Opcjonalne dołączenie pięciu sekund audycji sprzed naciśnięcia przycisku nagrywania.

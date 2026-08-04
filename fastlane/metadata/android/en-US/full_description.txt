@@ -1,17 +1,20 @@
-**RFM Radio** - real radio (not online, not require Internet), that uses real hardware radio for Android smartphones based on Qualcomm Snapdragon processors.
+**RFM Radio** is an offline FM receiver for Android devices with supported Qualcomm Snapdragon radio hardware. It uses the phone's built-in FM tuner instead of streaming stations over the Internet.
 
-> **NB**: Application requires root.
+**Important:**
 
-> Currently supported ONLY smartphones with Qualcomm Snapdragon (except >=632 and >=820). Supported models see [here](https://github.com/vladislav805/RFM-Radio/blob/dev/SUPPORT_LIST.md).
+* Root access is required.
+* Android 6.0 or newer is required.
+* Compatibility depends on the FM hardware, vendor drivers, and firmware included by the device manufacturer or custom ROM. A Qualcomm Snapdragon processor alone does not guarantee support.
+* The app supports Qualcomm devices exposing either the legacy V4L2 radio interface or the newer FM HAL.
+* Wired headphones not required as an FM antenna.
 
-**Note:** though the app itself is covered by the GPL, there are 3 Qualcomm files (native platform specific routines to program the V4L2 driver for FM) used which are not.
+**Features:**
 
-**Capabilities:**
-
-* Listening to the radio.
-* Reading RDS - PS and RT.
-* Display the signal strength in dB.
-* Radio recording in .wav and .mp3 files.
-* Saving favorite frequencies with name.
-* Ability to create multiple favorites lists.
-* Automatic search for radio stations.
+* Live FM playback without an Internet connection.
+* Manual tuning, hardware seek, and full-band station scanning.
+* Real-time signal strength and stereo/mono indicators.
+* RDS and RBDS metadata, including PS, RT, PTY, PI, country, and alternative frequencies when provided by the station and supported by the driver.
+* Europe, United States, Japan Standard, and Japan Wide tuner regions.
+* Favorites with custom station names, multiple lists, drag-and-drop reordering, and ZIP import/export.
+* Recording to 16-bit PCM WAV or MP3 at 128/192 kbit/s.
+* Optional five-second recording pre-roll.

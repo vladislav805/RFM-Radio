@@ -1,1 +1,1 @@
-Реальное FM радио для Android
+Реальное офлайн FM-радио для Android на Qualcomm (root)
