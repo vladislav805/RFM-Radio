@@ -114,8 +114,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
 
             case C.Event.DISABLED: {
                 mState.setStatus(TunerStatus.IDLE);
-                mState.setRmssi(RadioState.RMSSI_UNKNOWN);
-                mode = SET_STATUS | SET_RMSSI;
+                mState.clear();
+                mode = SET_STATUS | SET_RMSSI | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO;
                 break;
             }
 

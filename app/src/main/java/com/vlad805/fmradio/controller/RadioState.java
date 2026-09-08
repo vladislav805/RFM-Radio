@@ -110,6 +110,16 @@ public final class RadioState implements Parcelable {
         this.rt = rt;
     }
 
+    void clear() {
+        pi = "";
+        country = "";
+        pty = 0;
+        ps = "";
+        rt = "";
+        stereo = false;
+        rmssi = RMSSI_UNKNOWN;
+    }
+
     public boolean isStereo() {
         return stereo;
     }
