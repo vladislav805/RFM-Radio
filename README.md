@@ -88,3 +88,13 @@ The project is based on hard-to-piece collected documentation around Tavarua, Ir
 - Mike Reid ([@mikereidis](https://github.com/mikereidis)) — developer of Spirit 1/2
 - Konstantin Manaev ([@SoSlowMan](https://github.com/SoSlowMan)) — translator (English)
 - Andus ([@AndusDEV](https://github.com/AndusDEV)) — translator (Polish)
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=vladislav805%2Frfm-radio&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=vladislav805/rfm-radio&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=vladislav805/rfm-radio&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=vladislav805/rfm-radio&type=date&legend=top-left" />
+ </picture>
+</a>
