@@ -7,6 +7,11 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
 
 set(LAME_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lame)
+
+if(NOT EXISTS "${LAME_DIR}/include/lame.h")
+    message(FATAL_ERROR "LAME submodule is missing. Run: git submodule update --init --recursive")
+endif()
+
 set(LAME_SOURCES
     ${LAME_DIR}/libmp3lame/bitstream.c
     ${LAME_DIR}/libmp3lame/encoder.c
@@ -36,6 +41,7 @@ add_library(mp3encoder SHARED
 )
 
 target_include_directories(mp3encoder PRIVATE
+    ${LAME_DIR}
     ${LAME_DIR}/include
     ${LAME_DIR}/libmp3lame
 )
@@ -56,4 +62,11 @@ target_compile_options(mp3encoder PRIVATE
     -Wno-tautological-pointer-compare
 )
 
-target_link_libraries(mp3encoder log m)
+target_link_libraries(mp3encoder m)
+if(ANDROID)
+    target_link_libraries(mp3encoder log)
+else()
+    # Also allow host builds of the same JNI encoder for MP3 round-trip checks.
+    find_package(JNI REQUIRED)
+    target_include_directories(mp3encoder PRIVATE ${JNI_INCLUDE_DIRS})
+endif()

@@ -54,7 +54,7 @@ If the option is enabled, then with the "Enable RDS" option enabled, the Program
 
 ## Building
 
-Clone the repository with submodules, or initialize them before building:
+Clone the repository with submodules:
 
 ```bash
 git clone --recursive https://github.com/vladislav805/RFM-Radio.git
@@ -75,6 +75,12 @@ Release signing uses the `ANDROID_RELEASE_*` environment variables described bel
 without signing credentials, the release APK is unsigned.
 
 Gradle builds the app native MP3 encoder and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
+
+The MP3 encoder uses LAME 4.0 from the [enzo1982/lame](https://github.com/enzo1982/lame)
+SVN mirror, pinned as a Git submodule to commit
+`5a2d347159f9e6e441ee436407949e122ae802dc` (tag `RELEASE__4_0`). The encoder
+sources and headers match the official 4.0 release archive. CMake builds the
+checked-out sources without downloading dependencies.
 
 Run Java unit tests with `make test-java` and native host tests with
 `make test-native`.
