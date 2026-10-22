@@ -72,6 +72,24 @@ git submodule update --init --recursive
 
 Gradle builds the app native MP3 encoder and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
 
+## GitHub Actions
+
+Pull requests and pushes to `master` run native host tests, build a debug APK,
+and run Android unit tests. APKs and unit test reports are available as workflow
+artifacts.
+
+Pushing a `vMAJOR.MINOR.PATCH` tag or manually running **Android Build** with a
+version builds a release APK and creates a draft GitHub release containing the
+APK. The requested version must match the APK version from
+`app/build.gradle`; the workflow does not change the app version.
+
+Release signing uses the repository secrets `ANDROID_RELEASE_KEYSTORE_BASE64`,
+`ANDROID_RELEASE_STORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, and
+`ANDROID_RELEASE_KEY_PASSWORD`. Without signing credentials, the release APK is
+unsigned. The keystore is removed after the build.
+
+Dependabot checks GitHub Actions updates monthly.
+
 ## Inspired by
 
 > Spirit1 and Spirit2 by Mike Reid.
