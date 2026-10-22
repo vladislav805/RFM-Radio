@@ -72,7 +72,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: platform-tools platforms;android-36 build-tools;36.0.0 cmake;3.22.1 ndk;29.0.14033849
+          packages: platform-tools platforms;android-37.0 build-tools;36.0.0 cmake;3.22.1 ndk;29.0.14033849
 
       - name: Build debug APK and run unit tests
         if: steps.release.outputs.tag_name == ''
