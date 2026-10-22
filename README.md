@@ -13,7 +13,7 @@ Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 
 - Live FM playback using supported hardware backend.
 - RDS metadata: PS, RT, PTY.
-- Recording to `.wav` and `.mp3`.
+- Recording to `.wav` and `.mp3`, with a matching `.srt` file containing frequency, PI, PS, PTY, and RT.
 - Favorites (presets) with custom names.
 - Multiple favorite lists.
 - Favorite list manager screen with import/export.
@@ -70,7 +70,30 @@ git submodule update --init --recursive
 ./gradlew :app:assembleDebug
 ```
 
+Use `make build-debug` for a debug APK or `make build-release` for a release APK.
+Release signing uses the `ANDROID_RELEASE_*` environment variables described below;
+without signing credentials, the release APK is unsigned.
+
 Gradle builds the app native MP3 encoder and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
+
+Run Java unit tests with `make test-java` and native host tests with
+`make test-native`.
+
+## RDS recording subtitles
+
+Each MP3/WAV recording is accompanied by a UTF-8 SRT file with the same basename
+in the same folder. Each cue shows the frequency and four-digit hexadecimal PI,
+followed by PS, numeric PTY, and RT. An unavailable PTY is written as `0`.
+An unknown PI is written as `0000`; unavailable PS/RT are shown as `—`. ECC is not recorded.
+
+Subtitle times follow captured PCM, including the available pre-roll history.
+They indicate when RDS updates were received, which can differ from the timing
+of the broadcast audio. Deleting a recording through its notification also
+removes its SRT file. If saving subtitles fails, the audio is preserved and the
+app shows a warning. Automatic SRT loading for audio depends on the player.
+
+Android 10 and older require storage permission to publish the subtitle file;
+Android 11+ publishes it through MediaStore alongside the audio.
 
 ## GitHub Actions
 

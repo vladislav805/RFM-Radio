@@ -145,7 +145,7 @@ Useful commands from the repository root:
 ```sh
 make test-native
 make build-native
-make build-app
+make build-debug
 ```
 
 Equivalent direct commands:
@@ -845,7 +845,7 @@ make build-native
 After bridge, packaging, or protocol changes, run:
 
 ```sh
-make build-app
+make build-debug
 ```
 
 Hardware-sensitive changes still require testing on representative legacy and
