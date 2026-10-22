@@ -83,6 +83,16 @@ std::string build_native_event_json(const char *type) {
     return "{\"type\":" + json_escape(type) + "}";
 }
 
+std::string build_ready_json(int pid) {
+    return "{\"type\":\"ready\",\"protocol\":1,\"pid\":" + std::to_string(pid) + "}";
+}
+
+std::string build_response_json(uint64_t id, const response_t &response) {
+    return "{\"type\":\"response\",\"id\":" + std::to_string(id) +
+            ",\"ok\":" + (response.code == 0 ? "true" : "false") +
+            ",\"data\":" + json_escape(response.data) + "}";
+}
+
 bool build_search_done_json(const int *frequencies_khz, int count, std::string *json) {
     if (json == nullptr || count < 0 || (count > 0 && frequencies_khz == nullptr)) {
         return false;

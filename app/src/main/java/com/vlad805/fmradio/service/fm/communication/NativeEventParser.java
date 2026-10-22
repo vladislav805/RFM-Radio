@@ -1,110 +1,54 @@
-package com.vlad805.fmradio.service.fm;
+package com.vlad805.fmradio.service.fm.communication;
 
 import android.util.Log;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.service.fm.FMEventCallback;
+import com.vlad805.fmradio.service.fm.RadioStatePatch;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
+public final class NativeEventParser {
+    private static final String TAG = "RFM-QCOM";
 
-/**
- * vlad805 (c) 2019
- */
-public class DatagramServer extends Thread {
-    private final DatagramSocket mDatagramSocketServer;
-    private FMEventCallback mCallback;
+    private final FMEventCallback callback;
 
-    private static final int BUFFER_SIZE = 512;
-    private static final String TAG = "FMELS";
-
-    private boolean mEnabled = false;
-
-    public DatagramServer(final int port) throws IOException {
-        mDatagramSocketServer = new DatagramSocket(port);
+    public NativeEventParser(final FMEventCallback callback) {
+        this.callback = callback;
     }
 
-    public void setCallback(final FMEventCallback callback) {
-        mCallback = callback;
-    }
-
-    @Override
-    public void run() {
-        mEnabled = true;
-
-        byte[] buffer = new byte[BUFFER_SIZE];
-        while (mEnabled) {
-            DatagramPacket dp = new DatagramPacket(buffer, 0, BUFFER_SIZE);
-
-            try {
-                mDatagramSocketServer.receive(dp);
-
-                final String message = new String(dp.getData(), 0, dp.getLength(), StandardCharsets.UTF_8);
-                handle(message);
-
-                dp.setData("ok".getBytes(StandardCharsets.UTF_8));
-                mDatagramSocketServer.send(dp);
-            } catch (SocketException e) {
-                if (mEnabled) {
-                    e.printStackTrace();
-                }
-                mEnabled = false;
-            } catch (IOException e) {
-                if (mEnabled) {
-                    e.printStackTrace();
-                }
-            } catch (StopServer e) {
-                mEnabled = false;
-            }
-        }
-    }
-
-    private void handle(final String message) throws StopServer {
-        final JSONObject json;
-        try {
-            json = new JSONObject(message);
-        } catch (final JSONException e) {
-            Log.w(TAG, "invalid native JSON", e);
-            return;
-        }
-
+    public void handle(final JSONObject json) {
         final String type = json.optString("type", "");
         switch (type) {
             case "state": {
                 final RadioStatePatch patch = parseStatePatch(json);
-                if (patch != null && !patch.isEmpty() && mCallback != null) {
-                    mCallback.onStatePatch(patch);
+                if (patch != null && !patch.isEmpty()) {
+                    callback.onStatePatch(patch);
                 }
                 break;
             }
 
             case "enabled": {
-                if (mCallback != null) {
-                    mCallback.onEvent(C.Event.ENABLED);
-                }
+                callback.onEvent(C.Event.ENABLED);
                 break;
             }
 
             case "disabled": {
-                throw new StopServer();
+                // Command completion remains authoritative for the Java lifecycle.
+                break;
             }
 
             case "search_done": {
                 final int[] stations = parseIntArray(json.optJSONArray("stations"));
-                if (stations != null && mCallback != null) {
-                    mCallback.onSearchDone(stations);
+                if (stations != null) {
+                    callback.onSearchDone(stations);
                 }
                 break;
             }
 
             default: {
-                Log.w(TAG, "unknown native message type = " + type);
+                Log.w(TAG, "Unknown native message type: " + type);
                 break;
             }
         }
@@ -116,7 +60,7 @@ public class DatagramServer extends Thread {
         if (json.has("frequency")) {
             final int frequency = json.optInt("frequency", -1);
             if (frequency <= 0) {
-                Log.w(TAG, "invalid frequency payload");
+                Log.w(TAG, "Invalid frequency payload");
                 return null;
             }
             patch.setFrequency(frequency);
@@ -129,7 +73,7 @@ public class DatagramServer extends Thread {
         if (json.has("rmssi")) {
             final int rmssi = json.optInt("rmssi", Integer.MIN_VALUE);
             if (rmssi < -128 || rmssi > 127) {
-                Log.w(TAG, "invalid RMSSI payload");
+                Log.w(TAG, "Invalid RMSSI payload");
             } else {
                 patch.setRmssi(rmssi);
             }
@@ -152,7 +96,7 @@ public class DatagramServer extends Thread {
             if (rds.has("country")) {
                 final String country = rds.optString("country", "");
                 if (!country.isEmpty() && !country.matches("[A-Z]{2}")) {
-                    Log.w(TAG, "invalid country payload");
+                    Log.w(TAG, "Invalid country payload");
                     return null;
                 }
                 patch.setCountry(country);
@@ -161,7 +105,7 @@ public class DatagramServer extends Thread {
             if (rds.has("pty")) {
                 final int pty = rds.optInt("pty", -1);
                 if (pty < 0) {
-                    Log.w(TAG, "invalid PTY payload");
+                    Log.w(TAG, "Invalid PTY payload");
                     return null;
                 }
                 patch.setPty(pty);
@@ -170,7 +114,7 @@ public class DatagramServer extends Thread {
             if (rds.has("af")) {
                 final int[] af = parseIntArray(rds.optJSONArray("af"));
                 if (af == null) {
-                    Log.w(TAG, "invalid AF payload");
+                    Log.w(TAG, "Invalid AF payload");
                     return null;
                 }
                 patch.setAf(af);
@@ -186,10 +130,8 @@ public class DatagramServer extends Thread {
         }
 
         final int[] result = new int[json.length()];
-
         for (int i = 0; i < json.length(); ++i) {
             result[i] = json.optInt(i, -1);
-
             if (result[i] < 0) {
                 return null;
             }
@@ -200,14 +142,5 @@ public class DatagramServer extends Thread {
 
     private static String sanitizeRdsText(final String value) {
         return value.trim().replaceAll("\n", " ");
-    }
-
-    private static class StopServer extends Throwable { }
-
-    public void closeServer() {
-        mEnabled = false;
-        if (!mDatagramSocketServer.isClosed()) {
-            mDatagramSocketServer.close();
-        }
     }
 }

@@ -5,14 +5,14 @@
 #include <string.h>
 
 void hal_log(const char *scope, const char *fmt, ...) {
-    printf("hal/%-7s: ", scope);
+    fprintf(stderr, "hal/%-7s: ", scope);
 
     va_list args;
     va_start(args, fmt);
-    vprintf(fmt, args);
+    vfprintf(stderr, fmt, args);
     va_end(args);
 
-    printf("\n");
+    fprintf(stderr, "\n");
 }
 
 void format_hex_dump(const char *payload, int len, char *dump, size_t dump_size) {

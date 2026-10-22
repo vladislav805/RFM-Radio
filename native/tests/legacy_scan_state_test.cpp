@@ -81,7 +81,7 @@ TEST(LegacyScanStateTest, FailedCancelContinuesScan) {
     EXPECT_EQ(result.frequencies_khz[0], 96400);
 }
 
-TEST(LegacyScanStateTest, LimitsResultToUdpSafeCapacity) {
+TEST(LegacyScanStateTest, LimitsResultToProtocolCapacity) {
     LegacyScanState state;
     ASSERT_TRUE(state.start());
 

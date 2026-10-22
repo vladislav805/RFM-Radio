@@ -1,14 +1,16 @@
 package com.vlad805.fmradio.service.fm.implementation;
 
 import android.content.Context;
+import android.content.Intent;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.preferences.BandUtils;
+import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
-import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 
 public class QualcommNative extends AbstractQualcommNativeController {
@@ -17,7 +19,6 @@ public class QualcommNative extends AbstractQualcommNativeController {
     private final TunerDriver mDriverKind;
     private int mLastRequestedFrequencyKhz = Integer.MIN_VALUE;
     private long mLastRequestedFrequencyAtMs = 0L;
-    private volatile boolean mNativeProcessStarted;
 
     public QualcommNative(final Context context, final TunerDriver driverKind) {
         super(context);
@@ -37,9 +38,6 @@ public class QualcommNative extends AbstractQualcommNativeController {
     @Override
     protected void launchImpl(final Callback<Void> callback) {
         new Thread(() -> {
-            closeServerListener();
-            mNativeProcessStarted = false;
-
             if (Utils.runAsRoot("true") != 0) {
                 failLaunch(callback, new RootAccessDeniedError("Root access was not granted"));
                 return;
@@ -47,25 +45,16 @@ public class QualcommNative extends AbstractQualcommNativeController {
 
             killRunningBinary();
             Utils.sleep(150);
-            final int launchResult = Utils.runAsRoot(
-                    String.format("sh -c '%s 2>&1 | while IFS= read -r line; do log -t RFM-QCOM \"$line\"; done' &", getBinaryPath())
-            );
-
-            if (launchResult != 0) {
-                failLaunch(callback, "Failed to launch native tuner process, exit code " + launchResult, null);
+            try {
+                startNativeProcess(5000L);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                failLaunch(callback, "Native tuner launch was interrupted", e);
+                return;
+            } catch (final IOException e) {
+                failLaunch(callback, "Failed to launch native tuner process", e);
                 return;
             }
-
-            mNativeProcessStarted = true;
-
-            toggleCommandPoll(true);
-
-            if (!startServerListener()) {
-                failLaunch(callback, "Failed to start native event listener", null);
-                return;
-            }
-
-            Utils.sleep(300);
 
             // Legacy initialization can spend six seconds waiting for fm_dl,
             // followed by device stabilization delays and the native response delay.
@@ -81,30 +70,6 @@ public class QualcommNative extends AbstractQualcommNativeController {
         }, "QualcommNativeLaunch").start();
     }
 
-    @Override
-    protected void killImpl(final Callback<Void> callback) {
-        if (!mNativeProcessStarted) {
-            toggleCommandPoll(false);
-            closeServerListener();
-            callback.onResult(null);
-            return;
-        }
-
-        super.killImpl(new Callback<>() {
-            @Override
-            public void onResult(final Void result) {
-                mNativeProcessStarted = false;
-                callback.onResult(null);
-            }
-
-            @Override
-            public void onError(final Error error) {
-                mNativeProcessStarted = false;
-                callback.onError(error);
-            }
-        });
-    }
-
     private void failLaunch(
             final Callback<Void> callback,
             final String message,
@@ -117,9 +82,13 @@ public class QualcommNative extends AbstractQualcommNativeController {
             final Callback<Void> callback,
             final Error error
     ) {
-        toggleCommandPoll(false);
-        closeServerListener();
-        callback.onError(error);
+        killImpl(result -> callback.onError(error));
+    }
+
+    @Override
+    protected void onNativeProcessExit(final int exitCode) {
+        super.onNativeProcessExit(exitCode);
+        context.stopService(new Intent(context, FMService.class));
     }
 
     @Override
@@ -149,7 +118,7 @@ public class QualcommNative extends AbstractQualcommNativeController {
                 return;
             }
             callback.onResult(null);
-        }));
+        }).onError(error -> callback.onError(new Error("Failed to enable tuner", error))));
     }
 
     @Override

@@ -8,10 +8,6 @@ extern "C" {
 
 #include "types.h"
 
-#define CS_PORT 2112
-#define CS_PORT_SRV 2113
-#define CS_BUF 512
-
 #define RADIO_PATCH_ABSENT_INT -1
 #define RADIO_PATCH_ABSENT_RMSSI INT_MIN
 

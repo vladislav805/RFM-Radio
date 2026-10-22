@@ -22,7 +22,8 @@ or a device test demonstrate that it can change safely.
 
 `native/` builds one executable named `fmbin`, not a JNI library. The Android
 application copies an ABI-specific executable from assets into its private
-files directory, starts it as root, and communicates with it over loopback UDP.
+files directory, starts it as root, and owns it through redirected standard
+input, output, and error streams.
 
 The executable contains two implementations behind the `Backend` interface:
 
@@ -54,14 +55,14 @@ High-level data flow:
 
 ```text
 Android QualcommNative
-  -> root-launched fmbin
-  -> UDP text command on 127.0.0.1:2112
+  -> NativeProcessSession -> su -> exec fmbin
+  -> request-id + tab + text command on stdin
   -> main.cpp command router
   -> Backend interface
   -> Legacy V4L2 or Qualcomm fm_helium.so
   -> asynchronous hardware event/callback or periodic RMSSI sample
-  -> JSON UDP message to 127.0.0.1:2113
-  -> Android DatagramServer
+  -> newline-delimited JSON response/event on stdout
+  -> Android NativeEventParser
   -> RadioStatePatch / application event
 ```
 
@@ -76,8 +77,9 @@ Android QualcommNative
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/legacy_backend.cpp` | Adapter from `Backend` to legacy functions |
 | `native/hal_backend.cpp` | Adapter from `Backend` to FM2/HAL functions |
-| `native/ctl_server.cpp` | UDP command server and asynchronous event sender |
+| `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
+| `native/ctl_protocol.cpp` | Strict request-ID and command-line frame parser |
 | `native/startup_config.cpp` | Strict parser for the complete `enable` command |
 | `native/region_profile.cpp` | Region limits and vendor mappings |
 | `native/rds_parser.cpp` | Shared parsers for PS, RT, AF, and station lists |
@@ -112,9 +114,9 @@ Android QualcommNative
 | Path | Responsibility |
 | --- | --- |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/implementation/QualcommNative.java` | Unified native controller, launch and complete startup command |
-| `app/src/main/java/com/vlad805/fmradio/service/fm/implementation/AbstractQualcommNativeController.java` | Binary installation, command queue, lifecycle, public controller behavior |
-| `app/src/main/java/com/vlad805/fmradio/service/fm/communication/Poll.java` | Serialized UDP command requests |
-| `app/src/main/java/com/vlad805/fmradio/service/fm/DatagramServer.java` | JSON event receiver and parser |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/implementation/AbstractQualcommNativeController.java` | Binary installation, owned process lifecycle, public controller behavior |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/communication/NativeProcessSession.java` | Root process session, command queue, timeouts, standard-I/O readers/writer, and exit monitoring |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/communication/NativeEventParser.java` | JSON event validation and dispatch |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/RadioStatePatch.java` | Java representation of partial radio state |
 
 ## Build and Packaging
@@ -164,8 +166,10 @@ that asset to `/data/data/<application-id>/files/` and applies mode `755` as the
 application UID before recording the installed version. An up-to-date binary
 which has lost its execute bits is repaired in place during preparation. The
 controller then verifies root access, kills an old process, and launches the
-executable through `su`. Native stdout and stderr are piped to Android logcat
-with tag `RFM-QCOM`.
+executable through a long-lived `su` session. Java sends an `exec` shell command
+and then retains the resulting process and all three standard streams. Native
+stderr is drained into Android logcat with tag `RFM-QCOM`; stdout is reserved
+exclusively for protocol JSON.
 
 Normal launch sequence:
 
@@ -174,10 +178,9 @@ copy/install asset if needed
 repair and verify executable mode
 verify root access with a bounded background request
 kill old fmbin process
-start fmbin as root
-enable Java command Poll
-start Java event DatagramServer
-send "init" with a 5 second timeout
+start su and exec fmbin without backgrounding
+wait up to 5 seconds for the native ready handshake
+send "init" with a 10 second timeout
 ```
 
 Normal enable sequence sends one complete command assembled from preferences:
@@ -191,48 +194,65 @@ enable freq=<kHz> region=<eu|us|jp|jp_wide> spacing=<50|100|200> \
 complete command applies all startup configuration atomically from the app's
 point of view.
 
-Normal shutdown is application-orchestrated:
+Normal shutdown is owned by `NativeProcessSession`:
 
 ```text
 send "disable"
-disable command Poll
-close event DatagramServer
-kill native process
+send "shutdown"
+native performs backend cleanup and acknowledges the request
+close native stdin and wait for process exit
+fall back to TERM, then KILL by the handshake PID on timeout
 ```
 
-The native-only `exit` command merely breaks the UDP command loop. It does not
-disable radio hardware, join the legacy thread, or unload the HAL, so it is not
-a complete shutdown operation.
+`shutdown` and its compatibility alias `exit` perform backend cleanup before
+the command loop exits. EOF or HUP on stdin and TERM/HUP signals reach the same
+cleanup path. This makes loss of the Java service process fail closed: the
+kernel closes its pipe descriptors, native sees EOF, disables the receiver,
+and exits. `FMService` returns `START_NOT_STICKY`; a process-death restart with
+no command stops instead of silently recreating a disconnected service.
 
 Root access is effectively required for device nodes, system properties,
 module setup, and vendor controls.
 
 Root denial or a timed-out root probe terminates launch with
-`ROOT_ACCESS_DENIED`, which shows a root-specific error. A non-zero native
-launch result, listener setup failure, and an `init` UDP timeout terminate with
-`LAUNCH_FAILED`. Both paths stop the service instead of leaving the controller
-in `LAUNCHING`.
+`ROOT_ACCESS_DENIED`, which shows a root-specific error. A failed ready
+handshake or `init` timeout terminates the owned process and reports
+`LAUNCH_FAILED` instead of leaving the controller in `LAUNCHING`.
 
-## UDP Protocol
+## Standard-I/O Protocol
 
 ### Transport
 
-| Direction | Address | Payload |
+| Direction | Stream | Payload |
 | --- | --- | --- |
-| Android to native | `127.0.0.1:2112` | Plain UTF-8 command text |
-| Native to Android | `127.0.0.1:2113` | JSON event, maximum 511 bytes in practice |
+| Android to native | stdin | `<request-id>\t<command>\n` encoded as UTF-8 |
+| Native to Android | stdout | One UTF-8 JSON object per line |
+| Native to Android | stderr | Diagnostic log lines forwarded to logcat |
 
-`CS_BUF` and the Java event buffer are both 512 bytes. The native command
-server handles commands serially. Java `Poll` also serializes command requests.
+The native loop handles commands serially. `NativeProcessSession` normally
+keeps one request in flight, attaches a monotonically increasing ID, and uses
+that ID to match JSON responses. `shutdown` may be written behind an in-flight
+command so teardown does not wait for Java's regular command queue.
+
+Native announces a successful exec with:
+
+```json
+{"type":"ready","protocol":1,"pid":1234}
+```
+
+Command responses use:
+
+```json
+{"type":"response","id":7,"ok":true,"data":"ok"}
+```
 
 Native successful responses are delayed by 300 ms in `make_ok()`. This delay is
 intentional and documented as preserving Java/native timing relative to
 asynchronous hardware events. Do not remove it casually.
 
-The native server sends command responses with the terminating NUL byte
-(`strlen(data) + 1`). Java constructs a string from the full datagram. Callers
-usually use `startsWith("ok")`, but numeric parsing may be affected by this
-contract.
+The response `ok` field is derived from `response_t.code`; `data` retains the
+existing textual success/error values. Newline framing removes the old trailing
+NUL behavior.
 
 ### Commands
 
@@ -261,7 +281,7 @@ uses the asynchronous station-parameter callback. Polling is suppressed while
 the receiver is disabled or a tune, seek, or full scan is in progress. Android
 does not send a polling command.
 
-The `enable` parser is strict. It requires exactly six unique named parameters,
+The `enable` parser is strict. It requires exactly seven unique named parameters,
 rejects unknown or duplicate keys, validates booleans, spacing, antenna, and
 region, and requires the initial frequency to be inside the selected region.
 
@@ -282,7 +302,7 @@ Common textual errors include:
 | `ERR_UNV_ANT` | Legacy antenna value rejected |
 | `ERR_CNS_REG` | Legacy region/band could not be set |
 
-`response_t.code` is not transmitted. Only its `data` string is sent over UDP.
+Both `response_t.code` (as `ok`) and its `data` string are transmitted.
 
 ### Asynchronous Events
 
@@ -330,9 +350,8 @@ enable completion.
 
 `ctl_server.cpp` maintains a mutex-protected state cache and suppresses patches
 that do not change cached values. The cache is updated after successful
-`sendto()`, not after application acknowledgement. UDP loss after kernel
-acceptance can therefore cause a particular state change to remain absent on
-the Java side until a later, different patch is emitted.
+writing of the complete JSON line. Protocol writes are mutex-serialized because
+vendor callbacks may emit events concurrently with command responses.
 
 ## Backend Detection
 
@@ -459,6 +478,27 @@ work without the asynchronous event mask.
 Disable writes receiver state off, then disables Slimbus. It does not wait for
 `disabled_cb`. The callback clears enabled/mode state and sends the JSON
 `disabled` event. The library is not unloaded during normal shutdown.
+
+HAL shutdown waits up to 2000 ms for `disabled_cb`, including when an earlier
+`disable` or enable rollback already requested OFF. Runtime state tracks cleanup
+separately from enabled state: cleanup is required as soon as enable starts and
+only the disabled callback confirms it. A pending OFF is not sent again; an OFF
+that failed to submit can be retried. The adapter delegates shutdown to this
+runtime state, including enable without an explicit `init`. Missing callbacks
+produce a timeout log, after which process exit continues. EOF and TERM/HUP use
+the same shutdown wait; only legacy retains the fixed EOF/signal settle delay.
+
+After explicit backend cleanup and the shutdown response (or the callback wait
+on EOF/signal), `main()` uses `_exit()` for the HAL backend. On Poco X3 Pro with
+crDroid 11.12, normal libc exit runs the system `libfm-hci.so` global
+`fm_hci_t` destructor, whose joinable `std::thread` causes `std::terminate()`
+even after FM OFF and the RX worker's exit. Bypassing static destructors avoids
+this vendor crash; it does not replace receiver cleanup. Protocol messages use
+direct writes, and stdout/stderr are flushed before `_exit()`.
+The reference `fm_hci_close()` in the sibling
+`rfm-radio-useful-repos/android_vendor_qcom_opensource_fm-commonsys/fm_hci/fm_hci.cpp`
+joins TX but leaves RX joinable; Helium frees its receiver structures before
+calling `disabled_cb`. Waiting for that callback does not fix the RX destructor.
 
 ### Tune, Jump, and Seek
 
@@ -668,8 +708,8 @@ tunes to the current region's lower bound, then the driver traverses the band
 after one hardware-seek request. `TUNE_SUCC` records a
 pending frequency, `SCAN_NEXT` confirms and collects it, and `SEEK_COMPLETE`
 sorts and emits the result as `search_done`. At most 64 unique stations are
-retained to keep the JSON event inside the 512-byte UDP buffer. Normal
-completion emits an empty list when no stations were found. Device testing of
+retained to keep the event bounded and compact. Normal completion emits an
+empty list when no stations were found. Device testing of
 ordinary legacy scan returned 42 stations, confirming that this path exceeds
 the former 20-station list limit.
 
@@ -712,19 +752,20 @@ vendor station lists.
 The Java receiver trims PS/RT and replaces newlines with spaces. It rejects
 non-positive frequency and negative PTY/array entries.
 
-`RadioStateJsonCache` limits AF output to 25 frequencies. JSON must remain under
-the fixed UDP buffer limit. Any protocol extension must be implemented in all
-of these places:
+`RadioStateJsonCache` limits AF output to 50 frequencies. Each protocol message
+must remain a single valid JSON line. Any protocol extension must be
+implemented in all of these places:
 
 1. Native patch structure in `ctl_server.h`.
 2. Native serialization/cache in `ctl_json.*`.
 3. Backend event construction.
-4. Java parsing in `DatagramServer` and state representation.
+4. Java parsing in `NativeEventParser` and state representation.
 5. Native host tests for JSON and parsers.
 
 ## Error Handling and Logging
 
-Native logs go to stdout/stderr and are forwarded to logcat under `RFM-QCOM`.
+Native logs go to stderr and are forwarded to logcat under `RFM-QCOM`. Stdout
+must contain protocol JSON only.
 Shared server logs use `srv/<scope>`, HAL logs use `hal/<scope>`, and legacy
 logs use `leg/<scope>`. All three prefixes reserve seven characters for scope.
 
@@ -770,7 +811,10 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 
 - PS, RT, AF, and station-list parsing
 - JSON serialization and state-cache behavior
+- standard-I/O request-frame parsing
 - strict startup configuration parsing
+- HAL shutdown callback waits, pending OFF/rollback cleanup, timeout, and retry
+  using an injected vendor interface (not device HAL libraries)
 - region profiles and frequency clamping
 - frequency-list formatting
 - shared sequential-scan result collection
@@ -779,10 +823,10 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 Current host tests do not cover:
 
 - command routing in `main.cpp`
-- UDP request/response transport
+- standard-I/O process transport and EOF-driven shutdown
 - backend detection or fallback
 - `dlopen` and vendor ABI compatibility
-- HAL callback lifecycle or scan state machine
+- device HAL callback lifecycle or HAL scan state machine
 - legacy ioctl and event-thread behavior
 - synchronization, shutdown, or Android/native end-to-end behavior
 
@@ -822,10 +866,10 @@ Use this list as a pre-change checklist:
 | Weak runtime argument parsing | Invalid input silently becomes zero |
 | Sequential scans have no timeout | HAL or legacy search can remain active if terminal events are lost |
 | Two HAL search completion paths | Duplicate/conflicting station lists are possible |
-| UDP state dedup without acknowledgement | Lost packet may suppress later identical state |
-| Command responses include NUL | Java numeric parsing can be inconsistent |
+| Stdout shared by callback threads | All protocol writes must remain serialized and newline framed |
+| Standard-output backpressure | A stalled Java reader can block a native callback writer |
 | Legacy jump lacks band wrap | Out-of-band tune can be requested |
-| `exit` is not hardware shutdown | Radio/HAL/thread cleanup is skipped |
+| Asynchronous vendor disable | HAL waits for disabled_cb with a timeout; legacy uses a settle delay, and both still need device verification |
 
 ## Safe Change Guidance
 
@@ -835,7 +879,7 @@ Use this list as a pre-change checklist:
 - Avoid holding the HAL state mutex across vendor calls unless synchronous
   callback behavior is proven safe.
 - Do not assume HAL and legacy frequency/search semantics are identical.
-- Validate new protocol fields against the 512-byte datagram limit.
+- Keep stdout protocol-only and ensure every message is valid single-line JSON.
 - Keep callbacks lightweight and make lock ownership explicit.
 - Do not add compatibility behavior without a concrete target-device need.
 - Add host tests for pure parsing, serialization, configuration, and state
@@ -847,9 +891,6 @@ Use this list as a pre-change checklist:
 
 Existing README files are partially stale:
 
-- `native/README.md` refers to `ctl_server.c`; the implementation is
-  `ctl_server.cpp`.
-- It describes old `EVT_*` events; the current app-facing protocol is JSON.
 - `native/legacy/README.md` names several `.c` files that are now `.cpp`.
 - `native/hal/README.md` references absent `common.h` and a local
   `fm_helium.so` reference binary.

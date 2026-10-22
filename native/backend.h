@@ -32,5 +32,6 @@ public:
     virtual bool set_soft_mute(bool enabled) = 0;
     virtual bool set_slimbus(bool enabled) = 0;
     virtual bool request_rmssi() = 0;
+    virtual void shutdown() = 0;
     virtual const char *last_error() const = 0;
 };

@@ -7,6 +7,7 @@
 namespace {
 
 constexpr const char *kErrFailed = "ERR_FAILED";
+constexpr int kShutdownWaitTimeoutMs = 2000;
 
 class HalBackend final : public Backend {
 public:
@@ -91,6 +92,10 @@ public:
 
     bool request_rmssi() override {
         return fm2_backend_request_rmssi();
+    }
+
+    void shutdown() override {
+        set_status(fm2_backend_shutdown(kShutdownWaitTimeoutMs));
     }
 
     const char *last_error() const override {

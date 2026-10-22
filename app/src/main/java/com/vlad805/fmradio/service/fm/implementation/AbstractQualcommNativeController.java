@@ -12,12 +12,11 @@ import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
-import com.vlad805.fmradio.service.fm.DatagramServer;
 import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
-import com.vlad805.fmradio.service.fm.communication.Poll;
+import com.vlad805.fmradio.service.fm.communication.NativeProcessSession;
 import com.vlad805.fmradio.service.fm.communication.Request;
 
 import java.io.File;
@@ -28,9 +27,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public abstract class AbstractQualcommNativeController implements IFMController, IFMEventListener {
-    private static final int CLIENT_PORT = 2112;
-    private static final int SERVER_PORT = 2113;
-
     public interface Callback<T> {
         void onResult(T result);
 
@@ -46,13 +42,12 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
     protected final Context context;
 
-    private DatagramServer mServer;
     private FMEventCallback mEventCallback;
-    private final Poll mCommandPoll;
+    private final Object mSessionLock = new Object();
+    private NativeProcessSession mNativeSession;
 
     protected AbstractQualcommNativeController(final Context context) {
         this.context = context;
-        mCommandPoll = new Poll(CLIENT_PORT);
     }
 
     @SuppressLint("SdCardPath")
@@ -164,18 +159,28 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected void killImpl(final Callback<Void> callback) {
-        if (!mCommandPoll.isEnabled()) {
-            finishKill(callback);
+        final NativeProcessSession session;
+        synchronized (mSessionLock) {
+            session = mNativeSession;
+        }
+
+        if (session == null) {
+            callback.onResult(null);
             return;
         }
 
-        disableImpl(result -> finishKill(callback));
-    }
-
-    private void finishKill(final Callback<Void> callback) {
-        closeServerListener();
-        killRunningBinary();
-        callback.onResult(null);
+        new Thread(() -> {
+            final boolean stopped = session.stop(5000L);
+            synchronized (mSessionLock) {
+                if (mNativeSession == session) {
+                    mNativeSession = null;
+                }
+            }
+            if (!stopped) {
+                killRunningBinary();
+            }
+            callback.onResult(null);
+        }, "QualcommNativeStop").start();
     }
 
     public final void kill() {
@@ -279,8 +284,9 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected void disableImpl(final Callback<Void> callback) {
-        sendCommand(new Request("disable", 5000).onResponse(result -> callback.onResult(null)));
-        mCommandPoll.toggle(false);
+        sendCommand(new Request("disable", 5000)
+                .onResponse(result -> callback.onResult(null))
+                .onError(error -> callback.onError(new Error("Failed to disable native tuner", error))));
     }
 
     public final void disable() {
@@ -382,56 +388,78 @@ public abstract class AbstractQualcommNativeController implements IFMController,
         sendCommand(new Request("set_antenna " + value));
     }
 
-    protected final void toggleCommandPoll(final boolean enabled) {
-        mCommandPoll.toggle(enabled);
-    }
-
     protected final void sendCommand(final Request request) {
-        mCommandPoll.send(request);
-    }
-
-    protected final void closeServerListener() {
-        if (mServer != null) {
-            mServer.closeServer();
-            mServer = null;
+        final NativeProcessSession session;
+        synchronized (mSessionLock) {
+            session = mNativeSession;
         }
+        if (session == null) {
+            request.fireError(new IOException("Native process is not running"));
+            return;
+        }
+        session.send(request);
     }
 
-    protected final boolean startServerListener() {
+    protected final void startNativeProcess(final long timeoutMs) throws IOException, InterruptedException {
+        final NativeProcessSession session = new NativeProcessSession(
+                getBinaryPath(),
+                new FMEventCallback() {
+                    @Override
+                    public void onEvent(final String event) {
+                        onServerEvent(event);
+                        if (mEventCallback != null) {
+                            mEventCallback.onEvent(event);
+                        }
+                    }
+
+                    @Override
+                    public void onStatePatch(final RadioStatePatch patch) {
+                        onServerStatePatch(patch);
+                        if (mEventCallback != null) {
+                            mEventCallback.onStatePatch(patch);
+                        }
+                    }
+
+                    @Override
+                    public void onSearchDone(final int[] stations) {
+                        onServerSearchDone(stations);
+                        if (mEventCallback != null) {
+                            mEventCallback.onSearchDone(stations);
+                        }
+                    }
+                },
+                this::handleUnexpectedNativeExit
+        );
+
+        synchronized (mSessionLock) {
+            if (mNativeSession != null) {
+                throw new IOException("Native process session is already active");
+            }
+            mNativeSession = session;
+        }
+
         try {
-            closeServerListener();
-            mServer = new DatagramServer(SERVER_PORT);
-            mServer.setCallback(new FMEventCallback() {
-                @Override
-                public void onEvent(final String event) {
-                    onServerEvent(event);
-                    if (mEventCallback != null) {
-                        mEventCallback.onEvent(event);
-                    }
+            session.start(timeoutMs);
+        } catch (final IOException | InterruptedException e) {
+            synchronized (mSessionLock) {
+                if (mNativeSession == session) {
+                    mNativeSession = null;
                 }
-
-                @Override
-                public void onStatePatch(final RadioStatePatch patch) {
-                    onServerStatePatch(patch);
-                    if (mEventCallback != null) {
-                        mEventCallback.onStatePatch(patch);
-                    }
-                }
-
-                @Override
-                public void onSearchDone(final int[] stations) {
-                    onServerSearchDone(stations);
-                    if (mEventCallback != null) {
-                        mEventCallback.onSearchDone(stations);
-                    }
-                }
-            });
-            mServer.start();
-            return true;
-        } catch (final IOException e) {
-            Log.e("RFM-QCOM", "Failed to start native event listener", e);
-            return false;
+            }
+            throw e;
         }
+    }
+
+    private void handleUnexpectedNativeExit(final int exitCode) {
+        synchronized (mSessionLock) {
+            mNativeSession = null;
+        }
+        onNativeProcessExit(exitCode);
+    }
+
+    protected void onNativeProcessExit(final int exitCode) {
+        fireError("Native tuner process exited with code " + exitCode);
+        fireEvent(C.Event.DISABLED);
     }
 
     protected void onServerEvent(final String event) {
@@ -499,7 +527,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     }
 
     protected final void killRunningBinary() {
-        Utils.runAsRoot(String.format("killall %1$s 1>/dev/null 2>/dev/null &", getBinaryName()));
+        Utils.runAsRoot(String.format("killall %1$s 1>/dev/null 2>/dev/null", getBinaryName()));
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")

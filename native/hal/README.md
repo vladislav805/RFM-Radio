@@ -15,7 +15,7 @@ The HAL backend works through Qualcomm's newer FM userspace interface:
 2. lookup of `FM_HELIUM_LIB_INTERFACE`
 3. `hal_init()`
 4. FM control via vendor callbacks and `set_fm_ctrl()` / `get_fm_ctrl()`
-5. forwarding HAL callbacks to the app through the shared UDP event layer
+5. forwarding HAL callbacks to the app through the shared standard-output event layer
 
 This is the path used by devices that ship Qualcomm's FM2-style stack.
 
@@ -41,7 +41,7 @@ It is responsible for:
 - enabling/disabling FM
 - mapping high-level app commands to Qualcomm FM controls
 - tracking runtime state
-- translating HAL callbacks into app-facing UDP events
+- translating HAL callbacks into app-facing JSON events
 
 That includes:
 
@@ -69,7 +69,7 @@ When the unified binary selects the HAL backend:
 
 1. `init` initializes the backend and loads `fm_helium.so`
 2. `enable` brings FM up through Qualcomm HAL calls
-3. callbacks from the vendor FM stack are translated into UDP app events
+3. callbacks from the vendor FM stack are translated into JSON app events on stdout
 4. HAL-specific commands like `slimbus` are supported through the same command
    protocol as the legacy backend
 

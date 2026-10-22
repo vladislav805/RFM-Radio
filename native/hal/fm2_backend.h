@@ -10,6 +10,7 @@ bool fm2_backend_init();
 bool fm2_backend_configure_startup(const StartupConfig &config);
 bool fm2_backend_enable();
 bool fm2_backend_disable();
+bool fm2_backend_shutdown(int timeout_ms);
 bool fm2_backend_wait_enabled(int timeout_ms);
 bool fm2_backend_set_frequency(uint32_t frequency_khz);
 uint32_t fm2_backend_get_frequency();

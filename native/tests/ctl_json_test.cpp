@@ -24,6 +24,18 @@ TEST(CtlJsonTest, BuildsNativeEvent) {
     EXPECT_EQ(build_native_event_json(nullptr), "");
 }
 
+TEST(CtlJsonTest, BuildsProcessReadyMessage) {
+    EXPECT_EQ(build_ready_json(1234), "{\"type\":\"ready\",\"protocol\":1,\"pid\":1234}");
+}
+
+TEST(CtlJsonTest, BuildsCommandResponse) {
+    const response_t ok = {0, "ok"};
+    const response_t error = {1, "bad \"value\""};
+
+    EXPECT_EQ(build_response_json(7, ok), "{\"type\":\"response\",\"id\":7,\"ok\":true,\"data\":\"ok\"}");
+    EXPECT_EQ(build_response_json(8, error), "{\"type\":\"response\",\"id\":8,\"ok\":false,\"data\":\"bad \\\"value\\\"\"}");
+}
+
 TEST(CtlJsonTest, BuildsSearchDone) {
     const int stations[] = {87500, 101700};
     std::string json;
@@ -39,7 +51,7 @@ TEST(CtlJsonTest, BuildsEmptySearchDone) {
     EXPECT_EQ(json, "{\"type\":\"search_done\",\"stations\":[]}");
 }
 
-TEST(CtlJsonTest, BuildsMaximumScanResultWithinUdpLimit) {
+TEST(CtlJsonTest, BuildsCompactMaximumScanResult) {
     int stations[64];
     for (int &station : stations) {
         station = 108000;
@@ -116,7 +128,7 @@ TEST(CtlJsonTest, BuildsAfPatch) {
     EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"af\":[107200,106000,104900]}}");
 }
 
-TEST(CtlJsonTest, BuildsMaximumAfPatchWithinUdpLimit) {
+TEST(CtlJsonTest, BuildsCompactMaximumAfPatch) {
     RadioStateJsonCache cache;
     int af[kRadioJsonMaxAfCount];
     for (int &frequency : af) {
@@ -129,7 +141,7 @@ TEST(CtlJsonTest, BuildsMaximumAfPatchWithinUdpLimit) {
 
     std::string json;
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
-    EXPECT_LT(json.size(), static_cast<size_t>(CS_BUF));
+    EXPECT_LT(json.size(), 512u);
 
     std::string expected = "{\"type\":\"state\",\"rds\":{\"af\":[";
     for (int i = 0; i < kRadioJsonMaxAfCount; ++i) {

@@ -87,6 +87,10 @@ struct RuntimeState {
     fm_interface_t *vendor = nullptr;
     bool initialized = false;
     bool enabled = false;
+    // enabled alone cannot describe an enable that timed out or an asynchronous
+    // disable still in progress. Only disabled_cb confirms receiver cleanup.
+    bool receiver_cleanup_needed = false;
+    bool disable_pending = false;
     AudioState audio;
     bool low_power = false;
     bool auto_af = false;
@@ -664,6 +668,8 @@ void disabled_cb() {
 
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
+    g_state.receiver_cleanup_needed = false;
+    g_state.disable_pending = false;
     g_state.audio.mode_valid = false;
     g_state.rmssi.clear_request();
     g_state.rmssi.paused = true;
@@ -1076,6 +1082,8 @@ bool fm2_backend_enable() {
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
     g_state.last_enabled_cb_ms = 0;
+    g_state.receiver_cleanup_needed = true;
+    g_state.disable_pending = false;
     g_state.rmssi.clear_request();
     g_state.rmssi.paused = true;
     pthread_mutex_unlock(&g_state.lock);
@@ -1131,11 +1139,21 @@ bool fm2_backend_wait_enabled(int timeout_ms) {
 bool fm2_backend_disable() {
     hal_log("disable", "requested");
     pthread_mutex_lock(&g_state.lock);
+    if (!g_state.receiver_cleanup_needed || g_state.disable_pending) {
+        pthread_mutex_unlock(&g_state.lock);
+        return true;
+    }
+    g_state.disable_pending = true;
     g_state.rmssi.paused = true;
     g_state.rmssi.clear_request();
     pthread_mutex_unlock(&g_state.lock);
 
     const bool disabled = vendor_set(kV4l2CtrlState, 0, "failed to disable receiver");
+    if (!disabled) {
+        pthread_mutex_lock(&g_state.lock);
+        g_state.disable_pending = false;
+        pthread_mutex_unlock(&g_state.lock);
+    }
     const bool slimbus = fm2_backend_set_slimbus(false);
     const bool accepted = disabled && slimbus;
 
@@ -1144,6 +1162,37 @@ bool fm2_backend_disable() {
     }
 
     return accepted;
+}
+
+bool fm2_backend_shutdown(int timeout_ms) {
+    // Also handles an earlier disable/enable rollback still waiting for its
+    // callback. Do not send another OFF to a HAL that is already closing.
+    fm2_backend_disable();
+
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += timeout_ms / 1000;
+    deadline.tv_nsec += (timeout_ms % 1000) * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) {
+        deadline.tv_sec += 1;
+        deadline.tv_nsec -= 1000000000L;
+    }
+
+    pthread_mutex_lock(&g_state.lock);
+    while (g_state.receiver_cleanup_needed) {
+        const int ret = pthread_cond_timedwait(&g_state.cond, &g_state.lock, &deadline);
+        if (ret != 0 && g_state.receiver_cleanup_needed) {
+            set_error_locked(ret == ETIMEDOUT
+                    ? "timed out waiting for disabled_cb"
+                    : "failed to wait for disabled_cb");
+            pthread_mutex_unlock(&g_state.lock);
+            return false;
+        }
+    }
+    clear_error_locked();
+    pthread_mutex_unlock(&g_state.lock);
+    hal_log("shutdown", "receiver cleanup complete");
+    return true;
 }
 
 bool fm2_backend_set_frequency(uint32_t frequency_khz) {

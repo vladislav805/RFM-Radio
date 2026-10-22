@@ -792,6 +792,27 @@ fm_cmd_status_t fm_command_disable() {
     return FM_CMD_SUCCESS;
 }
 
+void fm_command_shutdown(bool disable_receiver) {
+    legacy_log("shutdown", "requested disable_receiver=%d", disable_receiver ? 1 : 0);
+    fm_command_abandon_search();
+
+    if (disable_receiver && !fm_receiver_set_state(OFF)) {
+        legacy_log("shutdown", "failed to set radio state off");
+    }
+
+#ifdef __ANDROID_API__
+    if (!g_direct_v4l2_transport) {
+        __system_property_set("ctl.stop", "fm_dl");
+    } else {
+        clear_direct_init_marker();
+    }
+#endif
+
+    is_power_on_completed = FALSE;
+    fm_receiver_close();
+    legacy_log("shutdown", "completed");
+}
+
 /**
  * Part 4.1. Set frequency (kHz).
  * Tune to specified frequency.

@@ -21,14 +21,14 @@
 #define RFM_LEGACY_LOG_HELPERS
 
 static inline void legacy_log(const char* scope, const char* fmt, ...) {
-    printf("leg/%-7s: ", scope);
+    fprintf(stderr, "leg/%-7s: ", scope);
 
     va_list args;
     va_start(args, fmt);
-    vprintf(fmt, args);
+    vfprintf(stderr, fmt, args);
     va_end(args);
 
-    printf("\n");
+    fprintf(stderr, "\n");
 }
 
 #endif

@@ -26,7 +26,7 @@ TEST(ScanResultCollectorTest, RejectsInvalidFrequencies) {
     EXPECT_EQ(result.count, 0);
 }
 
-TEST(ScanResultCollectorTest, LimitsResultToUdpSafeCapacity) {
+TEST(ScanResultCollectorTest, LimitsResultToProtocolCapacity) {
     ScanResultCollector collector;
     for (int i = 0; i < kMaxScanStations; ++i) {
         EXPECT_EQ(collector.add(76000 + i * 50), ScanAddResult::kAdded);

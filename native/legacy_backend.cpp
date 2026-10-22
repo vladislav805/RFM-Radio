@@ -90,9 +90,9 @@ public:
     }
 
     bool disable() override {
-        enabled_ = false;
         const bool accepted = fm_command_disable() == FM_CMD_SUCCESS;
         if (accepted) {
+            enabled_ = false;
             fm_command_abandon_search();
         }
         return set_status(accepted, kErrFailed);
@@ -230,6 +230,11 @@ public:
         }
 
         return fm_command_publish_rmssi();
+    }
+
+    void shutdown() override {
+        fm_command_shutdown(enabled_);
+        enabled_ = false;
     }
 
     const char *last_error() const override {

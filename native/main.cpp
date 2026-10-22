@@ -20,6 +20,7 @@ constexpr const char *kErrUnsupported = "ERR_UNSUPPORTED";
 constexpr useconds_t kResponseDelayUs = 300000;
 
 Backend *g_backend = nullptr;
+bool g_backend_shutdown = false;
 
 std::vector<std::string> split_args(const char *request) {
     std::vector<std::string> parts;
@@ -71,6 +72,13 @@ Backend *ensure_backend() {
     return g_backend;
 }
 
+void shutdown_backend() {
+    if (!g_backend_shutdown && g_backend != nullptr) {
+        g_backend->shutdown();
+        g_backend_shutdown = true;
+    }
+}
+
 response_t make_backend_error(Backend *backend) {
     if (backend == nullptr) {
         return make_error(kErrUnsupported);
@@ -94,7 +102,7 @@ response_t handle_enable(const std::vector<std::string> &args) {
     std::string error;
 
     if (!parse_startup_config(args, &config, &error)) {
-        printf("srv/enable : invalid config: %s\n", error.c_str());
+        fprintf(stderr, "srv/enable : invalid config: %s\n", error.c_str());
         return make_error(kErrInvalidConfig);
     }
 
@@ -110,6 +118,11 @@ response_t handle_disable() {
     if (backend == nullptr || !backend->disable()) {
         return make_backend_error(backend);
     }
+    return make_ok();
+}
+
+response_t handle_shutdown() {
+    shutdown_backend();
     return make_ok();
 }
 
@@ -285,6 +298,7 @@ response_t api_handler(char *request) {
     if (command == "init") return handle_init();
     if (command == "enable") return handle_enable(args);
     if (command == "disable") return handle_disable();
+    if (command == "shutdown" || command == "exit") return handle_shutdown();
     if (command == "setfreq") return handle_setfreq(args);
     if (command == "jump") return handle_jump(args);
     if (command == "seekhw") return handle_seek(args);
@@ -304,6 +318,26 @@ response_t api_handler(char *request) {
 int main() {
     setvbuf(stdout, nullptr, _IOLBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
-    init_server(&api_handler);
-    return 0;
+
+    const int result = init_server(&api_handler);
+    const bool needs_shutdown_settle = g_backend != nullptr && !g_backend_shutdown
+            && g_backend->kind() == BackendKind::kLegacy;
+
+    shutdown_backend();
+
+    if (needs_shutdown_settle) {
+        usleep(kResponseDelayUs);
+    }
+
+    const int exit_code = result == 0 ? 0 : 1;
+    if (g_backend != nullptr && g_backend->kind() == BackendKind::kHal) {
+        // Some Qualcomm libfm-hci builds leave a joinable std::thread in their
+        // global fm_hci_t even after FM OFF and the worker's exit. Normal exit
+        // runs its destructor and aborts. Backend cleanup and protocol writes
+        // are already complete; bypass vendor static destructors here.
+        fflush(stdout);
+        fflush(stderr);
+        _exit(exit_code);
+    }
+    return exit_code;
 }

@@ -54,7 +54,7 @@ This layer sits above `fm_ctl.*` and implements higher-level behavior:
 - tuning helpers
 - setup of legacy RDS behavior
 - interrupt thread
-- translation of driver events into app-facing UDP events
+- translation of driver events into app-facing JSON events
 
 This is where most of the legacy-specific runtime behavior lives.
 
@@ -71,7 +71,7 @@ When the unified binary selects the legacy backend:
 2. the backend opens `/dev/radio0`
 3. FM driver setup is performed
 4. an interrupt thread is created
-5. driver events are translated into app events over UDP
+5. driver events are translated into JSON app events on stdout
 
 Examples of translated events:
 

@@ -36,6 +36,11 @@ if(RFM_NATIVE_TESTS)
         tests/legacy_scan_state_test.cpp
         tests/rmssi_test.cpp
         tests/periodic_deadline_test.cpp
+        tests/ctl_protocol_test.cpp
+        tests/hal_shutdown_test.cpp
+        hal_backend.cpp
+        hal/utils.cpp
+        ctl_server.cpp
         rds_parser.cpp
         ctl_json.cpp
         startup_config.cpp
@@ -43,6 +48,7 @@ if(RFM_NATIVE_TESTS)
         scan_result.cpp
         legacy/scan_state.cpp
         periodic_deadline.cpp
+        ctl_protocol.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
     target_link_libraries(rfm_native_tests GTest::gtest_main)
@@ -56,6 +62,7 @@ add_executable(
     main.cpp
     ctl_server.cpp
     ctl_json.cpp
+    ctl_protocol.cpp
     startup_config.cpp
     region_profile.cpp
     scan_result.cpp

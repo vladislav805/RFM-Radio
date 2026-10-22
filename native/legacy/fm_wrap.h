@@ -12,6 +12,7 @@ fm_cmd_status_t fm_command_prepare(fm_config_data* config_ptr);
 fm_cmd_status_t fm_command_setup_receiver(fm_config_data* ptr);
 fm_cmd_status_t fm_command_setup_rds(rds_system_t system);
 fm_cmd_status_t fm_command_disable();
+void fm_command_shutdown(bool disable_receiver);
 
 fm_cmd_status_t fm_command_tune_frequency(uint32 frequency);
 fm_cmd_status_t fm_command_tune_frequency_by_delta(signed short direction);

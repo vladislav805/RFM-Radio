@@ -24,8 +24,10 @@ At runtime the executable auto-detects which backend to use:
 - [`backend_factory.h`](backend_factory.h): runtime backend selection API
 - [`backend_factory.cpp`](backend_factory.cpp): backend detection and factory implementation
 - [`main.cpp`](main.cpp): command router and process entrypoint
-- [`ctl_server.h`](ctl_server.h): shared UDP request/event protocol definitions
-- [`ctl_server.c`](ctl_server.c): shared UDP transport implementation
+- [`ctl_server.h`](ctl_server.h): shared state-patch and command response types
+- [`ctl_server.cpp`](ctl_server.cpp): standard-I/O command loop and event writer
+- [`ctl_protocol.cpp`](ctl_protocol.cpp): request-frame parsing
+- [`ctl_json.cpp`](ctl_json.cpp): response and event JSON serialization
 - [`types.h`](types.h): shared primitive typedefs and boolean compatibility helpers
 - [`legacy_backend.cpp`](legacy_backend.cpp): C++ adapter over the legacy backend
 - [`hal_backend.cpp`](hal_backend.cpp): C++ adapter over the HAL backend
@@ -36,7 +38,10 @@ At runtime the executable auto-detects which backend to use:
 
 ### 1. Unified Process
 
-The Android app launches a single native process. The process listens on loopback UDP and accepts the same command set regardless of the selected backend.
+The Android app owns one root native process for the lifetime of a radio
+session. Commands arrive on stdin and responses/events leave on stdout as
+newline-delimited JSON. Closing stdin tells the process that its Android owner
+has died; it then shuts down the selected backend and exits.
 
 ### 2. Backend Interface
 
@@ -62,29 +67,16 @@ Each backend implements that interface while keeping its own low-level logic iso
 - parses incoming text commands
 - lazily creates the detected backend
 - routes commands to the selected backend
-- returns a text response over UDP
+- returns a request-ID-matched JSON response over stdout
 
 It does not contain backend detection tables or backend construction logic anymore; those live in [`backend_factory.cpp`](backend_factory.cpp).
 
 ### 4. Event Delivery
 
-Both backends send asynchronous events to the app through the shared UDP event channel defined in [`ctl_server.h`](ctl_server.h).
-
-Important event IDs:
-
-- `EVT_ENABLED`
-- `EVT_DISABLED`
-- `EVT_FREQUENCY_SET`
-- `EVT_SEEK_COMPLETE`
-- `EVT_UPDATE_PS`
-- `EVT_UPDATE_RT`
-- `EVT_UPDATE_PI`
-- `EVT_UPDATE_PTY`
-- `EVT_UPDATE_AF`
-- `EVT_STEREO`
-- `EVT_SEARCH_DONE`
-
-This protocol is intentionally stable because the Java layer already depends on it.
+Both backends send partial state patches and lifecycle/search events through the
+shared JSON writer in [`ctl_server.cpp`](ctl_server.cpp). Writes are serialized
+because vendor callback threads can emit events while the command thread emits
+a response. Native diagnostics go to stderr so stdout remains protocol-only.
 
 ## Supported Commands
 
@@ -93,6 +85,7 @@ The unified binary accepts the same external command API used before the merge:
 - `init`
 - `enable freq=<khz> region=<eu|us|jp|jp_wide> spacing=<50|100|200> stereo=<0|1> antenna=<value> af=<0|1>`
 - `disable`
+- `shutdown`
 - `setfreq <khz>`
 - `jump <direction>`
 - `seekhw <direction>`

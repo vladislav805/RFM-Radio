@@ -174,7 +174,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     @Override
     public int onStartCommand(final Intent intent, final int flags, final int startId) {
         if (intent == null || intent.getAction() == null) {
-            return START_STICKY;
+            stopSelf();
+            return START_NOT_STICKY;
         }
 
         switch (intent.getAction()) {
@@ -297,7 +298,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
                 if (!byFavorite) {
                     startService(intent.setAction(C.Command.HW_SEEK));
-                    return START_STICKY;
+                    return START_NOT_STICKY;
                 }
 
                 navigateThroughFavorite(direction);
@@ -345,7 +346,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
         }
 
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     /**

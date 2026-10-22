@@ -36,16 +36,8 @@ public class Request {
 		return this;
 	}
 
-	public byte[] bytes() {
-		return command.getBytes();
-	}
-
 	public String getCommand() {
 		return command;
-	}
-
-	public int size() {
-		return command.length();
 	}
 
 	public int getTimeout() {
