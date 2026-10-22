@@ -13,7 +13,7 @@ Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 
 - Live FM playback using supported hardware backend.
 - RDS metadata: PS, RT, PTY.
-- Recording to `.wav` and `.mp3`, with a matching `.srt` file containing frequency, PI, PS, PTY, and RT.
+- Recording to `.wav` and `.mp3`, with a matching `.srt` file containing frequency, PI, PS and RT.
 - Favorites (presets) with custom names.
 - Multiple favorite lists.
 - Favorite list manager screen with import/export.
@@ -81,9 +81,11 @@ Run Java unit tests with `make test-java` and native host tests with
 
 ## RDS recording subtitles
 
-Each MP3/WAV recording is accompanied by a UTF-8 SRT file with the same basename
-in the same folder. Each cue shows the frequency and four-digit hexadecimal PI,
-followed by PS, numeric PTY, and RT. An unavailable PTY is written as `0`.
+The **Save RDS as subtitles** option in recording settings is disabled by
+default. When enabled, each MP3/WAV recording is accompanied by a UTF-8 SRT file
+with the same basename in the same folder. Changes apply to new recordings;
+disabling the option leaves existing SRT files untouched. Each cue shows the
+frequency and four-digit hexadecimal PI, followed by PS and RT.
 An unknown PI is written as `0000`; unavailable PS/RT are shown as `—`. ECC is not recorded.
 
 Subtitle times follow captured PCM, including the available pre-roll history.
@@ -92,8 +94,9 @@ of the broadcast audio. Deleting a recording through its notification also
 removes its SRT file. If saving subtitles fails, the audio is preserved and the
 app shows a warning. Automatic SRT loading for audio depends on the player.
 
-Android 10 and older require storage permission to publish the subtitle file;
-Android 11+ publishes it through MediaStore alongside the audio.
+Android 10 requires storage permission when SRT saving is enabled. Android 9
+and older require it for audio as well. Android 11+ publishes both files through
+MediaStore.
 
 ## GitHub Actions
 

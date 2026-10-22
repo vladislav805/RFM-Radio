@@ -22,6 +22,9 @@ public interface IFMRecorder {
 	 */
 	void record(final short[] data, final int length);
 
+    /** Receives a full RDS snapshot at a position relative to the recording PCM. */
+    default void recordRds(final long positionMillis, final RdsSnapshot snapshot) {}
+
 	/** Finishes and closes the recording file. */
 	void stopRecord();
 }

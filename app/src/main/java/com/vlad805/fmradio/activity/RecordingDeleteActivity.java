@@ -10,6 +10,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
 
@@ -28,7 +29,9 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
             final String uri,
             final String filePath,
             final String displayName,
-            final String notificationTag
+            final String notificationTag,
+            final String subtitleUri,
+            final String subtitlePath
     ) {
         final String identity = uri != null ? uri : filePath;
         return new Intent(context, RecordingDeleteActivity.class)
@@ -36,7 +39,9 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
                 .putExtra(EXTRA_URI, uri)
                 .putExtra(EXTRA_FILE_PATH, filePath)
                 .putExtra(EXTRA_DISPLAY_NAME, displayName)
-                .putExtra(EXTRA_NOTIFICATION_TAG, notificationTag);
+                .putExtra(EXTRA_NOTIFICATION_TAG, notificationTag)
+                .putExtra(C.Key.SUBTITLE_URI, subtitleUri)
+                .putExtra(C.Key.SUBTITLE_FILE_PATH, subtitlePath);
     }
 
     @Override
@@ -66,6 +71,16 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
                         if (!RecordingStorage.deletePublished(this, uri, filePath)) {
                             throw new IOException("Recording was not deleted");
                         }
+
+                        final String subtitleUri = intent.getStringExtra(C.Key.SUBTITLE_URI);
+                        final String subtitlePath = intent.getStringExtra(C.Key.SUBTITLE_FILE_PATH);
+
+                        if (subtitleUri != null || subtitlePath != null) {
+                            if (!RecordingStorage.deletePublished(this, subtitleUri, subtitlePath)) {
+                                throw new IOException("RDS subtitles were not deleted");
+                            }
+                        }
+
                         NotificationManagerCompat.from(this).cancel(notificationTag, NOTIFICATION_ID);
                         Toast.makeText(this, R.string.record_delete_success, Toast.LENGTH_SHORT).show();
                     } catch (final IOException e) {

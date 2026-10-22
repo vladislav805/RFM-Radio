@@ -2,7 +2,9 @@ package com.vlad805.fmradio.service.recording;
 
 import com.vlad805.fmradio.service.fm.RecordError;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
@@ -33,6 +35,54 @@ public final class PcmRecorderSession {
     /** Active asynchronous writer, or {@code null} when not recording. */
     private Writer writer;
 
+    private long capturedSamples;
+    private long recordingStartSample;
+    private RdsSnapshot currentRds = RdsSnapshot.EMPTY;
+    private final Deque<RdsChange> rdsHistory = new ArrayDeque<>();
+
+    private static final class RdsChange {
+        final long sample;
+        final RdsSnapshot snapshot;
+
+        RdsChange(final long sample, final RdsSnapshot snapshot) {
+            this.sample = sample;
+            this.snapshot = snapshot;
+        }
+    }
+
+    /** Timestamps changes against captured PCM, independently of encoder progress. */
+    public synchronized void updateRds(final RdsSnapshot snapshot) {
+        if (snapshot.equals(currentRds)) {
+            return;
+        }
+        currentRds = snapshot;
+        // Multiple events between PCM reads describe the same audio position.
+        if (!rdsHistory.isEmpty() && rdsHistory.peekLast().sample == capturedSamples) {
+            rdsHistory.removeLast();
+        }
+        rdsHistory.addLast(new RdsChange(capturedSamples, snapshot));
+        pruneRdsHistory();
+        if (writer != null) {
+            writer.recorder.recordRds(toMillis(capturedSamples - recordingStartSample), snapshot);
+        }
+    }
+
+    private long toMillis(final long samples) {
+        return samples * 1000L / (sampleRate * (long) channelCount);
+    }
+
+    /** Keeps one baseline preceding the oldest retained PCM plus subsequent changes. */
+    private void pruneRdsHistory() {
+        final long oldestSample = capturedSamples - ringSize;
+        while (rdsHistory.size() > 1) {
+            final RdsChange first = rdsHistory.removeFirst();
+            if (rdsHistory.peekFirst().sample > oldestSample) {
+                rdsHistory.addFirst(first);
+                break;
+            }
+        }
+    }
+
     /**
      * Creates a PCM session.
      *
@@ -55,6 +105,8 @@ public final class PcmRecorderSession {
     public synchronized void append(final short[] data, final int length) {
         final int safeLength = Math.max(0, Math.min(length, data.length));
         appendToRing(data, safeLength);
+        capturedSamples += safeLength;
+        pruneRdsHistory();
 
         if (writer != null && safeLength > 0) {
             writer.enqueue(Arrays.copyOf(data, safeLength));
@@ -76,6 +128,23 @@ public final class PcmRecorderSession {
         final short[] snapshot = snapshot();
         final int preRollMillis = (int) ((snapshot.length * 1000L) / (sampleRate * channelCount));
         recorder.startRecord(preRollMillis);
+
+        recordingStartSample = capturedSamples - snapshot.length;
+        RdsSnapshot initial = RdsSnapshot.EMPTY;
+
+        for (final RdsChange change : rdsHistory) {
+            if (change.sample <= recordingStartSample) {
+                initial = change.snapshot;
+            }
+        }
+
+        recorder.recordRds(0, initial);
+
+        for (final RdsChange change : rdsHistory) {
+            if (change.sample > recordingStartSample) {
+                recorder.recordRds(toMillis(change.sample - recordingStartSample), change.snapshot);
+            }
+        }
 
         final Writer newWriter = new Writer(recorder);
         if (snapshot.length > 0) {
@@ -118,6 +187,9 @@ public final class PcmRecorderSession {
         }
         ringSize = 0;
         ringWritePosition = 0;
+        capturedSamples = 0;
+        currentRds = RdsSnapshot.EMPTY;
+        rdsHistory.clear();
     }
 
     /** Appends samples to the circular history buffer. */

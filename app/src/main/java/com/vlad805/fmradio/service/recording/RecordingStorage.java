@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -19,6 +20,20 @@ public final class RecordingStorage {
     private static final String ROOT_DIRECTORY = "RFM-Recordings";
 
     private RecordingStorage() {}
+
+    /** Android 10 needs direct file access only when saving the SRT companion. */
+    public static boolean requiresStoragePermission(final Context context) {
+        return (
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || (
+                        Build.VERSION.SDK_INT == Build.VERSION_CODES.Q &&
+                        Storage.getPrefBoolean(
+                                context,
+                                C.PrefKey.RECORDING_SAVE_SRT,
+                                C.PrefDefaultValue.RECORDING_SAVE_SRT
+                        )
+                )
+        );
+    }
 
     public static RecordingTarget create(
             final Context context,
@@ -84,7 +99,16 @@ public final class RecordingStorage {
                     throw new IOException("Unexpected recording URI");
                 }
 
-                return context.getContentResolver().delete(uri, null, null) > 0;
+                if (context.getContentResolver().delete(uri, null, null) > 0) {
+                    return true;
+                }
+                // A companion may already have been removed by a file manager, or
+                // this may be a retry after only one of the two deletes succeeded.
+                try (
+                        Cursor cursor = context.getContentResolver().query(uri, new String[]{MediaStore.MediaColumns._ID}, null, null, null)
+                ) {
+                    return cursor != null && !cursor.moveToFirst();
+                }
             }
 
             if (filePath == null) {
@@ -97,14 +121,27 @@ public final class RecordingStorage {
             );
             final File recording = new File(filePath);
 
-            if (!isFileInsideDirectory(root, recording) || !recording.isFile()) {
+            if (!isFileInsideDirectory(root, recording)) {
                 throw new IOException("Recording path is outside the recording directory");
+            }
+
+            if (!recording.exists()) {
+                return true;
+            }
+
+            if (!recording.isFile()) {
+                throw new IOException("Recording path is not a file");
             }
 
             return recording.delete();
         } catch (final SecurityException e) {
             throw new IOException("Recording cannot be deleted", e);
         }
+    }
+
+    static String subtitleName(final String audioName) {
+        final int dot = audioName.lastIndexOf('.');
+        return (dot > 0 ? audioName.substring(0, dot) : audioName) + ".srt";
     }
 
     static boolean isFileInsideDirectory(final File directory, final File file) throws IOException {

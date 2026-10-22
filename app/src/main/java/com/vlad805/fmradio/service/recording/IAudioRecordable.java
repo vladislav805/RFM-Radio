@@ -8,4 +8,5 @@ import com.vlad805.fmradio.service.fm.RecordError;
 public interface IAudioRecordable {
 	void startRecord(final IFMRecorder driver) throws RecordError;
 	void stopRecord();
+	void updateRds(final RdsSnapshot snapshot);
 }

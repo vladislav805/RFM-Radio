@@ -12,6 +12,7 @@ import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.recording.PcmRecorderSession;
+import com.vlad805.fmradio.service.recording.RdsSnapshot;
 
 /**
  * vlad805 (c) 2019
@@ -25,6 +26,7 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 	/** Session retaining legacy PCM and forwarding it to the active recorder. */
 	private volatile PcmRecorderSession mPcmSession;
+	private RdsSnapshot mRdsSnapshot = RdsSnapshot.EMPTY;
 
 	/** Whether PCM history is currently retained. */
 	private boolean mPreRollEnabled;
@@ -160,6 +162,12 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 	}
 
 	@Override
+	public synchronized void updateRds(final RdsSnapshot snapshot) {
+		mRdsSnapshot = snapshot;
+		mPcmSession.updateRds(snapshot);
+	}
+
+	@Override
 	public void stopRecord() {
 		mPcmSession.stop();
 		if (mPendingPreRollEnabled != null) {
@@ -181,6 +189,7 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 	private void applyPreRollEnabled(final boolean enabled) {
 		mPreRollEnabled = enabled;
 		mPcmSession = createPcmSession(enabled);
+		mPcmSession.updateRds(mRdsSnapshot);
 	}
 
 	/**

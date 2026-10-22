@@ -28,7 +28,9 @@ import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.recording.PcmRecorderSession;
+import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordService;
+import com.vlad805.fmradio.service.recording.RecordingStorage;
 
 /**
  * FM2/Helium devices route FM audio directly inside audio HAL.
@@ -62,6 +64,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	/** Session retaining captured PCM and forwarding it to {@link #mPcmRecorder}. */
 	private volatile PcmRecorderSession mPcmSession;
+	private RdsSnapshot mRdsSnapshot = RdsSnapshot.EMPTY;
 
 	/** Whether FM PCM history should remain active during playback. */
 	private boolean mPreRollEnabled;
@@ -415,6 +418,12 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	}
 
 	@Override
+	public synchronized void updateRds(final RdsSnapshot snapshot) {
+		mRdsSnapshot = snapshot;
+		mPcmSession.updateRds(snapshot);
+	}
+
+	@Override
 	public void stopRecord() {
 		if (mPcmRecorder == null) {
 			return;
@@ -453,6 +462,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 		mPreRollEnabled = enabled;
 		mPcmSession = createPcmSession(enabled);
+		mPcmSession.updateRds(mRdsSnapshot);
 		if (enabled && mIsActive && hasRecordAudioPermission()) {
 			try {
 				startPcmCapture();
@@ -574,8 +584,11 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			throw new RecordError("Please allow microphone access before recording");
 		}
 
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-				&& mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+		if (
+				RecordingStorage.requiresStoragePermission(mContext)
+				&&
+				mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+		) {
 			throw new RecordError("Please allow storage access before recording");
 		}
 	}

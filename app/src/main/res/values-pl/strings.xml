@@ -151,4 +151,6 @@
 	<string name="root_required_title">Wymagany dostęp root</string>
 	<string name="root_required_message">Aplikacja nie może działać bez roota.\nNie znaleziono su na urządzeniu.</string>
 	<string name="root_access_denied_message">Dostęp root nie został przyznany. Zezwól RFM Radio na dostęp root w aplikacji do zarządzania uprawnieniami root i spróbuj ponownie.</string>
+    <string name="pref_recording_save_srt">Zapisuj RDS jako napisy</string>
+    <string name="pref_recording_save_srt_summary">Zapisuj częstotliwość, PS, RT i PI w pliku .srt obok nagrania audio. Dotyczy nowych nagrań.</string>
 </resources>

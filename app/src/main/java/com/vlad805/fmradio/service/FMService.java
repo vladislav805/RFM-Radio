@@ -41,6 +41,7 @@ import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
 import com.vlad805.fmradio.service.fm.implementation.QualcommNative;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
+import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.recording.RecordService;
@@ -154,7 +155,18 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         // Broadcast receivers
         mEventReaction = new EventReaction();
-        mTunerStateUpdater = new RadioStateUpdater(mState);
+        mTunerStateUpdater = new RadioStateUpdater(mState, (state, mode) -> {
+            if (mAudioService instanceof IAudioRecordable) {
+                ((IAudioRecordable) mAudioService).updateRds(
+                        new RdsSnapshot(
+                                state.getFrequency(),
+                                state.getPs(),
+                                state.getRt(),
+                                state.getPi()
+                        )
+                );
+            }
+        });
 
         if (mTunerDriver instanceof IFMEventListener) {
             ((IFMEventListener) mTunerDriver).setEventListener(this);
@@ -820,6 +832,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final String filename = extras.getString(C.Key.DISPLAY_NAME);
         final String uri = extras.getString(C.Key.RECORDING_URI);
         final String filePath = extras.getString(C.Key.RECORDING_FILE_PATH);
+        final String subtitleUri = extras.getString(C.Key.SUBTITLE_URI);
+        final String subtitlePath = extras.getString(C.Key.SUBTITLE_FILE_PATH);
 
         if (needNotification) {
             final String location = uri != null ? uri : filePath;
@@ -829,7 +843,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     uri,
                     filePath,
                     filename,
-                    notificationTag
+                    notificationTag,
+                    subtitleUri,
+                    subtitlePath
             );
             final PendingIntent pendingDelete = PendingIntent.getActivity(
                     this,
@@ -848,12 +864,20 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             mNotificationManager.notify(notificationTag, RecordingDeleteActivity.NOTIFICATION_ID, n.build());
         }
 
-        Toast.makeText(this, getString(
+        String message = getString(
                 R.string.toast_record_ended,
                 filename,
                 size / 1024f / 1024f,
                 getTimeStringBySeconds(duration)
-        ), Toast.LENGTH_LONG).show();
+        );
+        if (
+                extras.getBoolean(C.Key.SUBTITLES_REQUESTED, false) &&
+                subtitleUri == null &&
+                subtitlePath == null
+        ) {
+            message += "\n" + getString(R.string.record_subtitles_failed);
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
     @Override

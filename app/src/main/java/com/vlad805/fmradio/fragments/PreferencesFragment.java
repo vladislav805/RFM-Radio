@@ -216,6 +216,16 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		});
 		category.addPreference(format);
 
+		final SwitchPreferenceCompat saveSrt = new SwitchPreferenceCompat(context);
+		populatePreference(saveSrt, C.PrefKey.RECORDING_SAVE_SRT, R.string.pref_recording_save_srt, R.drawable.ic_rds);
+		saveSrt.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_SRT);
+		saveSrt.setSummary(R.string.pref_recording_save_srt_summary);
+		saveSrt.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.RECORDING_SAVE_SRT, (boolean) newValue);
+			return true;
+		});
+		category.addPreference(saveSrt);
+
 		final SwitchPreferenceCompat savePast = new SwitchPreferenceCompat(context);
 		populatePreference(savePast, C.PrefKey.RECORDING_SAVE_PAST, R.string.pref_recording_save_past, R.drawable.ic_record_on);
 		savePast.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_PAST);

@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.service.recording.RecordingStorage;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
@@ -338,9 +339,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mPendingRecordStart = true;
                 mRecordPermissionsRequested = true;
 
-                // Android 10+ writes recordings via MediaStore into Music/RFM-Recordings,
-                // so only microphone access is needed. Older releases still use direct File I/O.
-                final String[] permissions = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                // Request storage only for destinations that require direct file access.
+                final String[] permissions = !RecordingStorage.requiresStoragePermission(this)
                         ? new String[]{
                                 Manifest.permission.RECORD_AUDIO
                         }
@@ -436,7 +436,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean hasRecordingPermissions() {
         final boolean hasRecordAudio =
                 ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (!RecordingStorage.requiresStoragePermission(this)) {
             return hasRecordAudio;
         }
 
@@ -480,9 +480,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return false;
         }
 
-        // Android 10+ saves recordings through MediaStore, so only RECORD_AUDIO can be denied.
-        // Older versions still write directly to shared storage and may also require storage access.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // Account for the optional SRT companion on Android 10.
+        if (!RecordingStorage.requiresStoragePermission(this)) {
             return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
         }
 

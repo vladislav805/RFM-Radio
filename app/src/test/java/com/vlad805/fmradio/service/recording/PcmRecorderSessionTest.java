@@ -120,6 +120,69 @@ public class PcmRecorderSessionTest {
         assertEquals(1, recorder.stopCount());
     }
 
+    @Test
+    public void replaysRdsHistoryRelativeToWrappedPreRollAndLivePcm() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 1);
+        final FakeRecorder recorder = new FakeRecorder();
+        final RdsSnapshot first = new RdsSnapshot(99800, "FIRST", "", "1234");
+        final RdsSnapshot second = new RdsSnapshot(99900, "SECOND", "", "5678");
+        session.updateRds(first);
+        session.append(new short[20], 20);
+        session.updateRds(second);
+        session.append(new short[10], 10);
+        session.start(recorder); // Retains samples [10, 30), second station begins at sample 20.
+        session.append(new short[10], 10);
+        session.updateRds(first);
+        session.stop();
+
+        assertEquals(java.util.Arrays.asList(0L, 500L, 1500L), recorder.rdsTimes);
+        assertEquals(java.util.Arrays.asList(first, second, first), recorder.rdsStates);
+    }
+
+    @Test
+    public void keepsRdsBaselineAfterHistoryHasExpired() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 1);
+        final FakeRecorder recorder = new FakeRecorder();
+        final RdsSnapshot state = new RdsSnapshot(99800, "RADIO", "", "");
+        session.updateRds(state);
+        session.append(new short[100], 100);
+        session.start(recorder);
+        session.stop();
+
+        assertEquals(java.util.Arrays.asList(0L), recorder.rdsTimes);
+        assertEquals(java.util.Arrays.asList(state), recorder.rdsStates);
+    }
+
+    @Test
+    public void startsRdsAtZeroWithoutPreRollAndSkipsDuplicateStates() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 0);
+        final FakeRecorder recorder = new FakeRecorder();
+        final RdsSnapshot state = new RdsSnapshot(99800, "RADIO", "", "");
+        session.append(new short[100], 100);
+        session.updateRds(state);
+        session.start(recorder);
+        session.updateRds(state);
+        session.append(new short[10], 10);
+        session.updateRds(RdsSnapshot.EMPTY);
+        session.stop();
+
+        assertEquals(java.util.Arrays.asList(0L, 500L), recorder.rdsTimes);
+        assertEquals(java.util.Arrays.asList(state, RdsSnapshot.EMPTY), recorder.rdsStates);
+    }
+
+    @Test
+    public void clearsRdsHistoryWithPlaybackHistory() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 1);
+        final FakeRecorder recorder = new FakeRecorder();
+        session.updateRds(new RdsSnapshot(99800, "OLD", "", ""));
+        session.append(new short[20], 20);
+        session.clearHistory();
+        session.start(recorder);
+        session.stop();
+
+        assertEquals(java.util.Arrays.asList(RdsSnapshot.EMPTY), recorder.rdsStates);
+    }
+
     private static short[] sequence(final int start, final int length) {
         final short[] result = new short[length];
         for (int i = 0; i < length; i++) {
@@ -132,6 +195,8 @@ public class PcmRecorderSessionTest {
         private final List<Short> received = new ArrayList<>();
         private int initialDurationMillis;
         private int stopCount;
+        private final List<Long> rdsTimes = new ArrayList<>();
+        private final List<RdsSnapshot> rdsStates = new ArrayList<>();
 
         @Override
         public void startRecord(final int initialDurationMillis) throws RecordError {
@@ -143,6 +208,12 @@ public class PcmRecorderSessionTest {
             for (int i = 0; i < length; i++) {
                 received.add(data[i]);
             }
+        }
+
+        @Override
+        public void recordRds(final long positionMillis, final RdsSnapshot snapshot) {
+            rdsTimes.add(positionMillis);
+            rdsStates.add(snapshot);
         }
 
         @Override

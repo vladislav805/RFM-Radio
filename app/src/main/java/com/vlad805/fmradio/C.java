@@ -90,6 +90,9 @@ final public class C {
 		public static final String DISPLAY_NAME = "display_name";
 		public static final String RECORDING_URI = "recording_uri";
 		public static final String RECORDING_FILE_PATH = "recording_file_path";
+        public static final String SUBTITLES_REQUESTED = "subtitles_requested";
+        public static final String SUBTITLE_URI = "subtitle_uri";
+        public static final String SUBTITLE_FILE_PATH = "subtitle_file_path";
 		public static final String FREQUENCIES = "frequencies";
 		public static final String STATE = "state";
 		public static final String IS_SPEAKER = "is_speaker";
@@ -115,6 +118,7 @@ final public class C {
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
+        public static final String RECORDING_SAVE_SRT = "recording_save_srt";
 		public static final String RECORDING_FORMAT = "recording_mode";
 		/** Enables retaining recent PCM before the Record command. */
 		public static final String RECORDING_SAVE_PAST = "recording_save_past";
@@ -135,6 +139,7 @@ final public class C {
 		public static final boolean TUNER_POWER_MODE = false;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
+        public static final boolean RECORDING_SAVE_SRT = false;
 		public static final int RECORDING_FORMAT = 0;
 		/** Pre-roll capture is opt-in because it keeps audio capture active. */
 		public static final boolean RECORDING_SAVE_PAST = false;
