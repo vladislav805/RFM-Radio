@@ -193,12 +193,12 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				Log.d(TAG, "applyRoute: FM hardwareLoopback already active, resetting via fm_routing=" + resetRoute);
 				sendAudioParameter("fm_routing", resetRoute);
 			}
+			sendAudioParameter("fm_routing", route);
+			sendAudioParameter("handle_fm", route);
 			if (updateVolume) {
 				applyVolume(volumeDeviceType);
 			}
 			sendAudioParameter("fm_mute", 0);
-			sendAudioParameter("fm_routing", route);
-			sendAudioParameter("handle_fm", route);
 			return;
 		}
 
