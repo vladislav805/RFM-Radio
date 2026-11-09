@@ -9,7 +9,7 @@ constexpr RegionProfile kOirtProfile = {
     .upper_frequency_khz = 74000,
     .emphasis = kFmEmphasis50Microseconds,
     .rds_standard = kFmRdsStandardRds,
-    .legacy_band = 3,
+    .legacy_band = 4,
     .helium_region = 0,
 };
 
