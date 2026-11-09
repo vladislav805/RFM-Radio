@@ -4,6 +4,17 @@
 
 namespace {
 
+constexpr RegionProfile kOirtProfile = {
+    .lower_frequency_khz = 65000,
+    .upper_frequency_khz = 74000,
+    .emphasis = kFmEmphasis50Microseconds,
+    .rds_standard = kFmRdsStandardRds,
+    .legacy_band = 3,
+    .helium_region = 0,
+};
+
+
+
 constexpr RegionProfile kEuropeProfile = {
         .lower_frequency_khz = 87500,
         .upper_frequency_khz = 108000,
@@ -53,6 +64,9 @@ const RegionProfile &get_region_profile(StartupRegion region) {
         case StartupRegion::kJapanWide:
             return kJapanWideProfile;
 
+        case StartupRegion::kOirt:
+            return kOirtProfile;
+
         case StartupRegion::kEurope:
         default:
             return kEuropeProfile;
@@ -69,6 +83,9 @@ const char *get_region_name(StartupRegion region) {
 
         case StartupRegion::kJapanWide:
             return "jp_wide";
+
+        case StartupRegion::kOirt:
+            return "oirt";
 
         case StartupRegion::kEurope:
         default:

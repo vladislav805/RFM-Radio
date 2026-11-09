@@ -55,6 +55,8 @@ bool parse_region_name(std::string_view value, StartupRegion *region) {
         *region = StartupRegion::kJapan;
     } else if (value == "jp_wide") {
         *region = StartupRegion::kJapanWide;
+    } else if (value == "oirt") {
+        *region = StartupRegion::kOirt;
     } else {
         return false;
     }
