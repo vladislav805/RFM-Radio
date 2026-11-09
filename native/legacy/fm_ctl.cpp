@@ -1,3 +1,5 @@
+#include <unistd.h>
+#include <poll.h>
 #include "fm_ctl.h"
 #include "fmcommon.h"
 #include "../rds_parser.h"
@@ -155,26 +157,22 @@ bool fm_receiver_set_band(radio_band_t band) {
     band_limit_freq limits = {};
     make_frequency_limit_by_band(band, &limits);
 
-    int ret;
-
     struct v4l2_tuner tuner = {};
     tuner.index = 0;
     tuner.type = V4L2_TUNER_RADIO;
-    tuner.signal = 0;
+    ioctl(fd_radio, VIDIOC_G_TUNER, &tuner);
+
     tuner.rangelow = khz_to_tunefreq(limits.lower_limit);
     tuner.rangehigh = khz_to_tunefreq(limits.upper_limit);
-    ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
+    tuner.audmode = (fm_storage.stereo_type == FM_RX_STEREO) ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
 
+    int ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
     if (ret < 0) {
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(kV4l2CtrlRegion, band);
-    if (ret == TRUE) {
-        fm_storage.band_type = band;
-    }
-
-    return ret == TRUE;
+    fm_storage.band_type = band;
+    return TRUE;
 }
 
 bool fm_receiver_set_rds_system(rds_system_t system) {
@@ -353,16 +351,30 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
     struct v4l2_tuner tuner = {};
     tuner.index = 0;
     tuner.type = V4L2_TUNER_RADIO;
-    tuner.audmode = mode;
+
+    if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) < 0 || tuner.rangelow == 0) {
+        band_limit_freq limits = {};
+        make_frequency_limit_by_band(fm_storage.band_type, &limits);
+        if (limits.lower_limit > 0 && limits.upper_limit > 0) {
+            tuner.rangelow = khz_to_tunefreq(limits.lower_limit);
+            tuner.rangehigh = khz_to_tunefreq(limits.upper_limit);
+        } else {
+            tuner.rangelow = khz_to_tunefreq(kDefaultLowerFrequencyKhz);
+            tuner.rangehigh = khz_to_tunefreq(kDefaultUpperFrequencyKhz);
+        }
+    }
+
+    tuner.audmode = (mode == FM_RX_STEREO) ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
 
     int32 ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
-
     if (ret < 0) {
         const int saved_errno = errno;
         legacy_log("audio", "set stereo failed, ret=%d errno=%d (%s)", ret, saved_errno, strerror(saved_errno));
+        return FALSE;
     }
 
-    return ret == 0;
+    fm_storage.stereo_type = mode;
+    return TRUE;
 }
 
 bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell_period) {
@@ -470,31 +482,86 @@ void fm_receiver_close() {
  * the interrupt data received
  * @return FALSE in failure, TRUE in success
  */
+/* rtc6226 read() fallback with stale event queue draining */
+static void rtc6226_drain_stale_events(int fd) {
+    if (fd < 0) return;
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN | POLLRDNORM;
+    uint8_t trash[128];
+    int total = 0;
+    while (poll(&pfd, 1, 0) > 0 && (pfd.revents & (POLLIN | POLLRDNORM))) {
+        ssize_t n = read(fd, trash, 1);
+        if (n <= 0) break;
+        total += n;
+    }
+    if (total > 0) {
+        legacy_log("v4l2", "drained %d stale bytes from driver queue", total);
+    }
+}
+
 int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
     if (fd_radio < 0 || buf == NULL || buffer_size == 0) {
         return -1;
     }
 
-    int err;
+    static int s_use_read_fallback = 0;
+    static int s_drained = 0;
 
-    struct v4l2_buffer v4l2_buf;
-    memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+    if (!s_use_read_fallback) {
+        struct v4l2_buffer v4l2_buf;
+        memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+        v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
+        v4l2_buf.index = index;
+        v4l2_buf.memory = V4L2_MEMORY_USERPTR;
+        v4l2_buf.m.userptr = (unsigned long) buf;
+        v4l2_buf.length = buffer_size;
 
-    v4l2_buf.index = index;
-    v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
-    v4l2_buf.memory = V4L2_MEMORY_USERPTR;
-    v4l2_buf.m.userptr = (unsigned long) buf;
-    v4l2_buf.length = buffer_size;
+        int ret = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
+        if (ret >= 0) {
+            return (int32) v4l2_buf.bytesused;
+        }
 
-    err = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
-
-    if (err < 0) {
-        const int saved_errno = errno;
-        legacy_log("v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, err, saved_errno, strerror(saved_errno));
-        return -1;
+        if (errno == ENOTTY || errno == 25) {
+            legacy_log("v4l2", "VIDIOC_DQBUF returned ENOTTY, switching to rtc6226 read() fallback");
+            s_use_read_fallback = 1;
+        } else {
+            legacy_log("v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, ret, errno, strerror(errno));
+            return -1;
+        }
     }
 
-    return (int32) v4l2_buf.bytesused;
+    if (!s_drained) {
+        s_drained = 1;
+        rtc6226_drain_stale_events(fd_radio);
+    }
+
+    const size_t count_param = (index > 0 && index < 10) ? (size_t) index : 1;
+
+    while (1) {
+        if (fd_radio < 0) {
+            return -1;
+        }
+        ssize_t n = read(fd_radio, buf, count_param);
+        if (n > 0) {
+            legacy_log("v4l2", "read: got %zd bytes (event=0x%02x) for buffer %zu", n, buf[0], count_param);
+            return (int32) n;
+        }
+        if (n == 0) {
+            usleep(20000);
+            continue;
+        }
+        const int saved_errno = errno;
+        if (saved_errno == EINTR) {
+            continue;
+        }
+        if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
+            usleep(20000);
+            continue;
+        }
+        legacy_log("v4l2", "read failed errno=%d (%s) count_param=%zu", saved_errno, strerror(saved_errno), count_param);
+        return -1;
+    }
 }
 
 /**
