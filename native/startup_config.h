@@ -11,6 +11,7 @@ enum class StartupRegion {
     kUnitedStates,
     kJapan,
     kJapanWide,
+    kOirt,
 };
 
 struct StartupConfig {

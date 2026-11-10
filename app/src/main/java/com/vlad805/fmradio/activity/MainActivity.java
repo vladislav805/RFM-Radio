@@ -352,6 +352,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
             }
         } else if (itemId == R.id.menu_speaker) {
+            item.setChecked(!item.isChecked());
             startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
         }
 

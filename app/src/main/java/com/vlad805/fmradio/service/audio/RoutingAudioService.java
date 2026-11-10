@@ -159,52 +159,46 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		requestForFocus(false);
 	}
 
-	@Override
-	public void setSpeakerEnabled(final boolean enabled) {
-		Log.d(TAG, "setSpeakerEnabled: enabled=" + enabled + " active=" + mIsActive);
-		mSpeakerEnabled = enabled;
-		if (mIsActive) {
-			applyRoute(true, enabled, false);
-		}
-	}
+	    public boolean isSpeakerEnabled() {
+        return mSpeakerEnabled;
+    }
+
+    @Override
+    public void setSpeakerEnabled(final boolean enabled) {
+        Log.d(TAG, "setSpeakerEnabled: enabled=" + enabled + " active=" + mIsActive);
+        mSpeakerEnabled = enabled;
+        if (mIsActive) {
+            applyRoute(true, enabled, false);
+        }
+    }
 
 	private int getCurrentVolumeDeviceType() {
 		return mSpeakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
 	}
 
-	private void applyRoute(final boolean enable, final boolean speakerEnabled, final boolean updateVolume) {
-		if (mAudioManager == null) {
-			Log.e(TAG, "applyRoute: AudioManager is null");
-			return;
-		}
+    private void applyRoute(final boolean enable, final boolean speakerEnabled, final boolean updateVolume) {
+        if (mAudioManager == null) return;
 
-		final int routeDevice = speakerEnabled ? DEVICE_OUT_SPEAKER : DEVICE_OUT_WIRED_HEADSET;
-		final int volumeDeviceType = speakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
-		final int route = enable ? (routeDevice | DEVICE_OUT_FM) : routeDevice;
-		Log.d(TAG, "applyRoute: enable=" + enable + " speaker=" + speakerEnabled + " routeDevice=" + routeDevice + " deviceOutFm=" + DEVICE_OUT_FM + " route=" + route);
-		applyFrameworkRoute(speakerEnabled);
+        try { mAudioManager.setSpeakerphoneOn(speakerEnabled); } catch (Exception ignored) {}
 
-		if (enable) {
-			final String fmStatus = mAudioManager.getParameters("fm_status");
-			Log.d(TAG, "applyRoute: fm_status=" + fmStatus);
-			if (fmStatus != null && fmStatus.contains("1")) {
-				// AudioManager routing parameters use AudioSystem.DEVICE_OUT_* masks, not AudioDeviceInfo.TYPE_* constants.
-				final int resetRoute = DEVICE_OUT_WIRED_HEADSET | DEVICE_OUT_FM;
-				Log.d(TAG, "applyRoute: FM hardwareLoopback already active, resetting via fm_routing=" + resetRoute);
-				sendAudioParameter("fm_routing", resetRoute);
-			}
-			if (updateVolume) {
-				applyVolume(volumeDeviceType);
-			}
-			sendAudioParameter("fm_mute", 0);
-			sendAudioParameter("fm_routing", route);
-			sendAudioParameter("handle_fm", route);
-			return;
-		}
+        final int routeDevice = speakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
+        final int route = routeDevice | DEVICE_OUT_FM;
 
-		sendAudioParameter("fm_routing", route);
-		sendAudioParameter("handle_fm", route);
-	}
+        if (enable) {
+            // Копируем поведение стокового приложения Sony: заглушить -> сменить -> включить звук
+            sendAudioParameter("fm_mute", 1);
+            sendAudioParameter("fm_routing", route);
+            sendAudioParameter("handle_fm", route);
+            
+            applyVolume(routeDevice);
+            
+            sendAudioParameter("fm_mute", 0);
+        } else {
+            sendAudioParameter("fm_mute", 1);
+            sendAudioParameter("fm_routing", routeDevice);
+            sendAudioParameter("handle_fm", routeDevice);
+        }
+    }
 
 	private void applyFrameworkRoute(final boolean speakerEnabled) {
 		try {
@@ -226,16 +220,16 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		}
 	}
 
-	private void applyVolume(final int device) {
-		try {
-			final int volumeIndex = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-			final float volume = resolveMusicStreamGain(volumeIndex, device);
-			Log.d(TAG, "applyVolume: index=" + volumeIndex + " volume=" + volume);
-			sendAudioParameter("fm_volume", String.valueOf(volume));
-		} catch (Throwable t) {
-			Log.e(TAG, "applyVolume failed", t);
-		}
-	}
+    private void applyVolume(final int device) {
+        try {
+            final int volumeIndex = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            final float volume = resolveMusicStreamGain(volumeIndex, device);
+            Log.d(TAG, "applyVolume: index=" + volumeIndex + " volume=" + volume);
+            sendAudioParameter("fm_volume", String.valueOf(volume));
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to apply volume", t);
+        }
+    }
 
 	private float resolveMusicStreamGain(final int volumeIndex, final int device) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
