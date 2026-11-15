@@ -198,6 +198,7 @@ radio_state_patch_t radio_state_patch_empty(void) {
 
     patch.frequency_khz = RADIO_PATCH_ABSENT_INT;
     patch.ps = patch.rt = patch.pi = patch.country = nullptr;
+    patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = nullptr;
     patch.pty = RADIO_PATCH_ABSENT_INT;
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;

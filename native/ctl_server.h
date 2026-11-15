@@ -22,6 +22,9 @@ typedef struct {
     int af_count;
     int stereo;
     int rmssi;
+    const char *rt_plus_title;
+    const char *rt_plus_artist;
+    const char *rt_plus_album;
 } radio_state_patch_t;
 
 typedef struct {

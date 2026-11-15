@@ -21,6 +21,15 @@ constexpr int kSearchEntrySize = 2;
 // ECC payload (RDS group 1A) as delivered by the HAL ext_country_code_cb.
 constexpr int kEccPayloadSize = 12;
 
+// HAL RT+ payload size delivered by vendor rt_plus_update_cb.
+constexpr int kHalRtPlusPayloadSize = 15;
+
+// Legacy RT+ payload header size delivered by kernel V4L2 kTavaruaBufRtPlus.
+constexpr int kLegacyRtPlusHeaderSize = 2;
+
+// Legacy RT+ tag triplet size (content_type, start, length).
+constexpr int kLegacyRtPlusTripletSize = 3;
+
 // Program Service names are carried as fixed 8-byte blocks after the shared header.
 constexpr int kPsBlockSize = 8;
 
@@ -426,4 +435,164 @@ bool parse_rds_ecc_payload(
     const int pi = (payload[2] << 8) | payload[3];
     const int ecc = payload[9];
     return decode_rds_country_iso(ecc, (pi >> 12) & 0x0f, country_iso);
+}
+
+bool parse_rds_rt_plus_payload(
+        const unsigned char *payload,
+        int payload_len,
+        RdsRtPlusKind kind,
+        RdsRtPlusPayload *out
+) {
+    if (payload == nullptr || out == nullptr || payload_len <= 0) {
+        return false;
+    }
+
+    *out = RdsRtPlusPayload{};
+
+    if (kind == RdsRtPlusKind::kHal) {
+        // HAL vendor callback payload layout (15 bytes):
+        //   [0]    = payload length (must be >= 15)
+        //   [1]    = PTY (5 bits)
+        //   [2..3] = PI (16-bit big-endian)
+        //   [4]    = TA/TP header byte
+        //   [5]    = ODA group number (e.g. 0x0C = group 12A)
+        //   [6..7] = flags (byte [7]: bit 0 = item toggle, bit 1 = item running)
+        //   [8..10] = tag 1 ([8]=content_type, [9]=start char index, [10]=length-1)
+        //   [11..13]= tag 2 ([11]=content_type, [12]=start char index, [13]=length-1)
+        //   [14]   = padding
+        if (payload_len < kHalRtPlusPayloadSize) {
+            return false;
+        }
+
+        // Byte [7] bit 0 signals item toggle (new song started), bit 1 signals item running.
+        out->toggle = (payload[7] & 0x01) != 0;
+        out->running = (payload[7] & 0x02) != 0;
+
+        // Tag length in the HAL vendor payload is 0-indexed (encoded as length - 1),
+        // so +1 is applied to recover the true character count. content_type == 0
+        // indicates an empty/unused tag slot.
+        const int tag1_type = payload[8];
+        const int tag1_start = payload[9];
+        const int tag1_raw_len = payload[10];
+
+        if (tag1_type != 0 && out->tag_count < 2) {
+            out->tags[out->tag_count] = {tag1_type, tag1_start, tag1_raw_len + 1};
+            out->tag_count++;
+        }
+
+        const int tag2_type = payload[11];
+        const int tag2_start = payload[12];
+        const int tag2_raw_len = payload[13];
+
+        if (tag2_type != 0 && out->tag_count < 2) {
+            out->tags[out->tag_count] = {tag2_type, tag2_start, tag2_raw_len + 1};
+            out->tag_count++;
+        }
+
+        return true;
+    }
+
+    if (kind == RdsRtPlusKind::kLegacy) {
+        // Legacy IRIS kernel V4L2 payload layout (kTavaruaBufRtPlus):
+        //   [0]    = payload length
+        //   [1]    = RT/eRT flag (1 = eRT, 0 = RT)
+        //   [2..]  = sequence of 3-byte tag triplets:
+        //            [offset]   = content_type
+        //            [offset+1] = start char index
+        //            [offset+2] = length (already decoded by the kernel)
+        if (payload_len < kLegacyRtPlusHeaderSize) {
+            return false;
+        }
+
+        out->ert = (payload[1] != 0);
+
+        for (int offset = kLegacyRtPlusHeaderSize; offset + kLegacyRtPlusTripletSize <= payload_len; offset += kLegacyRtPlusTripletSize) {
+            const int content_type = payload[offset];
+            const int start = payload[offset + 1];
+            const int len = payload[offset + 2];
+
+            if (content_type != 0 && out->tag_count < 2) {
+                out->tags[out->tag_count] = {content_type, start, len};
+                out->tag_count++;
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool evaluate_rds_rt_plus_slices(
+        bool tags_valid,
+        const RdsRtPlusTag tags[2],
+        const unsigned char *raw_rt,
+        int raw_rt_len,
+        RdsRtPlusSlices *out
+) {
+    if (out == nullptr) {
+        return false;
+    }
+
+    *out = RdsRtPlusSlices{};
+
+    if (!tags_valid || tags == nullptr || raw_rt == nullptr || raw_rt_len <= 0) {
+        return false;
+    }
+
+    bool matched = false;
+    for (int i = 0; i < 2; ++i) {
+        const RdsRtPlusTag &tag = tags[i];
+
+        if (
+                tag.content_type == 0 ||
+                tag.start < 0 ||
+                tag.length <= 0 ||
+                tag.start + tag.length > raw_rt_len
+        ) {
+            continue;
+        }
+
+        // EBU Tech 307 content types
+        switch (tag.content_type) {
+            case 1: { // ITEM.TITLE
+                convert_ebu_latin_to_utf8(
+                    raw_rt + tag.start,
+                    tag.length,
+                    out->title,
+                    static_cast<int>(sizeof(out->title))
+                );
+                matched = true;
+                break;
+            }
+
+            case 2: { // ITEM.ALBUM
+                convert_ebu_latin_to_utf8(
+                        raw_rt + tag.start,
+                        tag.length,
+                        out->album,
+                        static_cast<int>(sizeof(out->album))
+                );
+                matched = true;
+                break;
+            }
+
+            case 4: { // ITEM.ARTIST.
+                convert_ebu_latin_to_utf8(
+                        raw_rt + tag.start,
+                        tag.length,
+                        out->artist,
+                        static_cast<int>(sizeof(out->artist))
+                );
+                matched = true;
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
+    }
+
+    return matched;
 }

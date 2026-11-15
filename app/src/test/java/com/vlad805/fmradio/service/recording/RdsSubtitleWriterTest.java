@@ -1,5 +1,7 @@
 package com.vlad805.fmradio.service.recording;
 
+import com.vlad805.fmradio.models.RtPlusInfo;
+
 import org.junit.Test;
 
 import java.io.StringWriter;
@@ -16,6 +18,12 @@ public class RdsSubtitleWriterTest {
         assertEquals("99.85 MHz [00AF]\nPS: —\nRT: —",
                 new RdsSnapshot(99850, null, "", "af").toSubtitleText());
         assertTrue(new RdsSnapshot(99800, "", "", "garbage").toSubtitleText().contains("[0000]"));
+    }
+
+    @Test
+    public void includesRtPlusTitleAndArtistInSubtitleText() {
+        assertEquals("99.8 MHz [1234]\nPS: RADIO\nRT: Bravo; Valeriy Syutkin - Stil'nyy oranjevyy galstuk\nRT+: Valeriy Syutkin — Stil'nyy oranjevyy galstuk",
+                new RdsSnapshot(99800, "RADIO", "Bravo; Valeriy Syutkin - Stil'nyy oranjevyy galstuk", "1234", new RtPlusInfo("Stil'nyy oranjevyy galstuk", "Valeriy Syutkin")).toSubtitleText());
     }
 
     @Test

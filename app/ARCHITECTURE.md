@@ -325,8 +325,8 @@ RDS: RadioStateUpdater -> updateRds(RdsSnapshot)
   a sibling `.srt` (on Q through `MediaStore.Files` since SRT is not
   "media"); `commitToFile()` (rename with copy fallback),
   `commitToMediaStore()`.
-- `RdsSnapshot.java` — immutable {frequencyKhz, ps, rt, pi};
-  `toSubtitleText()` = "99.8 MHz [0432]\nPS: …\nRT: …" with HTML escaping
+- `RdsSnapshot.java` — immutable {frequencyKhz, ps, rt, pi, rtPlusTitle, rtPlusArtist};
+  `toSubtitleText()` = "99.8 MHz [0432]\nPS: …\nRT: …\nRT+: …" with HTML escaping
   and control/space normalization.
 - `RdsSubtitleWriter.java` — SRT cues: each snapshot change closes the
   previous cue (`HH:MM:SS,mmm --> …`); `finish(durationMillis)` closes the

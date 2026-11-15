@@ -162,7 +162,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                                 state.getFrequency(),
                                 state.getPs(),
                                 state.getRt(),
-                                state.getPi()
+                                state.getPi(),
+                                state.getRtPlus()
                         )
                 );
             }

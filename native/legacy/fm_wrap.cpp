@@ -194,7 +194,7 @@ bool process_radio_event(uint8 event_buf) {
             // Notify client about tune
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.frequency_khz = fm_storage.frequency;
-            patch.ps = patch.rt = patch.pi = patch.country = "";
+            patch.ps = patch.rt = patch.pi = patch.country = patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = "";
             patch.af_count = patch.pty = 0;
             send_radio_state_patch(&patch);
 
@@ -244,8 +244,13 @@ bool process_radio_event(uint8 event_buf) {
                 legacy_log("rds", "failed to extract RT");
                 break;
             }
+            RdsRtPlusSlices slices;
+            evaluate_legacy_rt_plus_slices(&slices);
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.rt = fm_storage.rds.radio_text;
+            patch.rt_plus_title = slices.title;
+            patch.rt_plus_artist = slices.artist;
+            patch.rt_plus_album = slices.album;
             send_radio_state_patch(&patch);
             break;
         }

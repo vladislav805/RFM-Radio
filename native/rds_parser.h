@@ -13,6 +13,25 @@ enum class RdsSearchListKind {
     kAbsoluteChannels,
 };
 
+enum class RdsRtPlusKind {
+    kHal,
+    kLegacy,
+};
+
+struct RdsRtPlusTag {
+    int content_type = 0;
+    int start = 0;
+    int length = 0;
+};
+
+struct RdsRtPlusPayload {
+    bool toggle = false;
+    bool running = false;
+    bool ert = false;
+    RdsRtPlusTag tags[2] = {};
+    int tag_count = 0;
+};
+
 constexpr int kUnknownRdsPayloadLen = -1;
 // Helium carries up to 200 bytes of AF entries, with one int32 frequency per entry.
 constexpr int kMaxRdsAfCount = 50;
@@ -97,4 +116,25 @@ bool parse_rds_ecc_payload(
         const unsigned char *payload,
         int payload_len,
         char country_iso[3]
+);
+
+struct RdsRtPlusSlices {
+    char title[256] = "";
+    char artist[256] = "";
+    char album[256] = "";
+};
+
+bool parse_rds_rt_plus_payload(
+        const unsigned char *payload,
+        int payload_len,
+        RdsRtPlusKind kind,
+        RdsRtPlusPayload *out
+);
+
+bool evaluate_rds_rt_plus_slices(
+        bool tags_valid,
+        const RdsRtPlusTag tags[2],
+        const unsigned char *raw_rt,
+        int raw_rt_len,
+        RdsRtPlusSlices *out
 );

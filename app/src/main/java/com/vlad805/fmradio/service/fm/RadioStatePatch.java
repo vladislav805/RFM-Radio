@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.fm;
 import android.content.Intent;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.models.RtPlusInfo;
 
 public final class RadioStatePatch {
     private Integer frequency;
@@ -14,6 +15,7 @@ public final class RadioStatePatch {
     private int[] af;
     private Boolean stereo;
     private Integer rmssi;
+    private RtPlusInfo rtPlus;
 
     public Integer getFrequency() {
         return frequency;
@@ -87,8 +89,27 @@ public final class RadioStatePatch {
         this.rmssi = rmssi;
     }
 
+    public RtPlusInfo getRtPlus() {
+        return rtPlus;
+    }
+
+    public void setRtPlus(final RtPlusInfo rtPlus) {
+        this.rtPlus = rtPlus;
+    }
+
     public boolean isEmpty() {
-        return frequency == null && ps == null && rt == null && pi == null && country == null && pty == null && af == null && stereo == null && rmssi == null;
+        return (
+                frequency == null &&
+                ps == null &&
+                rt == null &&
+                pi == null &&
+                country == null &&
+                pty == null &&
+                af == null &&
+                stereo == null &&
+                rmssi == null &&
+                rtPlus == null
+        );
     }
 
     public Intent toIntent(final String action) {
@@ -128,6 +149,12 @@ public final class RadioStatePatch {
 
         if (rmssi != null) {
             intent.putExtra(C.Key.RMSSI, rmssi);
+        }
+
+        if (rtPlus != null) {
+            intent.putExtra(C.Key.RT_PLUS_TITLE, rtPlus.getTitle());
+            intent.putExtra(C.Key.RT_PLUS_ARTIST, rtPlus.getArtist());
+            intent.putExtra(C.Key.RT_PLUS_ALBUM, rtPlus.getAlbum());
         }
 
         return intent;

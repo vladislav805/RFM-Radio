@@ -1,5 +1,6 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
+#include "../ctl_server.h"
 #include "../rds_parser.h"
 #include "../rmssi.h"
 #include "../fm_v4l2_controls.h"
@@ -24,14 +25,8 @@ constexpr int kMaxTagCodes = 64;
 
 extern fm_current_storage fm_storage;
 
-struct LegacyRtPlusTag {
-    int content_type = 0;
-    int start = 0;
-    int len = 0;
-};
-
 bool g_rt_plus_tags_valid = false;
-LegacyRtPlusTag g_rt_plus_tags[2];
+RdsRtPlusTag g_rt_plus_tags[2];
 
 // RAW (pre-UTF-8-conversion) EBU Latin RT bytes of the latest RT event.
 // RT+ tag start/len indices refer to these raw characters, not to the UTF-8
@@ -71,20 +66,24 @@ void log_rt_plus_slices() {
     }
 
     const int rt_len = g_rt_raw_text_len;
-    for (const LegacyRtPlusTag &tag : g_rt_plus_tags) {
+    for (const RdsRtPlusTag &tag : g_rt_plus_tags) {
         if (tag.content_type == 0) {
             continue;
         }
 
-        // tag.start/tag.len are indices into the RAW EBU Latin RT buffer, not
+        // tag.start/tag.length are indices into the RAW EBU Latin RT buffer, not
         // the UTF-8 text. Slice raw bytes and convert only the slice.
-        if (tag.start >= 0 && tag.len > 0 && tag.start + tag.len <= rt_len) {
+        if (
+                tag.start >= 0 &&
+                tag.length > 0 &&
+                tag.start + tag.length <= rt_len
+        ) {
             char text[65 * 3 + 1];
-            convert_ebu_latin_to_utf8(g_rt_raw_text + tag.start, tag.len, text, static_cast<int>(sizeof(text)));
+            convert_ebu_latin_to_utf8(g_rt_raw_text + tag.start, tag.length, text, static_cast<int>(sizeof(text)));
             legacy_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
         } else {
             legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
-                    rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.len, rt_len);
+                    rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.length, rt_len);
         }
     }
 }
@@ -93,6 +92,16 @@ void clear_rt_plus_tags() {
     g_rt_plus_tags_valid = false;
     g_rt_plus_tags[0] = {};
     g_rt_plus_tags[1] = {};
+}
+
+void evaluate_legacy_rt_plus_slices(RdsRtPlusSlices *out) {
+    evaluate_rds_rt_plus_slices(
+            g_rt_plus_tags_valid,
+            g_rt_plus_tags,
+            g_rt_raw_text,
+            g_rt_raw_text_len,
+            out
+    );
 }
 
 /**
@@ -630,24 +639,22 @@ bool extract_rt_plus() {
     const int rt_ert_flag = buf[1];
     legacy_log("rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
 
-    // Legacy IRIS V4L2 already converts the raw RT+ RDS group into a compact
-    // buffer: [0]=length, [1]=RT/eRT flag, [2..]=triplets(content,start,len).
-    // Unlike the HAL callback payload, tag lengths are already decoded here.
     clear_rt_plus_tags();
-    int tag_index = 0;
-    for (int offset = 2; offset + 2 < payload_len; offset += 3) {
-        const int content_type = buf[offset];
-        const int start = buf[offset + 1];
-        const int len = buf[offset + 2];
+    RdsRtPlusPayload parsed;
+    if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kLegacy, &parsed)) {
+        g_rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
+        g_rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
+        g_rt_plus_tags_valid = parsed.tag_count > 0;
+        log_rt_plus_slices();
 
-        if (tag_index < 2) {
-            g_rt_plus_tags[tag_index] = {content_type, start, len};
-            tag_index++;
-        }
+        RdsRtPlusSlices slices;
+        evaluate_legacy_rt_plus_slices(&slices);
+        radio_state_patch_t patch = radio_state_patch_empty();
+        patch.rt_plus_title = slices.title;
+        patch.rt_plus_artist = slices.artist;
+        patch.rt_plus_album = slices.album;
+        send_radio_state_patch(&patch);
     }
-
-    g_rt_plus_tags_valid = tag_index > 0;
-    log_rt_plus_slices();
 
     return TRUE;
 }

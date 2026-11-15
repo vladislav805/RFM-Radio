@@ -113,7 +113,7 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   → `updateRds(RdsSnapshot)` → `PcmRecorderSession` →
   `RecordService.recordRds` → `RdsSubtitleWriter` (one cue per snapshot
   change, PCM-relative times). `RdsSnapshot` is an immutable
-  {frequencyKhz, ps, rt, pi} value; deletion via notification also removes
+  {frequencyKhz, ps, rt, pi, rtPlusTitle, rtPlusArtist} value; deletion via notification also removes
   the SRT file.
 - WAV: 44-byte header patched on stop. MP3: manual ID3v2.3 tag.
 

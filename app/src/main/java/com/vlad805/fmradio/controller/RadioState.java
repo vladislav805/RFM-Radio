@@ -3,6 +3,8 @@ package com.vlad805.fmradio.controller;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.vlad805.fmradio.models.RtPlusInfo;
+
 /**
  * A class that stores the current state of the radio tuner, audio service and other
  * parameters.
@@ -34,6 +36,9 @@ public final class RadioState implements Parcelable {
 
     // RT - Radio Text
     private String rt = "";
+
+    // RT+ Metadata
+    private RtPlusInfo rtPlus = RtPlusInfo.EMPTY;
 
     // Stereo - is stereo audio?
     private boolean stereo;
@@ -110,12 +115,21 @@ public final class RadioState implements Parcelable {
         this.rt = rt;
     }
 
+    public RtPlusInfo getRtPlus() {
+        return rtPlus;
+    }
+
+    void setRtPlus(final RtPlusInfo rtPlus) {
+        this.rtPlus = rtPlus != null ? rtPlus : RtPlusInfo.EMPTY;
+    }
+
     void clear() {
         pi = "";
         country = "";
         pty = 0;
         ps = "";
         rt = "";
+        rtPlus = RtPlusInfo.EMPTY;
         stereo = false;
         rmssi = RMSSI_UNKNOWN;
     }
@@ -169,7 +183,7 @@ public final class RadioState implements Parcelable {
         this.forceSpeaker = forceSpeaker;
     }
 
-    protected RadioState(final Parcel in) {
+    RadioState(final Parcel in) {
         status = (TunerStatus) in.readValue(TunerStatus.class.getClassLoader());
         frequency = in.readInt();
         pi = in.readString();
@@ -182,6 +196,8 @@ public final class RadioState implements Parcelable {
         recording = in.readInt() > 0;
         recordingStarted = in.readLong();
         forceSpeaker = in.readInt() > 0;
+        final RtPlusInfo parsedRtPlus = in.readTypedObject(RtPlusInfo.CREATOR);
+        rtPlus = parsedRtPlus != null ? parsedRtPlus : RtPlusInfo.EMPTY;
     }
 
     @Override
@@ -203,6 +219,7 @@ public final class RadioState implements Parcelable {
         dest.writeInt(recording ? 1 : 0);
         dest.writeLong(recordingStarted);
         dest.writeInt(forceSpeaker ? 1 : 0);
+        dest.writeTypedObject(rtPlus, flags);
     }
 
     public static final Parcelable.Creator<RadioState> CREATOR = new Parcelable.Creator<RadioState>() {

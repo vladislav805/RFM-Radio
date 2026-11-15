@@ -2,7 +2,6 @@ package com.vlad805.fmradio.view;
 
 import android.content.Context;
 import android.graphics.Typeface;
-import android.view.View;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.LinearLayout;
@@ -13,6 +12,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioState;
+import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.preferences.BandUtils;
 import net.grandcentrix.tray.AppPreferences;
 
@@ -70,7 +70,13 @@ public class RadioUIView extends LinearLayout {
 
 	public final void setRadioState(final RadioState state) {
 		mRdsPs.setText(state.getPs());
-		mRdsRt.setText(state.getRt());
+
+		final String rtText = state.getRt() != null ? state.getRt() : "";
+		final RtPlusInfo rtPlus = state.getRtPlus();
+		final String rtPlusText = rtPlus != null ? rtPlus.getFormattedText() : "";
+
+		final String displayText = !rtPlusText.isEmpty() ? rtPlusText : rtText;
+		mRdsRt.setText(displayText);
 
 		final int region = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
 		mLastPtyText = UtilsLocalization.getProgramType(state.getPty(), region);

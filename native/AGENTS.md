@@ -87,7 +87,7 @@ frequency outside the region are rejected (`ERR_IVD_CFG`). Other numeric
 commands go through `atoi` — invalid text silently becomes zero.
 
 Events: partial `state` patches (frequency, stereo, rmssi, ps, rt, pi,
-country, pty, af — only changed fields, deduplicated in `ctl_server`),
+country, pty, af, rt_plus — only changed fields, deduplicated in `ctl_server`),
 `search_done` (sorted kHz array, at most 64 stations), and `disabled`. No
 `enabled` event is sent; Java treats the `enable` response as completion.
 PS/RT text is UTF-8: `rds_parser.cpp` converts raw EBU Latin G0

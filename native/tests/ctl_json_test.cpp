@@ -8,6 +8,7 @@ radio_state_patch_t make_empty_patch() {
     radio_state_patch_t patch;
 
     patch.ps = patch.rt = patch.pi = patch.country = nullptr;
+    patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = nullptr;
 
     patch.frequency_khz = patch.pty = patch.af_count = patch.stereo = RADIO_PATCH_ABSENT_INT;
     patch.rmssi = RADIO_PATCH_ABSENT_RMSSI;
@@ -126,6 +127,30 @@ TEST(CtlJsonTest, BuildsAndClearsCountryPatch) {
     patch.country = "";
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
     EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"country\":\"\"}}");
+}
+
+TEST(CtlJsonTest, BuildsAndClearsRtPlusPatch) {
+    RadioStateJsonCache cache;
+    radio_state_patch_t patch = make_empty_patch();
+    patch.rt_plus_title = "Stil'nyy oranjevyy galstuk";
+    patch.rt_plus_artist = "Valeriy Syutkin";
+    patch.rt_plus_album = "Radio Hits";
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"Stil'nyy oranjevyy galstuk\",\"artist\":\"Valeriy Syutkin\",\"album\":\"Radio Hits\"}}}");
+
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_EQ(cache.rt_plus_title, "Stil'nyy oranjevyy galstuk");
+    EXPECT_EQ(cache.rt_plus_artist, "Valeriy Syutkin");
+    EXPECT_EQ(cache.rt_plus_album, "Radio Hits");
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+
+    patch.rt_plus_title = "";
+    patch.rt_plus_artist = "";
+    patch.rt_plus_album = "";
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"\",\"artist\":\"\",\"album\":\"\"}}}");
 }
 
 TEST(CtlJsonTest, BuildsAfPatch) {

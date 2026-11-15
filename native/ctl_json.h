@@ -19,6 +19,9 @@ struct RadioStateJsonCache {
     int af_count = RADIO_PATCH_ABSENT_INT;
     int stereo = RADIO_PATCH_ABSENT_INT;
     int rmssi = RADIO_PATCH_ABSENT_RMSSI;
+    std::string rt_plus_title;
+    std::string rt_plus_artist;
+    std::string rt_plus_album;
 };
 
 std::string build_native_event_json(const char *type);

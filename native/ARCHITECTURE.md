@@ -596,8 +596,8 @@ callback and calibrating vendor-specific values before exposing them in UI.
 ### HAL RDS and Audio
 
 Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
-App-facing state includes PS, RT, PI, PTY, AF, stereo, and the country decoded
-from ECC plus the PI country nibble. RT+ remains diagnostic/logging data.
+App-facing state includes PS, RT, PI, PTY, AF, stereo, country decoded
+from ECC plus the PI country nibble, and RT+ item title/artist (sliced against raw RT).
 
 The ECC callback (`ext_country_code_cb`) receives the 12-byte RDS group 1A
 payload where `[4]` is the firmware TA/TP header byte and `[5]` is the 1A
@@ -759,8 +759,8 @@ Frequencies retain their native kHz precision.
 ### Legacy RDS and Disable
 
 Legacy configures processed RDS/RBDS groups, raw group masks, data buffers, and
-PS-all behavior. PS, RT, PI, PTY, and AF are forwarded. RT+ and ERT are parsed
-or logged but are not represented in the Android state protocol.
+PS-all behavior. PS, RT, PI, PTY, AF, and RT+ item title/artist (sliced against raw RT)
+are forwarded to the client. ERT is logged for diagnostics.
 
 The verified msm8953 IRIS kernel interface does not expose ECC to userspace.
 Its HCI dispatcher drops `HCI_EV_EXT_COUNTRY_CODE` (`0x17`), while raw RDS
@@ -795,8 +795,11 @@ terminator meaning. The conversion runs AFTER the raw-byte post-processing
 0xff vendor padding for RT only) because 0xff is vendor padding
 that would otherwise look like a UTF-8 lead byte. `RdsTextPayload::text` is
 UTF-8 with `text_len` in UTF-8 bytes; `raw_text` keeps the pre-conversion
-bytes because RT+ tag indices refer to raw characters. RT+ slice logging
-(both backends) slices the raw buffer and converts only the slice.
+bytes because RT+ tag start/length indices refer to raw EBU Latin G0 byte offsets.
+Slicing MUST be performed in C++ on `raw_text` before UTF-8 conversion because
+EBU Latin G0 byte indices do not align with UTF-8 / Java UTF-16 character indices
+when non-ASCII characters or low-byte aliases are present. Both backends slice
+the raw buffer and convert only the slice (`evaluate_rds_rt_plus_slices`).
 
 The Java receiver trims PS/RT and replaces newlines with spaces. It rejects
 non-positive frequency and negative PTY/array entries.

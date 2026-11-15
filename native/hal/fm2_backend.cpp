@@ -45,12 +45,6 @@ constexpr int kDefaultSignalThreshold = -100;
 // sweeping across the entire frequency range, it stops at each station found and pauses for N seconds
 constexpr int kDefaultSeekDwell = 2;
 
-struct RtpTag {
-    int content_type = 0;
-    int start = 0;
-    int length = 0;
-};
-
 struct AudioState {
     bool stereo = true;
     bool mode_valid = false;
@@ -121,7 +115,7 @@ struct RuntimeState {
     char current_rt[65] = "";
     int current_rt_len = 0;
     bool rt_plus_tags_valid = false;
-    RtpTag rt_plus_tags[2];
+    RdsRtPlusTag rt_plus_tags[2];
     char last_error[128] = "";
     pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -210,7 +204,7 @@ void log_rt_plus_slices_locked() {
         return;
     }
 
-    for (const RtpTag &tag : g_state.rt_plus_tags) {
+    for (const RdsRtPlusTag &tag : g_state.rt_plus_tags) {
         if (tag.content_type == 0) {
             continue;
         }
@@ -232,6 +226,16 @@ void log_rt_plus_slices_locked() {
         );
         hal_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
     }
+}
+
+void evaluate_rt_plus_slices_locked(RdsRtPlusSlices *out) {
+    evaluate_rds_rt_plus_slices(
+            g_state.rt_plus_tags_valid,
+            g_state.rt_plus_tags,
+            reinterpret_cast<const unsigned char *>(g_state.current_rt),
+            g_state.current_rt_len,
+            out
+    );
 }
 
 bool vendor_set(int id, int value, const char *message) {
@@ -459,32 +463,33 @@ void rt_plus_update_cb(char *payload) {
     char dump[3 * 32 + 1];
     format_hex_dump(payload, len, dump, sizeof(dump));
 
-    if (len >= 15) {
+    RdsRtPlusPayload parsed;
+    if (parse_rds_rt_plus_payload(reinterpret_cast<const unsigned char *>(payload), len, RdsRtPlusKind::kHal, &parsed)) {
         const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
         const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
         const int flags = (static_cast<unsigned char>(payload[4]) << 24) |
                 (static_cast<unsigned char>(payload[5]) << 16) |
                 (static_cast<unsigned char>(payload[6]) << 8) |
                 static_cast<unsigned char>(payload[7]);
-        const int tag1_type = static_cast<unsigned char>(payload[8]);
-        const int tag1_start = static_cast<unsigned char>(payload[9]);
-        const int tag1_len = static_cast<unsigned char>(payload[10]);
-        const int tag2_type = static_cast<unsigned char>(payload[11]);
-        const int tag2_start = static_cast<unsigned char>(payload[12]);
-        const int tag2_len = static_cast<unsigned char>(payload[13]);
 
+        RdsRtPlusSlices slices;
         pthread_mutex_lock(&g_state.lock);
-        g_state.rt_plus_tags[0] = {tag1_type, tag1_start, tag1_type == 0 ? 0 : tag1_len + 1};
-        g_state.rt_plus_tags[1] = {tag2_type, tag2_start, tag2_type == 0 ? 0 : tag2_len + 1};
-        g_state.rt_plus_tags_valid = true;
+        g_state.rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
+        g_state.rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
+        g_state.rt_plus_tags_valid = parsed.tag_count > 0;
         log_rt_plus_slices_locked();
+        evaluate_rt_plus_slices_locked(&slices);
         pthread_mutex_unlock(&g_state.lock);
 
-        hal_log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x tag1=(ct=%d,start=%d,len=%d) tag2=(ct=%d,start=%d,len=%d) data=%s%s",
-                len, pi, pty, flags,
-                tag1_type, tag1_start, tag1_type == 0 ? 0 : tag1_len + 1,
-                tag2_type, tag2_start, tag2_type == 0 ? 0 : tag2_len + 1,
+        hal_log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x toggle=%d running=%d tags=%d data=%s%s",
+                len, pi, pty, flags, parsed.toggle, parsed.running, parsed.tag_count,
                 dump, len > 32 ? " ..." : "");
+
+        radio_state_patch_t patch = radio_state_patch_empty();
+        patch.rt_plus_title = slices.title;
+        patch.rt_plus_artist = slices.artist;
+        patch.rt_plus_album = slices.album;
+        send_radio_state_patch(&patch);
         return;
     }
 
@@ -715,7 +720,7 @@ void tune_cb(int freq) {
     pthread_mutex_unlock(&g_state.lock);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.frequency_khz = freq;
-    patch.ps = patch.rt = patch.pi = patch.country = "";
+    patch.ps = patch.rt = patch.pi = patch.country = patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = "";
     patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
 
@@ -843,6 +848,7 @@ void rt_update_cb(char *rt) {
         return;
     }
 
+    RdsRtPlusSlices slices;
     pthread_mutex_lock(&g_state.lock);
     // Keep the RAW EBU Latin RT bytes: RT+ tag indices refer to raw characters,
     // and the raw buffer is what log_rt_plus_slices_locked() slices.
@@ -850,11 +856,15 @@ void rt_update_cb(char *rt) {
     memcpy(g_state.current_rt, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
     g_state.current_rt[parsed.raw_text_len] = '\0';
     log_rt_plus_slices_locked();
+    evaluate_rt_plus_slices_locked(&slices);
     pthread_mutex_unlock(&g_state.lock);
 
     hal_log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rt = parsed.text;
+    patch.rt_plus_title = slices.title;
+    patch.rt_plus_artist = slices.artist;
+    patch.rt_plus_album = slices.album;
     send_radio_state_patch(&patch);
 }
 

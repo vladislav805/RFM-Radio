@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.fm.communication;
 import android.util.Log;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 
@@ -118,6 +119,14 @@ public final class NativeEventParser {
                     return null;
                 }
                 patch.setAf(af);
+            }
+
+            final JSONObject rtPlus = rds.optJSONObject("rt_plus");
+            if (rtPlus != null) {
+                final String title = rtPlus.has("title") ? sanitizeRdsText(rtPlus.optString("title", "")) : "";
+                final String artist = rtPlus.has("artist") ? sanitizeRdsText(rtPlus.optString("artist", "")) : "";
+                final String album = rtPlus.has("album") ? sanitizeRdsText(rtPlus.optString("album", "")) : "";
+                patch.setRtPlus(new RtPlusInfo(title, artist, album));
             }
         }
 

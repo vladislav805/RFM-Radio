@@ -797,3 +797,237 @@ TEST(RdsParserTest, EccRejectsUnknownCountry) {
     EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, country));
     EXPECT_STREQ(country, "");
 }
+
+TEST(RdsParserTest, ParsesHalRtPlusPayload) {
+    // HAL example capture from fm2_backend.cpp:
+    // [0]=15, [1]=PTY 7, [2..3]=PI 0x7756, [4]=TA/TP 1, [5]=ODA 0x0c, [6]=0, [7]=1 (toggle=true, running=false)
+    // [8..10]=tag1 TITLE (ct=1, start=24, raw_len=25 -> decoded 26)
+    // [11..13]=tag2 ARTIST (ct=4, start=0, raw_len=20 -> decoded 21)
+    // [14]=padding 0
+    const unsigned char payload[] = {
+            15, 0x07, 0x77, 0x56, 0x01, 0x0c, 0x00, 0x01,
+            0x01, 24, 25,
+            0x04, 0, 20,
+            0x00,
+    };
+
+    RdsRtPlusPayload out;
+    ASSERT_TRUE(parse_rds_rt_plus_payload(
+            payload,
+            sizeof(payload),
+            RdsRtPlusKind::kHal,
+            &out
+    ));
+
+    EXPECT_TRUE(out.toggle);
+    EXPECT_FALSE(out.running);
+    EXPECT_FALSE(out.ert);
+    EXPECT_EQ(out.tag_count, 2);
+
+    EXPECT_EQ(out.tags[0].content_type, 1);
+    EXPECT_EQ(out.tags[0].start, 24);
+    EXPECT_EQ(out.tags[0].length, 26);
+
+    EXPECT_EQ(out.tags[1].content_type, 4);
+    EXPECT_EQ(out.tags[1].start, 0);
+    EXPECT_EQ(out.tags[1].length, 21);
+}
+
+TEST(RdsParserTest, HalRtPlusSkipsZeroClassTags) {
+    const unsigned char payload[] = {
+            15, 0x07, 0x77, 0x56, 0x01, 0x0c, 0x00, 0x03,
+            0x00, 0, 0,
+            0x04, 0, 20,
+            0x00,
+    };
+
+    RdsRtPlusPayload out;
+    ASSERT_TRUE(parse_rds_rt_plus_payload(
+            payload,
+            sizeof(payload),
+            RdsRtPlusKind::kHal,
+            &out
+    ));
+
+    EXPECT_TRUE(out.toggle);
+    EXPECT_TRUE(out.running);
+    EXPECT_EQ(out.tag_count, 1);
+    EXPECT_EQ(out.tags[0].content_type, 4);
+    EXPECT_EQ(out.tags[0].start, 0);
+    EXPECT_EQ(out.tags[0].length, 21);
+}
+
+TEST(RdsParserTest, HalRtPlusRejectsShortPayload) {
+    const unsigned char short_payload[14] = {14};
+    RdsRtPlusPayload out;
+
+    EXPECT_FALSE(parse_rds_rt_plus_payload(
+            short_payload,
+            sizeof(short_payload),
+            RdsRtPlusKind::kHal,
+            &out
+    ));
+}
+
+TEST(RdsParserTest, ParsesLegacyRtPlusPayload) {
+    // Legacy V4L2 format: [0]=len, [1]=ert, [2..4]=triplet 1, [5..7]=triplet 2
+    const unsigned char payload[] = {
+            8, 1,
+            1, 24, 26,
+            4, 0, 21,
+    };
+
+    RdsRtPlusPayload out;
+    ASSERT_TRUE(parse_rds_rt_plus_payload(
+            payload,
+            sizeof(payload),
+            RdsRtPlusKind::kLegacy,
+            &out
+    ));
+
+    EXPECT_FALSE(out.toggle);
+    EXPECT_FALSE(out.running);
+    EXPECT_TRUE(out.ert);
+    EXPECT_EQ(out.tag_count, 2);
+
+    EXPECT_EQ(out.tags[0].content_type, 1);
+    EXPECT_EQ(out.tags[0].start, 24);
+    EXPECT_EQ(out.tags[0].length, 26);
+
+    EXPECT_EQ(out.tags[1].content_type, 4);
+    EXPECT_EQ(out.tags[1].start, 0);
+    EXPECT_EQ(out.tags[1].length, 21);
+}
+
+TEST(RdsParserTest, LegacyRtPlusSkipsZeroClassTags) {
+    const unsigned char payload[] = {
+            8, 0,
+            0, 0, 0,
+            4, 0, 21,
+    };
+
+    RdsRtPlusPayload out;
+    ASSERT_TRUE(parse_rds_rt_plus_payload(
+            payload,
+            sizeof(payload),
+            RdsRtPlusKind::kLegacy,
+            &out
+    ));
+
+    EXPECT_FALSE(out.ert);
+    EXPECT_EQ(out.tag_count, 1);
+    EXPECT_EQ(out.tags[0].content_type, 4);
+    EXPECT_EQ(out.tags[0].start, 0);
+    EXPECT_EQ(out.tags[0].length, 21);
+}
+
+TEST(RdsParserTest, LegacyRtPlusRejectsShortPayload) {
+    const unsigned char short_payload[1] = {1};
+    RdsRtPlusPayload out;
+
+    EXPECT_FALSE(parse_rds_rt_plus_payload(
+            short_payload,
+            sizeof(short_payload),
+            RdsRtPlusKind::kLegacy,
+            &out
+    ));
+}
+
+TEST(RdsParserTest, EvaluatesRtPlusSlices) {
+    const unsigned char raw_rt[] = "Valeriy Syutkin - Stil'nyy oranjevyy galstuk";
+    const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
+    const RdsRtPlusTag tags[2] = {
+            {4, 0, 15},   // ARTIST: "Valeriy Syutkin" (15 chars)
+            {1, 18, 26},  // TITLE: "Stil'nyy oranjevyy galstuk" (26 chars)
+    };
+
+    RdsRtPlusSlices slices;
+    EXPECT_TRUE(evaluate_rds_rt_plus_slices(
+            true,
+            tags,
+            raw_rt,
+            raw_rt_len,
+            &slices
+    ));
+
+    EXPECT_STREQ(slices.artist, "Valeriy Syutkin");
+    EXPECT_STREQ(slices.title, "Stil'nyy oranjevyy galstuk");
+}
+
+TEST(RdsParserTest, EvaluatesRtPlusAlbumSlices) {
+    const unsigned char raw_rt[] = "Greatest Hits";
+    const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
+    const RdsRtPlusTag tags[2] = {
+            {2, 0, 13},  // ALBUM: "Greatest Hits" (13 chars)
+            {0, 0, 0},
+    };
+
+    RdsRtPlusSlices slices;
+    EXPECT_TRUE(evaluate_rds_rt_plus_slices(
+            true,
+            tags,
+            raw_rt,
+            raw_rt_len,
+            &slices
+    ));
+
+    EXPECT_STREQ(slices.album, "Greatest Hits");
+}
+
+TEST(RdsParserTest, EvaluatesRtPlusSlicesWithMultiByteEbuCharacters) {
+    // raw EBU Latin G0 bytes:
+    // 0x82 = 'é' (2 UTF-8 bytes: 0xC3 0xA9)
+    // 0x8E = '¡' (2 UTF-8 bytes: 0xC2 0xA1)
+    // Raw text: "Café ¡Hola! - Song"
+    // Byte indices in raw EBU Latin G0:
+    //   'C'=0 'a'=1 'f'=2 'é'=3(0x82) ' '=4 '¡'=5(0x8E) 'H'=6 'o'=7 'l'=8 'a'=9 '!'=10
+    //   ' '=11 '-'=12 ' '=13
+    //   'S'=14 'o'=15 'n'=16 'g'=17
+    //
+    // Tag for TITLE starts at raw byte 14 ("Song", 4 bytes).
+    // Note that after UTF-8 conversion, "Café ¡Hola! - " takes 16 UTF-8 bytes!
+    // A naïve UTF-8 substring at offset 14 would cut into "¡Hola!".
+    // Slicing the raw EBU buffer at byte offset 14 correctly yields "Song".
+    const unsigned char raw_rt[] = {
+            'C', 'a', 'f', 0x82, ' ', 0x8E, 'H', 'o', 'l', 'a', '!',
+            ' ', '-', ' ',
+            'S', 'o', 'n', 'g'
+    };
+    const int raw_rt_len = static_cast<int>(sizeof(raw_rt));
+    const RdsRtPlusTag tags[2] = {
+            {1, 14, 4},  // TITLE: "Song" starting at raw byte index 14
+            {0, 0, 0},
+    };
+
+    RdsRtPlusSlices slices;
+    EXPECT_TRUE(evaluate_rds_rt_plus_slices(
+            true,
+            tags,
+            raw_rt,
+            raw_rt_len,
+            &slices
+    ));
+
+    EXPECT_STREQ(slices.title, "Song");
+}
+
+TEST(RdsParserTest, EvaluatesRtPlusSlicesClearsWhenInvalidOrOutOfRange) {
+    const unsigned char raw_rt[] = "Short RT";
+    const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
+    const RdsRtPlusTag out_of_bounds_tags[2] = {
+            {1, 0, 50},  // TITLE: length 50 exceeds raw_rt_len 8
+            {4, 0, 0},   // ARTIST: invalid length 0
+    };
+
+    RdsRtPlusSlices slices;
+    EXPECT_FALSE(evaluate_rds_rt_plus_slices(
+            true,
+            out_of_bounds_tags,
+            raw_rt,
+            raw_rt_len,
+            &slices
+    ));
+
+    EXPECT_STREQ(slices.title, "");
+    EXPECT_STREQ(slices.artist, "");
+}

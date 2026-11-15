@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.models.RtPlusInfo;
 
 /**
  * Broadcast receiver, which, according to updates received from the tuner, changes
@@ -27,6 +28,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
     public static final int SET_SPEAKER = 1 << 8;
     public static final int SET_COUNTRY = 1 << 9;
     public static final int SET_RMSSI = 1 << 10;
+    public static final int SET_RT_PLUS = 1 << 11;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
@@ -115,7 +117,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
             case C.Event.DISABLED: {
                 mState.setStatus(TunerStatus.IDLE);
                 mState.clear();
-                mode = SET_STATUS | SET_RMSSI | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO;
+                mode = SET_STATUS | SET_RMSSI | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS;
                 break;
             }
 
@@ -198,6 +200,17 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 if (intent.hasExtra(C.Key.RMSSI)) {
                     mState.setRmssi(intent.getIntExtra(C.Key.RMSSI, RadioState.RMSSI_UNKNOWN));
                     mode |= SET_RMSSI;
+                }
+                if (
+                        intent.hasExtra(C.Key.RT_PLUS_TITLE) ||
+                        intent.hasExtra(C.Key.RT_PLUS_ARTIST) ||
+                        intent.hasExtra(C.Key.RT_PLUS_ALBUM)
+                ) {
+                    final String title = intent.getStringExtra(C.Key.RT_PLUS_TITLE);
+                    final String artist = intent.getStringExtra(C.Key.RT_PLUS_ARTIST);
+                    final String album = intent.getStringExtra(C.Key.RT_PLUS_ALBUM);
+                    mState.setRtPlus(new RtPlusInfo(title, artist, album));
+                    mode |= SET_RT_PLUS;
                 }
                 break;
             }

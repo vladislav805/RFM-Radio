@@ -159,6 +159,25 @@ bool build_radio_state_patch_json(
         append_field(rds, first_rds, "pty", std::to_string(patch->pty));
     }
 
+    std::string rt_plus;
+    bool first_rtp = true;
+
+    if (patch->rt_plus_title != nullptr && cache.rt_plus_title != patch->rt_plus_title) {
+        append_field(rt_plus, first_rtp, "title", json_escape(patch->rt_plus_title));
+    }
+
+    if (patch->rt_plus_artist != nullptr && cache.rt_plus_artist != patch->rt_plus_artist) {
+        append_field(rt_plus, first_rtp, "artist", json_escape(patch->rt_plus_artist));
+    }
+
+    if (patch->rt_plus_album != nullptr && cache.rt_plus_album != patch->rt_plus_album) {
+        append_field(rt_plus, first_rtp, "album", json_escape(patch->rt_plus_album));
+    }
+
+    if (!rt_plus.empty()) {
+        append_field(rds, first_rds, "rt_plus", "{" + rt_plus + "}");
+    }
+
     if (patch->af_count != RADIO_PATCH_ABSENT_INT && patch->af_count < 0) {
         return false;
     }
@@ -241,5 +260,17 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
 
     if (patch->rmssi != RADIO_PATCH_ABSENT_RMSSI) {
         cache->rmssi = patch->rmssi;
+    }
+
+    if (patch->rt_plus_title != nullptr) {
+        cache->rt_plus_title = patch->rt_plus_title;
+    }
+
+    if (patch->rt_plus_artist != nullptr) {
+        cache->rt_plus_artist = patch->rt_plus_artist;
+    }
+
+    if (patch->rt_plus_album != nullptr) {
+        cache->rt_plus_album = patch->rt_plus_album;
     }
 }
