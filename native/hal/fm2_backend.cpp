@@ -115,6 +115,9 @@ struct RuntimeState {
     unsigned char last_rt_plus[15] = {};
     bool last_ecc_valid = false;
     unsigned char last_ecc[12] = {};
+    // RAW (pre-UTF-8-conversion) EBU Latin RT bytes. RT+ tag start/length
+    // indices refer to these raw characters, not to the UTF-8 text sent to
+    // the app. Load-bearing for RT+ slicing (issue #103).
     char current_rt[65] = "";
     int current_rt_len = 0;
     bool rt_plus_tags_valid = false;
@@ -211,15 +214,22 @@ void log_rt_plus_slices_locked() {
         if (tag.content_type == 0) {
             continue;
         }
+
+        // tag.start/tag.length are indices into the RAW EBU Latin RT buffer,
+        // not the UTF-8 text. Slice raw bytes and convert only the slice.
         if (tag.start < 0 || tag.length <= 0 || tag.start + tag.length > g_state.current_rt_len) {
             hal_log("rds", "rt+ slice out of range ct=%d start=%d len=%d rt_len=%d",
                     tag.content_type, tag.start, tag.length, g_state.current_rt_len);
             continue;
         }
 
-        char text[65];
-        memcpy(text, g_state.current_rt + tag.start, static_cast<size_t>(tag.length));
-        text[tag.length] = '\0';
+        char text[65 * 3 + 1];
+        convert_ebu_latin_to_utf8(
+                reinterpret_cast<const unsigned char *>(g_state.current_rt + tag.start),
+                tag.length,
+                text,
+                static_cast<int>(sizeof(text))
+        );
         hal_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
     }
 }
@@ -819,8 +829,11 @@ void rt_update_cb(char *rt) {
     }
 
     pthread_mutex_lock(&g_state.lock);
-    snprintf(g_state.current_rt, sizeof(g_state.current_rt), "%s", parsed.text);
-    g_state.current_rt_len = parsed.text_len;
+    // Keep the RAW EBU Latin RT bytes: RT+ tag indices refer to raw characters,
+    // and the raw buffer is what log_rt_plus_slices_locked() slices.
+    g_state.current_rt_len = parsed.raw_text_len;
+    memcpy(g_state.current_rt, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
+    g_state.current_rt[parsed.raw_text_len] = '\0';
     log_rt_plus_slices_locked();
     pthread_mutex_unlock(&g_state.lock);
 

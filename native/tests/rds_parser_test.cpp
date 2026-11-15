@@ -122,6 +122,228 @@ TEST(RdsParserTest, TrimsRadioTextTerminatorAndVendorPadding) {
     EXPECT_STREQ(parsed.text, "Radio_Kek");
 }
 
+TEST(RdsParserTest, ConvertsEbuLatinHighBytes) {
+    const unsigned char ps_payload[] = {
+            1, 0x01, 0x00, 0x01, 0x00,
+            0x82, ' ', 0x99, ' ', 0xA9, ' ', 'F', 'M',
+    };
+    RdsTextPayload parsed;
+
+    EXPECT_TRUE(parse_rds_text_payload(
+            ps_payload,
+            sizeof(ps_payload),
+            RdsTextPayloadKind::kProgramService,
+            255,
+            &parsed
+    ));
+    // 0x82='é' (C3 A9), 0x99='ü' (C3 BC), 0xA9='€' (E2 82 AC).
+    EXPECT_EQ(std::string(parsed.text), std::string("é ü € FM"));
+    EXPECT_EQ(parsed.text_len, 12);
+    EXPECT_EQ(parsed.raw_text_len, 8);
+    EXPECT_EQ(parsed.raw_text[0], 0x82);
+
+    const unsigned char rt_payload[] = {
+            4, 0x01, 0x00, 0x01, 0x00,
+            'R', 0x82, 'o', 0x9A,
+    };
+
+    EXPECT_TRUE(parse_rds_text_payload(
+            rt_payload,
+            sizeof(rt_payload),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    // 0x82='é', 0x9A='ñ'.
+    EXPECT_EQ(std::string(parsed.text), std::string("Réoñ"));
+    EXPECT_EQ(parsed.text_len, 6);
+    EXPECT_EQ(parsed.raw_text_len, 4);
+}
+
+TEST(RdsParserTest, ConvertsEbuLatinAsciiRemaps) {
+    const unsigned char payload[] = {
+            1, 0x01, 0x00, 0x01, 0x00,
+            0x24, 0x5E, 0x60, 0x7E, 'A', 'B', 'C', 'D',
+    };
+    RdsTextPayload parsed;
+
+    EXPECT_TRUE(parse_rds_text_payload(
+            payload,
+            sizeof(payload),
+            RdsTextPayloadKind::kProgramService,
+            255,
+            &parsed
+    ));
+    // 0x24='¤', 0x5E='―', 0x60='‖', 0x7E='¯' in the RDS G0 set.
+    EXPECT_EQ(std::string(parsed.text), std::string("¤―‖¯ABCD"));
+    EXPECT_EQ(parsed.text_len, 14);
+}
+
+TEST(RdsParserTest, ConvertsEbuLatinLowByteAliases) {
+    const unsigned char payload[] = {
+            2, 0x01, 0x00, 0x01, 0x00,
+            0x0B, 0x0A,
+    };
+    RdsTextPayload parsed;
+
+    EXPECT_TRUE(parse_rds_text_payload(
+            payload,
+            sizeof(payload),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    // 0x00-0x1F are low-byte aliases of 0x80-0x9F (high-bit-stripped encoders):
+    // 0x0B -> alias of 0x8B = 'Ç', 0x0A -> alias of 0x8A = 'Ñ'. Never raw.
+    EXPECT_EQ(std::string(parsed.text), std::string("ÇÑ"));
+    EXPECT_EQ(parsed.text_len, 4);
+}
+
+TEST(RdsParserTest, TerminatorTrimRunsBeforeConversion) {
+    // '\r' terminates the RT and trailing 0xff vendor padding is trimmed on RAW
+    // bytes; the conversion runs afterwards, so 0xff is never seen as a UTF-8
+    // lead byte.
+    std::vector<unsigned char> payload(5 + 8, 0);
+    payload[0] = 8;
+    payload[1] = 0x01;
+    payload[2] = 0x00;
+    payload[3] = 0x01;
+    payload[5] = 'A';
+    payload[6] = 0x82;
+    payload[7] = '\r';
+    payload[8] = 0x99;
+    payload[9] = 0xff;
+    payload[10] = 0xff;
+    payload[11] = 0xff;
+    payload[12] = 0xff;
+
+    RdsTextPayload parsed;
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload.data(),
+            payload.size(),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.raw_text_len, 2);
+    EXPECT_EQ(std::string(parsed.text), std::string("Aé"));
+    EXPECT_EQ(parsed.text_len, 3);
+}
+
+TEST(RdsParserTest, CapsConvertedOutputBytes) {
+    // 64 raw characters, each converting to a 3-byte UTF-8 sequence (€).
+    std::vector<unsigned char> payload(5 + 64, 0xA9);
+    payload[0] = 64;
+    payload[1] = 0x01;
+    payload[2] = 0x00;
+    payload[3] = 0x01;
+
+    RdsTextPayload parsed;
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload.data(),
+            payload.size(),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.raw_text_len, 64);
+    EXPECT_EQ(parsed.text_len, 192);
+    EXPECT_EQ(parsed.text[192], '\0');
+
+    // Clamped by max_text_len (an OUTPUT byte limit): 33 x 3 = 99 bytes fit.
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload.data(),
+            payload.size(),
+            RdsTextPayloadKind::kRadioText,
+            100,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.text_len, 99);
+    EXPECT_EQ(parsed.text[99], '\0');
+}
+
+TEST(RdsParserTest, ConvertsEbuLatinRareCodePoints) {
+    // Positions that are easy to mistranscribe; guard the table against
+    // regressions: 0x9D='ǧ', 0xA4='Ǧ', 0xDF='ŀ', and the 0x0E alias of
+    // 0x8E = '¡' (the alias row shifts around the 0x0D terminator exception).
+    const unsigned char payload[] = {
+            4, 0x01, 0x00, 0x01, 0x00,
+            0x9D, 0xA4, 0xDF, 0x0E,
+    };
+    RdsTextPayload parsed;
+
+    EXPECT_TRUE(parse_rds_text_payload(
+            payload,
+            sizeof(payload),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(std::string(parsed.text), std::string("ǧǦŀ¡"));
+    EXPECT_EQ(parsed.text_len, 8);
+}
+
+TEST(RdsParserTest, TrimsRadioTextNullPadding) {
+    // Stations that pad unused RT with NULs instead of 0xff/spaces: trailing
+    // 0x00 is padding on raw bytes, so it must not surface as 'a'-with-acute
+    // low-byte-alias characters after the conversion.
+    std::vector<unsigned char> payload(5 + 12, 0x00);
+    payload[0] = 12;
+    payload[1] = 0x01;
+    payload[2] = 0x00;
+    payload[3] = 0x01;
+    const char text[] = "Hello";
+    std::copy(text, text + sizeof(text) - 1, payload.begin() + 5);
+
+    RdsTextPayload parsed;
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload.data(),
+            payload.size(),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.raw_text_len, 5);
+    EXPECT_EQ(std::string(parsed.text), std::string("Hello"));
+    EXPECT_EQ(parsed.text_len, 5);
+}
+
+TEST(RdsParserTest, TrimsProgramServiceNullPaddingButKeepsSpaces) {
+    // A broken stack may deliver unused PS block bytes as NULs instead of
+    // spaces: trailing NULs are padding and must not surface as 'a'-with-acute
+    // alias characters. Trailing SPACES are part of the station name and stay.
+    const unsigned char payload[] = {
+            1, 0x01, 0x00, 0x01, 0x00,
+            'R', 'O', 'C', 'K', 0x00, 0x00, 0x00, 0x00,
+    };
+    RdsTextPayload parsed;
+
+    ASSERT_TRUE(parse_rds_text_payload(
+            payload,
+            sizeof(payload),
+            RdsTextPayloadKind::kProgramService,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.raw_text_len, 4);
+    EXPECT_EQ(std::string(parsed.text), std::string("ROCK"));
+
+    const unsigned char padded_payload[] = {
+            1, 0x01, 0x00, 0x01, 0x00,
+            'R', 'A', 'D', 'I', 'O', ' ', ' ', ' ',
+    };
+
+    ASSERT_TRUE(parse_rds_text_payload(
+            padded_payload,
+            sizeof(padded_payload),
+            RdsTextPayloadKind::kProgramService,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(parsed.raw_text_len, 8);
+    EXPECT_EQ(std::string(parsed.text), std::string("RADIO   "));
+}
+
 TEST(RdsParserTest, AllowsEmptyRadioTextPayload) {
     const unsigned char payload[] = {0, 0x01, 0x00, 0x01, 0x00};
     RdsTextPayload parsed;

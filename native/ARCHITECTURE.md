@@ -775,6 +775,21 @@ asynchronous ownership is important during rollback and process termination.
 possible. It parses and sanitizes PS/RT, decodes HAL AF payloads, and converts
 vendor station lists.
 
+PS/RT text is delivered by both backends as raw EBU Latin G0 bytes
+(EN 50067:1998 / IEC 62106 Annex E). `parse_rds_text_payload()` converts them
+to UTF-8 through `kEbuLatinG0CodePoints` — a 256-entry Unicode code-point
+table (mirrored from redsea) with a runtime UTF-8 encoder:
+0x80–0xFF are accented/special characters, 0x24/0x5E/0x60/0x7E are remapped
+(`¤`, `―`, `‖`, `¯`), and 0x00–0x1F are mapped as low-byte aliases of
+0x80–0x9F (high-bit-stripped encoders), except 0x0D which keeps its RT
+terminator meaning. The conversion runs AFTER the raw-byte post-processing
+(`\r` truncation and trailing padding trim: NUL for both PS and RT, spaces and
+0xff vendor padding for RT only) because 0xff is vendor padding
+that would otherwise look like a UTF-8 lead byte. `RdsTextPayload::text` is
+UTF-8 with `text_len` in UTF-8 bytes; `raw_text` keeps the pre-conversion
+bytes because RT+ tag indices refer to raw characters. RT+ slice logging
+(both backends) slices the raw buffer and converts only the slice.
+
 The Java receiver trims PS/RT and replaces newlines with spaces. It rejects
 non-positive frequency and negative PTY/array entries.
 

@@ -7,8 +7,9 @@
 typedef struct {
     uint16 program_id;
     uint8 program_type;
-    char program_name[96];
-    char radio_text[64];
+    // UTF-8 converted text; sized for 64 RDS characters x 3 UTF-8 bytes + NUL.
+    char program_name[256];
+    char radio_text[256];
 } fm_rds_storage;
 
 typedef enum {

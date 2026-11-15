@@ -71,6 +71,10 @@ Events: partial `state` patches (frequency, stereo, rmssi, ps, rt, pi,
 country, pty, af — only changed fields, deduplicated in `ctl_server`),
 `search_done` (sorted kHz array, at most 64 stations), and `disabled`. No
 `enabled` event is sent; Java treats the `enable` response as completion.
+PS/RT text is UTF-8: `rds_parser.cpp` converts raw EBU Latin G0
+(EN 50067:1998 Annex E) bytes to UTF-8 before they reach JSON; raw
+pre-conversion bytes are kept in `RdsTextPayload::raw_text` because RT+ tag
+indices refer to raw characters.
 
 ## Vendor Ordering Invariants (do not reorder without device evidence)
 

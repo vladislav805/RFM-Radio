@@ -33,6 +33,13 @@ struct LegacyRtPlusTag {
 bool g_rt_plus_tags_valid = false;
 LegacyRtPlusTag g_rt_plus_tags[2];
 
+// RAW (pre-UTF-8-conversion) EBU Latin RT bytes of the latest RT event.
+// RT+ tag start/len indices refer to these raw characters, not to the UTF-8
+// text stored in fm_storage.rds.radio_text. Load-bearing for RT+ slicing
+// (issue #103).
+unsigned char g_rt_raw_text[65] = {};
+int g_rt_raw_text_len = 0;
+
 const char *rtp_content_type_name(int content_type) {
     switch (content_type) {
         case 1:
@@ -63,18 +70,20 @@ void log_rt_plus_slices() {
         return;
     }
 
-    const size_t rt_len = strlen(fm_storage.rds.radio_text);
+    const int rt_len = g_rt_raw_text_len;
     for (const LegacyRtPlusTag &tag : g_rt_plus_tags) {
         if (tag.content_type == 0) {
             continue;
         }
 
-        if (tag.start >= 0 && tag.len > 0 && tag.start + tag.len <= static_cast<int>(rt_len)) {
-            char text[65];
-            snprintf(text, sizeof(text), "%.*s", tag.len, fm_storage.rds.radio_text + tag.start);
+        // tag.start/tag.len are indices into the RAW EBU Latin RT buffer, not
+        // the UTF-8 text. Slice raw bytes and convert only the slice.
+        if (tag.start >= 0 && tag.len > 0 && tag.start + tag.len <= rt_len) {
+            char text[65 * 3 + 1];
+            convert_ebu_latin_to_utf8(g_rt_raw_text + tag.start, tag.len, text, static_cast<int>(sizeof(text)));
             legacy_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
         } else {
-            legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%zu",
+            legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
                     rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.len, rt_len);
         }
     }
@@ -579,6 +588,10 @@ bool extract_radio_text(fm_rds_storage* storage) {
     }
 
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
+    // Keep the RAW EBU Latin bytes: RT+ tag indices refer to raw characters,
+    // and g_rt_raw_text is what log_rt_plus_slices() slices.
+    g_rt_raw_text_len = parsed.raw_text_len;
+    memcpy(g_rt_raw_text, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
     legacy_log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
     log_rt_plus_slices();
 

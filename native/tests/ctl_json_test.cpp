@@ -98,6 +98,18 @@ TEST(CtlJsonTest, EscapesRdsStrings) {
     EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"ps\":\"A\\\"B\\\\C\\nD\"}}");
 }
 
+TEST(CtlJsonTest, EscapesUtf8RdsText) {
+    RadioStateJsonCache cache;
+    radio_state_patch_t patch = make_empty_patch();
+    // Multi-byte UTF-8 (RDS EBU Latin converted PS, e.g. 0x82 = é) must
+    // survive the JSON round-trip byte-for-byte without \uFFFD replacement.
+    patch.ps = "Caf\xC3\xA9 90.0";
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"ps\":\"Caf\xC3\xA9 90.0\"}}");
+}
+
 TEST(CtlJsonTest, BuildsAndClearsCountryPatch) {
     RadioStateJsonCache cache;
     radio_state_patch_t patch = make_empty_patch();

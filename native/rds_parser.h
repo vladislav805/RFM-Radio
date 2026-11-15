@@ -24,9 +24,16 @@ constexpr int kMaxRdsSearchCount = 20;
 struct RdsTextPayload {
     int pi = 0;
     int pty = 0;
+    // UTF-8 byte length of text (converted from EBU Latin G0, see below).
     int text_len = 0;
     int block_count = 0;
-    char text[120] = "";
+    // Worst case: 64 RDS characters x 3 UTF-8 bytes (e.g. 0xA9 = U+20AC) + NUL.
+    char text[256] = "";
+    // Raw EBU Latin G0 bytes after terminator/padding trim, before the UTF-8
+    // conversion. RT+ tag start/length indices refer to these bytes, NOT to
+    // the UTF-8 text (load-bearing for RT+ slicing, issue #103).
+    unsigned char raw_text[65] = {};
+    int raw_text_len = 0;
 };
 
 struct RdsAfList {
@@ -58,6 +65,11 @@ bool parse_rds_text_payload(
         int max_text_len,
         RdsTextPayload *out
 );
+
+// Converts raw RDS G0 (EBU Latin, EN 50067:1998 Annex E) bytes to UTF-8.
+// Writes at most out_size - 1 bytes into out and always NUL-terminates.
+// Returns the number of UTF-8 bytes written (excluding the NUL).
+int convert_ebu_latin_to_utf8(const unsigned char *src, int len, char *out, int out_size);
 
 bool parse_rds_af_payload(
         const unsigned char *payload,
