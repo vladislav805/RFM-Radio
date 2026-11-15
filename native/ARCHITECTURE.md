@@ -45,7 +45,7 @@ Live device verification has been performed on:
 | --- | --- | --- | --- |
 | Xiaomi Redmi 4A | Qualcomm Snapdragon 425 (MSM8937) | Android 10 (Resurrection Remix 8.6.5) | Legacy V4L2, direct no-firmware bootstrap |
 | Xiaomi Mi A1 | Qualcomm Snapdragon 625 (MSM8953) | Android 7.1.2 (AOSP) | Legacy V4L2 |
-| Xiaomi Poco X3 Pro | Qualcomm Snapdragon 860 (SM8150-AD) | Android 15 (cdDroid 11.2) | HAL/FM2 |
+| Xiaomi Poco X3 Pro | Qualcomm Snapdragon 860 (SM8150-AD) | Android 15 (crDroid 11.12) | HAL/FM2 |
 
 Treat behavior observed on these devices as evidence for the corresponding
 backend, not as a universal Qualcomm contract. Re-test hardware-sensitive
@@ -85,6 +85,7 @@ Android QualcommNative
 | `native/rds_parser.cpp` | Shared parsers for PS, RT, AF, and station lists |
 | `native/scan_result.cpp` | Shared bounded, deduplicated, sorted sequential-scan results |
 | `native/periodic_deadline.cpp` | Testable monotonic deadline arithmetic for native RMSSI polling |
+| `native/rmssi.h` | Shared signed-low-byte RMSSI decoding used by both backends |
 | `native/monotonic_clock.h` | Shared monotonic millisecond clock for native timing |
 | `native/fm_v4l2_controls.h` | Qualcomm private V4L2 control identifiers |
 | `native/frequency_format.h` | Frequency-list formatting used by logging/dedup |
@@ -113,11 +114,21 @@ Android QualcommNative
 
 | Path | Responsibility |
 | --- | --- |
+| `app/src/main/java/com/vlad805/fmradio/service/FMService.java` | Orchestrator: driver and audio construction, command intents, app broadcasts, notifications |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/IFMController.java` | Controller contract implemented by all drivers |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/IFMEventListener.java` | Event-listener registration contract |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/IFMEventPoller.java` | Poll contract; no current driver implements it (legacy of the old polled controller) |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/FMEventCallback.java` | Event callback surface implemented by `FMService` |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/communication/Request.java` | Command object with per-command timeouts (default 1000 ms) |
+| `app/src/main/java/com/vlad805/fmradio/service/fm/implementation/Empty.java` | No-op driver for unsupported devices |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/implementation/QualcommNative.java` | Unified native controller, launch and complete startup command |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/implementation/AbstractQualcommNativeController.java` | Binary installation, owned process lifecycle, public controller behavior |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/communication/NativeProcessSession.java` | Root process session, command queue, timeouts, standard-I/O readers/writer, and exit monitoring |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/communication/NativeEventParser.java` | JSON event validation and dispatch |
 | `app/src/main/java/com/vlad805/fmradio/service/fm/RadioStatePatch.java` | Java representation of partial radio state |
+
+The wider app architecture (audio routing, recording, favorites, settings)
+is documented in `app/ARCHITECTURE.md`.
 
 ## Build and Packaging
 
@@ -261,6 +272,7 @@ NUL behavior.
 | `init` | Detect and initialize backend | `ok` |
 | `enable ...` | Complete startup and initial tune | `ok` |
 | `disable` | Turn receiver off | `ok` |
+| `shutdown` | Clean up the backend and exit the command loop (alias: `exit`) | `ok` |
 | `setfreq <kHz>` | Tune to absolute frequency | `ok` |
 | `jump <direction>` | Move one configured spacing step | Numeric frequency |
 | `seekhw <direction>` | Begin hardware seek | `ok` |
@@ -295,7 +307,7 @@ Common textual errors include:
 | Error | Meaning |
 | --- | --- |
 | `ERR_IVD_FRQ` | Missing command argument |
-| `ERR_IVD_CFG` | Invalid complete config, region, or spacing |
+| `ERR_IVD_CFG` | Invalid complete config, region, or spacing; also an invalid `set_soft_mute` argument |
 | `ERR_UNK_CMD` | Empty or unknown command |
 | `ERR_UNSUPPORTED` | No backend or unsupported device |
 | `ERR_FAILED` | Generic backend operation failure |
@@ -304,10 +316,21 @@ Common textual errors include:
 
 Both `response_t.code` (as `ok`) and its `data` string are transmitted.
 
-### Asynchronous Events
+Java-side response handling details:
 
-The actual event protocol is JSON. Ignore the old `EVT_*` list in
-`native/README.md`.
+- Success is matched by a string-prefix `ok` check on the response `data`
+  field (`QualcommNative`); the JSON `ok` field is currently ignored by the
+  Java bridge.
+- The base controller's `enableImpl` in
+  `AbstractQualcommNativeController` sends a bare `enable` with no
+  parameters and is dead code: the strict parser always rejects it. Only
+  `QualcommNative.enableImpl` sends the complete seven-parameter command.
+- HAL `setFrequencyImpl` suppresses a repeated tune within 1500 ms
+  (`DUPLICATE_TUNE_WINDOW_MS`).
+- The recorder sample rate is selected by backend kind: 48000 Hz for HAL
+  and 44100 Hz for legacy (`QualcommNative.getRecorderSampleRate()`).
+
+### Asynchronous Events
 
 State is sent as partial patches:
 
@@ -668,6 +691,9 @@ RMSSI sample. Sequential full scans skip this one-shot while their scan state
 is busy; the native two-second polling supplies the next sample after scan
 completion. Both the tune event and periodic adapter path use
 `fm_command_publish_rmssi()` so decoding and state-patch behavior stay shared.
+After a runtime tune or jump, the adapter pauses RMSSI sampling for a fixed
+750 ms settle window (`kMetricSettleMs` in `legacy_backend.cpp`) so the
+metric can stabilize on the new frequency.
 
 ### Event Thread and Concurrency
 
@@ -819,6 +845,9 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 - frequency-list formatting
 - shared sequential-scan result collection
 - legacy sequential-scan state transitions
+- signed-low-byte RMSSI decoding (`tests/rmssi_test.cpp`)
+- RMSSI polling deadline arithmetic with an injected clock
+  (`tests/periodic_deadline_test.cpp`)
 
 Current host tests do not cover:
 
@@ -889,11 +918,22 @@ Use this list as a pre-change checklist:
 
 ## Documentation Caveats
 
+Agent-facing documentation layers:
+
+- `native/AGENTS.md` — dense auto-loaded summary for routine work in
+  `native/`.
+- this document — full specification for deep protocol or vendor rework.
+- `app/AGENTS.md` and `app/ARCHITECTURE.md` — the Android side,
+  including the bridge classes above.
+
 Existing README files are partially stale:
 
 - `native/legacy/README.md` names several `.c` files that are now `.cpp`.
-- `native/hal/README.md` references absent `common.h` and a local
-  `fm_helium.so` reference binary.
+- `native/hal/README.md` references absent `common.h`, a local
+  `fm_helium.so` reference binary, and an obsolete `[fm2]` log prefix (the
+  actual prefix is `hal/<scope>:`).
+- `native/README.md` is a shorter human-oriented overview; treat the command
+  tables here as canonical when they disagree.
 
 Use source code and this document for current navigation. Update this document
 when architecture, protocol, lifecycle, or known invariants change.

@@ -2,6 +2,10 @@
 
 This directory contains the native FM control layer used by the Android app.
 
+> For AI agents: the canonical references are [`AGENTS.md`](AGENTS.md)
+> (auto-loaded summary) and [`ARCHITECTURE.md`](ARCHITECTURE.md) (full
+> specification). This README is a shorter human-oriented overview.
+
 The current design exposes a single native executable per ABI:
 
 - `app/src/main/assets/fmbin-armv7a`
@@ -83,7 +87,7 @@ a response. Native diagnostics go to stderr so stdout remains protocol-only.
 The unified binary accepts the same external command API used before the merge:
 
 - `init`
-- `enable freq=<khz> region=<eu|us|jp|jp_wide> spacing=<50|100|200> stereo=<0|1> antenna=<value> af=<0|1>`
+- `enable freq=<khz> region=<eu|us|jp|jp_wide> spacing=<50|100|200> stereo=<0|1> soft_mute=<0|1> antenna=<value> af=<0|1>`
 - `disable`
 - `shutdown`
 - `setfreq <khz>`
@@ -91,6 +95,7 @@ The unified binary accepts the same external command API used before the merge:
 - `seekhw <direction>`
 - `power_mode <low|normal>`
 - `set_stereo <0|1>`
+- `set_soft_mute <0|1>`
 - `set_antenna <value>`
 - `set_region <eu|us|jp|jp_wide>`
 - `set_spacing <50|100|200>`

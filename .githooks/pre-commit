@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# Docs sync reminder: warns when code under app/ or native/ is committed
+# without any change to AGENTS.md or ARCHITECTURE.md. Never blocks a commit.
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+
+set -u
+
+code_changed=0
+docs_changed=0
+
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
+
+    case "$file" in
+        app/src/main/res/*)
+            # Resources and layouts are excluded from the reminder.
+            ;;
+        app/*|native/*)
+            code_changed=1
+            ;;
+    esac
+
+    case "$file" in
+        AGENTS.md|*/AGENTS.md|app/ARCHITECTURE.md|native/ARCHITECTURE.md)
+            docs_changed=1
+            ;;
+    esac
+done <<< "$(git diff --cached --name-only)"
+
+if [ "$code_changed" -eq 1 ] && [ "$docs_changed" -eq 0 ]; then
+    echo ""
+    echo -e "\033[33m[DOCS SYNC REMINDER]: Code under app/ or native/ changed; check that AGENTS.md and ARCHITECTURE.md are still up to date\033[0m"
+    echo ""
+fi
+
+exit 0
