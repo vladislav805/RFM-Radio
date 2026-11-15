@@ -20,7 +20,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `ctl_json.cpp` | JSON serialization and state-patch deduplication |
 | `startup_config.cpp` | Strict parser for the complete `enable` command |
 | `region_profile.cpp` | Region limits and vendor band mappings |
-| `rds_parser.cpp` | Shared PS/RT/AF/station-list payload parsers |
+| `rds_parser.cpp` | Shared PS/RT/AF/ECC/station-list payload parsers |
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
 | `periodic_deadline.cpp` | Testable monotonic deadline arithmetic for polling |
@@ -29,6 +29,25 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `tests/` | Host GoogleTest suite (see below) |
 
 Device log evidence lives in `tmp/` and `log.log`; `logcat.sh` captures more.
+
+## Code Style (touched code only)
+
+- Comments describe what the code does — present tense, positive statements.
+  Avoid "is NOT part of…"-style negations; state where the value actually
+  lives instead.
+- Multi-line function calls put each argument on its own line, with the
+  closing paren on its own line:
+
+  ```cpp
+  parse_rds_ecc_payload(
+          reinterpret_cast<const unsigned char *>(payload),
+          len,
+          country
+  );
+  ```
+
+  Apply this formatting to code you touch; leave surrounding untouched code
+  as is.
 
 ## Backends
 

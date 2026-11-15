@@ -599,6 +599,14 @@ Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
 App-facing state includes PS, RT, PI, PTY, AF, stereo, and the country decoded
 from ECC plus the PI country nibble. RT+ remains diagnostic/logging data.
 
+The ECC callback (`ext_country_code_cb`) receives the 12-byte RDS group 1A
+payload where `[4]` is the firmware TA/TP header byte and `[5]` is the 1A
+variant. The variant gate reads `[5]` only (via `parse_rds_ecc_payload()` in
+`rds_parser.cpp`): folding the TA/TP header byte into the variant made
+`variant` always non-zero on TP stations and silently dropped their country
+(issue #102). The slow-labelling low byte `[9]` is ECC only at variant 0;
+other variants are logged and discarded.
+
 The `rds_avail_status_cb` boolean is a decoder sync/lock snapshot, not a gate
 for processed RDS data. A tune-status callback commonly reports `rds_sync=0`
 before separate PS or RT events arrive, sometimes without a later sync-true

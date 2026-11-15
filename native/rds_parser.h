@@ -86,3 +86,15 @@ bool parse_rds_search_list_payload(
 );
 
 bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]);
+
+// HAL ext_country_code_cb payload (RDS group 1A), 12 bytes:
+// [0]=len [1]=PTY [2..3]=PI [4]=TA/TP header byte [5]=1A variant
+// [6..7]=flags/reserved [8..9]=slow labelling ([9]=ECC when variant == 0).
+//
+// The 1A variant lives at [5]; [4] carries the firmware TA/TP header byte
+// and stays outside the variant gate.
+bool parse_rds_ecc_payload(
+        const unsigned char *payload,
+        int payload_len,
+        char country_iso[3]
+);
