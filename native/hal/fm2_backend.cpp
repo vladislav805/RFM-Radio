@@ -532,13 +532,17 @@ void fm_ch_det_th_rsp_cb(char *payload) {
  * [0]=12
  * [1]=PTY
  * [2..3]=PI
- * [4..5]=variant
+ * [4]=TA/TP header byte (firmware-side)
+ * [5]=1A variant
  * [6..7]=flags/reserved
  * [8..9]=slow labelling
  * [10..11]=block D.
  *
  * The slow-labelling low byte is ECC only when variant == 0. Other variants
- * are broadcaster/vendor data and are ignored to avoid log spam.
+ * are broadcaster/vendor data and are ignored to avoid log spam. Parsing is
+ * delegated to parse_rds_ecc_payload(), which reads the variant from [5]
+ * only; the TA/TP header byte at [4] stays outside the variant gate
+ * (issue #102).
  */
 void ext_country_code_cb(char *payload) {
     if (payload == nullptr) {
@@ -549,7 +553,21 @@ void ext_country_code_cb(char *payload) {
     const int len = static_cast<unsigned char>(payload[0]);
     pthread_mutex_lock(&g_state.lock);
     const bool duplicate = is_duplicate_payload_locked(
-            &g_state.last_ecc_valid, g_state.last_ecc, sizeof(g_state.last_ecc), payload, len);
+            &g_state.last_ecc_valid,
+            g_state.last_ecc,
+            sizeof(g_state.last_ecc),
+            payload,
+            len
+    );
+    char country[3] = "";
+    bool has_country = false;
+    if (!duplicate) {
+        has_country = parse_rds_ecc_payload(
+                reinterpret_cast<const unsigned char *>(payload),
+                len,
+                country
+        );
+    }
     pthread_mutex_unlock(&g_state.lock);
     if (duplicate) {
         return;
@@ -561,28 +579,25 @@ void ext_country_code_cb(char *payload) {
     if (len >= 12) {
         const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
         const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
-        const int variant = (static_cast<unsigned char>(payload[4]) << 8) | static_cast<unsigned char>(payload[5]);
+        const int ta_tp = static_cast<unsigned char>(payload[4]);
+        const int variant = static_cast<unsigned char>(payload[5]);
         const int slow_labelling =
                 (static_cast<unsigned char>(payload[8]) << 8) | static_cast<unsigned char>(payload[9]);
         const int block_d = (static_cast<unsigned char>(payload[10]) << 8) | static_cast<unsigned char>(payload[11]);
 
-        if (variant == 0) {
+        if (has_country) {
             const int country_code = (pi >> 12) & 0x0f;
             const int ecc = slow_labelling & 0xff;
-            char country[3];
-            if (decode_rds_country_iso(ecc, country_code, country)) {
-                hal_log("rds", "ecc len=%d pi=%04x pty=%d cc=0x%x ecc=0x%02x country=%s sl=0x%04x block_d=0x%04x data=%s%s",
-                        len, pi, pty, country_code, ecc, country, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
-                radio_state_patch_t patch = radio_state_patch_empty();
-                patch.country = country;
-                send_radio_state_patch(&patch);
-            } else {
-                hal_log("rds", "ecc len=%d pi=%04x pty=%d cc=0x%x ecc=0x%02x country=unknown sl=0x%04x block_d=0x%04x data=%s%s",
-                        len, pi, pty, country_code, ecc, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
-            }
+            hal_log("rds", "ecc len=%d pi=%04x pty=%d ta_tp=0x%02x cc=0x%x ecc=0x%02x country=%s sl=0x%04x block_d=0x%04x data=%s%s",
+                    len, pi, pty, ta_tp, country_code, ecc, country, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.country = country;
+            send_radio_state_patch(&patch);
             return;
         }
 
+        hal_log("rds", "ecc ignored len=%d pi=%04x pty=%d ta_tp=0x%02x variant=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
+                len, pi, pty, ta_tp, variant, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
         return;
     }
 

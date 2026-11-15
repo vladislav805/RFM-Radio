@@ -715,3 +715,85 @@ TEST(RdsParserTest, RejectsUnknownRdsCountries) {
     EXPECT_FALSE(decode_rds_country_iso(0x00, 7, country));
     EXPECT_FALSE(decode_rds_country_iso(0xe0, 7, nullptr));
 }
+
+namespace {
+
+// HAL ext_country_code_cb payload (RDS group 1A):
+// [0]=len [1]=PTY [2..3]=PI [4]=TA/TP header byte [5]=1A variant
+// [6..7]=flags/reserved [8..9]=slow labelling ([9]=ECC) [10..11]=block D.
+void make_ecc_payload(unsigned char payload[12], unsigned char ta_tp, unsigned char variant, unsigned char ecc) {
+    payload[0] = 12;
+    payload[1] = 0x02;  // PTY
+    payload[2] = 0x61;  // PI 0x6123 -> country nibble 6 (UA row at ecc 0xe4)
+    payload[3] = 0x23;
+    payload[4] = ta_tp;
+    payload[5] = variant;
+    payload[6] = 0x00;
+    payload[7] = 0x00;
+    payload[8] = 0x00;
+    payload[9] = ecc;
+    payload[10] = 0x12;
+    payload[11] = 0x34;
+}
+
+}  // namespace
+
+TEST(RdsParserTest, EccParsesWithTpHeaderByte) {
+    // Regression for issue #102: firmware puts the TA/TP header byte at [4];
+    // it must not shift the variant read from [5].
+    unsigned char payload[12];
+    make_ecc_payload(payload, 0x01, 0x00, 0xe4);
+
+    char country[3] = "XX";
+    ASSERT_TRUE(parse_rds_ecc_payload(payload, 12, country));
+    EXPECT_STREQ(country, "UA");
+}
+
+TEST(RdsParserTest, EccParsesWithoutTpHeaderByte) {
+    unsigned char payload[12];
+    make_ecc_payload(payload, 0x00, 0x00, 0xe4);
+
+    char country[3] = "XX";
+    ASSERT_TRUE(parse_rds_ecc_payload(payload, 12, country));
+    EXPECT_STREQ(country, "UA");
+}
+
+TEST(RdsParserTest, EccIgnoresNonZeroVariant) {
+    unsigned char payload[12];
+    make_ecc_payload(payload, 0x01, 0x03, 0xe4);
+
+    char country[3] = "XX";
+    EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, country));
+}
+
+TEST(RdsParserTest, EccRejectsShortPayload) {
+    unsigned char payload[12];
+    make_ecc_payload(payload, 0x01, 0x00, 0xe4);
+
+    char country[3] = "XX";
+    EXPECT_FALSE(parse_rds_ecc_payload(payload, 11, country));
+    EXPECT_FALSE(parse_rds_ecc_payload(nullptr, 12, country));
+    EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, nullptr));
+}
+
+TEST(RdsParserTest, EccIgnoresPlausibleEccAtNonStandardVariant) {
+    // Real capture from station 90.6 (pi=0x7850, St. Petersburg): group 1A
+    // variants 4-6 with identical sl=0x00e2 / block_d=0xde52. Value 0xe2 at
+    // cc=7 formally decodes as "PL" — garbage for a Russian station, so
+    // non-zero variants stay ignored (this rejected the fallback of trusting
+    // payload[9] unconditionally).
+    const unsigned char payload[12] =
+            {0x0c, 0x00, 0x78, 0x50, 0x00, 0x05, 0x00, 0x00, 0x00, 0xe2, 0xde, 0x52};
+
+    char country[3] = "XX";
+    EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, country));
+}
+
+TEST(RdsParserTest, EccRejectsUnknownCountry) {
+    unsigned char payload[12];
+    make_ecc_payload(payload, 0x01, 0x00, 0x00);
+
+    char country[3] = "XX";
+    EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, country));
+    EXPECT_STREQ(country, "");
+}

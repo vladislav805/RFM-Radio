@@ -18,6 +18,9 @@ constexpr int kAfEntrySize = 4;
 // Search-list entries are big-endian 16-bit values after the count byte.
 constexpr int kSearchEntrySize = 2;
 
+// ECC payload (RDS group 1A) as delivered by the HAL ext_country_code_cb.
+constexpr int kEccPayloadSize = 12;
+
 // Program Service names are carried as fixed 8-byte blocks after the shared header.
 constexpr int kPsBlockSize = 8;
 
@@ -399,4 +402,28 @@ bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]) {
     }
 
     return false;
+}
+
+bool parse_rds_ecc_payload(
+        const unsigned char *payload,
+        int payload_len,
+        char country_iso[3]
+) {
+    if (
+            payload == nullptr ||
+            country_iso == nullptr ||
+            payload_len < kEccPayloadSize
+    ) {
+        return false;
+    }
+
+    const int variant = payload[5];
+    if (variant != 0) {
+        // Other 1A variants carry different slow-labelling data.
+        return false;
+    }
+
+    const int pi = (payload[2] << 8) | payload[3];
+    const int ecc = payload[9];
+    return decode_rds_country_iso(ecc, (pi >> 12) & 0x0f, country_iso);
 }
