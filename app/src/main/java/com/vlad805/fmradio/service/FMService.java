@@ -57,6 +57,7 @@ import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 @SuppressWarnings({"deprecation", "unused"})
 public class FMService extends Service implements FMEventCallback, OnTrayPreferenceChangeListener {
+    private static Boolean mHardcodedSpeakerState = false;
     private static final String TAG = "FMS";
     public static final int NOTIFICATION_ID = 1027;
     public static final int NOTIFICATION_RECORD_ID = 1029;
@@ -343,16 +344,17 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
-                final boolean isSpeaker = isHalDriver()
-                        ? mState.isForceSpeaker()
-                        : Audio.isForceSpeakerNow();
-                mAudioService.setSpeakerEnabled(!isSpeaker);
-                Utils.sendAppBroadcast(this, new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
+                if (mHardcodedSpeakerState == null) mHardcodedSpeakerState = false;
+                mHardcodedSpeakerState = !mHardcodedSpeakerState;
+                
+                mAudioService.setSpeakerEnabled(mHardcodedSpeakerState);
+                Utils.sendAppBroadcast(this, new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, mHardcodedSpeakerState));
+                
                 if (mTunerDriver instanceof QualcommNative) {
                     ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
                 if (!isHalDriver()) {
-                    Audio.toggleThroughSpeaker(!isSpeaker);
+                    Audio.toggleThroughSpeaker(mHardcodedSpeakerState);
                 }
                 break;
             }

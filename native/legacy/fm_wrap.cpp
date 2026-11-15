@@ -74,6 +74,17 @@ static void clear_direct_init_marker() {
 #endif
 }
 
+static bool is_direct_v4l2_device() {
+    FILE *f = fopen("/sys/class/video4linux/radio0/name", "r");
+    if (!f) {
+        return false;
+    }
+    char name[64] = {};
+    const bool ok = fgets(name, sizeof(name), f) != nullptr;
+    fclose(f);
+    return ok && strstr(name, "rtc6226") != nullptr;
+}
+
 static bool has_fm_patch_downloader() {
     constexpr const char *paths[] = {
             "/system/bin/fm_qsoc_patches",
@@ -168,6 +179,10 @@ bool process_radio_event(uint8 event_buf) {
         }
 
         case TAVARUA_EVT_RADIO_DISABLED: {
+            if (is_power_on_completed != TRUE) {
+                legacy_log("event", "ignoring spurious FM disabled during startup");
+                break;
+            }
             legacy_log("event", "FM disabled");
             reset_search();
             fm_storage.state = OFF;
@@ -429,9 +444,11 @@ fm_cmd_status_t fm_command_open() {
     // bootstrap mechanism exists, use the stock no-firmware path. Decide this
     // before reading hw.fm.init because a killed previous direct session may
     // have left that process-external marker at 1.
-    if (service_length == 0 && !patch_downloader_available) {
+    const bool is_rtc = is_direct_v4l2_device();
+
+    if (is_rtc || (service_length == 0 && !patch_downloader_available)) {
         g_direct_v4l2_transport = true;
-        legacy_log("open", "mode=direct_v4l2 reason=fm_dl_absent");
+        legacy_log("open", "mode=direct_v4l2 reason=%s", is_rtc ? "rtc6226_detected" : "fm_dl_absent");
     } else {
         int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
         legacy_log("open", "setprop exit=%d", exit_code);
@@ -695,6 +712,10 @@ fm_cmd_status_t fm_command_setup_receiver(fm_config_data *ptr) {
     // Set antenna
     ret = fm_receiver_set_antenna(cfg->antenna);
     CHECK_EXEC_LAST_COMMAND(__FUNCTION__, "change antenna");
+
+    // Enable digital audio path (I2S / SLIMbus) on RTC6226
+    legacy_log("setup", "enabling digital audio path (0x800001b=0)");
+    set_v4l2_ctrl(0x800001b, 0);
 
     // Create threads
     if (!g_direct_v4l2_transport) {
