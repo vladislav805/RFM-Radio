@@ -61,6 +61,7 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 bool fm_receiver_search_station_list(fm_search_list_stations options);
 bool fm_receiver_cancel_search();
 void clear_rt_plus_tags();
+void reset_legacy_rt_context();
 struct RdsRtPlusSlices;
 void evaluate_legacy_rt_plus_slices(struct RdsRtPlusSlices *out);
 

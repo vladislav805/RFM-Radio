@@ -94,6 +94,12 @@ void clear_rt_plus_tags() {
     g_rt_plus_tags[1] = {};
 }
 
+void reset_legacy_rt_context() {
+    clear_rt_plus_tags();
+    g_rt_raw_text_len = 0;
+    memset(g_rt_raw_text, 0, sizeof(g_rt_raw_text));
+}
+
 void evaluate_legacy_rt_plus_slices(RdsRtPlusSlices *out) {
     evaluate_rds_rt_plus_slices(
             g_rt_plus_tags_valid,
@@ -660,6 +666,16 @@ bool extract_rt_plus() {
     clear_rt_plus_tags();
     RdsRtPlusPayload parsed;
     if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kLegacy, &parsed)) {
+        if (parsed.ert) {
+            legacy_log("rds", "rt+ tags belong to eRT (unsupported), ignoring ordinary RT slicing");
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.rt_plus_title = "";
+            patch.rt_plus_artist = "";
+            patch.rt_plus_album = "";
+            send_radio_state_patch(&patch);
+            return TRUE;
+        }
+
         g_rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
         g_rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
         g_rt_plus_tags_valid = parsed.tag_count > 0;

@@ -193,10 +193,28 @@ TEST(RdsParserTest, ConvertsEbuLatinLowByteAliases) {
             255,
             &parsed
     ));
-    // 0x00-0x1F are low-byte aliases of 0x80-0x9F (high-bit-stripped encoders):
-    // 0x0B -> alias of 0x8B = 'Ç', 0x0A -> alias of 0x8A = 'Ñ'. Never raw.
-    EXPECT_EQ(std::string(parsed.text), std::string("ÇÑ"));
-    EXPECT_EQ(parsed.text_len, 4);
+    // 0x00-0x1F are low-byte aliases of 0x80-0x9F (high-bit-stripped encoders),
+    // except 0x0A (LF '\n') and 0x0D (CR '\r').
+    // 0x0B -> alias of 0x8B = 'Ç', 0x0A -> preserved line feed '\n'.
+    EXPECT_EQ(std::string(parsed.text), std::string("Ç\n"));
+    EXPECT_EQ(parsed.text_len, 3);
+}
+
+TEST(RdsParserTest, PreservesLineFeedInRadioText) {
+    const unsigned char payload[] = {
+            12, 0x01, 0x00, 0x01, 0x00,
+            'A', 'r', 't', 'i', 's', 't', 0x0A, 'T', 'i', 't', 'l', 'e',
+    };
+    RdsTextPayload parsed;
+
+    EXPECT_TRUE(parse_rds_text_payload(
+            payload,
+            sizeof(payload),
+            RdsTextPayloadKind::kRadioText,
+            255,
+            &parsed
+    ));
+    EXPECT_EQ(std::string(parsed.text), std::string("Artist\nTitle"));
 }
 
 TEST(RdsParserTest, TerminatorTrimRunsBeforeConversion) {

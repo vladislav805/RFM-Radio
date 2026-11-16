@@ -187,7 +187,7 @@ bool process_radio_event(uint8 event_buf) {
             // Remove last RDS data
             fm_storage.rds.program_name[0] = '\0';
             fm_storage.rds.radio_text[0] = '\0';
-            clear_rt_plus_tags();
+            reset_legacy_rt_context();
 
             legacy_log("event", "tune frequency_khz=%d", fm_storage.frequency);
 
