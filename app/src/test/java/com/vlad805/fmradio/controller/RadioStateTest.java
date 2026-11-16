@@ -19,12 +19,15 @@ public class RadioStateTest {
         state.setPty(7);
         state.setStereo(true);
         state.setRmssi(-70);
+        state.setSinr(12);
         state.setRtPlus(new RtPlusInfo("Title", "Artist", "Album"));
 
         assertEquals("Title", state.getRtPlus().getTitle());
         assertEquals("Artist", state.getRtPlus().getArtist());
         assertEquals("Album", state.getRtPlus().getAlbum());
         assertEquals("Artist — Title (Album)", state.getRtPlus().getFormattedText());
+        assertEquals(-70, state.getRmssi());
+        assertEquals(12, state.getSinr());
 
         state.clear();
 
@@ -35,6 +38,7 @@ public class RadioStateTest {
         assertEquals(0, state.getPty());
         assertFalse(state.isStereo());
         assertEquals(RadioState.RMSSI_UNKNOWN, state.getRmssi());
+        assertEquals(RadioState.SINR_UNKNOWN, state.getSinr());
         assertTrue(state.getRtPlus().isEmpty());
     }
 

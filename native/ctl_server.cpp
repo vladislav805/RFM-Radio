@@ -203,7 +203,8 @@ radio_state_patch_t radio_state_patch_empty(void) {
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;
     patch.stereo = RADIO_PATCH_ABSENT_INT;
-    patch.rmssi = RADIO_PATCH_ABSENT_RMSSI;
+    patch.rmssi = RADIO_PATCH_ABSENT_METRIC;
+    patch.sinr = RADIO_PATCH_ABSENT_METRIC;
 
     return patch;
 }

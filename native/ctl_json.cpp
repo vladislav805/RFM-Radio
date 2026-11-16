@@ -134,8 +134,13 @@ bool build_radio_state_patch_json(
         changed = true;
     }
 
-    if (patch->rmssi != RADIO_PATCH_ABSENT_RMSSI && patch->rmssi != cache.rmssi) {
+    if (patch->rmssi != RADIO_PATCH_ABSENT_METRIC && patch->rmssi != cache.rmssi) {
         append_field(*json, first_top, "rmssi", std::to_string(patch->rmssi));
+        changed = true;
+    }
+
+    if (patch->sinr != RADIO_PATCH_ABSENT_METRIC && patch->sinr != cache.sinr) {
+        append_field(*json, first_top, "sinr", std::to_string(patch->sinr));
         changed = true;
     }
 
@@ -221,7 +226,8 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
 
     if (patch->frequency_khz != RADIO_PATCH_ABSENT_INT) {
         if (patch->frequency_khz != cache->frequency_khz) {
-            cache->rmssi = RADIO_PATCH_ABSENT_RMSSI;
+            cache->rmssi = RADIO_PATCH_ABSENT_METRIC;
+            cache->sinr = RADIO_PATCH_ABSENT_METRIC;
         }
         cache->frequency_khz = patch->frequency_khz;
     }
@@ -258,8 +264,12 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
         cache->stereo = patch->stereo;
     }
 
-    if (patch->rmssi != RADIO_PATCH_ABSENT_RMSSI) {
+    if (patch->rmssi != RADIO_PATCH_ABSENT_METRIC) {
         cache->rmssi = patch->rmssi;
+    }
+
+    if (patch->sinr != RADIO_PATCH_ABSENT_METRIC) {
+        cache->sinr = patch->sinr;
     }
 
     if (patch->rt_plus_title != nullptr) {

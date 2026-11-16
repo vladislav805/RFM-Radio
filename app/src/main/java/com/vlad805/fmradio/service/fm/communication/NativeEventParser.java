@@ -80,6 +80,15 @@ public final class NativeEventParser {
             }
         }
 
+        if (json.has("sinr")) {
+            final int sinr = json.optInt("sinr", Integer.MIN_VALUE);
+            if (sinr < -128 || sinr > 127) {
+                Log.w(TAG, "Invalid SINR payload");
+            } else {
+                patch.setSinr(sinr);
+            }
+        }
+
         final JSONObject rds = json.optJSONObject("rds");
         if (rds != null) {
             if (rds.has("ps")) {

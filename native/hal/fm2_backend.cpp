@@ -61,15 +61,21 @@ struct ScanState {
     ScanResultCollector stations;
 };
 
+enum class MetricType {
+    kNone,
+    kSinr,
+    kRmssi,
+};
+
 struct RmssiState {
-    bool pending = false;
+    MetricType type = MetricType::kNone;
     uint64_t requested_at_ms = 0;
     int request_frequency_khz = 0;
     bool timeout_logged = false;
     bool paused = false;
 
     void clear_request() {
-        pending = false;
+        type = MetricType::kNone;
         requested_at_ms = 0;
         request_frequency_khz = 0;
         timeout_logged = false;
@@ -640,28 +646,37 @@ void fm_set_blend_cb(int status) {
 void fm_get_station_param_cb(int value, int status) {
     pthread_mutex_lock(&g_state.lock);
 
-    const bool pending = g_state.rmssi.pending;
+    const MetricType type = g_state.rmssi.type;
     const int requested_frequency = g_state.rmssi.request_frequency_khz;
-    const bool publish = pending &&
+    const bool publish = (type != MetricType::kNone) &&
             g_state.enabled &&
             !g_state.rmssi.paused &&
             !g_state.scan.active &&
             requested_frequency == g_state.current_frequency_khz;
 
     g_state.rmssi.clear_request();
-
     pthread_mutex_unlock(&g_state.lock);
 
     const unsigned int raw_value = static_cast<unsigned int>(value) & 0xffU;
-    const int signed_value = decode_rmssi(value);
 
-    hal_log("metric", "%s status=%d value=%d raw=0x%02x",
-            pending ? "rmssi" : "unexpected", status, signed_value, raw_value);
+    if (type == MetricType::kSinr) {
+        const int sinr_val = static_cast<int8_t>(static_cast<unsigned char>(value));
+        hal_log("metric", "sinr status=%d val=%d raw=0x%02x", status, sinr_val, raw_value);
 
-    if (status == 0 && publish) {
-        radio_state_patch_t patch = radio_state_patch_empty();
-        patch.rmssi = signed_value;
-        send_radio_state_patch(&patch);
+        if (status == 0 && publish) {
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.sinr = sinr_val;
+            send_radio_state_patch(&patch);
+        }
+    } else if (type == MetricType::kRmssi) {
+        const int rmssi_val = decode_rmssi(value);
+        hal_log("metric", "rmssi status=%d val=%d raw=0x%02x", status, rmssi_val, raw_value);
+
+        if (status == 0 && publish) {
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.rmssi = rmssi_val;
+            send_radio_state_patch(&patch);
+        }
     }
 }
 
@@ -724,9 +739,9 @@ void tune_cb(int freq) {
     patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
 
-    // The tune callback is the first authoritative point at which RMSSI belongs
+    // The tune callback is the first authoritative point at which signal metric belongs
     // to the new station. Refresh now instead of waiting for the periodic tick.
-    fm2_backend_request_rmssi();
+    fm2_backend_request_sinr();
 }
 
 void seek_complete_cb(int freq) {
@@ -1475,7 +1490,7 @@ bool fm2_backend_raw_get(int id, int *value) {
     return vendor_get(id, value, "failed raw get");
 }
 
-bool fm2_backend_request_rmssi() {
+static bool request_metric_internal(int ctrl_id, MetricType type, const char *name) {
     const uint64_t requested_at = monotonic_ms();
 
     pthread_mutex_lock(&g_state.lock);
@@ -1490,23 +1505,22 @@ bool fm2_backend_request_rmssi() {
         return false;
     }
 
-    if (g_state.rmssi.pending) {
+    if (g_state.rmssi.type != MetricType::kNone) {
         const uint64_t elapsed = requested_at - g_state.rmssi.requested_at_ms;
 
         if (
                 elapsed >= kRmssiRequestTimeoutMs &&
                 !g_state.rmssi.timeout_logged
         ) {
-            hal_log("rmssi", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
+            hal_log("metric", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
             g_state.rmssi.timeout_logged = true;
         }
 
         pthread_mutex_unlock(&g_state.lock);
-
         return false;
     }
 
-    g_state.rmssi.pending = true;
+    g_state.rmssi.type = type;
     g_state.rmssi.requested_at_ms = requested_at;
     g_state.rmssi.request_frequency_khz = g_state.current_frequency_khz;
     g_state.rmssi.timeout_logged = false;
@@ -1517,25 +1531,30 @@ bool fm2_backend_request_rmssi() {
     int unused = 0;
     errno = 0;
 
-    const int ret = vendor->get_fm_ctrl(kV4l2CtrlIrisRmssi, &unused);
+    const int ret = vendor->get_fm_ctrl(ctrl_id, &unused);
     if (ret < 0) {
         const int saved_errno = errno;
 
         pthread_mutex_lock(&g_state.lock);
-
-        if (g_state.rmssi.pending) {
+        if (g_state.rmssi.type == type) {
             g_state.rmssi.clear_request();
         }
-
         pthread_mutex_unlock(&g_state.lock);
 
-        hal_log("vendor", "get id=0x%x failed, ret=%d errno=%d (%s)", kV4l2CtrlIrisRmssi, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
-
+        hal_log("vendor", "get %s id=0x%x failed, ret=%d errno=%d (%s)", name, ctrl_id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
         return false;
     }
 
-    hal_log("rmssi", "requested");
+    hal_log("metric", "requested %s", name);
     return true;
+}
+
+bool fm2_backend_request_sinr() {
+    return request_metric_internal(kV4l2CtrlIrisSinr, MetricType::kSinr, "sinr");
+}
+
+bool fm2_backend_request_rmssi() {
+    return request_metric_internal(kV4l2CtrlIrisRmssi, MetricType::kRmssi, "rmssi");
 }
 
 bool fm2_backend_log_snapshot(const char *reason) {

@@ -224,9 +224,17 @@ public:
         return set_status(true, nullptr);
     }
 
-    bool request_rmssi() override {
+    bool request_signal_metric() override {
         if (!enabled_ || fm_command_search_busy() || monotonic_ms() < metric_resume_at_ms_) {
             return false;
+        }
+
+        if (sinr_supported_) {
+            if (fm_command_publish_sinr()) {
+                return true;
+            }
+            legacy_log("legacy", "SINR not supported via V4L2, falling back to RMSSI");
+            sinr_supported_ = false;
         }
 
         return fm_command_publish_rmssi();
@@ -261,6 +269,7 @@ private:
     const char *last_error_ = "";
     bool enabled_ = false;
     uint64_t metric_resume_at_ms_ = 0;
+    bool sinr_supported_ = true;
 };
 
 }  // namespace

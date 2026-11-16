@@ -284,7 +284,7 @@ response_t handle_soft_mute(const std::vector<std::string> &args) {
 
 void poll_rmssi() {
     if (g_backend != nullptr) {
-        g_backend->request_rmssi();
+        g_backend->request_signal_metric();
     }
 }
 

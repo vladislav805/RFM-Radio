@@ -201,7 +201,7 @@ bool process_radio_event(uint8 event_buf) {
             // The tune event is authoritative for the new station. Full scans
             // remain busy here and use the periodic refresh after completion.
             if (!fm_command_search_busy()) {
-                fm_command_publish_rmssi();
+                fm_command_publish_sinr() || fm_command_publish_rmssi();
             }
             break;
         }
@@ -867,13 +867,26 @@ uint32 fm_command_get_tuned_frequency() {
     return fm_receiver_get_tuned_frequency();
 }
 
+bool fm_command_publish_sinr() {
+    int sinr = 0;
+    if (!fm_receiver_get_sinr(&sinr)) {
+        return false;
+    }
+
+    legacy_log("metric", "sinr=%d", sinr);
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.sinr = sinr;
+    send_radio_state_patch(&patch);
+    return true;
+}
+
 bool fm_command_publish_rmssi() {
     int rmssi = 0;
     if (!fm_receiver_get_rmssi(&rmssi)) {
         return false;
     }
 
-    legacy_log("rmssi", "value=%d", rmssi);
+    legacy_log("metric", "rmssi=%d", rmssi);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rmssi = rmssi;
     send_radio_state_patch(&patch);

@@ -29,6 +29,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
     public static final int SET_COUNTRY = 1 << 9;
     public static final int SET_RMSSI = 1 << 10;
     public static final int SET_RT_PLUS = 1 << 11;
+    public static final int SET_SINR = 1 << 12;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
@@ -117,7 +118,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
             case C.Event.DISABLED: {
                 mState.setStatus(TunerStatus.IDLE);
                 mState.clear();
-                mode = SET_STATUS | SET_RMSSI | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS;
+                mode = SET_STATUS | SET_RMSSI | SET_SINR | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS;
                 break;
             }
 
@@ -125,7 +126,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
                 if (frequency != mState.getFrequency()) {
                     mState.setRmssi(RadioState.RMSSI_UNKNOWN);
-                    mode = SET_FREQUENCY | SET_RMSSI;
+                    mState.setSinr(RadioState.SINR_UNKNOWN);
+                    mode = SET_FREQUENCY | SET_RMSSI | SET_SINR;
                 } else {
                     mode = SET_FREQUENCY;
                 }
@@ -200,6 +202,10 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 if (intent.hasExtra(C.Key.RMSSI)) {
                     mState.setRmssi(intent.getIntExtra(C.Key.RMSSI, RadioState.RMSSI_UNKNOWN));
                     mode |= SET_RMSSI;
+                }
+                if (intent.hasExtra(C.Key.SINR)) {
+                    mState.setSinr(intent.getIntExtra(C.Key.SINR, RadioState.SINR_UNKNOWN));
+                    mode |= SET_SINR;
                 }
                 if (
                         intent.hasExtra(C.Key.RT_PLUS_TITLE) ||

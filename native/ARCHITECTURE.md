@@ -586,12 +586,10 @@ If an older request is still pending, the immediate refresh is skipped and the
 normal pending-request guard prevents overlap.
 
 Qualcomm drivers also expose SINR through `kV4l2CtrlIrisSinr`
-(`V4L2_PRIVATE_BASE + 0x2c`). Earlier diagnostic code requested it through the
-same station-parameter callback, but the current backend has no SINR request API
-and does not publish SINR in the JSON state protocol. The control definition is
-retained because the hardware capability exists and may be useful for future
-diagnostics. Restoring it would require tracking which metric owns the shared
-callback and calibrating vendor-specific values before exposing them in UI.
+(`V4L2_PRIVATE_BASE + 0x2c`). Both HAL and legacy backends query SINR
+in sequence following RMSSI measurements. The HAL callback queries
+`kV4l2CtrlIrisSinr` immediately upon receiving `rmssi`, publishing both
+`rmssi` (dBm) and `sinr` (dB) in the JSON state patch (`"sinr": <dB>`).
 
 ### HAL RDS and Audio
 

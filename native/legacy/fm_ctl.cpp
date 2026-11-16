@@ -316,6 +316,24 @@ bool fm_receiver_get_rmssi(int *rmssi) {
     return TRUE;
 }
 
+bool fm_receiver_get_sinr(int *sinr) {
+    if (fd_radio < 0 || sinr == nullptr) {
+        return FALSE;
+    }
+
+    struct v4l2_control control = {};
+    control.id = kV4l2CtrlIrisSinr;
+
+    if (ioctl(fd_radio, VIDIOC_G_CTRL, &control) < 0) {
+        const int saved_errno = errno;
+        legacy_log("metric", "get sinr failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        return FALSE;
+    }
+
+    *sinr = static_cast<int8_t>(static_cast<unsigned char>(control.value));
+    return TRUE;
+}
+
 bool fm_receiver_set_mute_mode(mute_t mode) {
     return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode);
 }

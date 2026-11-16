@@ -19,10 +19,14 @@ public final class SignalStrengthView extends View {
         mPaint.setColor(Color.WHITE);
     }
 
-    public void setRmssi(final int rmssi) {
-        final int level = SignalStrength.levelForRmssi(rmssi);
+    public void setMetrics(final int rmssi, final int sinr) {
+        final int level = SignalStrength.levelForMetrics(rmssi, sinr);
 
         setLevel(level);
+    }
+
+    public void setRmssi(final int rmssi) {
+        setMetrics(rmssi, Integer.MIN_VALUE);
     }
 
     public void clear() {

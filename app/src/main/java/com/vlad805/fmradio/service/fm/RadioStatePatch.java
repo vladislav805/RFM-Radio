@@ -15,6 +15,7 @@ public final class RadioStatePatch {
     private int[] af;
     private Boolean stereo;
     private Integer rmssi;
+    private Integer sinr;
     private RtPlusInfo rtPlus;
 
     public Integer getFrequency() {
@@ -89,6 +90,14 @@ public final class RadioStatePatch {
         this.rmssi = rmssi;
     }
 
+    public Integer getSinr() {
+        return sinr;
+    }
+
+    public void setSinr(final Integer sinr) {
+        this.sinr = sinr;
+    }
+
     public RtPlusInfo getRtPlus() {
         return rtPlus;
     }
@@ -108,6 +117,7 @@ public final class RadioStatePatch {
                 af == null &&
                 stereo == null &&
                 rmssi == null &&
+                sinr == null &&
                 rtPlus == null
         );
     }
@@ -149,6 +159,10 @@ public final class RadioStatePatch {
 
         if (rmssi != null) {
             intent.putExtra(C.Key.RMSSI, rmssi);
+        }
+
+        if (sinr != null) {
+            intent.putExtra(C.Key.SINR, sinr);
         }
 
         if (rtPlus != null) {

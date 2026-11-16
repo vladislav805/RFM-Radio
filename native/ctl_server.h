@@ -6,10 +6,8 @@ extern "C" {
 
 #include <limits.h>
 
-#include "types.h"
-
 #define RADIO_PATCH_ABSENT_INT -1
-#define RADIO_PATCH_ABSENT_RMSSI INT_MIN
+#define RADIO_PATCH_ABSENT_METRIC INT_MIN
 
 typedef struct {
     int frequency_khz;
@@ -22,6 +20,7 @@ typedef struct {
     int af_count;
     int stereo;
     int rmssi;
+    int sinr;
     const char *rt_plus_title;
     const char *rt_plus_artist;
     const char *rt_plus_album;

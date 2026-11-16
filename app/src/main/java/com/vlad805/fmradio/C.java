@@ -75,6 +75,7 @@ final public class C {
 		public static final String PI = "pi";
 		public static final String COUNTRY = "country";
 		public static final String RMSSI = "rmssi";
+		public static final String SINR = "sinr";
 		public static final String RT_PLUS_TITLE = "rt_plus_title";
 		public static final String RT_PLUS_ARTIST = "rt_plus_artist";
 		public static final String RT_PLUS_ALBUM = "rt_plus_album";

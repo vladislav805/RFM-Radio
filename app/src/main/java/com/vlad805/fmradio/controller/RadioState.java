@@ -15,6 +15,7 @@ import com.vlad805.fmradio.models.RtPlusInfo;
  */
 public final class RadioState implements Parcelable {
     public static final int RMSSI_UNKNOWN = Integer.MIN_VALUE;
+    public static final int SINR_UNKNOWN = Integer.MIN_VALUE;
 
     // State of tuner
     private TunerStatus status = TunerStatus.IDLE;
@@ -45,6 +46,9 @@ public final class RadioState implements Parcelable {
 
     // Signed receiver signal strength reported by the tuner.
     private int rmssi = RMSSI_UNKNOWN;
+
+    // Signal-to-Interference-plus-Noise Ratio (dB) reported by tuner.
+    private int sinr = SINR_UNKNOWN;
 
     // Is recording started
     private boolean recording = false;
@@ -132,6 +136,7 @@ public final class RadioState implements Parcelable {
         rtPlus = RtPlusInfo.EMPTY;
         stereo = false;
         rmssi = RMSSI_UNKNOWN;
+        sinr = SINR_UNKNOWN;
     }
 
     public boolean isStereo() {
@@ -148,6 +153,14 @@ public final class RadioState implements Parcelable {
 
     void setRmssi(final int rmssi) {
         this.rmssi = rmssi;
+    }
+
+    public int getSinr() {
+        return sinr;
+    }
+
+    void setSinr(final int sinr) {
+        this.sinr = sinr;
     }
 
     public boolean isRecording() {
@@ -193,6 +206,7 @@ public final class RadioState implements Parcelable {
         rt = in.readString();
         stereo = in.readInt() > 0;
         rmssi = in.readInt();
+        sinr = in.readInt();
         recording = in.readInt() > 0;
         recordingStarted = in.readLong();
         forceSpeaker = in.readInt() > 0;
@@ -216,6 +230,7 @@ public final class RadioState implements Parcelable {
         dest.writeString(rt);
         dest.writeInt(stereo ? 1 : 0);
         dest.writeInt(rmssi);
+        dest.writeInt(sinr);
         dest.writeInt(recording ? 1 : 0);
         dest.writeLong(recordingStarted);
         dest.writeInt(forceSpeaker ? 1 : 0);

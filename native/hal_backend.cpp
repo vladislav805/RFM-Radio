@@ -3,6 +3,7 @@
 #include <string>
 
 #include "hal/fm2_backend.h"
+#include "hal/utils.h"
 
 namespace {
 
@@ -90,7 +91,14 @@ public:
         return set_status(fm2_backend_set_slimbus(enabled));
     }
 
-    bool request_rmssi() override {
+    bool request_signal_metric() override {
+        if (sinr_supported_) {
+            if (fm2_backend_request_sinr()) {
+                return true;
+            }
+            hal_log("hal", "SINR not supported by HAL vendor interface, falling back to RMSSI");
+            sinr_supported_ = false;
+        }
         return fm2_backend_request_rmssi();
     }
 
@@ -118,6 +126,7 @@ private:
     }
 
     std::string last_error_;
+    bool sinr_supported_ = true;
 };
 
 }  // namespace

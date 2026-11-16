@@ -86,7 +86,7 @@ Unknown/duplicate keys, bad booleans/spacing/antenna/region, or an initial
 frequency outside the region are rejected (`ERR_IVD_CFG`). Other numeric
 commands go through `atoi` — invalid text silently becomes zero.
 
-Events: partial `state` patches (frequency, stereo, rmssi, ps, rt, pi,
+Events: partial `state` patches (frequency, stereo, rmssi, sinr, ps, rt, pi,
 country, pty, af, rt_plus — only changed fields, deduplicated in `ctl_server`),
 `search_done` (sorted kHz array, at most 64 stations), and `disabled`. No
 `enabled` event is sent; Java treats the `enable` response as completion.

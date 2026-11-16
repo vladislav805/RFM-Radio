@@ -565,10 +565,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onStateUpdated(final RadioState state, final int mode) {
         mLastState = state;
 
-        if ((mode & RadioStateUpdater.SET_RMSSI) > 0) {
-            final boolean available = state.getRmssi() != RadioState.RMSSI_UNKNOWN;
+        if ((mode & (RadioStateUpdater.SET_RMSSI | RadioStateUpdater.SET_SINR)) > 0) {
+            final boolean available = (
+                    state.getRmssi() != RadioState.RMSSI_UNKNOWN ||
+                    state.getSinr() != RadioState.SINR_UNKNOWN
+            );
             if (available) {
-                mSignalStrength.setRmssi(state.getRmssi());
+                mSignalStrength.setMetrics(state.getRmssi(), state.getSinr());
             } else {
                 mSignalStrength.clear();
             }
