@@ -184,6 +184,8 @@ void log_length_prefixed_payload(const char *scope, const char *name, const char
     hal_log(scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
 }
 
+
+
 const char *rtp_content_type_name(int content_type) {
     switch (content_type) {
         case 1:
@@ -667,6 +669,11 @@ void fm_get_station_param_cb(int value, int status) {
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.sinr = sinr_val;
             send_radio_state_patch(&patch);
+        } else if (status != 0 && publish) {
+            radio_state_patch_t patch = radio_state_patch_empty();
+            patch.sinr = RADIO_PATCH_CLEAR_METRIC;
+            send_radio_state_patch(&patch);
+            fm2_backend_request_rmssi();
         }
     } else if (type == MetricType::kRmssi) {
         const int rmssi_val = decode_rmssi(value);
@@ -1490,7 +1497,7 @@ bool fm2_backend_raw_get(int id, int *value) {
     return vendor_get(id, value, "failed raw get");
 }
 
-static bool request_metric_internal(int ctrl_id, MetricType type, const char *name) {
+static MetricRequestResult request_metric_internal(int ctrl_id, MetricType type, const char *name) {
     const uint64_t requested_at = monotonic_ms();
 
     pthread_mutex_lock(&g_state.lock);
@@ -1502,7 +1509,7 @@ static bool request_metric_internal(int ctrl_id, MetricType type, const char *na
             g_state.vendor == nullptr
     ) {
         pthread_mutex_unlock(&g_state.lock);
-        return false;
+        return MetricRequestResult::kSkipped;
     }
 
     if (g_state.rmssi.type != MetricType::kNone) {
@@ -1517,7 +1524,7 @@ static bool request_metric_internal(int ctrl_id, MetricType type, const char *na
         }
 
         pthread_mutex_unlock(&g_state.lock);
-        return false;
+        return MetricRequestResult::kSkipped;
     }
 
     g_state.rmssi.type = type;
@@ -1542,18 +1549,18 @@ static bool request_metric_internal(int ctrl_id, MetricType type, const char *na
         pthread_mutex_unlock(&g_state.lock);
 
         hal_log("vendor", "get %s id=0x%x failed, ret=%d errno=%d (%s)", name, ctrl_id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
-        return false;
+        return MetricRequestResult::kUnsupported;
     }
 
     hal_log("metric", "requested %s", name);
-    return true;
+    return MetricRequestResult::kOk;
 }
 
-bool fm2_backend_request_sinr() {
+MetricRequestResult fm2_backend_request_sinr() {
     return request_metric_internal(kV4l2CtrlIrisSinr, MetricType::kSinr, "sinr");
 }
 
-bool fm2_backend_request_rmssi() {
+MetricRequestResult fm2_backend_request_rmssi() {
     return request_metric_internal(kV4l2CtrlIrisRmssi, MetricType::kRmssi, "rmssi");
 }
 

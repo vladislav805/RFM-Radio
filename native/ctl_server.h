@@ -8,6 +8,7 @@ extern "C" {
 
 #define RADIO_PATCH_ABSENT_INT -1
 #define RADIO_PATCH_ABSENT_METRIC INT_MIN
+#define RADIO_PATCH_CLEAR_METRIC (INT_MIN + 1)
 
 typedef struct {
     int frequency_khz;

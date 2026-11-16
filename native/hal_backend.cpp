@@ -93,13 +93,20 @@ public:
 
     bool request_signal_metric() override {
         if (sinr_supported_) {
-            if (fm2_backend_request_sinr()) {
+            const MetricRequestResult res = fm2_backend_request_sinr();
+
+            if (res == MetricRequestResult::kOk) {
                 return true;
+            }
+
+            if (res == MetricRequestResult::kSkipped) {
+                return false;
             }
             hal_log("hal", "SINR not supported by HAL vendor interface, falling back to RMSSI");
             sinr_supported_ = false;
         }
-        return fm2_backend_request_rmssi();
+
+        return fm2_backend_request_rmssi() == MetricRequestResult::kOk;
     }
 
     void shutdown() override {

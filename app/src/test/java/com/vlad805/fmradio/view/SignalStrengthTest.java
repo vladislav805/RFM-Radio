@@ -18,4 +18,10 @@ public class SignalStrengthTest {
         assertEquals(4, SignalStrength.levelForRmssi(-61));
         assertEquals(5, SignalStrength.levelForRmssi(-60));
     }
+
+    @Test
+    public void handlesMetricFallbackWhenSinrIsUnknown() {
+        assertEquals(5, SignalStrength.levelForMetrics(-60, Integer.MIN_VALUE));
+        assertEquals(0, SignalStrength.levelForMetrics(-106, Integer.MIN_VALUE));
+    }
 }
