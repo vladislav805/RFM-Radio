@@ -1,3 +1,4 @@
+#include "../../backend_log.h"
 #pragma once
 
 #include <sys/types.h>
@@ -5,7 +6,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "../types.h"
+#include "../../types.h"
 
 // Add implementations of system_property_set/get
 #ifdef __ANDROID_API__
@@ -16,23 +17,6 @@
 //#    define __system_property_get(x, y)
 #    define asprintf(x, y, z)
 #endif
-
-#ifndef RFM_LEGACY_LOG_HELPERS
-#define RFM_LEGACY_LOG_HELPERS
-
-static inline void legacy_log(const char* scope, const char* fmt, ...) {
-    fprintf(stderr, "leg/%-7s: ", scope);
-
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-
-    fprintf(stderr, "\n");
-}
-
-#endif
-
 /*
  * Multiplying factor to convert to Radio frequency
  * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,

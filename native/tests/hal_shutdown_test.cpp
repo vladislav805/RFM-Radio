@@ -1,6 +1,6 @@
 // Include the implementation to inject the vendor interface and exercise its
 // real callbacks without loading a device library or exposing test-only APIs.
-#include "hal/fm2_backend.cpp"
+#include "backend/hal_helium/helium_vendor.cpp"
 #include "backend.h"
 
 #include <gtest/gtest.h>
@@ -8,7 +8,7 @@
 #include <chrono>
 #include <thread>
 
-Backend *create_hal_backend();
+Backend *create_helium_backend();
 
 // The real protocol writer is linked, but no command-loop polling is needed.
 void poll_rmssi() {}
@@ -137,7 +137,7 @@ TEST_F(HalShutdownTest, FailedOffCanBeRetriedDuringShutdown) {
 }
 
 TEST_F(HalShutdownTest, AdapterWaitsAfterEarlierDisableWithoutExplicitInit) {
-    Backend *backend = create_hal_backend();
+    Backend *backend = create_helium_backend();
     ASSERT_TRUE(backend->disable());
     CompleteLater();
     backend->shutdown();
@@ -151,7 +151,7 @@ TEST_F(HalShutdownTest, AdapterEnableWithoutExplicitInitReceivesCleanup) {
     StartupConfig config;
     config.frequency_khz = 87500;
     config.spacing_khz = 100;
-    Backend *backend = create_hal_backend();
+    Backend *backend = create_helium_backend();
     ASSERT_TRUE(backend->enable(config));
     EXPECT_TRUE(g_state.receiver_cleanup_needed);
     CompleteLater();
@@ -167,7 +167,7 @@ TEST_F(HalShutdownTest, AdapterWaitsForEarlierEnableRollback) {
     StartupConfig config;
     config.frequency_khz = 87500;
     config.spacing_khz = 100;
-    Backend *backend = create_hal_backend();
+    Backend *backend = create_helium_backend();
     ASSERT_FALSE(backend->enable(config));
     EXPECT_TRUE(g_state.disable_pending);
     EXPECT_EQ(off_requests, 1);

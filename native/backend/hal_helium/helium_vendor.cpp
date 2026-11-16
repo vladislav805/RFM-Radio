@@ -1,4 +1,4 @@
-#include "fm2_backend.h"
+#include "helium_vendor.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -9,16 +9,16 @@
 #include <unistd.h>
 #include <string>
 
-#include "../ctl_server.h"
-#include "../frequency_format.h"
-#include "../fm_v4l2_controls.h"
-#include "../monotonic_clock.h"
-#include "../region_profile.h"
-#include "../rds_parser.h"
-#include "../scan_result.h"
-#include "../rmssi.h"
-#include "fm2_vendor_iface.h"
-#include "utils.h"
+#include "../../ctl_server.h"
+#include "../../frequency_format.h"
+#include "../qcom_fm_controls.h"
+#include "../../monotonic_clock.h"
+#include "../../region_profile.h"
+#include "../../rds_parser.h"
+#include "../../scan_result.h"
+#include "../../rmssi.h"
+#include "helium_vendor_iface.h"
+#include "../../hex_dump.h"
 
 namespace {
 
@@ -129,7 +129,7 @@ struct RuntimeState {
 
 void set_error_locked(const char *message) {
     const char *safe_message = message ? message : "unknown error";
-    hal_log("error", "%s", safe_message);
+    backend_log("hel", "error", "%s", safe_message);
     snprintf(g_state.last_error, sizeof(g_state.last_error), "%s", safe_message);
 }
 
@@ -174,14 +174,14 @@ bool is_duplicate_payload_locked(bool *valid, unsigned char *last, size_t last_s
 
 void log_length_prefixed_payload(const char *scope, const char *name, const char *payload, int extra_len = 0) {
     if (payload == nullptr) {
-        hal_log(scope, "%s got null", name);
+        backend_log("hel", scope, "%s got null", name);
         return;
     }
 
     const int len = static_cast<unsigned char>(payload[0]) + extra_len;
     char dump[3 * 32 + 1];
     format_hex_dump(payload, len, dump, sizeof(dump));
-    hal_log(scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
+    backend_log("hel", scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
 }
 
 
@@ -199,7 +199,7 @@ void log_rt_plus_slices_locked() {
         // tag.start/tag.length are indices into the RAW EBU Latin RT buffer,
         // not the UTF-8 text. Slice raw bytes and convert only the slice.
         if (tag.start < 0 || tag.length <= 0 || tag.start + tag.length > g_state.current_rt_len) {
-            hal_log("rds", "rt+ slice out of range ct=%d start=%d len=%d rt_len=%d",
+            backend_log("hel", "rds", "rt+ slice out of range ct=%d start=%d len=%d rt_len=%d",
                     tag.content_type, tag.start, tag.length, g_state.current_rt_len);
             continue;
         }
@@ -211,7 +211,7 @@ void log_rt_plus_slices_locked() {
                 text,
                 static_cast<int>(sizeof(text))
         );
-        hal_log("rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
+        backend_log("hel", "rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
     }
 }
 
@@ -238,7 +238,7 @@ bool vendor_set(int id, int value, const char *message) {
     if (ret < 0) {
         const int saved_errno = errno;
         set_error_locked(message);
-        hal_log("vendor", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)",
+        backend_log("hel", "vendor", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)",
                 id, value, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
         pthread_mutex_unlock(&g_state.lock);
         return false;
@@ -262,7 +262,7 @@ bool vendor_get(int id, int *value, const char *message) {
     if (ret < 0) {
         const int saved_errno = errno;
         set_error_locked(message);
-        hal_log("vendor", "get id=0x%x failed, ret=%d errno=%d (%s)",
+        backend_log("hel", "vendor", "get id=0x%x failed, ret=%d errno=%d (%s)",
                 id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
         pthread_mutex_unlock(&g_state.lock);
         return false;
@@ -278,7 +278,7 @@ bool apply_signal_threshold() {
 }
 
 bool apply_raw_rds_group_mask() {
-    return vendor_set(kV4l2CtrlRdsGroupMask, kHalDefaultRawRdsGroupMask, "failed to set raw rds group mask");
+    return vendor_set(kV4l2CtrlRdsGroupMask, kHeliumDefaultRawRdsGroupMask, "failed to set raw rds group mask");
 }
 
 bool apply_processed_rds_config(bool auto_af, int rds_standard) {
@@ -286,7 +286,7 @@ bool apply_processed_rds_config(bool auto_af, int rds_standard) {
         return false;
     }
 
-    if (!vendor_set(kV4l2CtrlRdsGroupProc, kHalDefaultRdsGroupProcMask, "failed to set rds groups")) {
+    if (!vendor_set(kV4l2CtrlRdsGroupProc, kHeliumDefaultRdsGroupProcMask, "failed to set rds groups")) {
         return false;
     }
 
@@ -333,7 +333,7 @@ bool apply_post_enable_config() {
         // Keep this best-effort because the receiver still works without async
         // transitions, and always attempt to restore the requested normal mode.
         // Reference: https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L1183-L1213
-        hal_log("setup", "arm async events through low-to-normal transition");
+        backend_log("hel", "setup", "arm async events through low-to-normal transition");
         vendor_set(kV4l2CtrlLowPowerMode, 1, "failed to enter low power while arming async events");
         vendor_set(kV4l2CtrlLowPowerMode, 0, "failed to restore normal power while arming async events");
     }
@@ -374,9 +374,9 @@ int spacing_step_khz_locked() {
 void log_scan_next_cb() {
     int freq = 0;
     if (vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read scan-next frequency")) {
-        hal_log("search", "scan next frequency_khz=%d", freq);
+        backend_log("hel", "search", "scan next frequency_khz=%d", freq);
     } else {
-        hal_log("search", "scan next");
+        backend_log("hel", "search", "scan next");
         return;
     }
 
@@ -386,7 +386,7 @@ void log_scan_next_cb() {
     pthread_mutex_lock(&g_state.lock);
     if (g_state.scan.active) {
         if (g_state.scan.stations.add(freq) == ScanAddResult::kFull) {
-            hal_log("search", "scan result full, dropping frequency_khz=%d", freq);
+            backend_log("hel", "search", "scan result full, dropping frequency_khz=%d", freq);
         }
         if (g_state.scan.last_frequency_khz > 0 && freq < g_state.scan.last_frequency_khz) {
             g_state.scan.wrapped = true;
@@ -408,16 +408,16 @@ void log_scan_next_cb() {
     vendor_set(kV4l2CtrlSearchOn, 0, "failed to stop completed scan");
     const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
 
-    hal_log("search", "scan complete count=%d frequencies_khz=%s", result.count, frequencies.c_str());
+    backend_log("hel", "search", "scan complete count=%d frequencies_khz=%s", result.count, frequencies.c_str());
     send_search_done(result.frequencies_khz, result.count);
 }
 
 void log_thread_evt_cb(unsigned int evt) {
-    hal_log("event", "thread event=%u", evt);
+    backend_log("hel", "event", "thread event=%u", evt);
 }
 
 void oda_update_cb() {
-    hal_log("rds", "oda_update=1");
+    backend_log("hel", "rds", "oda_update=1");
 }
 
 /*
@@ -434,7 +434,7 @@ void oda_update_cb() {
  */
 void rt_plus_update_cb(char *payload) {
     if (payload == nullptr) {
-        hal_log("rds", "rt_plus_update_cb got null");
+        backend_log("hel", "rds", "rt_plus_update_cb got null");
         return;
     }
 
@@ -451,7 +451,7 @@ void rt_plus_update_cb(char *payload) {
     format_hex_dump(payload, len, dump, sizeof(dump));
 
     RdsRtPlusPayload parsed;
-    if (parse_rds_rt_plus_payload(reinterpret_cast<const unsigned char *>(payload), len, RdsRtPlusKind::kHal, &parsed)) {
+    if (parse_rds_rt_plus_payload(reinterpret_cast<const unsigned char *>(payload), len, RdsRtPlusKind::kHelium, &parsed)) {
         const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
         const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
         const int flags = (static_cast<unsigned char>(payload[4]) << 24) |
@@ -468,7 +468,7 @@ void rt_plus_update_cb(char *payload) {
         evaluate_rt_plus_slices_locked(&slices);
         pthread_mutex_unlock(&g_state.lock);
 
-        hal_log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x toggle=%d running=%d tags=%d data=%s%s",
+        backend_log("hel", "rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x toggle=%d running=%d tags=%d data=%s%s",
                 len, pi, pty, flags, parsed.toggle, parsed.running, parsed.tag_count,
                 dump, len > 32 ? " ..." : "");
 
@@ -483,12 +483,12 @@ void rt_plus_update_cb(char *payload) {
     if (len >= 4) {
         const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
         const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
-        hal_log("rds", "rt+ len=%d pi=%04x pty=%d data=%s%s",
+        backend_log("hel", "rds", "rt+ len=%d pi=%04x pty=%d data=%s%s",
                 len, pi, pty, dump, len > 32 ? " ..." : "");
         return;
     }
 
-    hal_log("rds", "rt+ len=%d data=%s%s", len, dump, len > 32 ? " ..." : "");
+    backend_log("hel", "rds", "rt+ len=%d data=%s%s", len, dump, len > 32 ? " ..." : "");
 }
 
 void ert_update_cb(char *payload) {
@@ -538,7 +538,7 @@ void fm_ch_det_th_rsp_cb(char *payload) {
  */
 void ext_country_code_cb(char *payload) {
     if (payload == nullptr) {
-        hal_log("rds", "ext_country_code_cb got null");
+        backend_log("hel", "rds", "ext_country_code_cb got null");
         return;
     }
 
@@ -580,7 +580,7 @@ void ext_country_code_cb(char *payload) {
         if (has_country) {
             const int country_code = (pi >> 12) & 0x0f;
             const int ecc = slow_labelling & 0xff;
-            hal_log("rds", "ecc len=%d pi=%04x pty=%d ta_tp=0x%02x cc=0x%x ecc=0x%02x country=%s sl=0x%04x block_d=0x%04x data=%s%s",
+            backend_log("hel", "rds", "ecc len=%d pi=%04x pty=%d ta_tp=0x%02x cc=0x%x ecc=0x%02x country=%s sl=0x%04x block_d=0x%04x data=%s%s",
                     len, pi, pty, ta_tp, country_code, ecc, country, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.country = country;
@@ -588,40 +588,40 @@ void ext_country_code_cb(char *payload) {
             return;
         }
 
-        hal_log("rds", "ecc ignored len=%d pi=%04x pty=%d ta_tp=0x%02x variant=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
+        backend_log("hel", "rds", "ecc ignored len=%d pi=%04x pty=%d ta_tp=0x%02x variant=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
                 len, pi, pty, ta_tp, variant, slow_labelling, block_d, dump, len > 32 ? " ..." : "");
         return;
     }
 
-    hal_log("rds", "ecc len=%d data=%s%s", len, dump, len > 32 ? " ..." : "");
+    backend_log("hel", "rds", "ecc len=%d data=%s%s", len, dump, len > 32 ? " ..." : "");
 }
 
 void fm_get_sig_thres_cb(int value, int status) {
-    hal_log("vendor", "fm_get_sig_thres_cb value=%d status=%d", value, status);
+    backend_log("hel", "vendor", "fm_get_sig_thres_cb value=%d status=%d", value, status);
 }
 
 void fm_get_ch_det_thr_cb(int value, int status) {
-    hal_log("vendor", "fm_get_ch_det_thr_cb value=%d status=%d", value, status);
+    backend_log("hel", "vendor", "fm_get_ch_det_thr_cb value=%d status=%d", value, status);
 }
 
 void fm_def_data_read_cb(int value, int status) {
-    hal_log("vendor", "fm_def_data_read_cb value=%d status=%d", value, status);
+    backend_log("hel", "vendor", "fm_def_data_read_cb value=%d status=%d", value, status);
 }
 
 void fm_get_blend_cb(int value, int status) {
-    hal_log("vendor", "fm_get_blend_cb value=%d status=%d", value, status);
+    backend_log("hel", "vendor", "fm_get_blend_cb value=%d status=%d", value, status);
 }
 
 void fm_set_ch_det_thr_cb(int status) {
-    hal_log("vendor", "fm_set_ch_det_thr_cb status=%d", status);
+    backend_log("hel", "vendor", "fm_set_ch_det_thr_cb status=%d", status);
 }
 
 void fm_def_data_write_cb(int status) {
-    hal_log("vendor", "fm_def_data_write_cb status=%d", status);
+    backend_log("hel", "vendor", "fm_def_data_write_cb status=%d", status);
 }
 
 void fm_set_blend_cb(int status) {
-    hal_log("vendor", "fm_set_blend_cb status=%d", status);
+    backend_log("hel", "vendor", "fm_set_blend_cb status=%d", status);
 }
 
 void fm_get_station_param_cb(int value, int status) {
@@ -642,7 +642,7 @@ void fm_get_station_param_cb(int value, int status) {
 
     if (type == MetricType::kSinr) {
         const int sinr_val = static_cast<int8_t>(static_cast<unsigned char>(value));
-        hal_log("metric", "sinr status=%d val=%d raw=0x%02x", status, sinr_val, raw_value);
+        backend_log("hel", "metric", "sinr status=%d val=%d raw=0x%02x", status, sinr_val, raw_value);
 
         if (status == 0 && publish) {
             radio_state_patch_t patch = radio_state_patch_empty();
@@ -656,7 +656,7 @@ void fm_get_station_param_cb(int value, int status) {
         }
     } else if (type == MetricType::kRmssi) {
         const int rmssi_val = decode_rmssi(value);
-        hal_log("metric", "rmssi status=%d val=%d raw=0x%02x", status, rmssi_val, raw_value);
+        backend_log("hel", "metric", "rmssi status=%d val=%d raw=0x%02x", status, rmssi_val, raw_value);
 
         if (status == 0 && publish) {
             radio_state_patch_t patch = radio_state_patch_empty();
@@ -667,26 +667,26 @@ void fm_get_station_param_cb(int value, int status) {
 }
 
 void fm_get_station_debug_param_cb(int value, int status) {
-    hal_log("vendor", "fm_get_station_debug_param_cb value=%d status=%d", value, status);
+    backend_log("hel", "vendor", "fm_get_station_debug_param_cb value=%d status=%d", value, status);
 }
 
 void enable_softmute_cb(int status) {
-    hal_log("audio", "soft_mute status=%d", status);
+    backend_log("hel", "audio", "soft_mute status=%d", status);
 }
 
 void rds_avail_status_cb(bool rds_available) {
-    hal_log("event", "rds_sync=%d", rds_available ? 1 : 0);
+    backend_log("hel", "event", "rds_sync=%d", rds_available ? 1 : 0);
 }
 
 void enable_slimbus_cb(int status) {
-    hal_log("event", "slimbus status=%d", status);
+    backend_log("hel", "event", "slimbus status=%d", status);
     pthread_mutex_lock(&g_state.lock);
     g_state.audio.slimbus_enabled = status == 0;
     pthread_mutex_unlock(&g_state.lock);
 }
 
 void enabled_cb() {
-    hal_log("event", "FM enabled");
+    backend_log("hel", "event", "FM enabled");
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = true;
     g_state.last_enabled_cb_ms = monotonic_ms();
@@ -695,7 +695,7 @@ void enabled_cb() {
 }
 
 void disabled_cb() {
-    hal_log("event", "FM disabled");
+    backend_log("hel", "event", "FM disabled");
 
     pthread_mutex_lock(&g_state.lock);
     g_state.enabled = false;
@@ -711,7 +711,7 @@ void disabled_cb() {
 }
 
 void tune_cb(int freq) {
-    hal_log("event", "tune frequency_khz=%d", freq);
+    backend_log("hel", "event", "tune frequency_khz=%d", freq);
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = freq;
     g_state.rmssi.paused = false;
@@ -733,9 +733,9 @@ void tune_cb(int freq) {
 void seek_complete_cb(int freq) {
     int current = 0;
     if (vendor_get(kV4l2CtrlIrisFreq, &current, "failed to read seek-complete frequency")) {
-        hal_log("event", "seek complete frequency_khz=%d current_frequency_khz=%d", freq, current);
+        backend_log("hel", "event", "seek complete frequency_khz=%d current_frequency_khz=%d", freq, current);
     } else {
-        hal_log("event", "seek complete frequency_khz=%d", freq);
+        backend_log("hel", "event", "seek complete frequency_khz=%d", freq);
     }
 
     ScanResult result;
@@ -759,7 +759,7 @@ void seek_complete_cb(int freq) {
 
     if (scan_complete) {
         const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
-        hal_log("search", "scan complete source=seek_complete count=%d frequencies_khz=%s",
+        backend_log("hel", "search", "scan complete source=seek_complete count=%d frequencies_khz=%s",
                 result.count, frequencies.c_str());
         send_search_done(result.frequencies_khz, result.count);
         return;
@@ -775,7 +775,7 @@ void seek_complete_cb(int freq) {
 }
 
 void stereo_status_cb(bool stereo) {
-    hal_log("event", "stereo=%d", stereo);
+    backend_log("hel", "event", "stereo=%d", stereo);
     pthread_mutex_lock(&g_state.lock);
     g_state.audio.stereo = stereo;
     pthread_mutex_unlock(&g_state.lock);
@@ -796,7 +796,7 @@ void stereo_status_cb(bool stereo) {
  */
 void ps_update_cb(char *ps) {
     if (ps == nullptr) {
-        hal_log("rds", "ps update got null");
+        backend_log("hel", "rds", "ps update got null");
         return;
     }
 
@@ -808,11 +808,11 @@ void ps_update_cb(char *ps) {
             sizeof(parsed.text) - 1,
             &parsed
     )) {
-        hal_log("rds", "invalid ps count=%d", static_cast<unsigned char>(ps[0]) & 0x0f);
+        backend_log("hel", "rds", "invalid ps count=%d", static_cast<unsigned char>(ps[0]) & 0x0f);
         return;
     }
 
-    hal_log("rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
+    backend_log("hel", "rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
             parsed.block_count, parsed.pi, parsed.pty, parsed.text, parsed.text_len);
     char pi[16];
     snprintf(pi, sizeof(pi), "%x", parsed.pi);
@@ -833,7 +833,7 @@ void ps_update_cb(char *ps) {
  */
 void rt_update_cb(char *rt) {
     if (rt == nullptr) {
-        hal_log("rds", "rt update got null");
+        backend_log("hel", "rds", "rt update got null");
         return;
     }
 
@@ -845,7 +845,7 @@ void rt_update_cb(char *rt) {
             sizeof(parsed.text) - 1,
             &parsed
     ) || parsed.text_len == 0) {
-        hal_log("rds", "invalid rt len=%d", static_cast<unsigned char>(rt[0]) & 0x7f);
+        backend_log("hel", "rds", "invalid rt len=%d", static_cast<unsigned char>(rt[0]) & 0x7f);
         return;
     }
 
@@ -860,7 +860,7 @@ void rt_update_cb(char *rt) {
     evaluate_rt_plus_slices_locked(&slices);
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
+    backend_log("hel", "rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rt = parsed.text;
     patch.rt_plus_title = slices.title;
@@ -888,13 +888,13 @@ void af_update_cb(uint16_t *raw) {
             &af
     )) {
         const hci_ev_af_list *raw_af = reinterpret_cast<const hci_ev_af_list *>(raw);
-        hal_log("af", "invalid size=%u", raw_af->af_size);
+        backend_log("hel", "af", "invalid size=%u", raw_af->af_size);
         return;
     }
 
     const std::string frequencies = format_frequency_list_khz(af.frequencies_khz, af.count);
 
-    hal_log("af", "result count=%d frequencies_khz=%s", af.count, frequencies.c_str());
+    backend_log("hel", "af", "result count=%d frequencies_khz=%s", af.count, frequencies.c_str());
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.af_khz = af.frequencies_khz;
     patch.af_count = af.count;
@@ -926,7 +926,7 @@ void search_list_cb(uint16_t *raw) {
             lower_band,
             &list
     )) {
-        hal_log("search", "invalid result");
+        backend_log("hel", "search", "invalid result");
         return;
     }
 
@@ -940,7 +940,7 @@ void search_list_cb(uint16_t *raw) {
             return;
         }
 
-        hal_log("search", "empty result");
+        backend_log("hel", "search", "empty result");
         send_search_done(nullptr, 0);
         return;
     }
@@ -963,7 +963,7 @@ void search_list_cb(uint16_t *raw) {
         return;
     }
 
-    hal_log("search", "result count=%d reported=%d frequencies_khz=%s", list.count, list.reported_count, frequencies.c_str());
+    backend_log("hel", "search", "result count=%d reported=%d frequencies_khz=%s", list.count, list.reported_count, frequencies.c_str());
     send_search_done(list.frequencies_khz, list.count);
 }
 
@@ -1027,7 +1027,7 @@ bool apply_runtime_config() {
     rds_standard = g_state.rds_standard;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "runtime region=%d lower_khz=%d upper_khz=%d spacing=%d emphasis=%d rds=%d stereo=%d soft_mute=%d antenna=%d",
+    backend_log("hel", "setup", "runtime region=%d lower_khz=%d upper_khz=%d spacing=%d emphasis=%d rds=%d stereo=%d soft_mute=%d antenna=%d",
             region, lower, upper, spacing, emphasis, rds_standard, stereo, soft_mute, antenna);
 
     if (
@@ -1067,7 +1067,7 @@ bool fm2_backend_init() {
     g_state.lib_handle = dlopen(kFmLibraryName, RTLD_NOW);
     if (g_state.lib_handle == nullptr) {
         const char *err = dlerror();
-        hal_log("open", "dlopen failed for %s: %s", kFmLibraryName, err ? err : "(unknown)");
+        backend_log("hel", "open", "dlopen failed for %s: %s", kFmLibraryName, err ? err : "(unknown)");
         set_error_locked(err ? err : "dlopen failed");
         pthread_mutex_unlock(&g_state.lock);
         return false;
@@ -1075,7 +1075,7 @@ bool fm2_backend_init() {
     g_state.vendor = (fm_interface_t *) dlsym(g_state.lib_handle, kFmLibrarySymbol);
     if (g_state.vendor == nullptr) {
         const char *err = dlerror();
-        hal_log("open", "dlsym failed for %s: %s", kFmLibrarySymbol, err ? err : "(unknown)");
+        backend_log("hel", "open", "dlsym failed for %s: %s", kFmLibrarySymbol, err ? err : "(unknown)");
         set_error_locked(err ? err : "dlsym failed");
         dlclose(g_state.lib_handle);
         g_state.lib_handle = nullptr;
@@ -1113,7 +1113,7 @@ bool fm2_backend_configure_startup(const StartupConfig &config) {
 }
 
 bool fm2_backend_enable() {
-    hal_log("enable", "requested");
+    backend_log("hel", "enable", "requested");
     if (!fm2_backend_init()) {
         return false;
     }
@@ -1128,7 +1128,7 @@ bool fm2_backend_enable() {
     pthread_mutex_unlock(&g_state.lock);
 
     if (!fm2_backend_set_slimbus(true)) {
-        hal_log("enable", "failed to enable slimbus before receiver state");
+        backend_log("hel", "enable", "failed to enable slimbus before receiver state");
     }
 
     if (!vendor_set(kV4l2CtrlState, kFmRxState, "failed to enable receiver")) {
@@ -1147,7 +1147,7 @@ bool fm2_backend_enable() {
     if (!apply_post_enable_config()) {
         return false;
     }
-    hal_log("enable", "accepted");
+    backend_log("hel", "enable", "accepted");
     return true;
 }
 
@@ -1176,7 +1176,7 @@ bool fm2_backend_wait_enabled(int timeout_ms) {
 }
 
 bool fm2_backend_disable() {
-    hal_log("disable", "requested");
+    backend_log("hel", "disable", "requested");
     pthread_mutex_lock(&g_state.lock);
     if (!g_state.receiver_cleanup_needed || g_state.disable_pending) {
         pthread_mutex_unlock(&g_state.lock);
@@ -1197,7 +1197,7 @@ bool fm2_backend_disable() {
     const bool accepted = disabled && slimbus;
 
     if (accepted) {
-        hal_log("disable", "accepted");
+        backend_log("hel", "disable", "accepted");
     }
 
     return accepted;
@@ -1230,12 +1230,12 @@ bool fm2_backend_shutdown(int timeout_ms) {
     }
     clear_error_locked();
     pthread_mutex_unlock(&g_state.lock);
-    hal_log("shutdown", "receiver cleanup complete");
+    backend_log("hel", "shutdown", "receiver cleanup complete");
     return true;
 }
 
 bool fm2_backend_set_frequency(uint32_t frequency_khz) {
-    hal_log("tune", "request frequency_khz=%u", frequency_khz);
+    backend_log("hel", "tune", "request frequency_khz=%u", frequency_khz);
 
     pthread_mutex_lock(&g_state.lock);
     g_state.rmssi.paused = true;
@@ -1248,7 +1248,7 @@ bool fm2_backend_set_frequency(uint32_t frequency_khz) {
 
         return false;
     }
-    hal_log("tune", "request frequency_khz=%u accepted", frequency_khz);
+    backend_log("hel", "tune", "request frequency_khz=%u accepted", frequency_khz);
 
     pthread_mutex_lock(&g_state.lock);
     g_state.current_frequency_khz = static_cast<int>(frequency_khz);
@@ -1263,7 +1263,7 @@ uint32_t fm2_backend_get_frequency() {
         pthread_mutex_lock(&g_state.lock);
         const int cached = current_frequency_locked();
         pthread_mutex_unlock(&g_state.lock);
-        hal_log("tune", "get frequency failed, using cached (frequency_khz=%d)", cached);
+        backend_log("hel", "tune", "get frequency failed, using cached (frequency_khz=%d)", cached);
         return cached > 0 ? static_cast<uint32_t>(cached) : 0;
     }
 
@@ -1272,7 +1272,7 @@ uint32_t fm2_backend_get_frequency() {
         const int cached = current_frequency_locked();
         clear_error_locked();
         pthread_mutex_unlock(&g_state.lock);
-        hal_log("tune", "invalid frequency_khz=%d, using cached (frequency_khz=%d)", freq, cached);
+        backend_log("hel", "tune", "invalid frequency_khz=%d, using cached (frequency_khz=%d)", freq, cached);
         return cached > 0 ? static_cast<uint32_t>(cached) : 0;
     }
 
@@ -1313,7 +1313,7 @@ bool fm2_backend_jump(int direction, uint32_t *new_frequency) {
 }
 
 bool fm2_backend_seek(int direction) {
-    hal_log("search", "seek requested direction=%d dwell=%d", direction, kDefaultSeekDwell);
+    backend_log("hel", "search", "seek requested direction=%d dwell=%d", direction, kDefaultSeekDwell);
 
     pthread_mutex_lock(&g_state.lock);
     g_state.rmssi.paused = true;
@@ -1323,7 +1323,7 @@ bool fm2_backend_seek(int direction) {
                     vendor_set(kV4l2CtrlScanDwell, kDefaultSeekDwell, "failed to set seek dwell") &&
                     vendor_set(kV4l2CtrlIrisSeek, direction >= 0 ? 1 : 0, "failed to start seek");
     if (ok) {
-        hal_log("search", "seek direction=%d accepted", direction);
+        backend_log("hel", "search", "seek direction=%d accepted", direction);
     } else {
         pthread_mutex_lock(&g_state.lock);
         g_state.rmssi.paused = false;
@@ -1342,7 +1342,7 @@ bool fm2_backend_search() {
     g_state.scan.last_frequency_khz = start_frequency;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("search", "scan start frequency_khz=%d", start_frequency);
+    backend_log("hel", "search", "scan start frequency_khz=%d", start_frequency);
 
     const bool ok = vendor_set(kV4l2CtrlIrisFreq, start_frequency, "failed to tune scan start") &&
                     vendor_set(kV4l2CtrlSearchMode, kSearchModeScan, "failed to set scan mode") &&
@@ -1357,7 +1357,7 @@ bool fm2_backend_search() {
 }
 
 bool fm2_backend_cancel_search() {
-    hal_log("search", "cancel requested");
+    backend_log("hel", "search", "cancel requested");
     pthread_mutex_lock(&g_state.lock);
     reset_scan_locked();
     pthread_mutex_unlock(&g_state.lock);
@@ -1372,16 +1372,16 @@ bool fm2_backend_set_stereo(bool enabled) {
     pthread_mutex_unlock(&g_state.lock);
 
     if (already_set) {
-        hal_log("audio", "set stereo=%d skipped", enabled ? 1 : 0);
+        backend_log("hel", "audio", "set stereo=%d skipped", enabled ? 1 : 0);
         return true;
     }
 
-    hal_log("audio", "set stereo=%d", enabled ? 1 : 0);
+    backend_log("hel", "audio", "set stereo=%d", enabled ? 1 : 0);
     return vendor_set(kV4l2CtrlIrisAudioMode, enabled ? 1 : 0, "failed to set stereo mode");
 }
 
 bool fm2_backend_set_spacing_khz(int spacing_khz) {
-    hal_log("setup", "set spacing_khz=%d", spacing_khz);
+    backend_log("hel", "setup", "set spacing_khz=%d", spacing_khz);
     pthread_mutex_lock(&g_state.lock);
     g_state.spacing_khz = spacing_khz;
     g_state.vendor_spacing = map_spacing_to_vendor(spacing_khz);
@@ -1391,7 +1391,7 @@ bool fm2_backend_set_spacing_khz(int spacing_khz) {
 }
 
 bool fm2_backend_set_region(StartupRegion startup_region) {
-    hal_log("setup", "set region=%s", get_region_name(startup_region));
+    backend_log("hel", "setup", "set region=%s", get_region_name(startup_region));
     pthread_mutex_lock(&g_state.lock);
     apply_region_profile_locked(startup_region);
     const int region = g_state.vendor_region;
@@ -1402,7 +1402,7 @@ bool fm2_backend_set_region(StartupRegion startup_region) {
     const int current_frequency = g_state.current_frequency_khz;
     pthread_mutex_unlock(&g_state.lock);
 
-    hal_log("setup", "apply region=%d lower_khz=%d upper_khz=%d emphasis=%d rds=%d",
+    backend_log("hel", "setup", "apply region=%d lower_khz=%d upper_khz=%d emphasis=%d rds=%d",
             region, lower, upper, emphasis, rds_standard);
     const bool configured =
             vendor_set(kV4l2CtrlIrisUpperBand, upper, "failed to set upper band") &&
@@ -1421,7 +1421,7 @@ bool fm2_backend_set_region(StartupRegion startup_region) {
 }
 
 bool fm2_backend_set_antenna(int antenna) {
-    hal_log("setup", "set antenna=%d", antenna);
+    backend_log("hel", "setup", "set antenna=%d", antenna);
     pthread_mutex_lock(&g_state.lock);
     g_state.antenna = antenna;
     pthread_mutex_unlock(&g_state.lock);
@@ -1429,7 +1429,7 @@ bool fm2_backend_set_antenna(int antenna) {
 }
 
 bool fm2_backend_set_power_mode(bool low_power) {
-    hal_log("setup", "set low_power=%d", low_power ? 1 : 0);
+    backend_log("hel", "setup", "set low_power=%d", low_power ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.low_power = low_power;
     pthread_mutex_unlock(&g_state.lock);
@@ -1437,7 +1437,7 @@ bool fm2_backend_set_power_mode(bool low_power) {
 }
 
 bool fm2_backend_set_auto_af(bool enabled) {
-    hal_log("af", "set auto=%d", enabled ? 1 : 0);
+    backend_log("hel", "af", "set auto=%d", enabled ? 1 : 0);
     pthread_mutex_lock(&g_state.lock);
     g_state.auto_af = enabled;
     pthread_mutex_unlock(&g_state.lock);
@@ -1445,7 +1445,7 @@ bool fm2_backend_set_auto_af(bool enabled) {
 }
 
 bool fm2_backend_set_soft_mute(bool enabled) {
-    hal_log("audio", "set soft_mute=%d", enabled ? 1 : 0);
+    backend_log("hel", "audio", "set soft_mute=%d", enabled ? 1 : 0);
     if (!vendor_set(kV4l2CtrlSoftMute, enabled ? 1 : 0, "failed to set soft mute")) {
         return false;
     }
@@ -1457,7 +1457,7 @@ bool fm2_backend_set_soft_mute(bool enabled) {
 }
 
 bool fm2_backend_set_slimbus(bool enabled) {
-    hal_log("setup", "set slimbus=%d", enabled ? 1 : 0);
+    backend_log("hel", "setup", "set slimbus=%d", enabled ? 1 : 0);
     if (!vendor_set(kV4l2CtrlEnableSlimbus, enabled ? 1 : 0, "failed to set slimbus")) {
         return false;
     }
@@ -1498,7 +1498,7 @@ static MetricRequestResult request_metric_internal(int ctrl_id, MetricType type,
                 elapsed >= kRmssiRequestTimeoutMs &&
                 !g_state.rmssi.timeout_logged
         ) {
-            hal_log("metric", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
+            backend_log("hel", "metric", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
             g_state.rmssi.timeout_logged = true;
         }
 
@@ -1527,11 +1527,11 @@ static MetricRequestResult request_metric_internal(int ctrl_id, MetricType type,
         }
         pthread_mutex_unlock(&g_state.lock);
 
-        hal_log("vendor", "get %s id=0x%x failed, ret=%d errno=%d (%s)", name, ctrl_id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
+        backend_log("hel", "vendor", "get %s id=0x%x failed, ret=%d errno=%d (%s)", name, ctrl_id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
         return MetricRequestResult::kUnsupported;
     }
 
-    hal_log("metric", "requested %s", name);
+    backend_log("hel", "metric", "requested %s", name);
     return MetricRequestResult::kOk;
 }
 
@@ -1567,12 +1567,12 @@ bool fm2_backend_log_snapshot(const char *reason) {
     };
 
     bool ok = true;
-    hal_log("snap", "reason=%s", reason ? reason : "(null)");
+    backend_log("hel", "snap", "reason=%s", reason ? reason : "(null)");
     for (const CtlProbe &probe : probes) {
         int value = 0;
         const bool probe_ok = vendor_get(probe.id, &value, "failed snapshot read");
         ok &= probe_ok;
-        hal_log("snap", "%-9s id=0x%07x value=%d (ok=%d)", probe.name, probe.id, value, probe_ok ? 1 : 0);
+        backend_log("hel", "snap", "%-9s id=0x%07x value=%d (ok=%d)", probe.name, probe.id, value, probe_ok ? 1 : 0);
     }
 
     return ok;

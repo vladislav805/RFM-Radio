@@ -2,20 +2,26 @@
 
 #include <string>
 
-#include "hal/fm2_backend.h"
-#include "hal/utils.h"
+#include "helium_vendor.h"
+#include "../../hex_dump.h"
 
 namespace {
 
 constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr int kShutdownWaitTimeoutMs = 2000;
 
-class HalBackend final : public Backend {
+class HeliumBackend final : public Backend {
 public:
     BackendKind kind() const override {
-        return BackendKind::kHal;
+        return BackendKind::kHelium;
     }
 
+protected:
+    const char *log_prefix() const override {
+        return "hel";
+    }
+
+public:
     bool init() override {
         return set_status(fm2_backend_init());
     }
@@ -102,7 +108,7 @@ public:
             if (res == MetricRequestResult::kSkipped) {
                 return false;
             }
-            hal_log("hal", "SINR not supported by HAL vendor interface, falling back to RMSSI");
+            log("hal", "SINR not supported by HAL vendor interface, falling back to RMSSI");
             sinr_supported_ = false;
         }
 
@@ -138,7 +144,7 @@ private:
 
 }  // namespace
 
-Backend *create_hal_backend() {
-    static HalBackend backend;
+Backend *create_helium_backend() {
+    static HeliumBackend backend;
     return &backend;
 }

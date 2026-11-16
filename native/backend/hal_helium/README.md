@@ -22,14 +22,14 @@ This is the path used by devices that ship Qualcomm's FM2-style stack.
 ## Important Files
 
 - [`common.h`](common.h): HAL-local logging helpers and common includes
-- [`fm2_backend.h`](fm2_backend.h): public API exposed by the HAL module to the unified backend adapter
-- [`fm2_backend.cpp`](fm2_backend.cpp): runtime state, HAL callback wiring, Qualcomm control translation, RDS handling
-- [`fm2_vendor_iface.h`](fm2_vendor_iface.h): vendor FM control IDs and interface declarations
+- [`helium_vendor_backend.h`](helium_vendor_backend.h): public API exposed by the HAL module to the unified backend adapter
+- [`helium_vendor_backend.cpp`](helium_vendor_backend.cpp): runtime state, HAL callback wiring, Qualcomm control translation, RDS handling
+- [`helium_vendor_vendor_iface.h`](helium_vendor_vendor_iface.h): vendor FM control IDs and interface declarations
 - [`fm_helium.so`](fm_helium.so): local reference binary used during reverse engineering and integration work
 
 ## Internal Structure
 
-### `fm2_backend.*`
+### `helium_vendor_backend.*`
 
 This is the real implementation module of the HAL backend.
 
@@ -52,7 +52,7 @@ That includes:
 - ext country code events
 - search results
 
-### `fm2_vendor_iface.h`
+### `helium_vendor_vendor_iface.h`
 
 This file defines the Qualcomm-specific FM control IDs and callback interface
 needed to talk to the vendor HAL cleanly.
@@ -99,4 +99,4 @@ Run via:
 ```
 
 If you want to focus on the HAL-specific internal logs emitted from
-`fm2_backend.cpp`, they still use the `[fm2]` prefix inside the emitted lines.
+`helium_vendor_backend.cpp`, they still use the `[fm2]` prefix inside the emitted lines.

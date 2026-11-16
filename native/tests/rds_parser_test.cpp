@@ -817,7 +817,7 @@ TEST(RdsParserTest, EccRejectsUnknownCountry) {
 }
 
 TEST(RdsParserTest, ParsesHalRtPlusPayload) {
-    // HAL example capture from fm2_backend.cpp:
+    // HAL example capture from helium_backend.cpp:
     // [0]=15, [1]=PTY 7, [2..3]=PI 0x7756, [4]=TA/TP 1, [5]=ODA 0x0c, [6]=0, [7]=1 (toggle=true, running=false)
     // [8..10]=tag1 TITLE (ct=1, start=24, raw_len=25 -> decoded 26)
     // [11..13]=tag2 ARTIST (ct=4, start=0, raw_len=20 -> decoded 21)
@@ -833,7 +833,7 @@ TEST(RdsParserTest, ParsesHalRtPlusPayload) {
     ASSERT_TRUE(parse_rds_rt_plus_payload(
             payload,
             sizeof(payload),
-            RdsRtPlusKind::kHal,
+            RdsRtPlusKind::kHelium,
             &out
     ));
 
@@ -863,7 +863,7 @@ TEST(RdsParserTest, HalRtPlusSkipsZeroClassTags) {
     ASSERT_TRUE(parse_rds_rt_plus_payload(
             payload,
             sizeof(payload),
-            RdsRtPlusKind::kHal,
+            RdsRtPlusKind::kHelium,
             &out
     ));
 
@@ -882,7 +882,7 @@ TEST(RdsParserTest, HalRtPlusRejectsShortPayload) {
     EXPECT_FALSE(parse_rds_rt_plus_payload(
             short_payload,
             sizeof(short_payload),
-            RdsRtPlusKind::kHal,
+            RdsRtPlusKind::kHelium,
             &out
     ));
 }
@@ -899,7 +899,7 @@ TEST(RdsParserTest, ParsesLegacyRtPlusPayload) {
     ASSERT_TRUE(parse_rds_rt_plus_payload(
             payload,
             sizeof(payload),
-            RdsRtPlusKind::kLegacy,
+            RdsRtPlusKind::kV4l2Qcom,
             &out
     ));
 
@@ -928,7 +928,7 @@ TEST(RdsParserTest, LegacyRtPlusSkipsZeroClassTags) {
     ASSERT_TRUE(parse_rds_rt_plus_payload(
             payload,
             sizeof(payload),
-            RdsRtPlusKind::kLegacy,
+            RdsRtPlusKind::kV4l2Qcom,
             &out
     ));
 
@@ -946,7 +946,7 @@ TEST(RdsParserTest, LegacyRtPlusRejectsShortPayload) {
     EXPECT_FALSE(parse_rds_rt_plus_payload(
             short_payload,
             sizeof(short_payload),
-            RdsRtPlusKind::kLegacy,
+            RdsRtPlusKind::kV4l2Qcom,
             &out
     ));
 }

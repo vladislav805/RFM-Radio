@@ -1,9 +1,9 @@
-#include "legacy/scan_state.h"
+#include "backend/v4l2_qcom/scan_state.h"
 
 #include <gtest/gtest.h>
 
-TEST(LegacyScanStateTest, CollectsConfirmedStationsAndSortsResult) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, CollectsConfirmedStationsAndSortsResult) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
 
     state.on_tune(101700);
@@ -12,26 +12,26 @@ TEST(LegacyScanStateTest, CollectsConfirmedStationsAndSortsResult) {
     EXPECT_EQ(state.on_scan_next(88000), 87950);
 
     ScanResult result;
-    EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCompleted);
     ASSERT_EQ(result.count, 2);
     EXPECT_EQ(result.frequencies_khz[0], 87950);
     EXPECT_EQ(result.frequencies_khz[1], 101700);
 }
 
-TEST(LegacyScanStateTest, FallsBackToFrequencyReadAtScanNext) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, FallsBackToFrequencyReadAtScanNext) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
 
     EXPECT_EQ(state.on_scan_next(90600), 90600);
 
     ScanResult result;
-    ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
+    ASSERT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCompleted);
     ASSERT_EQ(result.count, 1);
     EXPECT_EQ(result.frequencies_khz[0], 90600);
 }
 
-TEST(LegacyScanStateTest, DeduplicatesStations) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, DeduplicatesStations) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
 
     state.on_tune(101700);
@@ -40,35 +40,35 @@ TEST(LegacyScanStateTest, DeduplicatesStations) {
     state.on_scan_next(101700);
 
     ScanResult result;
-    ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
+    ASSERT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCompleted);
     EXPECT_EQ(result.count, 1);
 }
 
-TEST(LegacyScanStateTest, CompletesEmptyScanOnlyOnce) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, CompletesEmptyScanOnlyOnce) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
 
     ScanResult result;
-    EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCompleted);
     EXPECT_EQ(result.count, 0);
-    EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kNone);
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
 }
 
-TEST(LegacyScanStateTest, CancelSuppressesCompletion) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, CancelSuppressesCompletion) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
     state.on_tune(101700);
     state.on_scan_next(101700);
     ASSERT_TRUE(state.begin_cancel());
 
     ScanResult result;
-    EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCancelled);
-    EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kNone);
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCancelled);
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
     EXPECT_EQ(result.count, 0);
 }
 
-TEST(LegacyScanStateTest, FailedCancelContinuesScan) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, FailedCancelContinuesScan) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
     ASSERT_TRUE(state.begin_cancel());
     state.cancel_failed();
@@ -76,13 +76,13 @@ TEST(LegacyScanStateTest, FailedCancelContinuesScan) {
     state.on_scan_next(96400);
 
     ScanResult result;
-    ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
+    ASSERT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCompleted);
     ASSERT_EQ(result.count, 1);
     EXPECT_EQ(result.frequencies_khz[0], 96400);
 }
 
-TEST(LegacyScanStateTest, LimitsResultToProtocolCapacity) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, LimitsResultToProtocolCapacity) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
 
     for (int i = 0; i < kMaxScanStations + 5; ++i) {
@@ -91,12 +91,12 @@ TEST(LegacyScanStateTest, LimitsResultToProtocolCapacity) {
     }
 
     ScanResult result;
-    ASSERT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kCompleted);
+    ASSERT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kCompleted);
     EXPECT_EQ(result.count, kMaxScanStations);
 }
 
-TEST(LegacyScanStateTest, RejectsOverlappingScans) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, RejectsOverlappingScans) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start());
     EXPECT_FALSE(state.start());
 
@@ -104,14 +104,14 @@ TEST(LegacyScanStateTest, RejectsOverlappingScans) {
     EXPECT_TRUE(state.start());
 }
 
-TEST(LegacyScanStateTest, SeekBlocksScanUntilTuneCompletesIt) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, SeekBlocksScanUntilTuneCompletesIt) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start_seek());
     EXPECT_TRUE(state.busy());
     EXPECT_FALSE(state.start());
 
     ScanResult result;
-    EXPECT_EQ(state.on_seek_complete(&result), LegacyScanTerminal::kNone);
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
     EXPECT_TRUE(state.busy());
 
     state.on_tune(101700);
@@ -119,8 +119,8 @@ TEST(LegacyScanStateTest, SeekBlocksScanUntilTuneCompletesIt) {
     EXPECT_TRUE(state.start());
 }
 
-TEST(LegacyScanStateTest, FailedSeekReleasesOperation) {
-    LegacyScanState state;
+TEST(V4l2ScanStateTest, FailedSeekReleasesOperation) {
+    V4l2ScanState state;
     ASSERT_TRUE(state.start_seek());
     state.seek_failed();
 

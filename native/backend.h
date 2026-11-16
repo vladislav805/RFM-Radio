@@ -3,11 +3,12 @@
 #include <stdint.h>
 
 #include "startup_config.h"
+#include "backend_log.h"
 
 enum class BackendKind {
     kNone = 0,
-    kLegacy,
-    kHal,
+    kV4l2Qcom,
+    kHelium,
 };
 
 class Backend {
@@ -34,4 +35,14 @@ public:
     virtual bool request_signal_metric() = 0;
     virtual void shutdown() = 0;
     virtual const char *last_error() const = 0;
+
+protected:
+    virtual const char *log_prefix() const = 0;
+
+    void log(const char *scope, const char *fmt, ...) const __attribute__((format(printf, 3, 4))) {
+        va_list args;
+        va_start(args, fmt);
+        backend_vlog(log_prefix(), scope, fmt, args);
+        va_end(args);
+    }
 };

@@ -73,10 +73,12 @@ Android QualcommNative
 | Path | Responsibility |
 | --- | --- |
 | `native/main.cpp` | Process entrypoint, text command parsing and routing |
-| `native/backend.h` | Common C++ interface implemented by both backends |
+| `native/backend.h` | Common C++ base interface implemented by all backends |
+| `native/backend_log.h` | Centralized logging utility (`backend_log()`) |
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
-| `native/legacy_backend.cpp` | Adapter from `Backend` to legacy functions |
-| `native/hal_backend.cpp` | Adapter from `Backend` to FM2/HAL functions |
+| `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
+| `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`qcom_v4l2_backend.cpp`, `fm_wrap.cpp`, `fm_ctl.cpp`, `scan_state.cpp`) |
+| `native/backend/hal_helium/` | Qualcomm Helium backend (`helium_backend.cpp`, `helium_vendor.cpp`, `helium_vendor_iface.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
 | `native/ctl_protocol.cpp` | Strict request-ID and command-line frame parser |
@@ -85,30 +87,32 @@ Android QualcommNative
 | `native/rds_parser.cpp` | Shared parsers for PS, RT, AF, and station lists |
 | `native/scan_result.cpp` | Shared bounded, deduplicated, sorted sequential-scan results |
 | `native/periodic_deadline.cpp` | Testable monotonic deadline arithmetic for native RMSSI polling |
-| `native/rmssi.h` | Shared signed-low-byte RMSSI decoding used by both backends |
+| `native/rmssi.h` | Shared signed-low-byte RMSSI decoding used by all backends |
 | `native/monotonic_clock.h` | Shared monotonic millisecond clock for native timing |
-| `native/fm_v4l2_controls.h` | Qualcomm private V4L2 control identifiers |
+| `native/backend/qcom_fm_controls.h` | Qualcomm private V4L2 control identifiers |
 | `native/frequency_format.h` | Frequency-list formatting used by logging/dedup |
+| `native/hex_dump.h` / `.cpp` | Shared hex dump string formatting utility |
 | `native/types.h` | Primitive compatibility types and booleans |
 
-### HAL/FM2 Layer
+### Qualcomm Helium Layer
 
 | Path | Responsibility |
 | --- | --- |
-| `native/hal/fm2_backend.cpp` | HAL loading, state, controls, callbacks, scan, RDS |
-| `native/hal/fm2_vendor_iface.h` | Reconstructed binary ABI for `fm_helium.so` |
-| `native/hal/utils.cpp` | HAL logging and hex dumps |
+| `native/backend/hal_helium/helium_backend.cpp` | Adapter from `Backend` to Helium vendor functions |
+| `native/backend/hal_helium/helium_vendor.cpp` | Helium HAL loading, state, controls, callbacks, scan, RDS |
+| `native/backend/hal_helium/helium_vendor_iface.h` | Reconstructed binary ABI for `fm_helium.so` |
 
-### Legacy V4L2 Layer
+### Qualcomm V4L2 Layer
 
 | Path | Responsibility |
 | --- | --- |
-| `native/legacy/fm_wrap.cpp` | Lifecycle, Android properties, event thread, event translation |
-| `native/legacy/fm_ctl.cpp` | Device open, ioctl controls, tuning, search, RDS buffers |
-| `native/legacy/scan_state.cpp` | Testable sequential-scan collection and cancellation state |
-| `native/legacy/fmcommon.h` | Legacy constants, state, structs, and event enums |
-| `native/legacy/detector.cpp` | Platform detection through Android properties |
-| `native/legacy/utils.cpp` | Frequency conversion, band limits, filesystem helpers |
+| `native/backend/v4l2_qcom/qcom_v4l2_backend.cpp` | Adapter from `Backend` to Qualcomm V4L2 functions |
+| `native/backend/v4l2_qcom/fm_wrap.cpp` | Lifecycle, Android properties, event thread, event translation |
+| `native/backend/v4l2_qcom/fm_ctl.cpp` | Device open, ioctl controls, tuning, search, RDS buffers |
+| `native/backend/v4l2_qcom/scan_state.cpp` | Testable sequential-scan collection and cancellation state |
+| `native/backend/v4l2_qcom/fmcommon.h` | Qualcomm V4L2 constants, state, structs, and event enums |
+| `native/backend/v4l2_qcom/detector.cpp` | Platform detection through Android properties |
+| `native/backend/v4l2_qcom/utils.cpp` | Frequency conversion, band limits, filesystem helpers |
 
 ### Android Bridge
 

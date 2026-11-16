@@ -1,9 +1,11 @@
 #include "backend_factory.h"
 
 #include <unistd.h>
+#include <stdio.h>
+#include <string.h>
 
 Backend *create_legacy_backend();
-Backend *create_hal_backend();
+Backend *create_helium_backend();
 
 namespace {
 
@@ -20,8 +22,24 @@ constexpr const char *kFmHeliumPaths[] = {
 
 }  // namespace
 
-bool has_dev_radio0() {
-    return access("/dev/radio0", F_OK) == 0;
+bool has_v4l2_qcom() {
+    FILE *f = fopen("/sys/class/video4linux/radio0/name", "r");
+    if (!f) {
+        // Fallback for older devices that might not have this sysfs node
+        // but still have /dev/radio0
+        return access("/dev/radio0", F_OK) == 0;
+    }
+    char name[64] = {};
+    const bool ok = fgets(name, sizeof(name), f) != nullptr;
+    fclose(f);
+
+    if (!ok) {
+        return access("/dev/radio0", F_OK) == 0;
+    }
+
+    // Samsung Exynos radio uses s610. If it's not s610, fallback to Qcom
+    // (tavarua/iris) so we don't break existing devices.
+    return strstr(name, "s610") == nullptr;
 }
 
 bool has_helium() {
@@ -35,12 +53,12 @@ bool has_helium() {
 }
 
 BackendKind detect_backend_kind() {
-    if (has_dev_radio0()) {
-        return BackendKind::kLegacy;
+    if (has_v4l2_qcom()) {
+        return BackendKind::kV4l2Qcom;
     }
 
     if (has_helium()) {
-        return BackendKind::kHal;
+        return BackendKind::kHelium;
     }
 
     return BackendKind::kNone;
@@ -48,12 +66,12 @@ BackendKind detect_backend_kind() {
 
 Backend *create_backend(const BackendKind kind) {
     switch (kind) {
-        case BackendKind::kLegacy: {
+        case BackendKind::kV4l2Qcom: {
             return create_legacy_backend();
         }
 
-        case BackendKind::kHal: {
-            return create_hal_backend();
+        case BackendKind::kHelium: {
+            return create_helium_backend();
         }
 
         case BackendKind::kNone:

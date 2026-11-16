@@ -11,10 +11,14 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | Path | Role |
 | --- | --- |
 | `main.cpp` | Entrypoint, command router, HAL `_exit()` bypass |
-| `backend.h` | Common `Backend` interface for both implementations |
-| `backend_factory.cpp` | Runtime detection and process-global singleton |
-| `legacy_backend.cpp` | Adapter: `Backend` → legacy functions |
-| `hal_backend.cpp` | Adapter: `Backend` → FM2/HAL functions |
+| `backend.h` | Common `Backend` base interface for all implementations |
+| `backend_log.h` | Centralized logging utility `backend_log()` |
+| `backend_factory.cpp` | Runtime backend detection and process-global singleton |
+| `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
+| `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`qcom_v4l2_backend.cpp`, `fm_wrap.cpp`, `fm_ctl.cpp`, `scan_state.cpp`) |
+| `backend/hal_helium/` | Qualcomm Helium backend (`helium_backend.cpp`, `helium_vendor.cpp`, `helium_vendor_iface.h`) |
+| `backend/qcom_fm_controls.h` | Shared Qualcomm V4L2 control IDs |
+| `hex_dump.cpp` / `.h` | Shared hex dump string formatting utility |
 | `ctl_server.cpp` | stdio command loop, async event writer, state cache |
 | `ctl_protocol.cpp` | Strict request-id frame parser |
 | `ctl_json.cpp` | JSON serialization and state-patch deduplication |
@@ -24,9 +28,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
 | `periodic_deadline.cpp` | Testable monotonic deadline arithmetic for polling |
-| `legacy/` | V4L2 backend: `fm_wrap.cpp`, `fm_ctl.cpp`, `scan_state.cpp`, … |
-| `hal/` | FM2/HAL backend: `fm2_backend.cpp`, `fm2_vendor_iface.h`, `utils.cpp` |
-| `tests/` | Host GoogleTest suite (see below) |
+| `tests/` | Host GoogleTest suite |
 
 Device log evidence lives in `tmp/` and `log.log`; `logcat.sh` captures more.
 
@@ -53,8 +55,8 @@ Device log evidence lives in `tmp/` and `log.log`; `logcat.sh` captures more.
 
 Selection is process-global, lazy (first command wins), with no fallback:
 
-1. `/dev/radio0` exists → legacy (direct V4L2 + Qualcomm private controls)
-2. else `fm_helium.so` in known vendor/system/odm locations → HAL (`dlopen`)
+1. `/sys/class/video4linux/radio0/name` matches Qualcomm or fallback `/dev/radio0` (non-s610) → `kV4l2Qcom`
+2. else `fm_helium.so` in known vendor/system/odm locations → `kHelium` (`dlopen`)
 3. else no backend → `ERR_UNSUPPORTED`
 
 Regions: `eu`/`us` 87500–108000 kHz, `jp` 76000–95000, `jp_wide`
@@ -97,24 +99,24 @@ indices refer to raw characters.
 
 ## Vendor Ordering Invariants (do not reorder without device evidence)
 
-- Legacy enable order: prepare (emphasis/spacing/antenna) → RDS config →
+- Qualcomm V4L2 enable order: prepare (emphasis/spacing/antenna) → RDS config →
   band → stereo → AF → initial tune → unmute last. The driver rejects
   `RDS_ON` if band is configured first.
-- Legacy has two bootstrap modes: firmware path (`fm_dl`, `hw.fm.init`) and,
+- Qualcomm V4L2 has two bootstrap modes: firmware path (`fm_dl`, `hw.fm.init`) and,
   when both `init.svc.fm_dl` and `fm_qsoc_patches` are absent, a direct
   no-firmware V4L2 path.
-- HAL normal-power startup deliberately writes low power, then normal power
+- Helium normal-power startup deliberately writes low power, then normal power
   — this arms vendor asynchronous event masks (stereo events). Best-effort:
   failure does not abort enable.
-- HAL shutdown waits up to 2 s for `disabled_cb`; `main()` then calls
-  `_exit()` for HAL because the vendor `fm_hci_t` global destructor would
+- Helium shutdown waits up to 2 s for `disabled_cb`; `main()` then calls
+  `_exit()` for Helium because the vendor `fm_hci_t` global destructor would
   cause `std::terminate()`.
 - `shutdown`/`exit`, EOF on stdin, and TERM/HUP all reach backend cleanup —
   the process fails closed when the Java owner dies.
-- HAL `vendor_set()` holds `g_state.lock` across vendor calls and
-  `hal_init()` is called under the same non-recursive mutex: a synchronous
+- Helium `vendor_set()` holds `g_state.lock` across vendor calls and
+  `helium_vendor_init()` is called under the same non-recursive mutex: a synchronous
   vendor callback that locks state would deadlock. Do not expand this.
-- Legacy globals (`fd_radio`, `fm_storage`, …) are shared between the
+- Qualcomm V4L2 globals (`fd_radio`, `fm_storage`, …) are shared between the
   command thread and the event thread without a mutex — known race; the
   event thread closes the fd on `RADIO_DISABLED`.
 - Both full-search implementations are sequential scans (tune low → seek up
@@ -123,11 +125,11 @@ indices refer to raw characters.
 ## RMSSI
 
 The native command loop polls signal metrics every 2 s while enabled
-(suppressed during tune/seek/scan). HAL attempts SINR (`kV4l2CtrlIrisSinr`)
+(suppressed during tune/seek/scan). Helium attempts SINR (`kV4l2CtrlIrisSinr`)
 first and falls back to RMSSI (`kV4l2CtrlIrisRmssi`) if SINR is unsupported
 by the vendor interface or fails asynchronously. Skipped or busy requests do
 not disable SINR capability. Explicit null metrics (`"sinr": null`) invalidate
-stale values in Java state. Legacy reads `VIDIOC_G_TUNER.signal` and waits
+stale values in Java state. Qualcomm V4L2 reads `VIDIOC_G_TUNER.signal` and waits
 750 ms (`kMetricSettleMs`) after tune/jump before sampling. Decoding is shared
 in `rmssi.h` (`decode_rmssi`, signed low byte).
 
@@ -136,8 +138,8 @@ in `rmssi.h` (`decode_rmssi`, signed low byte).
 `make test-native` (host GoogleTest, no device) covers: RDS parsing
 (`rds_parser_test`), JSON serialization and state cache (`ctl_json_test`),
 request frames (`ctl_protocol_test`), startup config (`startup_config_test`),
-region profiles, frequency formatting, shared and legacy scan state,
-HAL shutdown state machine with an injected vendor interface, RMSSI decoding
+region profiles, frequency formatting, shared and V4L2 scan state (`v4l2_scan_state_test`),
+Helium shutdown state machine with an injected vendor interface (`hal_shutdown_test`), RMSSI decoding
 (`rmssi_test.cpp`), and polling deadlines (`periodic_deadline_test.cpp`).
 
 Not covered: `main.cpp` routing, process transport, backend detection,
@@ -145,7 +147,7 @@ Not covered: `main.cpp` routing, process transport, backend detection,
 
 ## Full Specification
 
-The complete ~900-line reference — backend internals, locking, RMSSI/SINR
+The complete reference — backend internals, locking, RMSSI/SINR
 notes, region reverse-engineering, known risks, safe-change guidance — is
 `ARCHITECTURE.md` in this directory. Open it only when doing deep protocol or
 vendor-logic rework; this file should be sufficient for routine changes.

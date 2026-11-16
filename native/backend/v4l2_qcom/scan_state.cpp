@@ -1,6 +1,6 @@
 #include "scan_state.h"
 
-bool LegacyScanState::start_seek() {
+bool V4l2ScanState::start_seek() {
     if (status_ != Status::kIdle) {
         return false;
     }
@@ -9,13 +9,13 @@ bool LegacyScanState::start_seek() {
     return true;
 }
 
-void LegacyScanState::seek_failed() {
+void V4l2ScanState::seek_failed() {
     if (status_ == Status::kSeeking) {
         reset();
     }
 }
 
-bool LegacyScanState::start() {
+bool V4l2ScanState::start() {
     if (status_ != Status::kIdle) {
         return false;
     }
@@ -26,13 +26,13 @@ bool LegacyScanState::start() {
     return true;
 }
 
-void LegacyScanState::start_failed() {
+void V4l2ScanState::start_failed() {
     if (status_ == Status::kScanning) {
         reset();
     }
 }
 
-bool LegacyScanState::begin_cancel() {
+bool V4l2ScanState::begin_cancel() {
     if (status_ != Status::kScanning) {
         return false;
     }
@@ -42,13 +42,13 @@ bool LegacyScanState::begin_cancel() {
     return true;
 }
 
-void LegacyScanState::cancel_failed() {
+void V4l2ScanState::cancel_failed() {
     if (status_ == Status::kCancelling) {
         status_ = Status::kScanning;
     }
 }
 
-void LegacyScanState::on_tune(int frequency_khz) {
+void V4l2ScanState::on_tune(int frequency_khz) {
     if (status_ == Status::kSeeking) {
         reset();
     } else if (status_ == Status::kScanning && frequency_khz > 0) {
@@ -56,7 +56,7 @@ void LegacyScanState::on_tune(int frequency_khz) {
     }
 }
 
-int LegacyScanState::on_scan_next(int fallback_frequency_khz) {
+int V4l2ScanState::on_scan_next(int fallback_frequency_khz) {
     if (status_ != Status::kScanning) {
         return 0;
     }
@@ -73,25 +73,25 @@ int LegacyScanState::on_scan_next(int fallback_frequency_khz) {
     return frequency_khz;
 }
 
-LegacyScanTerminal LegacyScanState::on_seek_complete(ScanResult *result) {
+V4l2ScanTerminal V4l2ScanState::on_seek_complete(ScanResult *result) {
     if (status_ == Status::kCancelling) {
         reset();
-        return LegacyScanTerminal::kCancelled;
+        return V4l2ScanTerminal::kCancelled;
     }
     if (status_ != Status::kScanning || result == nullptr) {
-        return LegacyScanTerminal::kNone;
+        return V4l2ScanTerminal::kNone;
     }
 
     stations_.copy_sorted(result);
     reset();
-    return LegacyScanTerminal::kCompleted;
+    return V4l2ScanTerminal::kCompleted;
 }
 
-bool LegacyScanState::busy() const {
+bool V4l2ScanState::busy() const {
     return status_ != Status::kIdle;
 }
 
-void LegacyScanState::reset() {
+void V4l2ScanState::reset() {
     status_ = Status::kIdle;
     pending_frequency_khz_ = 0;
     stations_.reset();

@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../types.h"
-#include "../startup_config.h"
+#include "../../types.h"
+#include "../../startup_config.h"
 
 bool fm2_backend_init();
 bool fm2_backend_configure_startup(const StartupConfig &config);

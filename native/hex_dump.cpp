@@ -1,19 +1,9 @@
-#include "utils.h"
+#include "hex_dump.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
-void hal_log(const char *scope, const char *fmt, ...) {
-    fprintf(stderr, "hal/%-7s: ", scope);
-
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-
-    fprintf(stderr, "\n");
-}
 
 void format_hex_dump(const char *payload, int len, char *dump, size_t dump_size) {
     if (dump_size == 0) {

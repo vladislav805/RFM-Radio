@@ -1,9 +1,9 @@
 #include "fm_ctl.h"
 #include "fmcommon.h"
-#include "../ctl_server.h"
-#include "../rds_parser.h"
-#include "../rmssi.h"
-#include "../fm_v4l2_controls.h"
+#include "../../ctl_server.h"
+#include "../../rds_parser.h"
+#include "../../rmssi.h"
+#include "../qcom_fm_controls.h"
 #include "utils.h"
 #include <algorithm>
 #include <errno.h>
@@ -69,9 +69,9 @@ void log_rt_plus_slices() {
         ) {
             char text[65 * 3 + 1];
             convert_ebu_latin_to_utf8(g_rt_raw_text + tag.start, tag.length, text, static_cast<int>(sizeof(text)));
-            legacy_log("rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
+            backend_log("qcom", "rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
         } else {
-            legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
+            backend_log("qcom", "rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
                     get_rds_rt_plus_content_type_name(tag.content_type), tag.content_type, tag.start, tag.length, rt_len);
         }
     }
@@ -123,7 +123,7 @@ bool set_v4l2_ctrl(uint32 id, int32 value) {
 
     if (err < 0) {
         const int saved_errno = errno;
-        legacy_log("v4l2", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)", control.id, value, err, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "v4l2", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)", control.id, value, err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
@@ -135,11 +135,11 @@ bool fm_receiver_open() {
 
     if (fd_radio < 0) {
         const int saved_errno = errno;
-        legacy_log("open", "path=/dev/radio0 failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        backend_log("qcom", "open", "path=/dev/radio0 failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
-    legacy_log("open", "path=/dev/radio0 fd=%d", fd_radio);
+    backend_log("qcom", "open", "path=/dev/radio0 fd=%d", fd_radio);
     return TRUE;
 }
 
@@ -202,7 +202,7 @@ uint8 fm_receiver_get_rds_group_options() {
 
     if (err < 0) {
         const int saved_errno = errno;
-        legacy_log("rds", "get group options failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        backend_log("qcom", "rds", "get group options failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return 0;
     }
 
@@ -245,7 +245,7 @@ bool fm_receiver_query_capabilities(struct v4l2_capability* cap) {
     const int ret = ioctl(fd_radio, VIDIOC_QUERYCAP, cap);
     if (ret < 0) {
         const int saved_errno = errno;
-        legacy_log("v4l2", "query capabilities failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        backend_log("qcom", "v4l2", "query capabilities failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return FALSE;
     }
     return TRUE;
@@ -265,7 +265,7 @@ bool fm_receiver_set_tuned_frequency(uint32 frequency_khz) {
 
     if (err < 0) {
         const int saved_errno = errno;
-        legacy_log("tune", "set frequency_khz=%d failed, ret=%d errno=%d (%s)", frequency_khz, err, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "tune", "set frequency_khz=%d failed, ret=%d errno=%d (%s)", frequency_khz, err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
@@ -287,7 +287,7 @@ uint32 fm_receiver_get_tuned_frequency() {
         return tunefreq_to_khz(freq_struct.frequency);
     } else {
         const int saved_errno = errno;
-        legacy_log("tune", "get frequency failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "tune", "get frequency failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return 0;
     }
 }
@@ -303,7 +303,7 @@ bool fm_receiver_get_rmssi(int *rmssi) {
 
     if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) < 0) {
         const int saved_errno = errno;
-        legacy_log("metric", "get rmssi failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        backend_log("qcom", "metric", "get rmssi failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
@@ -321,7 +321,7 @@ bool fm_receiver_get_sinr(int *sinr) {
 
     if (ioctl(fd_radio, VIDIOC_G_CTRL, &control) < 0) {
         const int saved_errno = errno;
-        legacy_log("metric", "get sinr failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
+        backend_log("qcom", "metric", "get sinr failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
@@ -390,7 +390,7 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
 
     if (ret < 0) {
         const int saved_errno = errno;
-        legacy_log("audio", "set stereo failed, ret=%d errno=%d (%s)", ret, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "audio", "set stereo failed, ret=%d errno=%d (%s)", ret, saved_errno, strerror(saved_errno));
     }
 
     return ret == 0;
@@ -401,7 +401,7 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     bool ret;
 
-    legacy_log("search", "seek requested direction=%d dwell=%d", search_dir, dwell_period);
+    backend_log("qcom", "search", "seek requested direction=%d dwell=%d", search_dir, dwell_period);
 
     if (fd_radio < 0) {
         return FALSE;
@@ -409,13 +409,13 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     ret = set_v4l2_ctrl(kV4l2CtrlSearchMode, mode);
     if (ret == FALSE) {
-        legacy_log("search", "set seek mode failed");
+        backend_log("qcom", "search", "set seek mode failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(kV4l2CtrlScanDwell, dwell_period);
     if (ret == FALSE) {
-        legacy_log("search", "set scan dwell failed");
+        backend_log("qcom", "search", "set scan dwell failed");
         return FALSE;
     }
 
@@ -426,11 +426,11 @@ bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell
 
     if (err < 0) {
         const int saved_errno = errno;
-        legacy_log("search", "seek failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "search", "seek failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
-    legacy_log("search", "seek direction=%d accepted", search_dir);
+    backend_log("qcom", "search", "seek direction=%d accepted", search_dir);
     return TRUE;
 }
 
@@ -443,26 +443,26 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
     struct v4l2_hw_freq_seek hwseek;
 
     hwseek.type = V4L2_TUNER_RADIO;
-    legacy_log("search", "scan requested mode=%d direction=%d count=%d pty=%d", options.search_mode, options.search_dir, options.srch_list_max, options.program_type);
+    backend_log("qcom", "search", "scan requested mode=%d direction=%d count=%d pty=%d", options.search_mode, options.search_dir, options.srch_list_max, options.program_type);
     if (fd_radio < 0) {
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(kV4l2CtrlSearchMode, options.search_mode);
     if (ret == FALSE) {
-        legacy_log("search", "set list scan mode failed");
+        backend_log("qcom", "search", "set list scan mode failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(kV4l2CtrlSearchCount, options.srch_list_max);
     if (ret == FALSE) {
-        legacy_log("search", "set list scan count failed");
+        backend_log("qcom", "search", "set list scan count failed");
         return FALSE;
     }
 
     ret = set_v4l2_ctrl(kV4l2CtrlSearchPty, options.program_type);
     if (ret == FALSE) {
-        legacy_log("search", "set list scan PTY failed");
+        backend_log("qcom", "search", "set list scan PTY failed");
         return FALSE;
     }
 
@@ -471,11 +471,11 @@ bool fm_receiver_search_station_list(fm_search_list_stations options) {
 
     if (err < 0) {
         const int saved_errno = errno;
-        legacy_log("search", "scan failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "search", "scan failed, ret=%d errno=%d (%s)", err, saved_errno, strerror(saved_errno));
         return FALSE;
     }
 
-    legacy_log("search", "scan accepted");
+    backend_log("qcom", "search", "scan accepted");
     return TRUE;
 }
 
@@ -521,7 +521,7 @@ int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
 
     if (err < 0) {
         const int saved_errno = errno;
-        legacy_log("v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, err, saved_errno, strerror(saved_errno));
+        backend_log("qcom", "v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, err, saved_errno, strerror(saved_errno));
         return -1;
     }
 
@@ -568,7 +568,7 @@ bool extract_program_service(fm_rds_storage* storage) {
     storage->program_type = parsed.pty;
     snprintf(storage->program_name, sizeof(storage->program_name), "%s", parsed.text);
 
-    legacy_log("rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
+    backend_log("qcom", "rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
             parsed.block_count, storage->program_id, storage->program_type, storage->program_name, parsed.text_len);
 
     return TRUE;
@@ -614,7 +614,7 @@ bool extract_radio_text(fm_rds_storage* storage) {
     // and g_rt_raw_text is what log_rt_plus_slices() slices.
     g_rt_raw_text_len = parsed.raw_text_len;
     memcpy(g_rt_raw_text, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
-    legacy_log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
+    backend_log("qcom", "rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
     log_rt_plus_slices();
 
     return TRUE;
@@ -625,14 +625,14 @@ bool extract_raw_rds() {
     const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufRawRds);
 
     if (bytes <= 0) {
-        legacy_log("rds", "raw read failed bytes=%d", bytes);
+        backend_log("qcom", "rds", "raw read failed bytes=%d", bytes);
         return FALSE;
     }
 
     char dump[3 * 32 + 1];
     format_dump(buf, bytes, dump, sizeof(dump));
 
-    legacy_log("rds", "raw len=%d data=%s%s", bytes, dump, bytes > 32 ? " ..." : "");
+    backend_log("qcom", "rds", "raw len=%d data=%s%s", bytes, dump, bytes > 32 ? " ..." : "");
     return TRUE;
 }
 
@@ -641,7 +641,7 @@ bool extract_rt_plus() {
     const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufRtPlus);
 
     if (bytes <= 1) {
-        legacy_log("rds", "rt+ read failed bytes=%d", bytes);
+        backend_log("qcom", "rds", "rt+ read failed bytes=%d", bytes);
         return FALSE;
     }
 
@@ -650,13 +650,13 @@ bool extract_rt_plus() {
 
     const int payload_len = buf[0] < bytes ? buf[0] : bytes;
     const int rt_ert_flag = buf[1];
-    legacy_log("rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
+    backend_log("qcom", "rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
 
     clear_rt_plus_tags();
     RdsRtPlusPayload parsed;
-    if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kLegacy, &parsed)) {
+    if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kV4l2Qcom, &parsed)) {
         if (parsed.ert) {
-            legacy_log("rds", "rt+ tags belong to eRT (unsupported), ignoring ordinary RT slicing");
+            backend_log("qcom", "rds", "rt+ tags belong to eRT (unsupported), ignoring ordinary RT slicing");
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.rt_plus_title = "";
             patch.rt_plus_artist = "";
@@ -687,7 +687,7 @@ bool extract_ert() {
     const int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufErt);
 
     if (bytes <= 3) {
-        legacy_log("rds", "ert read failed bytes=%d", bytes);
+        backend_log("qcom", "rds", "ert read failed bytes=%d", bytes);
         return FALSE;
     }
 
@@ -697,7 +697,7 @@ bool extract_ert() {
     const int text_len = buf[0] < bytes - 3 ? buf[0] : bytes - 3;
     char text[256];
     snprintf(text, sizeof(text), "%.*s", text_len, buf + 3);
-    legacy_log("rds", "ert len=%d utf8=%d formatting=%d text=`%s` data=%s%s",
+    backend_log("qcom", "rds", "ert len=%d utf8=%d formatting=%d text=`%s` data=%s%s",
             text_len, buf[1], buf[2], text, dump, bytes > 32 ? " ..." : "");
     return TRUE;
 }
@@ -718,7 +718,7 @@ uint8 extract_rds_af_list(uint32* frequencies) {
 
     RdsAfList af;
     if (!parse_rds_af_payload(buf, bytes, &af)) {
-        legacy_log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
+        backend_log("qcom", "af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
         return FALSE;
     }
 
@@ -726,7 +726,7 @@ uint8 extract_rds_af_list(uint32* frequencies) {
         frequencies[i] = af.frequencies_khz[i];
     }
 
-    legacy_log("af", "parsed %d frequencies", af.count);
+    backend_log("qcom", "af", "parsed %d frequencies", af.count);
 
     return af.count;
 }
@@ -757,7 +757,7 @@ uint8 extract_search_station_list(uint32* list) {
     }
 
     if (lower_limit < 65000 || lower_limit > kDefaultUpperFrequencyKhz || upper_limit <= lower_limit || upper_limit > kDefaultUpperFrequencyKhz) {
-        legacy_log("search", "invalid limits %d-%d, fallback to %d-%d", lower_limit, upper_limit, kDefaultLowerFrequencyKhz, kDefaultUpperFrequencyKhz);
+        backend_log("qcom", "search", "invalid limits %d-%d, fallback to %d-%d", lower_limit, upper_limit, kDefaultLowerFrequencyKhz, kDefaultUpperFrequencyKhz);
         lower_limit = kDefaultLowerFrequencyKhz;
         upper_limit = kDefaultUpperFrequencyKhz;
     }
@@ -766,7 +766,7 @@ uint8 extract_search_station_list(uint32* list) {
     int32 bytes = read_data_from_v4l2(buf, sizeof(buf), kTavaruaBufSearchList);
 
     if (bytes < 1) {
-        legacy_log("search", "read station list failed");
+        backend_log("qcom", "search", "read station list failed");
         return 0;
     }
 
@@ -778,7 +778,7 @@ uint8 extract_search_station_list(uint32* list) {
             0,
             &stations
     )) {
-        legacy_log("search", "parse station list failed");
+        backend_log("qcom", "search", "parse station list failed");
         return 0;
     }
 
@@ -787,7 +787,7 @@ uint8 extract_search_station_list(uint32* list) {
     for (int i = 0; i < stations.count; i++) {
         const uint32 frequency = stations.frequencies_khz[i];
         if (frequency < lower_limit || frequency > upper_limit) {
-            legacy_log("search", "skip station[%d]=%d out of range", i, frequency);
+            backend_log("qcom", "search", "skip station[%d]=%d out of range", i, frequency);
             continue;
         }
 

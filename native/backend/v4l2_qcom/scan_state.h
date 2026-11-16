@@ -1,15 +1,15 @@
 #ifndef FMBIN_LEGACY_SCAN_STATE_H
 #define FMBIN_LEGACY_SCAN_STATE_H
 
-#include "../scan_result.h"
+#include "../../scan_result.h"
 
-enum class LegacyScanTerminal {
+enum class V4l2ScanTerminal {
     kNone,
     kCompleted,
     kCancelled,
 };
 
-class LegacyScanState {
+class V4l2ScanState {
 public:
     bool start_seek();
     void seek_failed();
@@ -19,7 +19,7 @@ public:
     void cancel_failed();
     void on_tune(int frequency_khz);
     int on_scan_next(int fallback_frequency_khz);
-    LegacyScanTerminal on_seek_complete(ScanResult *result);
+    V4l2ScanTerminal on_seek_complete(ScanResult *result);
     bool busy() const;
     void reset();
 

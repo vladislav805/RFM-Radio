@@ -14,8 +14,8 @@ enum class RdsSearchListKind {
 };
 
 enum class RdsRtPlusKind {
-    kHal,
-    kLegacy,
+    kHelium,
+    kV4l2Qcom,
 };
 
 struct RdsRtPlusTag {

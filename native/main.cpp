@@ -321,7 +321,7 @@ int main() {
 
     const int result = init_server(&api_handler);
     const bool needs_shutdown_settle = g_backend != nullptr && !g_backend_shutdown
-            && g_backend->kind() == BackendKind::kLegacy;
+            && g_backend->kind() == BackendKind::kV4l2Qcom;
 
     shutdown_backend();
 
@@ -330,7 +330,7 @@ int main() {
     }
 
     const int exit_code = result == 0 ? 0 : 1;
-    if (g_backend != nullptr && g_backend->kind() == BackendKind::kHal) {
+    if (g_backend != nullptr && g_backend->kind() == BackendKind::kHelium) {
         // Some Qualcomm libfm-hci builds leave a joinable std::thread in their
         // global fm_hci_t even after FM OFF and the worker's exit. Normal exit
         // runs its destructor and aborts. Backend cleanup and protocol writes

@@ -22,13 +22,13 @@ constexpr int kSearchEntrySize = 2;
 constexpr int kEccPayloadSize = 12;
 
 // HAL RT+ payload size delivered by vendor rt_plus_update_cb.
-constexpr int kHalRtPlusPayloadSize = 15;
+constexpr int kHeliumRtPlusPayloadSize = 15;
 
 // Legacy RT+ payload header size delivered by kernel V4L2 kTavaruaBufRtPlus.
-constexpr int kLegacyRtPlusHeaderSize = 2;
+constexpr int kV4l2QcomRtPlusHeaderSize = 2;
 
 // Legacy RT+ tag triplet size (content_type, start, length).
-constexpr int kLegacyRtPlusTripletSize = 3;
+constexpr int kV4l2QcomRtPlusTripletSize = 3;
 
 // Program Service names are carried as fixed 8-byte blocks after the shared header.
 constexpr int kPsBlockSize = 8;
@@ -448,7 +448,7 @@ bool parse_rds_rt_plus_payload(
 
     *out = RdsRtPlusPayload{};
 
-    if (kind == RdsRtPlusKind::kHal) {
+    if (kind == RdsRtPlusKind::kHelium) {
         // HAL vendor callback payload layout (15 bytes):
         //   [0]    = payload length (must be >= 15)
         //   [1]    = PTY (5 bits)
@@ -459,7 +459,7 @@ bool parse_rds_rt_plus_payload(
         //   [8..10] = tag 1 ([8]=content_type, [9]=start char index, [10]=length-1)
         //   [11..13]= tag 2 ([11]=content_type, [12]=start char index, [13]=length-1)
         //   [14]   = padding
-        if (payload_len < kHalRtPlusPayloadSize) {
+        if (payload_len < kHeliumRtPlusPayloadSize) {
             return false;
         }
 
@@ -491,7 +491,7 @@ bool parse_rds_rt_plus_payload(
         return true;
     }
 
-    if (kind == RdsRtPlusKind::kLegacy) {
+    if (kind == RdsRtPlusKind::kV4l2Qcom) {
         // Legacy IRIS kernel V4L2 payload layout (kTavaruaBufRtPlus):
         //   [0]    = payload length
         //   [1]    = RT/eRT flag (1 = eRT, 0 = RT)
@@ -499,13 +499,13 @@ bool parse_rds_rt_plus_payload(
         //            [offset]   = content_type
         //            [offset+1] = start char index
         //            [offset+2] = length (already decoded by the kernel)
-        if (payload_len < kLegacyRtPlusHeaderSize) {
+        if (payload_len < kV4l2QcomRtPlusHeaderSize) {
             return false;
         }
 
         out->ert = (payload[1] != 0);
 
-        for (int offset = kLegacyRtPlusHeaderSize; offset + kLegacyRtPlusTripletSize <= payload_len; offset += kLegacyRtPlusTripletSize) {
+        for (int offset = kV4l2QcomRtPlusHeaderSize; offset + kV4l2QcomRtPlusTripletSize <= payload_len; offset += kV4l2QcomRtPlusTripletSize) {
             const int content_type = payload[offset];
             const int start = payload[offset + 1];
             const int len = payload[offset + 2];
