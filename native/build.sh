@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_ROOT="${BUILD_ROOT:-/tmp/rfm-radio-native}"
 ASSETS_DIR="${ROOT_DIR}/app/src/main/assets"
-REQUIRED_NDK_VERSION="29.0.14033849"
+REQUIRED_NDK_VERSION="${ANDROID_NDK_VERSION:-29.0.14033849}"
 REQUIRED_CMAKE_VERSION="3.22.1"
 
 resolve_toolchain() {
