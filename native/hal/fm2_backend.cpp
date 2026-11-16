@@ -186,27 +186,6 @@ void log_length_prefixed_payload(const char *scope, const char *name, const char
 
 
 
-const char *rtp_content_type_name(int content_type) {
-    switch (content_type) {
-        case 1:
-            return "ITEM.TITLE";
-        case 4:
-            return "ITEM.ARTIST";
-        case 12:
-            return "INFO.NEWS";
-        case 28:
-            return "INFO.ADVERT";
-        case 31:
-            return "STATIONNAME.SHORT";
-        case 32:
-            return "STATIONNAME.LONG";
-        case 33:
-            return "PROGRAMME.NOW";
-        default:
-            return "UNKNOWN";
-    }
-}
-
 void log_rt_plus_slices_locked() {
     if (!g_state.rt_plus_tags_valid || g_state.current_rt_len <= 0) {
         return;
@@ -232,7 +211,7 @@ void log_rt_plus_slices_locked() {
                 text,
                 static_cast<int>(sizeof(text))
         );
-        hal_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
+        hal_log("rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
     }
 }
 

@@ -35,17 +35,6 @@ RdsRtPlusTag g_rt_plus_tags[2];
 unsigned char g_rt_raw_text[65] = {};
 int g_rt_raw_text_len = 0;
 
-const char *rtp_content_type_name(int content_type) {
-    switch (content_type) {
-        case 1:
-            return "ITEM.TITLE";
-        case 4:
-            return "ITEM.ARTIST";
-        default:
-            return "UNKNOWN";
-    }
-}
-
 void format_dump(const uint8 *buf, int32 bytes, char *dump, size_t dump_size) {
     if (dump_size == 0) {
         return;
@@ -80,10 +69,10 @@ void log_rt_plus_slices() {
         ) {
             char text[65 * 3 + 1];
             convert_ebu_latin_to_utf8(g_rt_raw_text + tag.start, tag.length, text, static_cast<int>(sizeof(text)));
-            legacy_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
+            legacy_log("rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
         } else {
             legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
-                    rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.length, rt_len);
+                    get_rds_rt_plus_content_type_name(tag.content_type), tag.content_type, tag.start, tag.length, rt_len);
         }
     }
 }

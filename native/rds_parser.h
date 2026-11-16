@@ -124,6 +124,8 @@ struct RdsRtPlusSlices {
     char album[256] = "";
 };
 
+const char *get_rds_rt_plus_content_type_name(int content_type);
+
 bool parse_rds_rt_plus_payload(
         const unsigned char *payload,
         int payload_len,

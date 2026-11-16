@@ -522,6 +522,88 @@ bool parse_rds_rt_plus_payload(
     return false;
 }
 
+constexpr const char *kRtpContentTypeUnknown = "UNKNOWN";
+
+constexpr const char *kRtpContentTypeNames[64] = {
+        kRtpContentTypeUnknown,        // 0
+        // Class 1: Item
+        "ITEM.TITLE",                  // 1
+        "ITEM.ALBUM",                  // 2
+        "ITEM.TRACKNUMBER",            // 3
+        "ITEM.ARTIST",                 // 4
+        "ITEM.COMPOSITION",            // 5
+        "ITEM.MOVEMENT",               // 6
+        "ITEM.CONDUCTOR",              // 7
+        "ITEM.COMPOSER",               // 8
+        "ITEM.BAND",                   // 9
+        "ITEM.COMMENT",                // 10
+        "ITEM.GENRE",                  // 11
+        // Class 2: Info
+        "INFO.NEWS",                   // 12
+        "INFO.NEWS.LOCAL",             // 13
+        "INFO.STOCK",                  // 14
+        "INFO.SPORT",                  // 15
+        "INFO.LOTTERY",                // 16
+        "INFO.HOROSCOPE",              // 17
+        "INFO.DAILY_DIVER",            // 18
+        "INFO.HEALTH",                 // 19
+        "INFO.EVENT",                  // 20
+        "INFO.SCENE",                  // 21
+        "INFO.CINEMA",                 // 22
+        "INFO.TV",                     // 23
+        "INFO.DATE_TIME",              // 24
+        "INFO.WEATHER",                // 25
+        "INFO.TRAFFIC",                // 26
+        "INFO.ALARM",                  // 27
+        "INFO.ADVERTISEMENT",          // 28
+        "INFO.URL",                    // 29
+        "INFO.OTHER",                  // 30
+        // Class 3: Program
+        "PROGRAM.STATIONNAME",         // 31
+        "PROGRAM.NOW",                 // 32
+        "PROGRAM.NEXT",                // 33
+        "PROGRAM.PART",                // 34
+        "PROGRAM.HOST",                // 35
+        "PROGRAM.EDITORIAL_STAFF",     // 36
+        "PROGRAM.FREQUENCY",           // 37
+        "PROGRAM.HOMEPAGE",            // 38
+        "PROGRAM.SUBCHANNEL",          // 39
+        // Class 4: Interactivity
+        "INTERACTIVITY.PHONE.HOTLINE", // 40
+        "INTERACTIVITY.PHONE.STUDIO",  // 41
+        "INTERACTIVITY.PHONE.OTHER",   // 42
+        "INTERACTIVITY.SMS.STUDIO",    // 43
+        "INTERACTIVITY.SMS.OTHER",     // 44
+        "INTERACTIVITY.EMAIL.HOTLINE", // 45
+        "INTERACTIVITY.EMAIL.STUDIO",  // 46
+        "INTERACTIVITY.EMAIL.OTHER",   // 47
+        "INTERACTIVITY.MMS.OTHER",     // 48
+        "INTERACTIVITY.CHAT",          // 49
+        "INTERACTIVITY.CHAT.CENTER",   // 50
+        "INTERACTIVITY.VOTE.QUESTION", // 51
+        "INTERACTIVITY.VOTE.CENTRE",   // 52
+        // Class 5: Descriptor
+        "DESCRIPTOR.PLACE",            // 53
+        "DESCRIPTOR.APPOINTMENT",      // 54
+        "DESCRIPTOR.IDENTIFIER",       // 55
+        "DESCRIPTOR.PURCHASE",         // 56
+        "DESCRIPTOR.GET_DATA",         // 57
+        // Reserved
+        kRtpContentTypeUnknown,        // 58
+        kRtpContentTypeUnknown,        // 59
+        kRtpContentTypeUnknown,        // 60
+        kRtpContentTypeUnknown,        // 61
+        kRtpContentTypeUnknown,        // 62
+        kRtpContentTypeUnknown,        // 63
+};
+
+const char *get_rds_rt_plus_content_type_name(int content_type) {
+    if (content_type >= 0 && content_type < 64) {
+        return kRtpContentTypeNames[content_type];
+    }
+    return kRtpContentTypeUnknown;
+}
+
 bool evaluate_rds_rt_plus_slices(
         bool tags_valid,
         const RdsRtPlusTag tags[2],
