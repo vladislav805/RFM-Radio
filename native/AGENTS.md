@@ -122,12 +122,14 @@ indices refer to raw characters.
 
 ## RMSSI
 
-The native command loop polls RMSSI every 2 s while enabled (suppressed
-during tune/seek/scan). HAL uses the asynchronous station-parameter callback
-and keeps one request in flight; legacy reads `VIDIOC_G_TUNER.signal` and
-waits 750 ms (`kMetricSettleMs`) after tune/jump before sampling. Decoding
-is shared in `rmssi.h` (`decode_rmssi`, signed low byte). SINR exists as a
-V4L2 control but is not requested or exposed.
+The native command loop polls signal metrics every 2 s while enabled
+(suppressed during tune/seek/scan). HAL attempts SINR (`kV4l2CtrlIrisSinr`)
+first and falls back to RMSSI (`kV4l2CtrlIrisRmssi`) if SINR is unsupported
+by the vendor interface or fails asynchronously. Skipped or busy requests do
+not disable SINR capability. Explicit null metrics (`"sinr": null`) invalidate
+stale values in Java state. Legacy reads `VIDIOC_G_TUNER.signal` and waits
+750 ms (`kMetricSettleMs`) after tune/jump before sampling. Decoding is shared
+in `rmssi.h` (`decode_rmssi`, signed low byte).
 
 ## Tests
 

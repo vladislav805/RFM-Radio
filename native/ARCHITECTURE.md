@@ -586,10 +586,11 @@ If an older request is still pending, the immediate refresh is skipped and the
 normal pending-request guard prevents overlap.
 
 Qualcomm drivers also expose SINR through `kV4l2CtrlIrisSinr`
-(`V4L2_PRIVATE_BASE + 0x2c`). Both HAL and legacy backends query SINR
-in sequence following RMSSI measurements. The HAL callback queries
-`kV4l2CtrlIrisSinr` immediately upon receiving `rmssi`, publishing both
-`rmssi` (dBm) and `sinr` (dB) in the JSON state patch (`"sinr": <dB>`).
+(`V4L2_PRIVATE_BASE + 0x2c`). The HAL backend attempts SINR first and falls
+back to RMSSI if SINR is unsupported by the vendor interface or fails
+asynchronously (`MetricRequestResult::kUnsupported`). Busy or skipped requests
+do not disable capability. On metric fallback or station tune, stale SINR
+values are invalidated via `"sinr": null` JSON patches.
 
 ### HAL RDS and Audio
 
