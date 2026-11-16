@@ -36,6 +36,8 @@ public class RadioController {
             mState.setPty(state.getPty());
             mState.setCountry(state.getCountry());
             mState.setRmssi(state.getRmssi());
+            mState.setSinr(state.getSinr());
+            mState.setRtPlus(state.getRtPlus());
             mState.setRecording(state.isRecording());
             mState.setRecordingStarted(state.getRecordingStarted());
 
@@ -44,6 +46,8 @@ public class RadioController {
                         RadioStateUpdater.SET_STATUS |
                         RadioStateUpdater.SET_FREQUENCY |
                         RadioStateUpdater.SET_RMSSI |
+                        RadioStateUpdater.SET_SINR |
+                        RadioStateUpdater.SET_RT_PLUS |
                         RadioStateUpdater.SET_INITIAL |
                         RadioStateUpdater.SET_RECORDING;
 

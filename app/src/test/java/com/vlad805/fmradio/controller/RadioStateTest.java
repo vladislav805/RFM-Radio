@@ -50,4 +50,21 @@ public class RadioStateTest {
         assertTrue(state.getRtPlus().isEmpty());
         assertEquals("", state.getRtPlus().getFormattedText());
     }
+
+    @Test
+    public void preservesRtPlusFieldsOnPartialUpdates() {
+        final RadioState state = new RadioState();
+        state.setRtPlus(new RtPlusInfo("Title A", "Artist A", "Album A"));
+
+        final RtPlusInfo current = state.getRtPlus();
+        final String newTitle = "Title B";
+        final String newArtist = current != null ? current.getArtist() : "";
+        final String newAlbum = current != null ? current.getAlbum() : "";
+
+        state.setRtPlus(new RtPlusInfo(newTitle, newArtist, newAlbum));
+
+        assertEquals("Title B", state.getRtPlus().getTitle());
+        assertEquals("Artist A", state.getRtPlus().getArtist());
+        assertEquals("Album A", state.getRtPlus().getAlbum());
+    }
 }

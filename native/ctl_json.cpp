@@ -51,6 +51,10 @@ std::string json_escape(const char *value) {
     return out;
 }
 
+std::string json_escape(const std::string &value) {
+    return json_escape(value.c_str());
+}
+
 void append_field(std::string &json, bool &first, const char *name, const std::string &value) {
     if (!first) {
         json += ',';
@@ -135,12 +139,20 @@ bool build_radio_state_patch_json(
     }
 
     if (patch->rmssi != RADIO_PATCH_ABSENT_METRIC && patch->rmssi != cache.rmssi) {
-        append_field(*json, first_top, "rmssi", std::to_string(patch->rmssi));
+        if (patch->rmssi == RADIO_PATCH_CLEAR_METRIC) {
+            append_field(*json, first_top, "rmssi", "null");
+        } else {
+            append_field(*json, first_top, "rmssi", std::to_string(patch->rmssi));
+        }
         changed = true;
     }
 
     if (patch->sinr != RADIO_PATCH_ABSENT_METRIC && patch->sinr != cache.sinr) {
-        append_field(*json, first_top, "sinr", std::to_string(patch->sinr));
+        if (patch->sinr == RADIO_PATCH_CLEAR_METRIC) {
+            append_field(*json, first_top, "sinr", "null");
+        } else {
+            append_field(*json, first_top, "sinr", std::to_string(patch->sinr));
+        }
         changed = true;
     }
 
@@ -164,22 +176,36 @@ bool build_radio_state_patch_json(
         append_field(rds, first_rds, "pty", std::to_string(patch->pty));
     }
 
-    std::string rt_plus;
-    bool first_rtp = true;
+    struct RtPlusFieldSpec {
+        const char *key;
+        const char *patch_val;
+        const std::string &cache_val;
+    };
 
-    if (patch->rt_plus_title != nullptr && cache.rt_plus_title != patch->rt_plus_title) {
-        append_field(rt_plus, first_rtp, "title", json_escape(patch->rt_plus_title));
+    const RtPlusFieldSpec rtp_fields[] = {
+        {"title", patch->rt_plus_title, cache.rt_plus_title},
+        {"artist", patch->rt_plus_artist, cache.rt_plus_artist},
+        {"album", patch->rt_plus_album, cache.rt_plus_album},
+    };
+
+    bool rtp_changed = false;
+    for (const auto &f : rtp_fields) {
+        if (f.patch_val != nullptr && f.cache_val != f.patch_val) {
+            rtp_changed = true;
+            break;
+        }
     }
 
-    if (patch->rt_plus_artist != nullptr && cache.rt_plus_artist != patch->rt_plus_artist) {
-        append_field(rt_plus, first_rtp, "artist", json_escape(patch->rt_plus_artist));
-    }
-
-    if (patch->rt_plus_album != nullptr && cache.rt_plus_album != patch->rt_plus_album) {
-        append_field(rt_plus, first_rtp, "album", json_escape(patch->rt_plus_album));
-    }
-
-    if (!rt_plus.empty()) {
+    if (rtp_changed) {
+        std::string rt_plus;
+        bool first_rtp = true;
+        for (const auto &f : rtp_fields) {
+            if (f.patch_val != nullptr) {
+                append_field(rt_plus, first_rtp, f.key, json_escape(f.patch_val));
+            } else {
+                append_field(rt_plus, first_rtp, f.key, json_escape(f.cache_val));
+            }
+        }
         append_field(rds, first_rds, "rt_plus", "{" + rt_plus + "}");
     }
 

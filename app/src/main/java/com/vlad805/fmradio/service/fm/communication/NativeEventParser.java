@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.fm.communication;
 import android.util.Log;
 
 import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
@@ -72,20 +73,28 @@ public final class NativeEventParser {
         }
 
         if (json.has("rmssi")) {
-            final int rmssi = json.optInt("rmssi", Integer.MIN_VALUE);
-            if (rmssi < -128 || rmssi > 127) {
-                Log.w(TAG, "Invalid RMSSI payload");
+            if (json.isNull("rmssi")) {
+                patch.setRmssi(RadioState.RMSSI_UNKNOWN);
             } else {
-                patch.setRmssi(rmssi);
+                final int rmssi = json.optInt("rmssi", Integer.MIN_VALUE);
+                if (rmssi < -128 || rmssi > 127) {
+                    Log.w(TAG, "Invalid RMSSI payload");
+                } else {
+                    patch.setRmssi(rmssi);
+                }
             }
         }
 
         if (json.has("sinr")) {
-            final int sinr = json.optInt("sinr", Integer.MIN_VALUE);
-            if (sinr < -128 || sinr > 127) {
-                Log.w(TAG, "Invalid SINR payload");
+            if (json.isNull("sinr")) {
+                patch.setSinr(RadioState.SINR_UNKNOWN);
             } else {
-                patch.setSinr(sinr);
+                final int sinr = json.optInt("sinr", Integer.MIN_VALUE);
+                if (sinr < -128 || sinr > 127) {
+                    Log.w(TAG, "Invalid SINR payload");
+                } else {
+                    patch.setSinr(sinr);
+                }
             }
         }
 

@@ -170,7 +170,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
                     final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
                     if (frequency != mState.getFrequency()) {
                         mState.setRmssi(RadioState.RMSSI_UNKNOWN);
-                        mode |= SET_RMSSI;
+                        mState.setSinr(RadioState.SINR_UNKNOWN);
+                        mode |= SET_RMSSI | SET_SINR;
                     }
                     mState.setFrequency(frequency);
                     mode |= SET_FREQUENCY;
@@ -212,10 +213,14 @@ public class RadioStateUpdater extends BroadcastReceiver {
                         intent.hasExtra(C.Key.RT_PLUS_ARTIST) ||
                         intent.hasExtra(C.Key.RT_PLUS_ALBUM)
                 ) {
-                    final String title = intent.getStringExtra(C.Key.RT_PLUS_TITLE);
-                    final String artist = intent.getStringExtra(C.Key.RT_PLUS_ARTIST);
-                    final String album = intent.getStringExtra(C.Key.RT_PLUS_ALBUM);
-                    mState.setRtPlus(new RtPlusInfo(title, artist, album));
+                    final RtPlusInfo current = mState.getRtPlus();
+                    final String title = getExtraString(intent, C.Key.RT_PLUS_TITLE, current.getTitle());
+                    final String artist = getExtraString(intent, C.Key.RT_PLUS_ARTIST, current.getArtist());
+                    final String album = getExtraString(intent, C.Key.RT_PLUS_ALBUM, current.getAlbum());
+
+                    mState.setRtPlus(title.isEmpty() && artist.isEmpty() && album.isEmpty()
+                            ? null
+                            : new RtPlusInfo(title, artist, album));
                     mode |= SET_RT_PLUS;
                 }
                 break;
@@ -263,6 +268,10 @@ public class RadioStateUpdater extends BroadcastReceiver {
     private void updateRecordingStarted(final Intent intent) {
         final long durationSeconds = Math.max(0, intent.getIntExtra(C.Key.DURATION, 0));
         mState.setRecordingStarted(System.currentTimeMillis() - durationSeconds * 1000L);
+    }
+
+    private static String getExtraString(final Intent intent, final String key, final String fallback) {
+        return intent.hasExtra(key) ? intent.getStringExtra(key) : (fallback != null ? fallback : "");
     }
 
     /**

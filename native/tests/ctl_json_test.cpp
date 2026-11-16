@@ -144,6 +144,23 @@ TEST(CtlJsonTest, BuildsAndClearsRtPlusPatch) {
     EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"\",\"artist\":\"\",\"album\":\"\"}}}");
 }
 
+TEST(CtlJsonTest, PreservesExistingRtPlusFieldsOnPartialPatch) {
+    RadioStateJsonCache cache;
+    radio_state_patch_t patch1 = make_empty_patch();
+    patch1.rt_plus_title = "Song A";
+    patch1.rt_plus_artist = "Singer";
+    patch1.rt_plus_album = "Album";
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch1, &json));
+    apply_radio_state_patch(&cache, &patch1);
+
+    radio_state_patch_t patch2 = make_empty_patch();
+    patch2.rt_plus_title = "Song B";
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch2, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"Song B\",\"artist\":\"Singer\",\"album\":\"Album\"}}}");
+}
+
 TEST(CtlJsonTest, BuildsAfPatch) {
     RadioStateJsonCache cache;
     const int af[] = {107200, 106000, 104900};
