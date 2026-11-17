@@ -100,6 +100,7 @@ public class QualcommNative extends AbstractQualcommNativeController {
         final int antenna = Storage.getPrefInt(context, C.PrefKey.TUNER_ANTENNA, C.PrefDefaultValue.TUNER_ANTENNA);
         final boolean autoAf = Storage.getPrefBoolean(context, C.PrefKey.RDS_AUTO_AF, C.PrefDefaultValue.RDS_AUTO_AF);
         final boolean softMute = Storage.getPrefBoolean(context, C.PrefKey.TUNER_SOFT_MUTE, C.PrefDefaultValue.TUNER_SOFT_MUTE);
+        final int notchFilter = Storage.getPrefInt(context, C.PrefKey.TUNER_NOTCH_FILTER, C.PrefDefaultValue.TUNER_NOTCH_FILTER);
 
         final String command = String.format(
                 Locale.US,
@@ -116,6 +117,9 @@ public class QualcommNative extends AbstractQualcommNativeController {
             if (!isOkResponse(result)) {
                 callback.onError(new Error("Failed to enable tuner: " + result));
                 return;
+            }
+            if (notchFilter != C.PrefDefaultValue.TUNER_NOTCH_FILTER) {
+                applyPreferenceImpl(C.PrefKey.TUNER_NOTCH_FILTER, String.valueOf(notchFilter));
             }
             callback.onResult(null);
         }).onError(error -> callback.onError(new Error("Failed to enable tuner", error))));

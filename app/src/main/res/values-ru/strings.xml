@@ -128,6 +128,10 @@
 	<string name="pref_tuner_soft_mute">Подавление шума</string>
 	<string name="pref_tuner_soft_mute_on">Подавлять шум при слабом FM-сигнале</string>
 	<string name="pref_tuner_soft_mute_off">Не подавлять шум слабого сигнала</string>
+	<string name="pref_tuner_notch_filter">Режекторный фильтр (подавление помех экрана)</string>
+	<string name="pref_tuner_notch_filter_auto">Авто</string>
+	<string name="pref_tuner_notch_filter_low">Нижний (Low)</string>
+	<string name="pref_tuner_notch_filter_high">Верхний (High)</string>
 	<string name="pref_warning_applying_only_after_restart">Внимание! Эта настройка вступит в силу только после полного
 		перезапуска приложения.
 	</string>

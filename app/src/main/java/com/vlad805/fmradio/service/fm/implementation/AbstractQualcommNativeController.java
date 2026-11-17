@@ -126,6 +126,9 @@ public abstract class AbstractQualcommNativeController implements IFMController,
             case C.PrefKey.TUNER_SOFT_MUTE:
                 sendCommand(new Request("set_soft_mute " + value));
                 break;
+            case C.PrefKey.TUNER_NOTCH_FILTER:
+                sendCommand(new Request("set_notch_filter " + value));
+                break;
             case C.PrefKey.TUNER_ANTENNA:
                 onApplyAntennaPreference(value);
                 break;
@@ -251,6 +254,11 @@ public abstract class AbstractQualcommNativeController implements IFMController,
                 case C.PrefKey.TUNER_SOFT_MUTE: {
                     final boolean enabled = Storage.getPrefBoolean(context, key, C.PrefDefaultValue.TUNER_SOFT_MUTE);
                     value = enabled ? "1" : "0";
+                    break;
+                }
+                case C.PrefKey.TUNER_NOTCH_FILTER: {
+                    final int mode = Storage.getPrefInt(context, key, C.PrefDefaultValue.TUNER_NOTCH_FILTER);
+                    value = String.valueOf(mode);
                     break;
                 }
                 case C.PrefKey.TUNER_SPACING: {

@@ -280,6 +280,18 @@ response_t handle_soft_mute(const std::vector<std::string> &args) {
     return make_ok();
 }
 
+response_t handle_notch_filter(const std::vector<std::string> &args) {
+    if (args.size() != 2 || (args[1] != "0" && args[1] != "1" && args[1] != "2")) {
+        return make_error(kErrInvalidConfig);
+    }
+
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_notch_filter(args[1][0] - '0')) {
+        return make_backend_error(backend);
+    }
+    return make_ok();
+}
+
 }  // namespace
 
 void poll_rmssi() {
@@ -312,6 +324,7 @@ response_t api_handler(char *request) {
     if (command == "auto_af") return handle_auto_af(args);
     if (command == "slimbus") return handle_slimbus(args);
     if (command == "set_soft_mute") return handle_soft_mute(args);
+    if (command == "set_notch_filter") return handle_notch_filter(args);
     return make_error(kErrUnknown);
 }
 

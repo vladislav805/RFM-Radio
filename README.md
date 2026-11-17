@@ -36,6 +36,10 @@ When this option **is enabled**, the application will display data transmitted f
 
 Select an antenna. In most cases: 0 - default, headphones; 1 - internal (bad quality).
 
+#### Notch filter (EMI suppression)
+
+Controls the Qualcomm hardware RF notch filter (`Auto`, `Low`, `High`) to suppress narrowband interference from the display, CPU, or PMIC clock lines on affected frequencies.
+
 ### Application
 #### Autostart
 

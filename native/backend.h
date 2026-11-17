@@ -31,6 +31,7 @@ public:
     virtual bool cancel_search() = 0;
     virtual bool set_auto_af(bool enabled) = 0;
     virtual bool set_soft_mute(bool enabled) = 0;
+    virtual bool set_notch_filter(int mode) = 0;
     virtual bool set_slimbus(bool enabled) = 0;
     virtual bool request_signal_metric() = 0;
     virtual void shutdown() = 0;

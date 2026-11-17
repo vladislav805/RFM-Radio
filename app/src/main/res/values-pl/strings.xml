@@ -131,6 +131,10 @@
 	<string name="pref_tuner_soft_mute">Wyciszanie szumów</string>
 	<string name="pref_tuner_soft_mute_on">Tłum szum przy słabym sygnale FM</string>
 	<string name="pref_tuner_soft_mute_off">Nie tłum szumu słabego sygnału</string>
+	<string name="pref_tuner_notch_filter">Filtr wycinający (tłumienie zakłóceń)</string>
+	<string name="pref_tuner_notch_filter_auto">Automatyczny</string>
+	<string name="pref_tuner_notch_filter_low">Niski (Low)</string>
+	<string name="pref_tuner_notch_filter_high">Wysoki (High)</string>
     <string name="pref_tuner_antenna_error">Błąd podczas ustawiania anteny. Proszę zwrócić prawidłową wartość (zwykle 0)</string>
     <string name="pref_version_check_error">Wystąpił błąd podczas żądania: %s</string>
     <string name="menu_scan_stations">Wyszukaj stacje</string>

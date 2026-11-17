@@ -34,6 +34,7 @@ public:
     bool cancel_search() override;
     bool set_auto_af(bool enabled) override;
     bool set_soft_mute(bool enabled) override;
+    bool set_notch_filter(int mode) override;
     bool set_slimbus(bool enabled) override;
     bool request_signal_metric() override;
     void shutdown() override;

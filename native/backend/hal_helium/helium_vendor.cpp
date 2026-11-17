@@ -1456,6 +1456,15 @@ bool fm2_backend_set_soft_mute(bool enabled) {
     return true;
 }
 
+bool fm2_backend_set_notch_filter(int mode) {
+    if (mode < 0 || mode > 2) {
+        return false;
+    }
+
+    backend_log("hel", "audio", "set notch_filter=%d", mode);
+    return vendor_set(kV4l2CtrlSetNotchFilter, mode, "failed to set notch filter");
+}
+
 bool fm2_backend_set_slimbus(bool enabled) {
     backend_log("hel", "setup", "set slimbus=%d", enabled ? 1 : 0);
     if (!vendor_set(kV4l2CtrlEnableSlimbus, enabled ? 1 : 0, "failed to set slimbus")) {

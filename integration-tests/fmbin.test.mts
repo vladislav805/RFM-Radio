@@ -95,6 +95,14 @@ describe("fmbin device integration", () => {
         const jumpDownResp = await client.sendCommand("jump -1", 10000);
         assert.equal(jumpDownResp.ok, true, jumpDownResp.data);
 
+        for (const mode of ["1", "2", "0"]) {
+            const notchResp = await client.sendCommand(`set_notch_filter ${mode}`, 10000);
+            assert.equal(notchResp.ok, true, notchResp.data);
+        }
+        const badNotchResp = await client.sendCommand("set_notch_filter 3", 10000);
+        assert.equal(badNotchResp.ok, false);
+        assert.match(badNotchResp.data, /ERR_IVD_CFG/);
+
         const disableResp = await client.sendCommand("disable", 10000);
         assert.equal(disableResp.ok, true, disableResp.data);
 

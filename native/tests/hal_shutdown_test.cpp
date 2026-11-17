@@ -16,11 +16,15 @@ void poll_rmssi() {}
 namespace {
 
 int off_requests;
+int last_notch_filter;
 bool reject_off;
 bool reject_tune;
 std::thread enabled_thread;
 
 int fake_set(int id, int value) {
+    if (id == kV4l2CtrlSetNotchFilter) {
+        last_notch_filter = value;
+    }
     if (id == kV4l2CtrlState && value == kFmRxState) {
         enabled_thread = std::thread(enabled_cb);
     }
@@ -43,6 +47,7 @@ class HalShutdownTest : public ::testing::Test {
 protected:
     void SetUp() override {
         off_requests = 0;
+        last_notch_filter = -1;
         reject_off = false;
         reject_tune = false;
         g_state.vendor = &fake_vendor;
@@ -175,6 +180,19 @@ TEST_F(HalShutdownTest, AdapterWaitsForEarlierEnableRollback) {
     backend->shutdown();
     EXPECT_FALSE(g_state.receiver_cleanup_needed);
     EXPECT_EQ(off_requests, 1);
+}
+
+TEST_F(HalShutdownTest, NotchFilterValidatesRangeAndWritesControl) {
+    Backend *backend = create_helium_backend();
+    EXPECT_TRUE(backend->set_notch_filter(1));
+    EXPECT_EQ(last_notch_filter, 1);
+    EXPECT_TRUE(backend->set_notch_filter(2));
+    EXPECT_EQ(last_notch_filter, 2);
+    EXPECT_TRUE(backend->set_notch_filter(0));
+    EXPECT_EQ(last_notch_filter, 0);
+    EXPECT_FALSE(backend->set_notch_filter(-1));
+    EXPECT_FALSE(backend->set_notch_filter(3));
+    EXPECT_EQ(last_notch_filter, 0);
 }
 
 }  // namespace

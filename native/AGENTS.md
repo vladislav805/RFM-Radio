@@ -73,7 +73,7 @@ success response by 300 ms intentionally — do not remove it. Java matches
 success by a `"ok"` prefix on `data`, not by the `ok` field.
 
 Commands: `init`, `enable`, `disable`, `setfreq`, `jump`, `seekhw`,
-`power_mode`, `set_stereo`, `set_soft_mute`, `set_antenna`, `set_region`,
+`power_mode`, `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna`, `set_region`,
 `set_spacing`, `searchhw`, `search_cancel`, `auto_af`, `slimbus`, plus
 `shutdown` (alias `exit`) for process teardown.
 

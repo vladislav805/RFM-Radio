@@ -125,6 +125,22 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		});
 		category.addPreference(softMute);
 
+		final ListPreference notchFilter = new ListPreference(context);
+		populatePreference(notchFilter, C.PrefKey.TUNER_NOTCH_FILTER, R.string.pref_tuner_notch_filter, 0);
+		notchFilter.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_NOTCH_FILTER));
+		notchFilter.setEntries(new CharSequence[]{
+				getString(R.string.pref_tuner_notch_filter_auto),
+				getString(R.string.pref_tuner_notch_filter_low),
+				getString(R.string.pref_tuner_notch_filter_high),
+		});
+		notchFilter.setEntryValues(new CharSequence[]{"0", "1", "2"});
+		notchFilter.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
+		notchFilter.setOnPreferenceChangeListener((preference, newValue) -> {
+			mPreferences.put(C.PrefKey.TUNER_NOTCH_FILTER, Utils.parseInt((String) newValue));
+			return true;
+		});
+		category.addPreference(notchFilter);
+
 
 		final EditTextPreference antenna = new EditTextPreference(context);
 		populatePreference(antenna, C.PrefKey.TUNER_ANTENNA, R.string.pref_tuner_antenna, R.drawable.ic_antenna);

@@ -173,7 +173,7 @@ Final public methods emit lifecycle events (`PREPARING`, `INSTALLING`,
   plus the external `mEventCallback`, and wires
   `handleUnexpectedNativeExit` as the lifecycle listener.
 - `applyPreferenceImpl` maps preferences to `set_spacing`, `set_region`,
-  `set_stereo`, `set_soft_mute`, `set_antenna`, `power_mode`, `auto_af`.
+  `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna`, `power_mode`, `auto_af`.
   `setupTunerByPreferences(changed)` reads Tray and applies; a spacing
   change re-applies stereo afterwards (vendor quirk).
 - `kill()` → background graceful stop → `DISABLED`, `KILLED` events.

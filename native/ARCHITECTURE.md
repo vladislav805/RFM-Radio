@@ -280,6 +280,7 @@ NUL behavior.
 | `power_mode <low|other>` | Set low or normal power | `ok` |
 | `set_stereo <0|1>` | Select mono/stereo mode | `ok` |
 | `set_soft_mute <0|1>` | Enable or disable weak-signal attenuation | `ok` |
+| `set_notch_filter <0|1|2>` | Set hardware notch filter (0=auto, 1=low, 2=high) | `ok` |
 | `set_antenna <value>` | Select antenna | `ok` |
 | `set_region <name>` | Change region and clamp current tune if needed | `ok` |
 | `set_spacing <50|100|200>` | Change channel spacing | `ok` |
@@ -308,7 +309,7 @@ Common textual errors include:
 | Error | Meaning |
 | --- | --- |
 | `ERR_IVD_FRQ` | Missing command argument |
-| `ERR_IVD_CFG` | Invalid complete config, region, or spacing; also an invalid `set_soft_mute` argument |
+| `ERR_IVD_CFG` | Invalid complete config, region, or spacing; also an invalid `set_soft_mute` or `set_notch_filter` argument |
 | `ERR_UNK_CMD` | Empty or unknown command |
 | `ERR_UNSUPPORTED` | No backend or unsupported device |
 | `ERR_FAILED` | Generic backend operation failure |

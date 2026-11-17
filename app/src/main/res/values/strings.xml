@@ -136,6 +136,10 @@
 	<string name="pref_tuner_soft_mute">Soft mute</string>
 	<string name="pref_tuner_soft_mute_on">Suppress noise when the FM signal is weak</string>
 	<string name="pref_tuner_soft_mute_off">Do not suppress weak-signal noise</string>
+	<string name="pref_tuner_notch_filter">Notch filter (EMI suppression)</string>
+	<string name="pref_tuner_notch_filter_auto">Auto</string>
+	<string name="pref_tuner_notch_filter_low">Low</string>
+	<string name="pref_tuner_notch_filter_high">High</string>
     <string name="pref_tuner_antenna_error">Error while set antenna. Please, return valid value (usually 0)</string>
     <string name="pref_version_check_error">An error occurred during the request: %s</string>
     <string name="menu_scan_stations">Scan for stations</string>

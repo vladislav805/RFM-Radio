@@ -111,6 +111,7 @@ final public class C {
 		public static final String TUNER_ANTENNA = "tuner_antenna";
 		public static final String TUNER_STEREO = "tuner_stereo";
 		public static final String TUNER_SOFT_MUTE = "tuner_soft_mute";
+		public static final String TUNER_NOTCH_FILTER = "tuner_notch_filter";
 
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 
@@ -140,6 +141,7 @@ final public class C {
 		public static final int TUNER_ANTENNA = 0;
 		public static final boolean TUNER_STEREO = true;
 		public static final boolean TUNER_SOFT_MUTE = true;
+		public static final int TUNER_NOTCH_FILTER = 0;
 		public static final boolean TUNER_POWER_MODE = false;
 
 		public static final boolean RECORDING_SHOW_NOTIFY = true;

@@ -25,6 +25,7 @@ bool fm2_backend_set_antenna(int antenna);
 bool fm2_backend_set_power_mode(bool low_power);
 bool fm2_backend_set_auto_af(bool enabled);
 bool fm2_backend_set_soft_mute(bool enabled);
+bool fm2_backend_set_notch_filter(int mode);
 bool fm2_backend_set_slimbus(bool enabled);
 enum class MetricRequestResult {
     kOk,

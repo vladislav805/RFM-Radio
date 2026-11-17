@@ -403,6 +403,15 @@ bool V4l2QcomBackend::set_soft_mute(bool enabled) {
     return set_status(set_v4l2_ctrl(kV4l2CtrlSoftMute, enabled ? 1 : 0), kErrFailed);
 }
 
+// Configures hardware notch filter (0 = auto, 1 = low, 2 = high).
+bool V4l2QcomBackend::set_notch_filter(int mode) {
+    if (mode < 0 || mode > 2) {
+        return set_status(false, kErrFailed);
+    }
+    log("audio", "set notch_filter=%d", mode);
+    return set_status(set_v4l2_ctrl(kV4l2CtrlSetNotchFilter, mode), kErrFailed);
+}
+
 // Toggles slimbus transport (no-op on V4L2).
 bool V4l2QcomBackend::set_slimbus(bool /*enabled*/) {
     return set_status(true, nullptr);

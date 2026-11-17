@@ -93,6 +93,10 @@ public:
         return set_status(fm2_backend_set_soft_mute(enabled));
     }
 
+    bool set_notch_filter(int mode) override {
+        return set_status(fm2_backend_set_notch_filter(mode));
+    }
+
     bool set_slimbus(bool enabled) override {
         return set_status(fm2_backend_set_slimbus(enabled));
     }

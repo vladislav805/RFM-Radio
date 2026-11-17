@@ -95,6 +95,7 @@ The unified binary accepts the same external command API used before the merge:
 - `power_mode <low|normal>`
 - `set_stereo <0|1>`
 - `set_soft_mute <0|1>`
+- `set_notch_filter <0|1|2>`
 - `set_antenna <value>`
 - `set_region <eu|us|jp|jp_wide>`
 - `set_spacing <50|100|200>`
