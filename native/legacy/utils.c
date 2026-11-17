@@ -63,6 +63,13 @@ void make_frequency_limit_by_band(radio_band_t band, band_limit_freq* limits) {
             break;
         }
 
+        case FM_RX_MOD:
+        default: {
+            limits->lower_limit = 30000;
+            limits->upper_limit = 999000;
+            break;
+        }
+        
         case FM_RX_US_EUROPE:
         default: {
             limits->lower_limit = 87500;
