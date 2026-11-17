@@ -207,6 +207,11 @@ void apply_band_config_locked(int app_region) {
             g_state.lower_band_khz = 76000;
             g_state.upper_band_khz = 108000;
             break;
+        case 4:
+            g_state.vendor_region = 3;
+            g_state.lower_band_khz = 30000;
+            g_state.upper_band_khz = 999000;
+            break;
         case 1:
         default:
             g_state.vendor_region = 4;
