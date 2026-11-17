@@ -5,7 +5,7 @@
 #include <string.h>
 
 Backend *create_v4l2_qcom_backend();
-Backend *create_helium_backend();
+Backend *create_hal_helium_backend();
 
 namespace {
 
@@ -71,7 +71,7 @@ Backend *create_backend(const BackendKind kind) {
         }
 
         case BackendKind::kHelium: {
-            return create_helium_backend();
+            return create_hal_helium_backend();
         }
 
         case BackendKind::kNone:

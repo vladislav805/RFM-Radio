@@ -78,7 +78,7 @@ Android QualcommNative
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
-| `native/backend/hal_helium/` | Qualcomm Helium backend (`helium_backend.cpp`, `helium_vendor.cpp`, `helium_vendor_iface.h`) |
+| `native/backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
 | `native/ctl_protocol.cpp` | Strict request-ID and command-line frame parser |
@@ -98,9 +98,8 @@ Android QualcommNative
 
 | Path | Responsibility |
 | --- | --- |
-| `native/backend/hal_helium/helium_backend.cpp` | Adapter from `Backend` to Helium vendor functions |
-| `native/backend/hal_helium/helium_vendor.cpp` | Helium HAL loading, state, controls, callbacks, scan, RDS |
-| `native/backend/hal_helium/helium_vendor_iface.h` | Reconstructed binary ABI for `fm_helium.so` |
+| `native/backend/hal_helium/hal_helium_backend.cpp` | `HalHeliumBackend` `Backend` implementation, HAL loading, state, controls, callbacks, scan, RDS |
+| `native/backend/hal_helium/hal_helium_types.h` | Reconstructed binary ABI for `fm_helium.so` and Helium runtime state types |
 
 ### Qualcomm V4L2 Layer
 
@@ -415,19 +414,19 @@ the table above. Treat changes to this mapping as hardware-sensitive.
 
 ### ABI and Initialization
 
-`native/hal/fm2_vendor_iface.h` manually reconstructs Qualcomm's binary ABI:
+`native/backend/hal_helium/hal_helium_types.h` manually reconstructs Qualcomm's binary ABI:
 
 - callback function signatures and callback-table order
 - `fm_interface_t`
 - vendor payload structs
 - IRIS frequency, seek, band, audio-mode, RMSSI, and Slimbus controls
 
-Initialization in `fm2_backend_init()` performs:
+Initialization in `HalHeliumBackend::init()` performs:
 
 ```text
 dlopen("fm_helium.so", RTLD_NOW)
 dlsym("FM_HELIUM_LIB_INTERFACE")
-vendor->hal_init(&g_callbacks)
+vendor->hal_init(&kCallbacks)
 mark runtime initialized
 ```
 
@@ -438,7 +437,7 @@ pointer, not merely return an error.
 
 ### Runtime State and Synchronization
 
-`RuntimeState` in `fm2_backend.cpp` owns:
+`HeliumRuntimeState` in `hal_helium_types.h` owns:
 
 - dynamic library and vendor interface handles
 - initialized/enabled flags
@@ -450,10 +449,10 @@ pointer, not merely return an error.
 - a pthread mutex and condition variable
 
 Vendor callbacks may run on vendor-managed threads. Most runtime fields are
-protected by `g_state.lock`. The condition variable is used to wait up to two
+protected by `state_.lock`. The condition variable is used to wait up to two
 seconds for `enabled_cb`.
 
-Important locking caveat: `vendor_set()` holds `g_state.lock` while calling
+Important locking caveat: `vendor_set()` holds `state_.lock` while calling
 vendor `set_fm_ctrl()`, and initialization calls vendor `hal_init()` while
 holding the same non-recursive mutex. If a vendor implementation invokes a
 callback synchronously from either call, and that callback also locks state,
@@ -465,9 +464,9 @@ callback behavior.
 The adapter's complete enable sequence is:
 
 ```text
-fm2_backend_configure_startup(config)
-fm2_backend_enable()
-fm2_backend_set_frequency(initial frequency)
+configure_startup(config)
+enable_receiver()
+set_frequency(initial frequency)
 rollback with disable on failure
 ```
 
@@ -573,13 +572,13 @@ local to repeated search-list payloads and does not unify both mechanisms.
 
 The app-facing signal indicator uses RMSSI only. HAL requests
 `kV4l2CtrlIrisRmssi` (`0x00980934`) and receives the signed low byte through
-`fm_get_station_param_cb`. `RmssiState` keeps the pending request, request
+`fm_get_station_param_cb`. `HeliumRmssiState` keeps the pending request, request
 frequency, pause state, and timeout-log state together so late callbacks from a
 previous frequency are not published for the current station.
 
 RMSSI remains paused from the start of enable until `tune_cb`, and from the
 start of disable through `disabled_cb`. The vendor callbacks are authoritative
-for `RuntimeState.enabled`; a failed disable only resumes RMSSI when that state
+for `HeliumRuntimeState::enabled`; a failed disable only resumes RMSSI when that state
 still reports the receiver as enabled.
 
 `tune_cb` requests one immediate RMSSI refresh after publishing the new
@@ -590,7 +589,7 @@ normal pending-request guard prevents overlap.
 Qualcomm drivers also expose SINR through `kV4l2CtrlIrisSinr`
 (`V4L2_PRIVATE_BASE + 0x2c`). The HAL backend attempts SINR first and falls
 back to RMSSI if SINR is unsupported by the vendor interface or fails
-asynchronously (`MetricRequestResult::kUnsupported`). Busy or skipped requests
+asynchronously (`HeliumMetricRequestResult::kUnsupported`). Busy or skipped requests
 do not disable capability. On metric fallback or station tune, stale SINR
 values are invalidated via `"sinr": null` JSON patches.
 
@@ -956,14 +955,10 @@ Agent-facing documentation layers:
 - `app/AGENTS.md` and `app/ARCHITECTURE.md` — the Android side,
   including the bridge classes above.
 
-Existing README files are partially stale:
-
-- `native/legacy/README.md` names several `.c` files that are now `.cpp`.
-- `native/hal/README.md` references absent `common.h`, a local
-  `fm_helium.so` reference binary, and an obsolete `[fm2]` log prefix (the
-  actual prefix is `hal/<scope>:`).
 - `native/README.md` is a shorter human-oriented overview; treat the command
   tables here as canonical when they disagree.
+- `native/backend/v4l2_qcom/README.md` and `native/backend/hal_helium/README.md`
+  summarize each backend directory.
 
 Use source code and this document for current navigation. Update this document
 when architecture, protocol, lifecycle, or known invariants change.

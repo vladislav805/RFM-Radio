@@ -1,14 +1,12 @@
-// Include the implementation to inject the vendor interface and exercise its
-// real callbacks without loading a device library or exposing test-only APIs.
-#include "backend/hal_helium/helium_vendor.cpp"
-#include "backend.h"
+#include "backend/hal_helium/hal_helium_backend.h"
+#include "ctl_server.h"
 
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 
-Backend *create_helium_backend();
+Backend *create_hal_helium_backend();
 
 // The real protocol writer is linked, but no command-loop polling is needed.
 void poll_rmssi() {}
@@ -25,8 +23,8 @@ int fake_set(int id, int value) {
     if (id == kV4l2CtrlSetNotchFilter) {
         last_notch_filter = value;
     }
-    if (id == kV4l2CtrlState && value == kFmRxState) {
-        enabled_thread = std::thread(enabled_cb);
+    if (id == kV4l2CtrlState && value == 1) {
+        enabled_thread = std::thread(HalHeliumBackend::enabled_cb);
     }
     if (id == kV4l2CtrlIrisFreq && reject_tune) return -1;
     if (id == kV4l2CtrlState && value == 0) {
@@ -45,33 +43,27 @@ fm_interface_t fake_vendor = {nullptr, fake_set, fake_get};
 
 class HalShutdownTest : public ::testing::Test {
 protected:
+    HalHeliumBackend *backend = nullptr;
+
     void SetUp() override {
         off_requests = 0;
         last_notch_filter = -1;
         reject_off = false;
         reject_tune = false;
-        g_state.vendor = &fake_vendor;
-        g_state.initialized = true;
-        g_state.enabled = true;
-        g_state.receiver_cleanup_needed = true;
-        g_state.disable_pending = false;
-        clear_error_locked();
+        backend = static_cast<HalHeliumBackend *>(create_hal_helium_backend());
+        backend->reset_for_test(&fake_vendor, true, true, true);
     }
 
     void TearDown() override {
         if (callback_thread.joinable()) callback_thread.join();
         if (enabled_thread.joinable()) enabled_thread.join();
-        g_state.vendor = nullptr;
-        g_state.initialized = false;
-        g_state.enabled = false;
-        g_state.receiver_cleanup_needed = false;
-        g_state.disable_pending = false;
+        backend->reset_for_test(nullptr, false, false, false);
     }
 
     void CompleteLater() {
         callback_thread = std::thread([] {
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
-            disabled_cb();
+            HalHeliumBackend::disabled_cb();
         });
     }
 
@@ -80,110 +72,108 @@ protected:
 
 TEST_F(HalShutdownTest, ShutdownRequestsOffAndWaitsForCallback) {
     CompleteLater();
-    EXPECT_TRUE(fm2_backend_shutdown(500));
+    EXPECT_TRUE(backend->shutdown_with_timeout(500));
     EXPECT_EQ(off_requests, 1);
-    EXPECT_FALSE(g_state.receiver_cleanup_needed);
+    EXPECT_FALSE(backend->state().receiver_cleanup_needed);
 }
 
 TEST_F(HalShutdownTest, EarlierDisableStillRequiresCallbackWithoutAnotherOff) {
-    ASSERT_TRUE(fm2_backend_disable());
-    EXPECT_TRUE(g_state.disable_pending);
-    EXPECT_FALSE(fm2_backend_shutdown(10));
-    EXPECT_STREQ(fm2_backend_last_error(), "timed out waiting for disabled_cb");
+    ASSERT_TRUE(backend->disable());
+    EXPECT_TRUE(backend->state().disable_pending);
+    EXPECT_FALSE(backend->shutdown_with_timeout(10));
+    EXPECT_STREQ(backend->last_error(), "timed out waiting for disabled_cb");
     EXPECT_EQ(off_requests, 1);
 
     CompleteLater();
-    EXPECT_TRUE(fm2_backend_shutdown(500));
+    EXPECT_TRUE(backend->shutdown_with_timeout(500));
     EXPECT_EQ(off_requests, 1);
 }
 
 TEST_F(HalShutdownTest, CompletedDisableDoesNotSendOffAgain) {
-    ASSERT_TRUE(fm2_backend_disable());
-    disabled_cb();
-    EXPECT_TRUE(fm2_backend_shutdown(0));
+    ASSERT_TRUE(backend->disable());
+    HalHeliumBackend::disabled_cb();
+    EXPECT_TRUE(backend->shutdown_with_timeout(0));
     EXPECT_EQ(off_requests, 1);
 }
 
 TEST_F(HalShutdownTest, MissingCallbackTimesOutEvenWithoutEnabledNotification) {
-    g_state.enabled = false;
-    EXPECT_FALSE(fm2_backend_shutdown(10));
-    EXPECT_TRUE(g_state.receiver_cleanup_needed);
-    EXPECT_STREQ(fm2_backend_last_error(), "timed out waiting for disabled_cb");
+    backend->state().enabled = false;
+    EXPECT_FALSE(backend->shutdown_with_timeout(10));
+    EXPECT_TRUE(backend->state().receiver_cleanup_needed);
+    EXPECT_STREQ(backend->last_error(), "timed out waiting for disabled_cb");
 }
 
 TEST_F(HalShutdownTest, SpuriousNotificationDoesNotConfirmCleanup) {
-    callback_thread = std::thread([] {
+    HalHeliumBackend *target = backend;
+    callback_thread = std::thread([target] {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        pthread_mutex_lock(&g_state.lock);
-        pthread_cond_broadcast(&g_state.cond);
-        pthread_mutex_unlock(&g_state.lock);
+        pthread_mutex_lock(&target->state().lock);
+        pthread_cond_broadcast(&target->state().cond);
+        pthread_mutex_unlock(&target->state().lock);
     });
-    EXPECT_FALSE(fm2_backend_shutdown(30));
-    EXPECT_TRUE(g_state.receiver_cleanup_needed);
+    EXPECT_FALSE(backend->shutdown_with_timeout(30));
+    EXPECT_TRUE(backend->state().receiver_cleanup_needed);
 }
 
 TEST_F(HalShutdownTest, ShutdownWithoutReceiverStartupDoesNotCallVendor) {
-    g_state.initialized = false;
-    g_state.enabled = false;
-    g_state.receiver_cleanup_needed = false;
-    g_state.vendor = nullptr;
-    EXPECT_TRUE(fm2_backend_shutdown(0));
+    HeliumRuntimeState &state = backend->state();
+    state.initialized = false;
+    state.enabled = false;
+    state.receiver_cleanup_needed = false;
+    state.vendor = nullptr;
+    EXPECT_TRUE(backend->shutdown_with_timeout(0));
     EXPECT_EQ(off_requests, 0);
 }
 
 TEST_F(HalShutdownTest, FailedOffCanBeRetriedDuringShutdown) {
     reject_off = true;
-    EXPECT_FALSE(fm2_backend_disable());
-    EXPECT_FALSE(g_state.disable_pending);
+    EXPECT_FALSE(backend->disable());
+    EXPECT_FALSE(backend->state().disable_pending);
     reject_off = false;
     CompleteLater();
-    EXPECT_TRUE(fm2_backend_shutdown(500));
+    EXPECT_TRUE(backend->shutdown_with_timeout(500));
     EXPECT_EQ(off_requests, 2);
 }
 
 TEST_F(HalShutdownTest, AdapterWaitsAfterEarlierDisableWithoutExplicitInit) {
-    Backend *backend = create_helium_backend();
     ASSERT_TRUE(backend->disable());
     CompleteLater();
     backend->shutdown();
-    EXPECT_FALSE(g_state.receiver_cleanup_needed);
+    EXPECT_FALSE(backend->state().receiver_cleanup_needed);
     EXPECT_EQ(off_requests, 1);
 }
 
 TEST_F(HalShutdownTest, AdapterEnableWithoutExplicitInitReceivesCleanup) {
-    g_state.enabled = false;
-    g_state.receiver_cleanup_needed = false;
+    backend->state().enabled = false;
+    backend->state().receiver_cleanup_needed = false;
     StartupConfig config;
     config.frequency_khz = 87500;
     config.spacing_khz = 100;
-    Backend *backend = create_helium_backend();
     ASSERT_TRUE(backend->enable(config));
-    EXPECT_TRUE(g_state.receiver_cleanup_needed);
+    EXPECT_TRUE(backend->state().receiver_cleanup_needed);
     CompleteLater();
     backend->shutdown();
-    EXPECT_FALSE(g_state.receiver_cleanup_needed);
+    EXPECT_FALSE(backend->state().receiver_cleanup_needed);
     EXPECT_EQ(off_requests, 1);
 }
 
 TEST_F(HalShutdownTest, AdapterWaitsForEarlierEnableRollback) {
-    g_state.enabled = false;
-    g_state.receiver_cleanup_needed = false;
+    backend->state().enabled = false;
+    backend->state().receiver_cleanup_needed = false;
     reject_tune = true;
     StartupConfig config;
     config.frequency_khz = 87500;
     config.spacing_khz = 100;
-    Backend *backend = create_helium_backend();
     ASSERT_FALSE(backend->enable(config));
-    EXPECT_TRUE(g_state.disable_pending);
+    EXPECT_TRUE(backend->state().disable_pending);
     EXPECT_EQ(off_requests, 1);
     CompleteLater();
     backend->shutdown();
-    EXPECT_FALSE(g_state.receiver_cleanup_needed);
+    EXPECT_FALSE(backend->state().receiver_cleanup_needed);
     EXPECT_EQ(off_requests, 1);
 }
 
 TEST_F(HalShutdownTest, NotchFilterValidatesRangeAndWritesControl) {
-    Backend *backend = create_helium_backend();
     EXPECT_TRUE(backend->set_notch_filter(1));
     EXPECT_EQ(last_notch_filter, 1);
     EXPECT_TRUE(backend->set_notch_filter(2));

@@ -39,7 +39,7 @@ if(RFM_NATIVE_TESTS)
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
         tests/hal_shutdown_test.cpp
-        backend/hal_helium/helium_backend.cpp
+        backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp
         ctl_server.cpp
         rds_parser.cpp
@@ -72,8 +72,7 @@ add_executable(
     backend_factory.cpp
     backend/v4l2_qcom/v4l2_qcom_backend.cpp
     backend/v4l2_qcom/v4l2_scan_state.cpp
-    backend/hal_helium/helium_backend.cpp
-    backend/hal_helium/helium_vendor.cpp
+    backend/hal_helium/hal_helium_backend.cpp
     hex_dump.cpp
 )
 

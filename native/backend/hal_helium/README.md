@@ -5,7 +5,7 @@ devices that do not expose `/dev/radio0` directly but ship `fm_helium.so`.
 
 It is no longer built as a standalone executable. Instead, it is compiled into
 the unified native binary from [`native`](../..) and is selected through
-[`backend_factory.cpp`](../../backend_factory.cpp) (`HeliumBackend`).
+[`backend_factory.cpp`](../../backend_factory.cpp) (`HalHeliumBackend` via `create_hal_helium_backend()`).
 
 ## What This Backend Talks To
 
@@ -21,19 +21,15 @@ This is the path used by devices that ship Qualcomm's FM2-style stack.
 
 ## Important Files
 
-- [`common.h`](common.h): HAL-local logging helpers and common includes
-- [`helium_vendor_backend.h`](helium_vendor_backend.h): public API exposed by the HAL module to the unified backend adapter
-- [`helium_vendor_backend.cpp`](helium_vendor_backend.cpp): runtime state, HAL callback wiring, Qualcomm control translation, RDS handling
-- [`helium_vendor_vendor_iface.h`](helium_vendor_vendor_iface.h): vendor FM control IDs and interface declarations
-- [`fm_helium.so`](fm_helium.so): local reference binary used during reverse engineering and integration work
+- [`hal_helium_backend.h`](hal_helium_backend.h) / [`hal_helium_backend.cpp`](hal_helium_backend.cpp): `HalHeliumBackend` implementation (HAL loading, callback wiring, Qualcomm control translation, scan, RDS)
+- [`hal_helium_types.h`](hal_helium_types.h): vendor FM control IDs, `fm_helium.so` ABI declarations, and Helium runtime state types
 
 ## Internal Structure
 
-### `helium_vendor_backend.*`
+### `hal_helium_backend.*`
 
-This is the real implementation module of the HAL backend.
-
-It is responsible for:
+`HalHeliumBackend` implements the unified `Backend` interface and encapsulates
+all Helium runtime behavior:
 
 - loading `fm_helium.so`
 - resolving the vendor interface
@@ -52,16 +48,10 @@ That includes:
 - ext country code events
 - search results
 
-### `helium_vendor_vendor_iface.h`
+### `hal_helium_types.h`
 
-This file defines the Qualcomm-specific FM control IDs and callback interface
-needed to talk to the vendor HAL cleanly.
-
-### `common.h`
-
-This is intentionally small. It now contains only HAL-specific logging and
-utility helpers, while shared primitive typedefs live in the parent
-[`types.h`](../types.h).
+This file defines the Qualcomm-specific FM control IDs, callback interface, and
+runtime state structs needed to talk to the vendor HAL cleanly.
 
 ## Runtime Behavior
 
@@ -99,4 +89,4 @@ Run via:
 ```
 
 If you want to focus on the HAL-specific internal logs emitted from
-`helium_vendor_backend.cpp`, they still use the `[fm2]` prefix inside the emitted lines.
+`hal_helium_backend.cpp`, they use the `hel/` prefix inside the emitted lines.

@@ -16,7 +16,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
 | `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
-| `backend/hal_helium/` | Qualcomm Helium backend (`helium_backend.cpp`, `helium_vendor.cpp`, `helium_vendor_iface.h`) |
+| `backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `backend/qcom_fm_controls.h` | Shared Qualcomm V4L2 control IDs |
 | `hex_dump.cpp` / `.h` | Shared hex dump string formatting utility |
 | `ctl_server.cpp` | stdio command loop, async event writer, state cache |
@@ -113,8 +113,8 @@ indices refer to raw characters.
   cause `std::terminate()`.
 - `shutdown`/`exit`, EOF on stdin, and TERM/HUP all reach backend cleanup —
   the process fails closed when the Java owner dies.
-- Helium `vendor_set()` holds `g_state.lock` across vendor calls and
-  `helium_vendor_init()` is called under the same non-recursive mutex: a synchronous
+- Helium `vendor_set()` holds `state_.lock` across vendor calls and
+  `hal_init()` is called under the same non-recursive mutex: a synchronous
   vendor callback that locks state would deadlock. Do not expand this.
 - Qualcomm V4L2 globals (`fd_radio`, `fm_storage`, …) are shared between the
   command thread and the event thread without a mutex — known race; the
