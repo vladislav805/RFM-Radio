@@ -13,7 +13,7 @@ test-java:
 	./gradlew --no-daemon :app:testDebugUnitTest
 
 test-integration:
-	node --test integration-tests/*.test.mts
+	npm --prefix integration-tests test
 
 build-native:
 	./native/build.sh

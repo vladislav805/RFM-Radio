@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test *.test.mts"
+    "test": "node --test --test-concurrency=1 *.test.mts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6"
