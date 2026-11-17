@@ -34,6 +34,7 @@ if(RFM_NATIVE_TESTS)
         tests/region_profile_test.cpp
         tests/scan_result_test.cpp
         tests/v4l2_scan_state_test.cpp
+        tests/v4l2_backend_base_test.cpp
         tests/rmssi_test.cpp
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
@@ -46,7 +47,7 @@ if(RFM_NATIVE_TESTS)
         startup_config.cpp
         region_profile.cpp
         scan_result.cpp
-        backend/v4l2_qcom/scan_state.cpp
+        backend/v4l2_qcom/v4l2_scan_state.cpp
         periodic_deadline.cpp
         ctl_protocol.cpp
     )
@@ -69,21 +70,18 @@ add_executable(
     rds_parser.cpp
     periodic_deadline.cpp
     backend_factory.cpp
-    backend/v4l2_qcom/qcom_v4l2_backend.cpp
+    backend/v4l2_qcom/v4l2_qcom_backend.cpp
+    backend/v4l2_qcom/v4l2_scan_state.cpp
     backend/hal_helium/helium_backend.cpp
     backend/hal_helium/helium_vendor.cpp
     hex_dump.cpp
-    backend/v4l2_qcom/fm_wrap.cpp
-    backend/v4l2_qcom/fm_ctl.cpp
-    backend/v4l2_qcom/scan_state.cpp
-    backend/v4l2_qcom/utils.cpp
-    backend/v4l2_qcom/detector.cpp
 )
 
 target_include_directories(
     fmbin
     PRIVATE
     .
+    backend/v4l2_base
     backend/v4l2_qcom
     backend/hal_helium
 )

@@ -4,8 +4,8 @@ This directory contains the Qualcomm FM HAL-based implementation used on
 devices that do not expose `/dev/radio0` directly but ship `fm_helium.so`.
 
 It is no longer built as a standalone executable. Instead, it is compiled into
-the unified native binary from the parent [`native`](..) directory and is
-accessed through [`hal_backend.cpp`](../hal_backend.cpp).
+the unified native binary from [`native`](../..) and is selected through
+[`backend_factory.cpp`](../../backend_factory.cpp) (`HeliumBackend`).
 
 ## What This Backend Talks To
 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-Backend *create_legacy_backend();
+Backend *create_v4l2_qcom_backend();
 Backend *create_helium_backend();
 
 namespace {
@@ -67,7 +67,7 @@ BackendKind detect_backend_kind() {
 Backend *create_backend(const BackendKind kind) {
     switch (kind) {
         case BackendKind::kV4l2Qcom: {
-            return create_legacy_backend();
+            return create_v4l2_qcom_backend();
         }
 
         case BackendKind::kHelium: {

@@ -1,5 +1,4 @@
-#ifndef FMBIN_LEGACY_SCAN_STATE_H
-#define FMBIN_LEGACY_SCAN_STATE_H
+#pragma once
 
 #include "../../scan_result.h"
 
@@ -9,6 +8,7 @@ enum class V4l2ScanTerminal {
     kCancelled,
 };
 
+// Manages state and station collection for sequential V4L2 hardware scans and seeks.
 class V4l2ScanState {
 public:
     bool start_seek();
@@ -34,5 +34,3 @@ private:
     int pending_frequency_khz_ = 0;
     ScanResultCollector stations_;
 };
-
-#endif // FMBIN_LEGACY_SCAN_STATE_H

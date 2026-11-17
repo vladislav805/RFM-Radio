@@ -15,7 +15,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `backend_log.h` | Centralized logging utility `backend_log()` |
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
 | `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
-| `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`qcom_v4l2_backend.cpp`, `fm_wrap.cpp`, `fm_ctl.cpp`, `scan_state.cpp`) |
+| `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
 | `backend/hal_helium/` | Qualcomm Helium backend (`helium_backend.cpp`, `helium_vendor.cpp`, `helium_vendor_iface.h`) |
 | `backend/qcom_fm_controls.h` | Shared Qualcomm V4L2 control IDs |
 | `hex_dump.cpp` / `.h` | Shared hex dump string formatting utility |

@@ -1,4 +1,3 @@
-#include "../../backend_log.h"
 #pragma once
 
 #include <sys/types.h>
@@ -17,15 +16,6 @@
 //#    define __system_property_get(x, y)
 #    define asprintf(x, y, z)
 #endif
-/*
- * Multiplying factor to convert to Radio frequency
- * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,
- * 62.5 kHz otherwise.
- * The tuner is able to have a channel spacing of 50, 100 or 200 kHz.
- * tuner->capability is therefore set to V4L2_TUNER_CAP_LOW
- * The kTuneMultiplier is then: 1 MHz / 62.5 Hz = 16000
- */
-constexpr int kTuneMultiplier = 16000;
 
 constexpr int kDefaultLowerFrequencyKhz = 87500;
 constexpr int kDefaultUpperFrequencyKhz = 108000;
@@ -46,15 +36,18 @@ constexpr int kTavaruaBufErt = 12;
 constexpr int kTavaruaBufEventsCci = 13;
 constexpr int kTavaruaBufMax = 14;
 
-#ifndef __FMCOMMON_H
-#define __FMCOMMON_H
-
 /* FM power state enum */
 typedef enum {
 	FM_POWER_OFF,
 	FM_POWER_TRANSITION,
 	FM_POWER_ON
 } fm_power_state;
+
+typedef enum {
+    OFF = 0,
+    RX = 1,
+    TX = 2,
+} fm_tuner_state;
 
 /* FM command status enum */
 typedef enum {
@@ -182,5 +175,20 @@ typedef struct fm_search_list_stations {
 	uint8 program_type;
 } fm_search_list_stations;
 
+typedef struct {
+    uint16 program_id;
+    uint8 program_type;
+    char program_name[256];
+    char radio_text[256];
+} fm_rds_storage;
 
-#endif
+typedef struct {
+    uint32 frequency;
+    mute_t mute_mode;
+    stereo_t stereo_type;
+    channel_space_t space_type;
+    radio_band_t band_type;
+    fm_tuner_state state;
+    fm_rds_storage rds;
+    fm_available_t avail;
+} fm_current_storage;

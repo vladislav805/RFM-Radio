@@ -77,7 +77,7 @@ Android QualcommNative
 | `native/backend_log.h` | Centralized logging utility (`backend_log()`) |
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
-| `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`qcom_v4l2_backend.cpp`, `fm_wrap.cpp`, `fm_ctl.cpp`, `scan_state.cpp`) |
+| `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
 | `native/backend/hal_helium/` | Qualcomm Helium backend (`helium_backend.cpp`, `helium_vendor.cpp`, `helium_vendor_iface.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
@@ -106,13 +106,10 @@ Android QualcommNative
 
 | Path | Responsibility |
 | --- | --- |
-| `native/backend/v4l2_qcom/qcom_v4l2_backend.cpp` | Adapter from `Backend` to Qualcomm V4L2 functions |
-| `native/backend/v4l2_qcom/fm_wrap.cpp` | Lifecycle, Android properties, event thread, event translation |
-| `native/backend/v4l2_qcom/fm_ctl.cpp` | Device open, ioctl controls, tuning, search, RDS buffers |
-| `native/backend/v4l2_qcom/scan_state.cpp` | Testable sequential-scan collection and cancellation state |
-| `native/backend/v4l2_qcom/fmcommon.h` | Qualcomm V4L2 constants, state, structs, and event enums |
-| `native/backend/v4l2_qcom/detector.cpp` | Platform detection through Android properties |
-| `native/backend/v4l2_qcom/utils.cpp` | Frequency conversion, band limits, filesystem helpers |
+| `native/backend/v4l2_base/v4l2_backend_base.h` | Shared V4L2 device handle, control I/O, and frequency unit conversion |
+| `native/backend/v4l2_qcom/v4l2_qcom_backend.cpp` | Qualcomm V4L2 `Backend`, lifecycle, controls, event thread, RDS extraction |
+| `native/backend/v4l2_qcom/v4l2_scan_state.cpp` | Testable sequential-scan collection and cancellation state |
+| `native/backend/v4l2_qcom/v4l2_qcom_types.h` | Qualcomm V4L2 constants, state, structs, and event enums |
 
 ### Android Bridge
 
@@ -703,7 +700,7 @@ is busy; the native two-second polling supplies the next sample after scan
 completion. Both the tune event and periodic adapter path use
 `fm_command_publish_rmssi()` so decoding and state-patch behavior stay shared.
 After a runtime tune or jump, the adapter pauses RMSSI sampling for a fixed
-750 ms settle window (`kMetricSettleMs` in `legacy_backend.cpp`) so the
+750 ms settle window (`kMetricSettleMs` in `v4l2_qcom_backend.cpp`) so the
 metric can stabilize on the new frequency.
 
 ### Event Thread and Concurrency

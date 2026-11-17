@@ -1,4 +1,4 @@
-#include "backend/v4l2_qcom/scan_state.h"
+#include "backend/v4l2_qcom/v4l2_scan_state.h"
 
 #include <gtest/gtest.h>
 

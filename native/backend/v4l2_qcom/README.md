@@ -4,8 +4,8 @@ This directory contains the legacy Qualcomm FM implementation used on devices
 that expose `/dev/radio0` and the older V4L2-based FM control path.
 
 It is no longer built as a standalone executable. Instead, it is compiled into
-the unified native binary from the parent [`native`](..) directory and is
-accessed through [`legacy_backend.cpp`](../legacy_backend.cpp).
+the unified native binary from [`native`](../..) and is selected through
+[`backend_factory.cpp`](../../backend_factory.cpp) (`V4l2QcomBackend`).
 
 ## What This Backend Talks To
 
@@ -19,49 +19,18 @@ This is the classic "direct driver access" path.
 
 ## Important Files
 
-- [`fmcommon.h`](fmcommon.h): legacy FM enums, structs, constants, and helper macros
-- [`fm_ctl.h`](fm_ctl.h): low-level driver access API
-- [`fm_ctl.c`](fm_ctl.c): V4L2 control handling, tuning, search, RDS extraction
-- [`fm_wrap.h`](fm_wrap.h): higher-level FM command wrapper API
-- [`fm_wrap.c`](fm_wrap.c): receiver lifecycle, interrupt thread, event processing, RDS forwarding
-- [`utils.h`](utils.h): utility helpers
-- [`utils.c`](utils.c): utility helper implementations
-- [`detector.h`](detector.h): Qualcomm chip/platform probes
-- [`detector.c`](detector.c): platform detection implementation
+- [`v4l2_qcom_types.h`](v4l2_qcom_types.h): legacy FM enums, structs, and constants
+- [`v4l2_qcom_backend.h`](v4l2_qcom_backend.h) / [`v4l2_qcom_backend.cpp`](v4l2_qcom_backend.cpp): `V4l2QcomBackend` implementation (lifecycle, V4L2 controls, tuning, search, interrupt thread, RDS extraction, platform detection)
+- [`v4l2_scan_state.h`](v4l2_scan_state.h) / [`v4l2_scan_state.cpp`](v4l2_scan_state.cpp): sequential hardware scan/seek state machine and station collection
+- [`../v4l2_base/v4l2_backend_base.h`](../v4l2_base/v4l2_backend_base.h): shared V4L2 base class (`open_device`, `close_device`, `set_v4l2_ctrl`, `get_v4l2_ctrl`, frequency unit conversions)
 
 ## Internal Structure
 
-### `fm_ctl.*`
+`V4l2QcomBackend` inherits from `V4l2BackendBase` and organizes the legacy driver logic into three internal layers:
 
-This layer is the lowest-level code in the legacy backend.
-
-It contains:
-
-- V4L2 control IDs
-- `VIDIOC_*` ioctl usage
-- frequency conversion
-- band / spacing / power / mute / stereo control
-- search operations
-- reading PS/RT/AF/search buffers from the driver
-
-This file should stay focused on direct driver interaction.
-
-### `fm_wrap.*`
-
-This layer sits above `fm_ctl.*` and implements higher-level behavior:
-
-- radio open / prepare / enable / disable
-- tuning helpers
-- setup of legacy RDS behavior
-- interrupt thread
-- translation of driver events into app-facing JSON events
-
-This is where most of the legacy-specific runtime behavior lives.
-
-### `detector.*`
-
-This code contains heuristics used by the legacy path to distinguish platform
-details such as transport layer or ROMe chip behavior.
+- **Backend interface (`Backend` overrides)**: `init`, `enable`, `disable`, `set_frequency`, `seek`, `search`, `cancel_search`, `set_region`, `request_signal_metric`, `shutdown`.
+- **Command layer (`command_*`)**: receiver lifecycle, Android property/patch-downloader bootstrap (`fm_dl`, `fm_qsoc_patches`, `direct_v4l2_transport_`), RDS setup, and search state coordination.
+- **Receiver / V4L2 layer (`receiver_*`, `extract_*`)**: `VIDIOC_*` ioctl calls, V4L2 private buffer reads (`VIDIOC_DQBUF`), PS/RT/RT+/AF/search-list parsing, and the `event_thread` loop.
 
 ## Runtime Behavior
 

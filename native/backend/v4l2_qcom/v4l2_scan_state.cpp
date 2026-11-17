@@ -1,4 +1,4 @@
-#include "scan_state.h"
+#include "v4l2_scan_state.h"
 
 bool V4l2ScanState::start_seek() {
     if (status_ != Status::kIdle) {

@@ -33,10 +33,9 @@ At runtime the executable auto-detects which backend to use:
 - [`ctl_protocol.cpp`](ctl_protocol.cpp): request-frame parsing
 - [`ctl_json.cpp`](ctl_json.cpp): response and event JSON serialization
 - [`types.h`](types.h): shared primitive typedefs and boolean compatibility helpers
-- [`legacy_backend.cpp`](legacy_backend.cpp): C++ adapter over the legacy backend
-- [`hal_backend.cpp`](hal_backend.cpp): C++ adapter over the HAL backend
-- [`legacy`](legacy): legacy Qualcomm FM implementation details
-- [`hal`](hal): Qualcomm FM HAL / `fm_helium.so` implementation details
+- [`backend/v4l2_base`](backend/v4l2_base): shared V4L2 base class (`V4l2BackendBase`)
+- [`backend/v4l2_qcom`](backend/v4l2_qcom): Qualcomm V4L2 backend (`V4l2QcomBackend`)
+- [`backend/hal_helium`](backend/hal_helium): Qualcomm FM HAL / `fm_helium.so` backend (`HeliumBackend`)
 
 ## Architecture
 
