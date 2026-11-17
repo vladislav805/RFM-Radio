@@ -50,6 +50,11 @@ Examples of translated events:
 - RDS PS/RT/PI/PTY
 - AF list updates
 - hardware search list updates
+- `disabled` event on `TAVARUA_EVT_RADIO_DISABLED`
+
+> Note: Tested `qcom_v4l2` (`iris`) devices (Mi A1, Redmi 4A) do not emit ECC
+> (`country`): the kernel driver does not deliver `TAVARUA_EVT_NEW_RAW_RDS` for
+> group 1A/0A and drops `HCI_EV_EXT_COUNTRY_CODE`.
 
 ## Why This Code Exists As A Separate Module
 

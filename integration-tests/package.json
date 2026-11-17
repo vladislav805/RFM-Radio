@@ -1,0 +1,11 @@
+{
+  "name": "rfm-radio-integration-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test *.test.mts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6"
+  }
+}

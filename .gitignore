@@ -61,3 +61,4 @@ app/src/main/assets/fmbin*
 .vscode/settings.json
 .ideas
 /_*
+node_modules/

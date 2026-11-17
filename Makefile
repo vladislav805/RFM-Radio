@@ -1,4 +1,4 @@
-.PHONY: help test test-native test-java build-native build-debug build-release clean-native-tests
+.PHONY: help test test-native test-java test-integration build-native build-debug build-release clean-native-tests
 
 NATIVE_TEST_BUILD_DIR ?= /tmp/rfm-radio-native-tests
 
@@ -11,6 +11,9 @@ test-native:
 
 test-java:
 	./gradlew --no-daemon :app:testDebugUnitTest
+
+test-integration:
+	node --test integration-tests/*.test.mts
 
 build-native:
 	./native/build.sh

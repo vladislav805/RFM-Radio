@@ -762,12 +762,15 @@ Legacy configures processed RDS/RBDS groups, raw group masks, data buffers, and
 PS-all behavior. PS, RT, PI, PTY, AF, and RT+ item title/artist (sliced against raw RT)
 are forwarded to the client. ERT is logged for diagnostics.
 
-The verified msm8953 IRIS kernel interface does not expose ECC to userspace.
-Its HCI dispatcher drops `HCI_EV_EXT_COUNTRY_CODE` (`0x17`), while raw RDS
-groups are consumed inside the driver for ODA/RT+/ERT and are not written to
-the allocated raw-RDS FIFO. Consequently the legacy backend cannot emit a
-reliable country without a kernel change. The country nibble in PI alone is
-ambiguous across ECC regions and must not be used as a substitute.
+Verified `qcom_v4l2` IRIS kernel interfaces (tested on both `msm8953` Mi A1 and
+Redmi 4A) do not expose ECC to userspace. The HCI dispatcher drops
+`HCI_EV_EXT_COUNTRY_CODE` (`0x17`), and `TAVARUA_EVT_NEW_RAW_RDS` does not fire
+even when group 1A (`0x04`) or 0A (`0x01`) is enabled in
+`kV4l2CtrlRdsGroupMask` — raw RDS groups are consumed inside the driver for
+ODA/RT+/ERT and are not written to the allocated raw-RDS FIFO. Consequently the
+Qualcomm V4L2 backend cannot emit a reliable `country` without a kernel change.
+The country nibble in PI alone is ambiguous across ECC regions and must not be
+used as a substitute.
 
 ODA events adjust the raw RDS group mask so the driver includes the detected
 carrier. ODA and the following RT+ event are unrelated to ECC; ODA discovery

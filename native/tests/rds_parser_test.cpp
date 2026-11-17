@@ -1061,3 +1061,39 @@ TEST(RdsParserTest, ReturnsRdsRtPlusContentTypeNames) {
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(64), "UNKNOWN");
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(-1), "UNKNOWN");
 }
+
+TEST(RdsParserTest, ParsesV4l2RawRdsEccGroup1a) {
+    // Group 1A: PI=0x7202 (cc=7), Block B=0x1000 (type 1, version A),
+    // Block C=0x00e0 (variant 0, ECC=0xe0 -> RU), Block D=0x0000.
+    const unsigned char raw_blocks[] = {
+            0x02, 0x72, 0x00,  // Block A
+            0x00, 0x10, 0x01,  // Block B (1A)
+            0xe0, 0x00, 0x02,  // Block C (variant=0, ecc=0xe0)
+            0x00, 0x00, 0x03,  // Block D
+    };
+
+    char country[3] = "";
+    EXPECT_TRUE(parse_v4l2_raw_rds_ecc(raw_blocks, sizeof(raw_blocks), country));
+    EXPECT_STREQ(country, "RU");
+}
+
+TEST(RdsParserTest, RejectsV4l2RawRdsEccWithNonZeroVariantOrBlockError) {
+    // Variant 1 in Block C (0x10e0) must be ignored.
+    const unsigned char non_zero_variant[] = {
+            0x02, 0x72, 0x00,
+            0x00, 0x10, 0x01,
+            0xe0, 0x10, 0x02,
+            0x00, 0x00, 0x03,
+    };
+    char country[3] = "";
+    EXPECT_FALSE(parse_v4l2_raw_rds_ecc(non_zero_variant, sizeof(non_zero_variant), country));
+
+    // Block B marked with V4L2_RDS_BLOCK_ERROR (0x80) must reset the group.
+    const unsigned char block_error[] = {
+            0x02, 0x72, 0x00,
+            0x00, 0x10, 0x81,
+            0xe0, 0x00, 0x02,
+            0x00, 0x00, 0x03,
+    };
+    EXPECT_FALSE(parse_v4l2_raw_rds_ecc(block_error, sizeof(block_error), country));
+}

@@ -436,6 +436,62 @@ bool parse_rds_ecc_payload(
     return decode_rds_country_iso(ecc, (pi >> 12) & 0x0f, country_iso);
 }
 
+bool parse_v4l2_raw_rds_ecc(
+        const unsigned char *payload,
+        int payload_len,
+        char country_iso[3]
+) {
+    if (payload == nullptr || country_iso == nullptr || payload_len < 3) {
+        return false;
+    }
+
+    bool has_a = false;
+    bool has_b = false;
+    bool is_group_1a = false;
+    int pi = 0;
+
+    for (int i = 0; i + 2 < payload_len; i += 3) {
+        const int lsb = payload[i];
+        const int msb = payload[i + 1];
+        const int block = payload[i + 2];
+        const int block_id = block & 0x07;
+        const bool has_error = (block & 0x80) != 0;
+
+        if (has_error) {
+            has_a = false;
+            has_b = false;
+            is_group_1a = false;
+            continue;
+        }
+
+        const int word = (msb << 8) | lsb;
+
+        if (block_id == 0) {
+            pi = word;
+            has_a = true;
+            has_b = false;
+            is_group_1a = false;
+        } else if (block_id == 1) {
+            is_group_1a = has_a && (((word >> 11) & 0x1f) == 0x02);
+            has_b = has_a;
+        } else if (block_id == 2 && has_a && has_b && is_group_1a) {
+            const int variant = (word >> 12) & 0x07;
+            if (variant == 0) {
+                const int ecc = word & 0xff;
+                const int country_code = (pi >> 12) & 0x0f;
+                if (decode_rds_country_iso(ecc, country_code, country_iso)) {
+                    return true;
+                }
+            }
+            has_a = false;
+            has_b = false;
+            is_group_1a = false;
+        }
+    }
+
+    return false;
+}
+
 bool parse_rds_rt_plus_payload(
         const unsigned char *payload,
         int payload_len,

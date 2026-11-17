@@ -32,7 +32,9 @@ constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 constexpr uint64_t kMetricSettleMs = 750;
 
 constexpr int kV4l2QcomRdsMask = 23;
-constexpr int kV4l2QcomRds3aGroupMask = 0x40;
+// Group 3A (0x40, RT+/ERT ODA discovery) | Group 1A (0x04, ECC slow labelling).
+constexpr int kV4l2QcomRds1aGroupMask = 0x04;
+constexpr int kV4l2QcomRdsRawGroupMask = 0x40 | kV4l2QcomRds1aGroupMask;
 constexpr size_t kPropertyValueBufferSize = 128;
 
 // Tavarua V4L2 event numbers emitted by the Qualcomm kernel driver.
@@ -840,6 +842,15 @@ bool V4l2QcomBackend::extract_raw_rds() {
     char dump[3 * 32 + 1];
     format_hex_dump(reinterpret_cast<const char *>(buf), bytes, dump, sizeof(dump));
     log("rds", "raw len=%d data=%s%s", bytes, dump, bytes > 32 ? " ..." : "");
+
+    char country[3] = "";
+    if (parse_v4l2_raw_rds_ecc(buf, bytes, country)) {
+        log("rds", "ecc country=%s", country);
+        radio_state_patch_t patch = radio_state_patch_empty();
+        patch.country = country;
+        send_radio_state_patch(&patch);
+    }
+
     return true;
 }
 
@@ -1034,6 +1045,7 @@ void V4l2QcomBackend::event_thread() {
                     power_on_completed_ = false;
                     clear_direct_init_marker();
                     receiver_close();
+                    send_native_event("disabled");
                     continue_loop = false;
                     break;
                 }
@@ -1201,9 +1213,19 @@ void V4l2QcomBackend::event_thread() {
                     break;
                 }
 
+                case TAVARUA_EVT_RDS_AVAIL: {
+                    log("event", "rds_sync=1");
+                    break;
+                }
+
+                case TAVARUA_EVT_RDS_NOT_AVAIL: {
+                    log("event", "rds_sync=0");
+                    break;
+                }
+
                 case TAVARUA_EVT_NEW_ODA: {
                     log("event", "oda_available=1");
-                    set_v4l2_ctrl(kV4l2CtrlRdsGroupMask, 0);
+                    set_v4l2_ctrl(kV4l2CtrlRdsGroupMask, kV4l2QcomRds1aGroupMask);
                     break;
                 }
 
@@ -1484,8 +1506,8 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_rds(rds_system_t system) {
             return FM_CMD_FAILURE;
         }
 
-        log("rds", "set raw group mask=0x%x", kV4l2QcomRds3aGroupMask);
-        if (!set_v4l2_ctrl(kV4l2CtrlRdsGroupMask, kV4l2QcomRds3aGroupMask)) {
+        log("rds", "set raw group mask=0x%x", kV4l2QcomRdsRawGroupMask);
+        if (!set_v4l2_ctrl(kV4l2CtrlRdsGroupMask, kV4l2QcomRdsRawGroupMask)) {
             log("rds", "failed to change raw RDS group mask");
             return FM_CMD_FAILURE;
         }

@@ -118,6 +118,14 @@ bool parse_rds_ecc_payload(
         char country_iso[3]
 );
 
+// Parses standard V4L2 raw RDS blocks (3 bytes per block: lsb, msb, block_id)
+// looking for RDS group 1A variant 0 and decoding the ISO country code.
+bool parse_v4l2_raw_rds_ecc(
+        const unsigned char *payload,
+        int payload_len,
+        char country_iso[3]
+);
+
 struct RdsRtPlusSlices {
     char title[256] = "";
     char artist[256] = "";

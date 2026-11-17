@@ -121,6 +121,9 @@ indices refer to raw characters.
   event thread closes the fd on `RADIO_DISABLED`.
 - Both full-search implementations are sequential scans (tune low → seek up
   → collect); they have no timeout and cap at 64 unique stations.
+- Qualcomm V4L2 (`iris`) does not emit ECC (`country`) on verified devices
+  (Xiaomi Mi A1, Xiaomi Redmi 4A): `TAVARUA_EVT_NEW_RAW_RDS` never fires for 1A/0A in
+  `kV4l2CtrlRdsGroupMask`, and the kernel drops `HCI_EV_EXT_COUNTRY_CODE`.
 
 ## RMSSI
 
