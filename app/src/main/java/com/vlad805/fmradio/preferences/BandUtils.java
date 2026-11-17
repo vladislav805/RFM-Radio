@@ -45,6 +45,7 @@ public class BandUtils {
 
     public static int getSpacing(final int type) {
         switch (type) {
+            case SPACING_10kHz: return 10;
             case SPACING_50kHz: return 50;
             case SPACING_200kHz: return 200;
             case SPACING_100kHz: default: return 100;
