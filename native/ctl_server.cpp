@@ -92,13 +92,13 @@ bool send_json_message(const std::string &json) {
 
 } // namespace
 
-int init_server(fm_srv_callback request_callback) {
+int init_server(fm_srv_callback request_callback, const char *backend_name) {
     if (request_callback == nullptr) {
         return -1;
     }
 
     configure_process_lifecycle();
-    if (g_stop_requested || !write_protocol_message(build_ready_json(static_cast<int>(getpid())))) {
+    if (g_stop_requested || !write_protocol_message(build_ready_json(static_cast<int>(getpid()), backend_name))) {
         return -2;
     }
 

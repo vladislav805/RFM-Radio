@@ -110,8 +110,14 @@ std::string build_native_event_json(const char *type) {
     return "{\"type\":" + json_escape(type) + "}";
 }
 
-std::string build_ready_json(int pid) {
-    return "{\"type\":\"ready\",\"protocol\":1,\"pid\":" + std::to_string(pid) + "}";
+std::string build_ready_json(int pid, const char *backend) {
+    std::string json = "{\"type\":\"ready\",\"protocol\":1,\"pid\":" + std::to_string(pid);
+    if (backend != nullptr && backend[0] != '\0') {
+        json += ",\"backend\":";
+        json += json_escape(backend);
+    }
+    json += "}";
+    return json;
 }
 
 std::string build_response_json(uint64_t id, const response_t &response) {

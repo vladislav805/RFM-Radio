@@ -47,6 +47,10 @@ describe("fmbin device integration", () => {
         const ready = await client.waitForReady();
         assert.equal(ready.protocol, 1);
         assert.ok(ready.pid > 0);
+        assert.ok(
+            ready.backend === "v4l2_qcom" || ready.backend === "hal_helium",
+            `unexpected backend: ${String(ready.backend)}`,
+        );
 
         const initResp = await client.sendCommand("init");
         assert.equal(initResp.ok, true, initResp.data);

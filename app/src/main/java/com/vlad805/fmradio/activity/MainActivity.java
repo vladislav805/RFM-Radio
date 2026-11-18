@@ -451,7 +451,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean needsPlaybackPermissionForLegacyAudio() {
         return (
             Build.VERSION.SDK_INT < Build.VERSION_CODES.O &&
-            TunerDriverDetector.getTunerDriver() == TunerDriver.LEGACY
+            TunerDriverDetector.getTunerDriver() == TunerDriver.V4L2_QCOM
         );
     }
 

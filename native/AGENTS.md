@@ -55,7 +55,7 @@ Device log evidence lives in `tmp/` and `log.log`; `logcat.sh` captures more.
 
 Selection is process-global, lazy (first command wins), with no fallback:
 
-1. `/sys/class/video4linux/radio0/name` matches Qualcomm or fallback `/dev/radio0` (non-s610) → `kV4l2Qcom`
+1. `/sys/class/video4linux/radio0/name` contains `iris` or `tavarua` (case-insensitive) with `/dev/radio0` present, or sysfs name node is absent while `/dev/radio0` exists → `kV4l2Qcom`; other names (such as `s610` or `si4709`) or empty name fail V4L2 matching and fall through
 2. else `fm_helium.so` in known vendor/system/odm locations → `kHelium` (`dlopen`)
 3. else no backend → `ERR_UNSUPPORTED`
 
@@ -67,7 +67,7 @@ Regions: `eu`/`us` 87500–108000 kHz, `jp` 76000–95000, `jp_wide`
 Transport: stdin frames `<request-id>\t<command>\n` (UTF-8, trailing `\r`
 tolerated, frames over 4096 bytes terminate the loop); stdout carries one
 JSON object per line; stderr is diagnostics → logcat tag `RFM-QCOM`. Ready
-handshake: `{"type":"ready","protocol":1,"pid":N}`. Responses:
+handshake: `{"type":"ready","protocol":1,"pid":N,"backend":"v4l2_qcom"|"hal_helium"|"none"}`. Responses:
 `{"type":"response","id":N,"ok":true,"data":"ok"}`. `make_ok()` delays the
 success response by 300 ms intentionally — do not remove it. Java matches
 success by a `"ok"` prefix on `data`, not by the `ok` field.
@@ -143,13 +143,13 @@ Qualcomm V4L2 reads `VIDIOC_G_TUNER.signal` for RMSSI and waits 750 ms
 `make test-native` (host GoogleTest, no device) covers: RDS parsing
 (`rds_parser_test`), JSON serialization and state cache (`ctl_json_test`),
 request frames (`ctl_protocol_test`), startup config (`startup_config_test`),
-region profiles, frequency formatting, shared and V4L2 scan state (`v4l2_scan_state_test`),
+backend allowlist classification (`backend_factory_test`), region profiles, frequency formatting, shared and V4L2 scan state (`v4l2_scan_state_test`),
 V4L2 Qcom lifecycle and metric switching (`v4l2_qcom_lifecycle_test`),
 Helium shutdown state machine (`hal_shutdown_test`) and metric switching
 (`hal_metric_test`) with injected vendor interfaces, RMSSI decoding
 (`rmssi_test.cpp`), and polling deadlines (`periodic_deadline_test.cpp`).
 
-Not covered: `main.cpp` routing, process transport, backend detection,
+Not covered: `main.cpp` routing, process transport,
 `dlopen`/ABI compatibility, ioctls, event threads, device end-to-end.
 
 ## Full Specification

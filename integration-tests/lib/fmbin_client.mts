@@ -6,6 +6,7 @@ export interface ReadyEvent {
     type: "ready";
     protocol: number;
     pid: number;
+    backend?: "v4l2_qcom" | "hal_helium" | "none";
 }
 
 export interface ResponseMessage {

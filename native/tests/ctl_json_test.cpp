@@ -18,6 +18,10 @@ TEST(CtlJsonTest, BuildsNativeEvent) {
 
 TEST(CtlJsonTest, BuildsProcessReadyMessage) {
     EXPECT_EQ(build_ready_json(1234), "{\"type\":\"ready\",\"protocol\":1,\"pid\":1234}");
+    EXPECT_EQ(
+            build_ready_json(1234, "hal_helium"),
+            "{\"type\":\"ready\",\"protocol\":1,\"pid\":1234,\"backend\":\"hal_helium\"}"
+    );
 }
 
 TEST(CtlJsonTest, BuildsCommandResponse) {

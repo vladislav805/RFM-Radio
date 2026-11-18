@@ -34,9 +34,11 @@ package-scoped app broadcasts (`C.Event.*`). No binder/AIDL. Returns
 
 Key flows:
 
-- `getTunerDriver()`: `TunerDriverDetector` probes `/dev/radio0` (LEGACY) and
-  vendor paths for `fm_helium.so` (HAL); both map to
-  `new QualcommNative(context, kind)`, unsupported devices get `Empty`.
+- `getTunerDriver()`: `TunerDriverDetector` mirrors native detection — checks
+  `/sys/class/video4linux/radio0/name` (`iris`/`tavarua` allowlist, or fallback
+  to `/dev/radio0` when the sysfs node is absent/SELinux-unreadable) alongside
+  `/dev/radio0` (`V4L2_QCOM`), and vendor paths for `fm_helium.so` (`HAL_HELIUM`);
+  both map to `new QualcommNative(context, kind)`, unsupported devices get `Empty`.
 - `getAudioService()`: API ≥ 26 → `RoutingAudioService`, else
   `LightAudioService`.
 - `ENABLE` starts HAL audio before enabling the tuner; `DISABLE` stops audio,
@@ -75,7 +77,8 @@ Key flows:
 ## Communication Layer
 
 `NativeProcessSession` owns the root process: `su` + `exec fmbin`, ready
-handshake `{"type":"ready","protocol":1,"pid":N}`, serial command queue
+handshake `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (updating
+`QualcommNative`/`FMService` driver kind when sysfs is hidden by SELinux), serial command queue
 (`<id>\t<command>\n`; `\t`, `\r`, `\n` are forbidden inside a command),
 timeout scheduler, and stop escalation (`shutdown` → stdin close → TERM →
 KILL by handshake PID). Native stderr is drained to logcat tag `RFM-QCOM`;

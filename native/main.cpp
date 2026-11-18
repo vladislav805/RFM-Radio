@@ -20,6 +20,7 @@ constexpr const char *kErrUnsupported = "ERR_UNSUPPORTED";
 constexpr useconds_t kResponseDelayUs = 300000;
 
 Backend *g_backend = nullptr;
+BackendKind g_backend_kind = BackendKind::kNone;
 bool g_backend_shutdown = false;
 
 std::vector<std::string> split_args(const char *request) {
@@ -66,9 +67,9 @@ Backend *ensure_backend() {
         return g_backend;
     }
 
-    // Backend selection is process-global: the device cannot switch between
-    // V4L2 and FM HAL while the bridge is running, so detect once and reuse.
-    g_backend = create_detected_backend();
+    // Backend selection is process-global and runs once at startup: the device cannot
+    // switch between V4L2 and FM HAL while the bridge is running, so reuse g_backend_kind.
+    g_backend = create_backend(g_backend_kind);
     return g_backend;
 }
 
@@ -332,7 +333,8 @@ int main() {
     setvbuf(stdout, nullptr, _IOLBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 
-    const int result = init_server(&api_handler);
+    g_backend_kind = detect_backend_kind();
+    const int result = init_server(&api_handler, backend_kind_name(g_backend_kind));
     const bool needs_shutdown_settle = g_backend != nullptr && !g_backend_shutdown
             && g_backend->kind() == BackendKind::kV4l2Qcom;
 

@@ -29,8 +29,8 @@ The executable contains two implementations behind the `Backend` interface:
 
 | Backend | Selection condition | Hardware interface |
 | --- | --- | --- |
-| Legacy | `/dev/radio0` exists | Direct V4L2 and Qualcomm private controls |
-| HAL/FM2 | No `/dev/radio0`, but `fm_helium.so` exists | Dynamically loaded Qualcomm vendor HAL |
+| Legacy | `/dev/radio0` exists and `/sys/class/video4linux/radio0/name` contains `iris`/`tavarua` (or the sysfs name node is absent) | Direct V4L2 and Qualcomm private controls |
+| HAL/FM2 | Legacy check negative, and `fm_helium.so` exists | Dynamically loaded Qualcomm vendor HAL |
 
 Selection is process-global and lazy. The first command requiring a backend
 calls `create_detected_backend()`, and the selected singleton is retained for
@@ -245,10 +245,10 @@ keeps one request in flight, attaches a monotonically increasing ID, and uses
 that ID to match JSON responses. `shutdown` may be written behind an in-flight
 command so teardown does not wait for Java's regular command queue.
 
-Native announces a successful exec with:
+Native announces a successful exec with (where `backend` is `"v4l2_qcom"`, `"hal_helium"`, or `"none"`):
 
 ```json
-{"type":"ready","protocol":1,"pid":1234}
+{"type":"ready","protocol":1,"pid":1234,"backend":"v4l2_qcom"}
 ```
 
 Command responses use:
@@ -380,14 +380,19 @@ vendor callbacks may emit events concurrently with command responses.
 
 ## Backend Detection
 
-`backend_factory.cpp` checks in this order:
+`backend_factory.cpp` checks in this order and logs the observed `radio0`
+driver name once on stderr (`drv/detect`):
 
-1. Existence of `/dev/radio0` selects legacy.
+1. `/sys/class/video4linux/radio0/name` (when readable) must contain `iris` or
+   `tavarua` (case-insensitive) alongside `/dev/radio0` to select legacy
+   (`BackendKind::kV4l2Qcom`). Non-Qualcomm drivers (`s610`, `si4709`, etc.) or
+   empty names do not select legacy and fall through. If the sysfs name node is
+   absent while `/dev/radio0` exists, legacy fallback is retained for older kernels.
 2. Existence of `fm_helium.so` in known vendor, system vendor, system_ext, or
-   ODM 32/64-bit locations selects HAL.
-3. Otherwise no backend is available.
+   ODM 32/64-bit locations selects HAL (`BackendKind::kHelium`).
+3. Otherwise no backend is available (`BackendKind::kNone` / `ERR_UNSUPPORTED`).
 
-Detection tests file existence only. It does not prove that `/dev/radio0` can
+Detection tests file existence and the sysfs driver name string only. It does not prove that `/dev/radio0` can
 be opened or that the HAL ABI is compatible.
 
 The detector checks absolute paths for `fm_helium.so`, while the HAL backend
@@ -888,6 +893,7 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
   overrides (`tests/v4l2_qcom_lifecycle_test.cpp`)
 - HAL signal-metric switching, sync/async SINR fallback, recovery clears, and
   skipped-poll preservation (`tests/hal_metric_test.cpp`)
+- Backend detection allowlist/fallback matrix (`tests/backend_factory_test.cpp`)
 - region profiles and frequency clamping
 - frequency-list formatting
 - shared sequential-scan result collection
@@ -900,7 +906,6 @@ Current host tests do not cover:
 
 - command routing in `main.cpp`
 - standard-I/O process transport and EOF-driven shutdown
-- backend detection or fallback
 - `dlopen` and vendor ABI compatibility
 - device HAL callback lifecycle or HAL scan state machine
 - legacy ioctl and event-thread behavior

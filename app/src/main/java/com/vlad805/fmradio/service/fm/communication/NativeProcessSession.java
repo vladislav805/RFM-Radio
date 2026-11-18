@@ -66,6 +66,7 @@ public final class NativeProcessSession {
     private Throwable launchFailure;
     private long nextRequestId = 1L;
     private int nativePid = -1;
+    private String nativeBackend;
     private boolean ready;
     private boolean stopping;
     private boolean exited;
@@ -134,6 +135,12 @@ public final class NativeProcessSession {
     public int getNativePid() {
         synchronized (stateLock) {
             return nativePid;
+        }
+    }
+
+    public String getNativeBackend() {
+        synchronized (stateLock) {
+            return nativeBackend;
         }
     }
 
@@ -284,11 +291,15 @@ public final class NativeProcessSession {
     private void handleReady(final JSONObject json) {
         final int protocol = json.optInt("protocol", -1);
         final int pid = json.optInt("pid", -1);
+        final String backend = json.has("backend") && !json.isNull("backend")
+                ? json.optString("backend", "")
+                : "";
         synchronized (stateLock) {
             if (protocol != PROTOCOL_VERSION || pid <= 0) {
                 launchFailure = new IOException("Unsupported native protocol handshake");
             } else {
                 nativePid = pid;
+                nativeBackend = backend.isEmpty() ? null : backend;
                 ready = true;
             }
         }

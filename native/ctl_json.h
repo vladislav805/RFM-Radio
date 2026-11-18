@@ -26,7 +26,7 @@ struct RadioStateJsonCache {
 };
 
 std::string build_native_event_json(const char *type);
-std::string build_ready_json(int pid);
+std::string build_ready_json(int pid, const char *backend = nullptr);
 std::string build_response_json(uint64_t id, const response_t &response);
 bool build_search_done_json(const int *frequencies_khz, int count, std::string *json);
 bool build_radio_state_patch_json(

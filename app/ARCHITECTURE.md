@@ -100,9 +100,11 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   persist `frequency_last`, update notification; `UPDATE_PS`/`UPDATE_RT` →
   notification; `FAVORITE_LIST_CHANGED` → reload favorites; `RECORD_*` →
   recording state, notifications, "subtitles failed" warning path.
-- `getTunerDriver()` (~L427): `TunerDriverDetector` — `/dev/radio0` →
-  LEGACY; `fm_helium.so` in eight vendor paths → HAL; otherwise NONE.
-  LEGACY/HAL → `new QualcommNative(this, kind)`; NONE → `new Empty(this)`.
+- `getTunerDriver()` (~L427): `TunerDriverDetector` — `/sys/class/video4linux/radio0/name`
+  allowlist (`iris`/`tavarua`, falling back only if sysfs is absent or
+  unreadable) + `/dev/radio0` → `V4L2_QCOM`; `fm_helium.so` in eight vendor paths
+  → `HAL_HELIUM`; otherwise `NONE`.
+  `V4L2_QCOM`/`HAL_HELIUM` → `new QualcommNative(this, kind)`; `NONE` → `new Empty(this)`.
 - `getAudioService()` (~L413): API ≥ 26 → `RoutingAudioService`, else
   `LightAudioService`.
 - `getPreferredRecorder()` (~L447): `recording_mode` → WAV
@@ -132,7 +134,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 - `controller/RadioStateUpdater.java` — registers `C.Event.*` receivers
   and folds broadcasts into `RadioState`, notifying a
   `TunerStateListener` with a change bitmask (`SET_*` flags).
-- `enums/TunerDriver.java` — LEGACY / HAL / NONE.
+- `enums/TunerDriver.java` — `V4L2_QCOM` / `HAL_HELIUM` / `NONE`.
 
 ## service/fm/ Contract
 
@@ -211,7 +213,9 @@ Final public methods emit lifecycle events (`PREPARING`, `INSTALLING`,
 
 - `start(timeoutMs)`: `ProcessBuilder("su")`, writes `exec '<binary>'`
   (shell-quoted), waits on a `CountDownLatch` for
-  `{"type":"ready","protocol":1,"pid":N}`. Protocol mismatch or pid ≤ 0 →
+  `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (`backend` overrides
+  local sysfs fallback detection in `QualcommNative`/`FMService` when present).
+  Protocol mismatch or pid ≤ 0 →
   launch failure.
 - Threads: `NativeStdout` (parses lines; non-JSON → warn+skip),
   `NativeStderr` (→ logcat `RFM-QCOM`), `NativeProcessWaiter` (exit

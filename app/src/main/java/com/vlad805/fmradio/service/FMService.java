@@ -429,8 +429,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mTunerDriverKind = TunerDriverDetector.getTunerDriver();
 
         switch (mTunerDriverKind) {
-            case HAL:
-            case LEGACY: {
+            case HAL_HELIUM:
+            case V4L2_QCOM: {
                 return new QualcommNative(this, mTunerDriverKind);
             }
 
@@ -560,6 +560,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.LAUNCHED: {
+                    if (mTunerDriver instanceof QualcommNative) {
+                        mTunerDriverKind = ((QualcommNative) mTunerDriver).getDriverKind();
+                    }
                     mRadioController.enable();
                     break;
                 }
@@ -660,7 +663,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     private boolean isHalDriver() {
-        return mTunerDriverKind == TunerDriver.HAL;
+        if (mTunerDriver instanceof QualcommNative) {
+            return ((QualcommNative) mTunerDriver).getDriverKind() == TunerDriver.HAL_HELIUM;
+        }
+        return mTunerDriverKind == TunerDriver.HAL_HELIUM;
     }
 
     /**

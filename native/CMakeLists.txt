@@ -41,6 +41,8 @@ if(RFM_NATIVE_TESTS)
         tests/ctl_protocol_test.cpp
         tests/hal_shutdown_test.cpp
         tests/hal_metric_test.cpp
+        tests/backend_factory_test.cpp
+        backend_factory.cpp
         backend/v4l2_qcom/v4l2_qcom_backend.cpp
         backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp

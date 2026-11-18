@@ -6,6 +6,7 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.TunerDriver;
+import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.service.fm.communication.Request;
@@ -16,7 +17,7 @@ import java.util.Locale;
 public class QualcommNative extends AbstractQualcommNativeController {
     private static final long DUPLICATE_TUNE_WINDOW_MS = 1500L;
 
-    private final TunerDriver mDriverKind;
+    private volatile TunerDriver mDriverKind;
     private int mLastRequestedFrequencyKhz = Integer.MIN_VALUE;
     private long mLastRequestedFrequencyAtMs = 0L;
 
@@ -54,6 +55,13 @@ public class QualcommNative extends AbstractQualcommNativeController {
             } catch (final IOException e) {
                 failLaunch(callback, "Failed to launch native tuner process", e);
                 return;
+            }
+
+            // Prefer the root helper's reported backend when available: SELinux may hide
+            // /sys/class/video4linux/radio0/name from the unprivileged app process.
+            final TunerDriver detectedDriver = TunerDriverDetector.fromNativeBackend(getNativeBackend());
+            if (detectedDriver != null) {
+                mDriverKind = detectedDriver;
             }
 
             // Legacy initialization can spend six seconds waiting for fm_dl,
@@ -156,7 +164,7 @@ public class QualcommNative extends AbstractQualcommNativeController {
 
     @Override
     protected void setFrequencyImpl(final int kHz, final Callback<Integer> callback) {
-        if (mDriverKind == TunerDriver.HAL) {
+        if (mDriverKind == TunerDriver.HAL_HELIUM) {
             final long now = System.currentTimeMillis();
             if (mLastRequestedFrequencyKhz == kHz && now - mLastRequestedFrequencyAtMs < DUPLICATE_TUNE_WINDOW_MS) {
                 callback.onResult(kHz);
@@ -170,14 +178,18 @@ public class QualcommNative extends AbstractQualcommNativeController {
         sendCommand(new Request("setfreq " + kHz).onResponse(data -> callback.onResult(kHz)));
     }
 
+    public TunerDriver getDriverKind() {
+        return mDriverKind;
+    }
+
     public int getRecorderSampleRate() {
-        // HAL - 48kHz
-        // Legacy - 44.1kHz
-        return mDriverKind == TunerDriver.HAL ? 48000 : 44100;
+        // HAL Helium - 48kHz
+        // V4L2 Qcom - 44.1kHz
+        return mDriverKind == TunerDriver.HAL_HELIUM ? 48000 : 44100;
     }
 
     public void refreshAudioRoute() {
-        if (mDriverKind == TunerDriver.HAL) {
+        if (mDriverKind == TunerDriver.HAL_HELIUM) {
             sendCommand(new Request("slimbus 0", 2000));
             sendCommand(new Request("slimbus 1", 2000));
         }

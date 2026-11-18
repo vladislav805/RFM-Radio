@@ -45,6 +45,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
     private FMEventCallback mEventCallback;
     private final Object mSessionLock = new Object();
     private NativeProcessSession mNativeSession;
+    private volatile String mNativeBackend;
 
     protected AbstractQualcommNativeController(final Context context) {
         this.context = context;
@@ -448,6 +449,7 @@ public abstract class AbstractQualcommNativeController implements IFMController,
 
         try {
             session.start(timeoutMs);
+            mNativeBackend = session.getNativeBackend();
         } catch (final IOException | InterruptedException e) {
             synchronized (mSessionLock) {
                 if (mNativeSession == session) {
@@ -463,6 +465,10 @@ public abstract class AbstractQualcommNativeController implements IFMController,
             mNativeSession = null;
         }
         onNativeProcessExit(exitCode);
+    }
+
+    protected final String getNativeBackend() {
+        return mNativeBackend;
     }
 
     protected void onNativeProcessExit(final int exitCode) {
