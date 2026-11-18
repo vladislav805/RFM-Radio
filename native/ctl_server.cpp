@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <poll.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -8,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <mutex>
 #include <string>
 
 #include "ctl_json.h"
@@ -18,8 +18,8 @@
 
 namespace {
 
-pthread_mutex_t g_state_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t g_output_lock = PTHREAD_MUTEX_INITIALIZER;
+std::mutex g_state_lock;
+std::mutex g_output_lock;
 RadioStateJsonCache g_last_state;
 volatile sig_atomic_t g_stop_requested = 0;
 
@@ -64,7 +64,7 @@ bool write_protocol_message(const std::string &json) {
     }
 
     const std::string framed = json + '\n';
-    pthread_mutex_lock(&g_output_lock);
+    std::lock_guard<std::mutex> lock(g_output_lock);
 
     size_t written = 0;
     while (written < framed.size()) {
@@ -77,11 +77,9 @@ bool write_protocol_message(const std::string &json) {
             continue;
         }
 
-        pthread_mutex_unlock(&g_output_lock);
         return false;
     }
 
-    pthread_mutex_unlock(&g_output_lock);
     return true;
 }
 
@@ -214,10 +212,9 @@ bool send_radio_state_patch(const radio_state_patch_t *patch) {
         return false;
     }
 
-    pthread_mutex_lock(&g_state_lock);
+    std::lock_guard<std::mutex> lock(g_state_lock);
     std::string json;
     if (!build_radio_state_patch_json(g_last_state, patch, &json)) {
-        pthread_mutex_unlock(&g_state_lock);
         return false;
     }
 
@@ -226,7 +223,6 @@ bool send_radio_state_patch(const radio_state_patch_t *patch) {
         apply_radio_state_patch(&g_last_state, patch);
     }
 
-    pthread_mutex_unlock(&g_state_lock);
     return ok;
 }
 
@@ -247,7 +243,6 @@ bool send_search_done(const int *frequencies_khz, int count) {
 }
 
 void reset_ctl_server_state_for_test(void) {
-    pthread_mutex_lock(&g_state_lock);
+    std::lock_guard<std::mutex> lock(g_state_lock);
     g_last_state = RadioStateJsonCache();
-    pthread_mutex_unlock(&g_state_lock);
 }

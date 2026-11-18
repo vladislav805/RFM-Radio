@@ -1084,9 +1084,8 @@ void V4l2QcomBackend::event_thread() {
         int32_t bytes = read_buffer(buf, sizeof(buf), kTavaruaBufEvents);
 
         if (bytes < 0) {
-            pthread_mutex_lock(&legacy_scan_lock_);
+            std::lock_guard<std::mutex> lock(state_lock_);
             legacy_scan_.reset();
-            pthread_mutex_unlock(&legacy_scan_lock_);
             break;
         }
 
@@ -1104,9 +1103,10 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_RADIO_DISABLED: {
                     log("event", "FM disabled");
-                    pthread_mutex_lock(&legacy_scan_lock_);
-                    legacy_scan_.reset();
-                    pthread_mutex_unlock(&legacy_scan_lock_);
+                    {
+                        std::lock_guard<std::mutex> lock(state_lock_);
+                        legacy_scan_.reset();
+                    }
                     enabled_ = false;
                     fm_storage_.state = OFF;
                     power_on_completed_ = false;
@@ -1119,9 +1119,11 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_TUNE_SUCC: {
                     fm_storage_.frequency = receiver_get_tuned_frequency();
-                    pthread_mutex_lock(&legacy_scan_lock_);
-                    const bool seek_completed = legacy_scan_.on_tune(static_cast<int>(fm_storage_.frequency));
-                    pthread_mutex_unlock(&legacy_scan_lock_);
+                    bool seek_completed = false;
+                    {
+                        std::lock_guard<std::mutex> lock(state_lock_);
+                        seek_completed = legacy_scan_.on_tune(static_cast<int>(fm_storage_.frequency));
+                    }
 
                     fm_storage_.rds.program_name[0] = '\0';
                     fm_storage_.rds.radio_text[0] = '\0';
@@ -1149,9 +1151,11 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_SEEK_COMPLETE: {
                     ScanResult result;
-                    pthread_mutex_lock(&legacy_scan_lock_);
-                    const V4l2ScanTerminal terminal = legacy_scan_.on_seek_complete(&result);
-                    pthread_mutex_unlock(&legacy_scan_lock_);
+                    V4l2ScanTerminal terminal = V4l2ScanTerminal::kNone;
+                    {
+                        std::lock_guard<std::mutex> lock(state_lock_);
+                        terminal = legacy_scan_.on_seek_complete(&result);
+                    }
 
                     if (terminal == V4l2ScanTerminal::kCompleted) {
                         const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
@@ -1169,9 +1173,11 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_SCAN_NEXT: {
                     const int current_frequency = static_cast<int>(receiver_get_tuned_frequency());
-                    pthread_mutex_lock(&legacy_scan_lock_);
-                    const int collected_frequency = legacy_scan_.on_scan_next(current_frequency);
-                    pthread_mutex_unlock(&legacy_scan_lock_);
+                    int collected_frequency = 0;
+                    {
+                        std::lock_guard<std::mutex> lock(state_lock_);
+                        collected_frequency = legacy_scan_.on_scan_next(current_frequency);
+                    }
 
                     log("search", "scan next frequency_khz=%d collected_frequency_khz=%d",
                             current_frequency, collected_frequency);
@@ -1218,9 +1224,8 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_ERROR: {
                     log("event", "driver error");
-                    pthread_mutex_lock(&legacy_scan_lock_);
+                    std::lock_guard<std::mutex> lock(state_lock_);
                     legacy_scan_.reset();
-                    pthread_mutex_unlock(&legacy_scan_lock_);
                     break;
                 }
 
@@ -1720,9 +1725,11 @@ bool V4l2QcomBackend::command_publish_rmssi() {
 
 // Starts full band scan.
 bool V4l2QcomBackend::command_start_scan() {
-    pthread_mutex_lock(&legacy_scan_lock_);
-    const bool started = legacy_scan_.start();
-    pthread_mutex_unlock(&legacy_scan_lock_);
+    bool started = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        started = legacy_scan_.start();
+    }
 
     if (!started) {
         log("search", "scan rejected because another scan is active");
@@ -1734,9 +1741,8 @@ bool V4l2QcomBackend::command_start_scan() {
     log("search", "scan start frequency_khz=%d", limits.lower_limit);
 
     if (command_tune_frequency(limits.lower_limit) != FM_CMD_SUCCESS) {
-        pthread_mutex_lock(&legacy_scan_lock_);
+        std::lock_guard<std::mutex> lock(state_lock_);
         legacy_scan_.start_failed();
-        pthread_mutex_unlock(&legacy_scan_lock_);
         return false;
     }
 
@@ -1746,17 +1752,18 @@ bool V4l2QcomBackend::command_start_scan() {
         return true;
     }
 
-    pthread_mutex_lock(&legacy_scan_lock_);
+    std::lock_guard<std::mutex> lock(state_lock_);
     legacy_scan_.start_failed();
-    pthread_mutex_unlock(&legacy_scan_lock_);
     return false;
 }
 
 // Starts single seek operation.
 bool V4l2QcomBackend::command_start_seek(int8_t direction, uint8_t dwell_period) {
-    pthread_mutex_lock(&legacy_scan_lock_);
-    const bool started = legacy_scan_.start_seek();
-    pthread_mutex_unlock(&legacy_scan_lock_);
+    bool started = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        started = legacy_scan_.start_seek();
+    }
 
     if (!started) {
         log("search", "seek rejected because another search is active");
@@ -1767,17 +1774,18 @@ bool V4l2QcomBackend::command_start_seek(int8_t direction, uint8_t dwell_period)
         return true;
     }
 
-    pthread_mutex_lock(&legacy_scan_lock_);
+    std::lock_guard<std::mutex> lock(state_lock_);
     legacy_scan_.seek_failed();
-    pthread_mutex_unlock(&legacy_scan_lock_);
     return false;
 }
 
 // Cancels active search or scan.
 bool V4l2QcomBackend::command_cancel_scan() {
-    pthread_mutex_lock(&legacy_scan_lock_);
-    const bool cancelling = legacy_scan_.begin_cancel();
-    pthread_mutex_unlock(&legacy_scan_lock_);
+    bool cancelling = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        cancelling = legacy_scan_.begin_cancel();
+    }
 
     log("search", "cancel requested");
 
@@ -1786,9 +1794,8 @@ bool V4l2QcomBackend::command_cancel_scan() {
     }
 
     if (cancelling) {
-        pthread_mutex_lock(&legacy_scan_lock_);
+        std::lock_guard<std::mutex> lock(state_lock_);
         legacy_scan_.cancel_failed();
-        pthread_mutex_unlock(&legacy_scan_lock_);
     }
 
     return false;
@@ -1796,17 +1803,14 @@ bool V4l2QcomBackend::command_cancel_scan() {
 
 // Returns true if a search operation is in progress.
 bool V4l2QcomBackend::command_search_busy() {
-    pthread_mutex_lock(&legacy_scan_lock_);
-    const bool busy = legacy_scan_.busy();
-    pthread_mutex_unlock(&legacy_scan_lock_);
-    return busy;
+    std::lock_guard<std::mutex> lock(state_lock_);
+    return legacy_scan_.busy();
 }
 
 // Abandons current search and resets scan state.
 void V4l2QcomBackend::command_abandon_search() {
-    pthread_mutex_lock(&legacy_scan_lock_);
+    std::lock_guard<std::mutex> lock(state_lock_);
     legacy_scan_.reset();
-    pthread_mutex_unlock(&legacy_scan_lock_);
 }
 
 // Sets audio mute mode.

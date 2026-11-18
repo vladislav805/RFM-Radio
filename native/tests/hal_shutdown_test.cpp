@@ -107,9 +107,8 @@ TEST_F(HalShutdownTest, SpuriousNotificationDoesNotConfirmCleanup) {
     HalHeliumBackend *target = backend;
     callback_thread = std::thread([target] {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        pthread_mutex_lock(&target->state().lock);
-        pthread_cond_broadcast(&target->state().cond);
-        pthread_mutex_unlock(&target->state().lock);
+        std::lock_guard<std::mutex> lock(target->state_lock_for_test());
+        target->state().cond.notify_all();
     });
     EXPECT_FALSE(backend->shutdown_with_timeout(30));
     EXPECT_TRUE(backend->state().receiver_cleanup_needed);

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <condition_variable>
 
 #include "../../rds_parser.h"
 #include "../../region_profile.h"
@@ -389,9 +390,6 @@ struct HeliumRuntimeState {
     // Most recent backend error message for last_error().
     char last_error[128] = "";
 
-    // Mutex protecting runtime state fields across command and callback threads.
-    pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
     // Condition variable signaled by enabled_cb and disabled_cb.
-    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    std::condition_variable cond;
 };

@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include <mutex>
+
 #include "startup_config.h"
 #include "backend_log.h"
 
@@ -46,4 +48,7 @@ protected:
         backend_vlog(log_prefix(), scope, fmt, args);
         va_end(args);
     }
+
+    // Shared mutex protecting backend state across command and callback/event threads.
+    mutable std::mutex state_lock_;
 };

@@ -6,6 +6,7 @@
 #include "v4l2_scan_state.h"
 
 #include <atomic>
+#include <mutex>
 #include <pthread.h>
 #include <string>
 
@@ -138,7 +139,6 @@ private:
     char *qsoc_poweron_path_ = nullptr;
     bool direct_v4l2_transport_ = false;
     V4l2ScanState legacy_scan_;
-    pthread_mutex_t legacy_scan_lock_ = PTHREAD_MUTEX_INITIALIZER;
     std::atomic<bool> power_on_completed_{false};
     pthread_t q_event_thread_ = 0;
     bool event_thread_started_ = false;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+#include <mutex>
 #include <string>
 
 #include "../../backend.h"
@@ -45,6 +47,10 @@ public:
     bool shutdown_with_timeout(int timeout_ms);
     HeliumRuntimeState &state() {
         return state_;
+    }
+
+    std::mutex &state_lock_for_test() {
+        return state_lock_;
     }
     void reset_for_test(
             fm_interface_t *vendor,

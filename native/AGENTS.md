@@ -114,7 +114,7 @@ indices refer to raw characters.
   cause `std::terminate()`.
 - `shutdown`/`exit`, EOF on stdin, and TERM/HUP all reach backend cleanup —
   the process fails closed when the Java owner dies.
-- Helium `vendor_set()` holds `state_.lock` across vendor calls and
+- Helium `vendor_set()` holds `state_lock_` across vendor calls and
   `hal_init()` is called under the same non-recursive mutex: a synchronous
   vendor callback that locks state would deadlock. Do not expand this.
 - Qualcomm V4L2 globals (`fd_radio`, `fm_storage`, …) are shared between the

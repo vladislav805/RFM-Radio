@@ -459,13 +459,13 @@ pointer, not merely return an error.
 - scan progress and collected stations
 - RDS/RT+ deduplication state
 - last error text
-- a pthread mutex and condition variable
+- a `std::condition_variable` (paired with the shared `Backend::state_lock_` mutex)
 
 Vendor callbacks may run on vendor-managed threads. Most runtime fields are
-protected by `state_.lock`. The condition variable is used to wait up to two
+protected by `state_lock_`. The condition variable is used to wait up to two
 seconds for `enabled_cb`.
 
-Important locking caveat: `vendor_set()` holds `state_.lock` while calling
+Important locking caveat: `vendor_set()` holds `state_lock_` while calling
 vendor `set_fm_ctrl()`, and initialization calls vendor `hal_init()` while
 holding the same non-recursive mutex. If a vendor implementation invokes a
 callback synchronously from either call, and that callback also locks state,

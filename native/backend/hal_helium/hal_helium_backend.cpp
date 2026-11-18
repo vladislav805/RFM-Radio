@@ -89,18 +89,6 @@ void log_length_prefixed_payload(const char *scope, const char *name, const char
     backend_log("hel", scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
 }
 
-struct timespec make_realtime_deadline(int timeout_ms) {
-    struct timespec deadline;
-    clock_gettime(CLOCK_REALTIME, &deadline);
-    deadline.tv_sec += timeout_ms / 1000;
-    deadline.tv_nsec += (timeout_ms % 1000) * 1000000L;
-    if (deadline.tv_nsec >= 1000000000L) {
-        deadline.tv_sec += 1;
-        deadline.tv_nsec -= 1000000000L;
-    }
-    return deadline;
-}
-
 }  // namespace
 
 HalHeliumBackend *HalHeliumBackend::active_instance_ = nullptr;
@@ -152,48 +140,49 @@ HalHeliumBackend::~HalHeliumBackend() {
     }
 }
 
-// Records an error message and logs it under state_.lock.
+// Records an error message and logs it under state_lock_.
 void HalHeliumBackend::set_error_locked(const char *message) {
     const char *safe_message = message ? message : "unknown error";
     log("error", "%s", safe_message);
     snprintf(state_.last_error, sizeof(state_.last_error), "%s", safe_message);
 }
 
-// Resets runtime state and error tracking under state_.lock for unit tests.
+// Resets runtime state and error tracking under state_lock_ for unit tests.
 void HalHeliumBackend::reset_for_test(
         fm_interface_t *vendor,
         bool initialized,
         bool enabled,
         bool receiver_cleanup_needed
 ) {
-    pthread_mutex_lock(&state_.lock);
-    state_.vendor = vendor;
-    state_.initialized = initialized;
-    state_.enabled = enabled;
-    state_.receiver_cleanup_needed = receiver_cleanup_needed;
-    state_.disable_pending = false;
-    state_.scan.active = false;
-    state_.current_frequency_khz = 0;
-    state_.rmssi.clear_request();
-    state_.rmssi.paused = false;
-    sinr_supported_ = true;
-    clear_error_locked();
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.vendor = vendor;
+        state_.initialized = initialized;
+        state_.enabled = enabled;
+        state_.receiver_cleanup_needed = receiver_cleanup_needed;
+        state_.disable_pending = false;
+        state_.scan.active = false;
+        state_.current_frequency_khz = 0;
+        state_.rmssi.clear_request();
+        state_.rmssi.paused = false;
+        sinr_supported_ = true;
+        clear_error_locked();
+    }
     last_error_.clear();
 }
 
-// Clears the stored error message under state_.lock.
+// Clears the stored error message under state_lock_.
 void HalHeliumBackend::clear_error_locked() {
     state_.last_error[0] = '\0';
 }
 
-// Clears cached search-list deduplication state under state_.lock.
+// Clears cached search-list deduplication state under state_lock_.
 void HalHeliumBackend::reset_search_result_locked() {
     state_.last_search_payload_valid = false;
     state_.last_search_payload[0] = '\0';
 }
 
-// Resets sequential scan tracking state under state_.lock.
+// Resets sequential scan tracking state under state_lock_.
 void HalHeliumBackend::reset_scan_locked() {
     state_.scan.active = false;
     state_.scan.wrapped = false;
@@ -202,7 +191,7 @@ void HalHeliumBackend::reset_scan_locked() {
     state_.scan.stations.reset();
 }
 
-// Clears RDS deduplication buffers and RT+ context under state_.lock.
+// Clears RDS deduplication buffers and RT+ context under state_lock_.
 void HalHeliumBackend::reset_rds_dedup_locked() {
     state_.last_rt_plus_valid = false;
     state_.last_ecc_valid = false;
@@ -211,7 +200,7 @@ void HalHeliumBackend::reset_rds_dedup_locked() {
     state_.rt_plus_tags_valid = false;
 }
 
-// Updates region band bounds, emphasis, and RDS standard under state_.lock.
+// Updates region band bounds, emphasis, and RDS standard under state_lock_.
 void HalHeliumBackend::apply_region_profile_locked(StartupRegion region) {
     const RegionProfile &profile = get_region_profile(region);
     state_.region = region;
@@ -222,7 +211,7 @@ void HalHeliumBackend::apply_region_profile_locked(StartupRegion region) {
     state_.rds_standard = profile.rds_standard;
 }
 
-// Logs decoded RT+ slices against the current raw RT buffer under state_.lock.
+// Logs decoded RT+ slices against the current raw RT buffer under state_lock_.
 void HalHeliumBackend::log_rt_plus_slices_locked() {
     if (!state_.rt_plus_tags_valid || state_.current_rt_len <= 0) {
         return;
@@ -258,7 +247,7 @@ void HalHeliumBackend::log_rt_plus_slices_locked() {
     }
 }
 
-// Evaluates RT+ title/artist/album slices against the raw RT buffer under state_.lock.
+// Evaluates RT+ title/artist/album slices against the raw RT buffer under state_lock_.
 void HalHeliumBackend::evaluate_rt_plus_slices_locked(RdsRtPlusSlices *out) {
     evaluate_rds_rt_plus_slices(
             state_.rt_plus_tags_valid,
@@ -285,12 +274,11 @@ bool HalHeliumBackend::rollback_enable() {
     return false;
 }
 
-// Writes a vendor control through fm_interface_t under state_.lock.
+// Writes a vendor control through fm_interface_t under state_lock_.
 bool HalHeliumBackend::vendor_set(int id, int value, const char *message) {
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     if (state_.vendor == nullptr) {
         set_error_locked("vendor interface is null");
-        pthread_mutex_unlock(&state_.lock);
         return false;
     }
 
@@ -301,21 +289,18 @@ bool HalHeliumBackend::vendor_set(int id, int value, const char *message) {
         set_error_locked(message);
         log("vendor", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)",
                 id, value, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
-        pthread_mutex_unlock(&state_.lock);
         return false;
     }
 
     clear_error_locked();
-    pthread_mutex_unlock(&state_.lock);
     return true;
 }
 
-// Reads a vendor control through fm_interface_t under state_.lock.
+// Reads a vendor control through fm_interface_t under state_lock_.
 bool HalHeliumBackend::vendor_get(int id, int *value, const char *message) {
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     if (state_.vendor == nullptr) {
         set_error_locked("vendor interface is null");
-        pthread_mutex_unlock(&state_.lock);
         return false;
     }
 
@@ -326,12 +311,10 @@ bool HalHeliumBackend::vendor_get(int id, int *value, const char *message) {
         set_error_locked(message);
         log("vendor", "get id=0x%x failed, ret=%d errno=%d (%s)",
                 id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
-        pthread_mutex_unlock(&state_.lock);
         return false;
     }
 
     clear_error_locked();
-    pthread_mutex_unlock(&state_.lock);
     return true;
 }
 
@@ -357,15 +340,17 @@ bool HalHeliumBackend::apply_processed_rds_config(bool auto_af, int rds_standard
 
     if (!vendor_set(kV4l2CtrlAfJump, auto_af ? 1 : 0, "failed to set af jump")) {
         char original_error[sizeof(state_.last_error)];
-        pthread_mutex_lock(&state_.lock);
-        snprintf(original_error, sizeof(original_error), "%s", state_.last_error);
-        pthread_mutex_unlock(&state_.lock);
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            snprintf(original_error, sizeof(original_error), "%s", state_.last_error);
+        }
 
         vendor_set(kV4l2CtrlRdsGroupProc, 0, "failed to roll back rds groups");
 
-        pthread_mutex_lock(&state_.lock);
-        snprintf(state_.last_error, sizeof(state_.last_error), "%s", original_error);
-        pthread_mutex_unlock(&state_.lock);
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            snprintf(state_.last_error, sizeof(state_.last_error), "%s", original_error);
+        }
         return false;
     }
 
@@ -384,17 +369,18 @@ bool HalHeliumBackend::apply_runtime_config() {
     int emphasis = 0;
     int rds_standard = 0;
 
-    pthread_mutex_lock(&state_.lock);
-    spacing = state_.vendor_spacing;
-    region = state_.vendor_region;
-    lower = state_.lower_band_khz;
-    upper = state_.upper_band_khz;
-    stereo = state_.audio.mode_stereo ? 1 : 0;
-    soft_mute = state_.audio.soft_mute ? 1 : 0;
-    antenna = state_.antenna;
-    emphasis = state_.emphasis;
-    rds_standard = state_.rds_standard;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        spacing = state_.vendor_spacing;
+        region = state_.vendor_region;
+        lower = state_.lower_band_khz;
+        upper = state_.upper_band_khz;
+        stereo = state_.audio.mode_stereo ? 1 : 0;
+        soft_mute = state_.audio.soft_mute ? 1 : 0;
+        antenna = state_.antenna;
+        emphasis = state_.emphasis;
+        rds_standard = state_.rds_standard;
+    }
 
     log("setup", "runtime region=%d lower_khz=%d upper_khz=%d spacing=%d emphasis=%d rds=%d stereo=%d soft_mute=%d antenna=%d",
             region, lower, upper, spacing, emphasis, rds_standard, stereo, soft_mute, antenna);
@@ -414,9 +400,8 @@ bool HalHeliumBackend::apply_runtime_config() {
         return false;
     }
 
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     state_.audio.mode_valid = true;
-    pthread_mutex_unlock(&state_.lock);
     return true;
 }
 
@@ -426,11 +411,12 @@ bool HalHeliumBackend::apply_post_enable_config() {
     bool low_power = false;
     int rds_standard = 0;
 
-    pthread_mutex_lock(&state_.lock);
-    auto_af = state_.auto_af;
-    low_power = state_.low_power;
-    rds_standard = state_.rds_standard;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        auto_af = state_.auto_af;
+        low_power = state_.low_power;
+        rds_standard = state_.rds_standard;
+    }
 
     if (!apply_raw_rds_group_mask()) {
         return false;
@@ -493,10 +479,9 @@ bool HalHeliumBackend::log_snapshot(const char *reason) {
 
 // Loads fm_helium.so, resolves FM_HELIUM_LIB_INTERFACE, and calls hal_init().
 bool HalHeliumBackend::init() {
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     if (state_.initialized) {
         clear_error_locked();
-        pthread_mutex_unlock(&state_.lock);
         return set_status(true);
     }
 
@@ -508,7 +493,6 @@ bool HalHeliumBackend::init() {
         const char *err = dlerror();
         log("open", "dlopen failed for %s: %s", kFmLibraryName, err ? err : "(unknown)");
         set_error_locked(err ? err : "dlopen failed");
-        pthread_mutex_unlock(&state_.lock);
         return set_status(false);
     }
 
@@ -519,7 +503,6 @@ bool HalHeliumBackend::init() {
         set_error_locked(err ? err : "dlsym failed");
         dlclose(state_.lib_handle);
         state_.lib_handle = nullptr;
-        pthread_mutex_unlock(&state_.lock);
         return set_status(false);
     }
 
@@ -529,19 +512,17 @@ bool HalHeliumBackend::init() {
         dlclose(state_.lib_handle);
         state_.lib_handle = nullptr;
         state_.vendor = nullptr;
-        pthread_mutex_unlock(&state_.lock);
         return set_status(false);
     }
 
     state_.initialized = true;
     clear_error_locked();
-    pthread_mutex_unlock(&state_.lock);
     return set_status(true);
 }
 
 // Stores startup region, spacing, audio, antenna, and AF preferences before enable.
 bool HalHeliumBackend::configure_startup(const StartupConfig &config) {
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     apply_region_profile_locked(config.region);
     state_.spacing_khz = config.spacing_khz;
     state_.vendor_spacing = map_spacing_to_vendor(config.spacing_khz);
@@ -550,25 +531,22 @@ bool HalHeliumBackend::configure_startup(const StartupConfig &config) {
     state_.audio.soft_mute = config.soft_mute;
     state_.antenna = config.antenna;
     state_.auto_af = config.auto_af;
-    pthread_mutex_unlock(&state_.lock);
     return true;
 }
 
 // Waits up to timeout_ms for enabled_cb after requesting STATE=RX.
 bool HalHeliumBackend::wait_enabled(int timeout_ms) {
-    const struct timespec deadline = make_realtime_deadline(timeout_ms);
-
-    pthread_mutex_lock(&state_.lock);
-    while (!state_.enabled) {
-        const int wait_ret = pthread_cond_timedwait(&state_.cond, &state_.lock, &deadline);
-        if (wait_ret != 0) {
-            set_error_locked("timed out waiting for enabled_cb");
-            pthread_mutex_unlock(&state_.lock);
-            return false;
-        }
+    std::unique_lock<std::mutex> lock(state_lock_);
+    const bool ready = state_.cond.wait_for(
+            lock,
+            std::chrono::milliseconds(timeout_ms),
+            [&] { return state_.enabled; }
+    );
+    if (!ready) {
+        set_error_locked("timed out waiting for enabled_cb");
+        return false;
     }
     clear_error_locked();
-    pthread_mutex_unlock(&state_.lock);
     return true;
 }
 
@@ -579,14 +557,15 @@ bool HalHeliumBackend::enable_receiver() {
         return false;
     }
 
-    pthread_mutex_lock(&state_.lock);
-    state_.enabled = false;
-    state_.last_enabled_cb_ms = 0;
-    state_.receiver_cleanup_needed = true;
-    state_.disable_pending = false;
-    state_.rmssi.clear_request();
-    state_.rmssi.paused = true;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.enabled = false;
+        state_.last_enabled_cb_ms = 0;
+        state_.receiver_cleanup_needed = true;
+        state_.disable_pending = false;
+        state_.rmssi.clear_request();
+        state_.rmssi.paused = true;
+    }
 
     if (!set_slimbus(true)) {
         log("enable", "failed to enable slimbus before receiver state");
@@ -631,21 +610,20 @@ bool HalHeliumBackend::enable(const StartupConfig &config) {
 // Requests asynchronous receiver disable and turns off Slimbus transport.
 bool HalHeliumBackend::disable() {
     log("disable", "requested");
-    pthread_mutex_lock(&state_.lock);
-    if (!state_.receiver_cleanup_needed || state_.disable_pending) {
-        pthread_mutex_unlock(&state_.lock);
-        return set_status(true);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        if (!state_.receiver_cleanup_needed || state_.disable_pending) {
+            return set_status(true);
+        }
+        state_.disable_pending = true;
+        state_.rmssi.paused = true;
+        state_.rmssi.clear_request();
     }
-    state_.disable_pending = true;
-    state_.rmssi.paused = true;
-    state_.rmssi.clear_request();
-    pthread_mutex_unlock(&state_.lock);
 
     const bool disabled = vendor_set(kV4l2CtrlState, 0, "failed to disable receiver");
     if (!disabled) {
-        pthread_mutex_lock(&state_.lock);
+        std::lock_guard<std::mutex> lock(state_lock_);
         state_.disable_pending = false;
-        pthread_mutex_unlock(&state_.lock);
     }
     const bool slimbus = set_slimbus(false);
     const bool accepted = disabled && slimbus;
@@ -663,21 +641,19 @@ bool HalHeliumBackend::shutdown_with_timeout(int timeout_ms) {
     // callback. Do not send another OFF to a HAL that is already closing.
     disable();
 
-    const struct timespec deadline = make_realtime_deadline(timeout_ms);
-
-    pthread_mutex_lock(&state_.lock);
-    while (state_.receiver_cleanup_needed) {
-        const int ret = pthread_cond_timedwait(&state_.cond, &state_.lock, &deadline);
-        if (ret != 0 && state_.receiver_cleanup_needed) {
-            set_error_locked(ret == ETIMEDOUT
-                    ? "timed out waiting for disabled_cb"
-                    : "failed to wait for disabled_cb");
-            pthread_mutex_unlock(&state_.lock);
+    {
+        std::unique_lock<std::mutex> lock(state_lock_);
+        const bool cleaned_up = state_.cond.wait_for(
+                lock,
+                std::chrono::milliseconds(timeout_ms),
+                [&] { return !state_.receiver_cleanup_needed; }
+        );
+        if (!cleaned_up) {
+            set_error_locked("timed out waiting for disabled_cb");
             return set_status(false);
         }
+        clear_error_locked();
     }
-    clear_error_locked();
-    pthread_mutex_unlock(&state_.lock);
     log("shutdown", "receiver cleanup complete");
     return set_status(true);
 }
@@ -691,52 +667,60 @@ void HalHeliumBackend::shutdown() {
 bool HalHeliumBackend::set_frequency(uint32_t frequency_khz) {
     log("tune", "request frequency_khz=%u", frequency_khz);
 
-    pthread_mutex_lock(&state_.lock);
-    state_.rmssi.paused = true;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.rmssi.paused = true;
+    }
 
     if (!vendor_set(kV4l2CtrlIrisFreq, static_cast<int>(frequency_khz), "failed to tune")) {
-        pthread_mutex_lock(&state_.lock);
+        std::lock_guard<std::mutex> lock(state_lock_);
         state_.rmssi.paused = false;
-        pthread_mutex_unlock(&state_.lock);
         return set_status(false);
     }
     log("tune", "request frequency_khz=%u accepted", frequency_khz);
 
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     state_.current_frequency_khz = static_cast<int>(frequency_khz);
-    pthread_mutex_unlock(&state_.lock);
     return set_status(true);
 }
 
 // Moves frequency by one channel step in the requested direction.
 bool HalHeliumBackend::jump(int direction, uint32_t *new_frequency) {
-    pthread_mutex_lock(&state_.lock);
-    const int step = state_.spacing_khz;
-    const int lower = state_.lower_band_khz;
-    const int upper = state_.upper_band_khz;
-    pthread_mutex_unlock(&state_.lock);
+    int step = 0;
+    int lower = 0;
+    int upper = 0;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        step = state_.spacing_khz;
+        lower = state_.lower_band_khz;
+        upper = state_.upper_band_khz;
+    }
 
     int freq = 0;
     uint32_t current_u = 0;
     if (!vendor_get(kV4l2CtrlIrisFreq, &freq, "failed to read frequency")) {
-        pthread_mutex_lock(&state_.lock);
-        const int cached = state_.current_frequency_khz;
-        pthread_mutex_unlock(&state_.lock);
+        int cached = 0;
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            cached = state_.current_frequency_khz;
+        }
         log("tune", "get frequency failed, using cached (frequency_khz=%d)", cached);
         current_u = cached > 0 ? static_cast<uint32_t>(cached) : 0;
     } else if (freq <= 0) {
-        pthread_mutex_lock(&state_.lock);
-        const int cached = state_.current_frequency_khz;
-        clear_error_locked();
-        pthread_mutex_unlock(&state_.lock);
+        int cached = 0;
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            cached = state_.current_frequency_khz;
+            clear_error_locked();
+        }
         log("tune", "invalid frequency_khz=%d, using cached (frequency_khz=%d)", freq, cached);
         current_u = cached > 0 ? static_cast<uint32_t>(cached) : 0;
     } else {
-        pthread_mutex_lock(&state_.lock);
-        state_.current_frequency_khz = freq;
-        clear_error_locked();
-        pthread_mutex_unlock(&state_.lock);
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            state_.current_frequency_khz = freq;
+            clear_error_locked();
+        }
         current_u = static_cast<uint32_t>(freq);
     }
 
@@ -766,9 +750,10 @@ bool HalHeliumBackend::jump(int direction, uint32_t *new_frequency) {
 bool HalHeliumBackend::seek(int direction) {
     log("search", "seek requested direction=%d dwell=%d", direction, kDefaultSeekDwell);
 
-    pthread_mutex_lock(&state_.lock);
-    state_.rmssi.paused = true;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.rmssi.paused = true;
+    }
 
     const bool ok = vendor_set(kV4l2CtrlSearchMode, kSearchModeSeek, "failed to set seek mode") &&
                     vendor_set(kV4l2CtrlScanDwell, kDefaultSeekDwell, "failed to set seek dwell") &&
@@ -776,23 +761,24 @@ bool HalHeliumBackend::seek(int direction) {
     if (ok) {
         log("search", "seek direction=%d accepted", direction);
     } else {
-        pthread_mutex_lock(&state_.lock);
+        std::lock_guard<std::mutex> lock(state_lock_);
         state_.rmssi.paused = false;
-        pthread_mutex_unlock(&state_.lock);
     }
     return set_status(ok);
 }
 
 // Starts sequential full-band scan from the lower band edge.
 bool HalHeliumBackend::search() {
-    pthread_mutex_lock(&state_.lock);
-    const int start_frequency = state_.lower_band_khz;
-    reset_search_result_locked();
-    reset_scan_locked();
-    state_.scan.active = true;
-    state_.scan.start_frequency_khz = start_frequency;
-    state_.scan.last_frequency_khz = start_frequency;
-    pthread_mutex_unlock(&state_.lock);
+    int start_frequency = 0;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        start_frequency = state_.lower_band_khz;
+        reset_search_result_locked();
+        reset_scan_locked();
+        state_.scan.active = true;
+        state_.scan.start_frequency_khz = start_frequency;
+        state_.scan.last_frequency_khz = start_frequency;
+    }
 
     log("search", "scan start frequency_khz=%d", start_frequency);
 
@@ -801,9 +787,8 @@ bool HalHeliumBackend::search() {
                     vendor_set(kV4l2CtrlScanDwell, 1, "failed to set scan dwell") &&
                     vendor_set(kV4l2CtrlIrisSeek, 1, "failed to start scan");
     if (!ok) {
-        pthread_mutex_lock(&state_.lock);
+        std::lock_guard<std::mutex> lock(state_lock_);
         reset_scan_locked();
-        pthread_mutex_unlock(&state_.lock);
     }
     return set_status(ok);
 }
@@ -811,19 +796,22 @@ bool HalHeliumBackend::search() {
 // Cancels ongoing scan or seek operation.
 bool HalHeliumBackend::cancel_search() {
     log("search", "cancel requested");
-    pthread_mutex_lock(&state_.lock);
-    reset_scan_locked();
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        reset_scan_locked();
+    }
     return set_status(vendor_set(kV4l2CtrlSearchOn, 0, "failed to cancel search"));
 }
 
 // Sets stereo vs mono audio reception, skipping duplicate requests.
 bool HalHeliumBackend::set_stereo(bool enabled) {
-    pthread_mutex_lock(&state_.lock);
-    const bool already_set = state_.audio.mode_valid && state_.audio.mode_stereo == enabled;
-    state_.audio.mode_valid = true;
-    state_.audio.mode_stereo = enabled;
-    pthread_mutex_unlock(&state_.lock);
+    bool already_set = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        already_set = state_.audio.mode_valid && state_.audio.mode_stereo == enabled;
+        state_.audio.mode_valid = true;
+        state_.audio.mode_stereo = enabled;
+    }
 
     if (already_set) {
         log("audio", "set stereo=%d skipped", enabled ? 1 : 0);
@@ -837,26 +825,36 @@ bool HalHeliumBackend::set_stereo(bool enabled) {
 // Sets channel spacing in kHz.
 bool HalHeliumBackend::set_spacing(int spacing_khz) {
     log("setup", "set spacing_khz=%d", spacing_khz);
-    pthread_mutex_lock(&state_.lock);
-    state_.spacing_khz = spacing_khz;
-    state_.vendor_spacing = map_spacing_to_vendor(spacing_khz);
-    const int vendor_spacing = state_.vendor_spacing;
-    pthread_mutex_unlock(&state_.lock);
+    int vendor_spacing = 0;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.spacing_khz = spacing_khz;
+        state_.vendor_spacing = map_spacing_to_vendor(spacing_khz);
+        vendor_spacing = state_.vendor_spacing;
+    }
     return set_status(vendor_set(kV4l2CtrlChannelSpacing, vendor_spacing, "failed to set spacing"));
 }
 
 // Configures radio region, band bounds, emphasis, and clamps current frequency if needed.
 bool HalHeliumBackend::set_region(StartupRegion startup_region) {
     log("setup", "set region=%s", get_region_name(startup_region));
-    pthread_mutex_lock(&state_.lock);
-    apply_region_profile_locked(startup_region);
-    const int region = state_.vendor_region;
-    const int lower = state_.lower_band_khz;
-    const int upper = state_.upper_band_khz;
-    const int emphasis = state_.emphasis;
-    const int rds_standard = state_.rds_standard;
-    const int current_frequency = state_.current_frequency_khz;
-    pthread_mutex_unlock(&state_.lock);
+    int region = 0;
+    int lower = 0;
+    int upper = 0;
+    int emphasis = 0;
+    int rds_standard = 0;
+    int current_frequency = 0;
+
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        apply_region_profile_locked(startup_region);
+        region = state_.vendor_region;
+        lower = state_.lower_band_khz;
+        upper = state_.upper_band_khz;
+        emphasis = state_.emphasis;
+        rds_standard = state_.rds_standard;
+        current_frequency = state_.current_frequency_khz;
+    }
 
     log("setup", "apply region=%d lower_khz=%d upper_khz=%d emphasis=%d rds=%d",
             region, lower, upper, emphasis, rds_standard);
@@ -881,27 +879,30 @@ bool HalHeliumBackend::set_region(StartupRegion startup_region) {
 // Sets antenna type.
 bool HalHeliumBackend::set_antenna(int antenna) {
     log("setup", "set antenna=%d", antenna);
-    pthread_mutex_lock(&state_.lock);
-    state_.antenna = antenna;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.antenna = antenna;
+    }
     return set_status(vendor_set(kV4l2CtrlAntenna, antenna, "failed to set antenna"));
 }
 
 // Sets power mode (normal vs low power).
 bool HalHeliumBackend::set_power_mode(bool low_power) {
     log("setup", "set low_power=%d", low_power ? 1 : 0);
-    pthread_mutex_lock(&state_.lock);
-    state_.low_power = low_power;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.low_power = low_power;
+    }
     return set_status(vendor_set(kV4l2CtrlLowPowerMode, low_power ? 1 : 0, "failed to set power mode"));
 }
 
 // Enables or disables automatic AF jump.
 bool HalHeliumBackend::set_auto_af(bool enabled) {
     log("af", "set auto=%d", enabled ? 1 : 0);
-    pthread_mutex_lock(&state_.lock);
-    state_.auto_af = enabled;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.auto_af = enabled;
+    }
     return set_status(vendor_set(kV4l2CtrlAfJump, enabled ? 1 : 0, "failed to set auto af"));
 }
 
@@ -912,18 +913,16 @@ bool HalHeliumBackend::set_soft_mute(bool enabled) {
         return set_status(false);
     }
 
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     state_.audio.soft_mute = enabled;
-    pthread_mutex_unlock(&state_.lock);
     return set_status(true);
 }
 
 // Configures hardware notch filter (0 = auto, 1 = low, 2 = high).
 bool HalHeliumBackend::set_notch_filter(int mode) {
     if (mode < 0 || mode > 2) {
-        pthread_mutex_lock(&state_.lock);
+        std::lock_guard<std::mutex> lock(state_lock_);
         set_error_locked("invalid notch filter mode");
-        pthread_mutex_unlock(&state_.lock);
         return set_status(false);
     }
 
@@ -938,9 +937,8 @@ bool HalHeliumBackend::set_slimbus(bool enabled) {
         return set_status(false);
     }
 
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     state_.audio.slimbus_enabled = enabled;
-    pthread_mutex_unlock(&state_.lock);
     return set_status(true);
 }
 
@@ -952,40 +950,39 @@ HeliumMetricRequestResult HalHeliumBackend::request_metric_internal(
 ) {
     const uint64_t requested_at = monotonic_ms();
 
-    pthread_mutex_lock(&state_.lock);
-
-    if (
-            !state_.enabled ||
-            state_.scan.active ||
-            state_.rmssi.paused ||
-            state_.vendor == nullptr
-    ) {
-        pthread_mutex_unlock(&state_.lock);
-        return HeliumMetricRequestResult::kSkipped;
-    }
-
-    if (state_.rmssi.type != HeliumMetricType::kNone) {
-        const uint64_t elapsed = requested_at - state_.rmssi.requested_at_ms;
+    fm_interface_t *vendor = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
 
         if (
-                elapsed >= kRmssiRequestTimeoutMs &&
-                !state_.rmssi.timeout_logged
+                !state_.enabled ||
+                state_.scan.active ||
+                state_.rmssi.paused ||
+                state_.vendor == nullptr
         ) {
-            log("metric", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
-            state_.rmssi.timeout_logged = true;
+            return HeliumMetricRequestResult::kSkipped;
         }
 
-        pthread_mutex_unlock(&state_.lock);
-        return HeliumMetricRequestResult::kSkipped;
+        if (state_.rmssi.type != HeliumMetricType::kNone) {
+            const uint64_t elapsed = requested_at - state_.rmssi.requested_at_ms;
+
+            if (
+                    elapsed >= kRmssiRequestTimeoutMs &&
+                    !state_.rmssi.timeout_logged
+            ) {
+                log("metric", "request still pending after %llu ms", static_cast<unsigned long long>(elapsed));
+                state_.rmssi.timeout_logged = true;
+            }
+
+            return HeliumMetricRequestResult::kSkipped;
+        }
+
+        state_.rmssi.type = type;
+        state_.rmssi.requested_at_ms = requested_at;
+        state_.rmssi.request_frequency_khz = state_.current_frequency_khz;
+        state_.rmssi.timeout_logged = false;
+        vendor = state_.vendor;
     }
-
-    state_.rmssi.type = type;
-    state_.rmssi.requested_at_ms = requested_at;
-    state_.rmssi.request_frequency_khz = state_.current_frequency_khz;
-    state_.rmssi.timeout_logged = false;
-
-    fm_interface_t *vendor = state_.vendor;
-    pthread_mutex_unlock(&state_.lock);
 
     int unused = 0;
     errno = 0;
@@ -994,11 +991,12 @@ HeliumMetricRequestResult HalHeliumBackend::request_metric_internal(
     if (ret < 0) {
         const int saved_errno = errno;
 
-        pthread_mutex_lock(&state_.lock);
-        if (state_.rmssi.type == type) {
-            state_.rmssi.clear_request();
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            if (state_.rmssi.type == type) {
+                state_.rmssi.clear_request();
+            }
         }
-        pthread_mutex_unlock(&state_.lock);
 
         log("vendor", "get %s id=0x%x failed, ret=%d errno=%d (%s)",
                 name, ctrl_id, ret, saved_errno, saved_errno ? strerror(saved_errno) : "none");
@@ -1044,26 +1042,26 @@ bool HalHeliumBackend::request_signal_metric() {
 // Handles enabled_cb and wakes wait_enabled().
 void HalHeliumBackend::on_enabled() {
     log("event", "FM enabled");
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     state_.enabled = true;
     state_.last_enabled_cb_ms = monotonic_ms();
-    pthread_cond_broadcast(&state_.cond);
-    pthread_mutex_unlock(&state_.lock);
+    state_.cond.notify_all();
 }
 
 // Handles disabled_cb, wakes shutdown waiters, and emits the disabled event.
 void HalHeliumBackend::on_disabled() {
     log("event", "FM disabled");
 
-    pthread_mutex_lock(&state_.lock);
-    state_.enabled = false;
-    state_.receiver_cleanup_needed = false;
-    state_.disable_pending = false;
-    state_.audio.mode_valid = false;
-    state_.rmssi.clear_request();
-    state_.rmssi.paused = true;
-    pthread_cond_broadcast(&state_.cond);
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.enabled = false;
+        state_.receiver_cleanup_needed = false;
+        state_.disable_pending = false;
+        state_.audio.mode_valid = false;
+        state_.rmssi.clear_request();
+        state_.rmssi.paused = true;
+        state_.cond.notify_all();
+    }
 
     send_native_event("disabled");
 }
@@ -1071,13 +1069,14 @@ void HalHeliumBackend::on_disabled() {
 // Handles tune_cb, clears stale RDS state, publishes frequency, and requests SINR.
 void HalHeliumBackend::on_tune(int freq) {
     log("event", "tune frequency_khz=%d", freq);
-    pthread_mutex_lock(&state_.lock);
-    state_.current_frequency_khz = freq;
-    state_.rmssi.paused = false;
-    state_.last_tune_cb_ms = monotonic_ms();
-    reset_search_result_locked();
-    reset_rds_dedup_locked();
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.current_frequency_khz = freq;
+        state_.rmssi.paused = false;
+        state_.last_tune_cb_ms = monotonic_ms();
+        reset_search_result_locked();
+        reset_rds_dedup_locked();
+    }
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.frequency_khz = freq;
     patch.ps = patch.rt = patch.pi = patch.country = patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = "";
@@ -1101,21 +1100,22 @@ void HalHeliumBackend::on_seek_complete(int freq) {
     ScanResult result;
     bool scan_complete = false;
 
-    pthread_mutex_lock(&state_.lock);
-    state_.current_frequency_khz = freq;
-    state_.rmssi.paused = false;
-    state_.last_seek_cb_ms = monotonic_ms();
-    reset_search_result_locked();
-    reset_rds_dedup_locked();
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.current_frequency_khz = freq;
+        state_.rmssi.paused = false;
+        state_.last_seek_cb_ms = monotonic_ms();
+        reset_search_result_locked();
+        reset_rds_dedup_locked();
 
-    // Helium reports terminal SEARCH_COMPLETE through the seek callback and may
-    // repeat it, so claim the active scan under the lock before sending results.
-    if (state_.scan.active) {
-        scan_complete = true;
-        state_.scan.active = false;
-        state_.scan.stations.copy_sorted(&result);
+        // Helium reports terminal SEARCH_COMPLETE through the seek callback and may
+        // repeat it, so claim the active scan under the lock before sending results.
+        if (state_.scan.active) {
+            scan_complete = true;
+            state_.scan.active = false;
+            state_.scan.stations.copy_sorted(&result);
+        }
     }
-    pthread_mutex_unlock(&state_.lock);
 
     if (scan_complete) {
         const std::string frequencies = format_frequency_list_khz(result.frequencies_khz, result.count);
@@ -1146,23 +1146,24 @@ void HalHeliumBackend::on_scan_next() {
     ScanResult result;
     bool complete = false;
 
-    pthread_mutex_lock(&state_.lock);
-    if (state_.scan.active) {
-        if (state_.scan.stations.add(freq) == ScanAddResult::kFull) {
-            log("search", "scan result full, dropping frequency_khz=%d", freq);
-        }
-        if (state_.scan.last_frequency_khz > 0 && freq < state_.scan.last_frequency_khz) {
-            state_.scan.wrapped = true;
-        }
-        state_.scan.last_frequency_khz = freq;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        if (state_.scan.active) {
+            if (state_.scan.stations.add(freq) == ScanAddResult::kFull) {
+                log("search", "scan result full, dropping frequency_khz=%d", freq);
+            }
+            if (state_.scan.last_frequency_khz > 0 && freq < state_.scan.last_frequency_khz) {
+                state_.scan.wrapped = true;
+            }
+            state_.scan.last_frequency_khz = freq;
 
-        if (state_.scan.wrapped && freq >= state_.scan.start_frequency_khz) {
-            complete = true;
-            state_.scan.active = false;
-            state_.scan.stations.copy_sorted(&result);
+            if (state_.scan.wrapped && freq >= state_.scan.start_frequency_khz) {
+                complete = true;
+                state_.scan.active = false;
+                state_.scan.stations.copy_sorted(&result);
+            }
         }
     }
-    pthread_mutex_unlock(&state_.lock);
 
     if (!complete) {
         return;
@@ -1188,9 +1189,10 @@ void HalHeliumBackend::on_search_list(uint16_t *raw) {
     }
 
     int lower_band = 87500;
-    pthread_mutex_lock(&state_.lock);
-    lower_band = state_.lower_band_khz;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        lower_band = state_.lower_band_khz;
+    }
 
     RdsSearchList list;
     if (!parse_rds_search_list_payload(
@@ -1205,11 +1207,13 @@ void HalHeliumBackend::on_search_list(uint16_t *raw) {
     }
 
     if (list.count <= 0) {
-        pthread_mutex_lock(&state_.lock);
-        const bool duplicate = state_.last_search_payload_valid && state_.last_search_payload[0] == '\0';
-        state_.last_search_payload_valid = true;
-        state_.last_search_payload[0] = '\0';
-        pthread_mutex_unlock(&state_.lock);
+        bool duplicate = false;
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            duplicate = state_.last_search_payload_valid && state_.last_search_payload[0] == '\0';
+            state_.last_search_payload_valid = true;
+            state_.last_search_payload[0] = '\0';
+        }
         if (duplicate) {
             return;
         }
@@ -1225,14 +1229,16 @@ void HalHeliumBackend::on_search_list(uint16_t *raw) {
     // search result, typically while processing the next command-complete
     // event. The callback buffer is malloc/free-owned by the HAL, so dedupe by
     // decoded payload instead of pointer or event ordering.
-    pthread_mutex_lock(&state_.lock);
-    const bool duplicate = state_.last_search_payload_valid &&
-            strcmp(state_.last_search_payload, frequencies.c_str()) == 0;
-    if (!duplicate) {
-        snprintf(state_.last_search_payload, sizeof(state_.last_search_payload), "%s", frequencies.c_str());
-        state_.last_search_payload_valid = true;
+    bool duplicate = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        duplicate = state_.last_search_payload_valid &&
+                strcmp(state_.last_search_payload, frequencies.c_str()) == 0;
+        if (!duplicate) {
+            snprintf(state_.last_search_payload, sizeof(state_.last_search_payload), "%s", frequencies.c_str());
+            state_.last_search_payload_valid = true;
+        }
     }
-    pthread_mutex_unlock(&state_.lock);
     if (duplicate) {
         return;
     }
@@ -1245,9 +1251,10 @@ void HalHeliumBackend::on_search_list(uint16_t *raw) {
 // Handles stereo_status_cb and publishes stereo state patches.
 void HalHeliumBackend::on_stereo_status(bool stereo) {
     log("event", "stereo=%d", stereo);
-    pthread_mutex_lock(&state_.lock);
-    state_.audio.stereo = stereo;
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        state_.audio.stereo = stereo;
+    }
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.stereo = stereo ? 1 : 0;
     send_radio_state_patch(&patch);
@@ -1317,15 +1324,16 @@ void HalHeliumBackend::on_rt_update(char *rt) {
     }
 
     RdsRtPlusSlices slices;
-    pthread_mutex_lock(&state_.lock);
-    // Keep the RAW EBU Latin RT bytes: RT+ tag indices refer to raw characters,
-    // and the raw buffer is what log_rt_plus_slices_locked() slices.
-    state_.current_rt_len = parsed.raw_text_len;
-    memcpy(state_.current_rt, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
-    state_.current_rt[parsed.raw_text_len] = '\0';
-    log_rt_plus_slices_locked();
-    evaluate_rt_plus_slices_locked(&slices);
-    pthread_mutex_unlock(&state_.lock);
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        // Keep the RAW EBU Latin RT bytes: RT+ tag indices refer to raw characters,
+        // and the raw buffer is what log_rt_plus_slices_locked() slices.
+        state_.current_rt_len = parsed.raw_text_len;
+        memcpy(state_.current_rt, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
+        state_.current_rt[parsed.raw_text_len] = '\0';
+        log_rt_plus_slices_locked();
+        evaluate_rt_plus_slices_locked(&slices);
+    }
 
     log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
     radio_state_patch_t patch = radio_state_patch_empty();
@@ -1399,10 +1407,12 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
     }
 
     const int len = static_cast<unsigned char>(payload[0]);
-    pthread_mutex_lock(&state_.lock);
-    const bool duplicate = is_duplicate_payload_locked(
-            &state_.last_rt_plus_valid, state_.last_rt_plus, sizeof(state_.last_rt_plus), payload, len);
-    pthread_mutex_unlock(&state_.lock);
+    bool duplicate = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        duplicate = is_duplicate_payload_locked(
+                &state_.last_rt_plus_valid, state_.last_rt_plus, sizeof(state_.last_rt_plus), payload, len);
+    }
     if (duplicate) {
         return;
     }
@@ -1427,13 +1437,14 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
                 static_cast<unsigned char>(payload[7]);
 
         RdsRtPlusSlices slices;
-        pthread_mutex_lock(&state_.lock);
-        state_.rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
-        state_.rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
-        state_.rt_plus_tags_valid = parsed.tag_count > 0;
-        log_rt_plus_slices_locked();
-        evaluate_rt_plus_slices_locked(&slices);
-        pthread_mutex_unlock(&state_.lock);
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            state_.rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
+            state_.rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
+            state_.rt_plus_tags_valid = parsed.tag_count > 0;
+            log_rt_plus_slices_locked();
+            evaluate_rt_plus_slices_locked(&slices);
+        }
 
         log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x toggle=%d running=%d tags=%d data=%s%s",
                 len, pi, pty, flags, parsed.toggle, parsed.running, parsed.tag_count,
@@ -1487,24 +1498,26 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
     }
 
     const int len = static_cast<unsigned char>(payload[0]);
-    pthread_mutex_lock(&state_.lock);
-    const bool duplicate = is_duplicate_payload_locked(
-            &state_.last_ecc_valid,
-            state_.last_ecc,
-            sizeof(state_.last_ecc),
-            payload,
-            len
-    );
+    bool duplicate = false;
     char country[3] = "";
     bool has_country = false;
-    if (!duplicate) {
-        has_country = parse_rds_ecc_payload(
-                reinterpret_cast<const unsigned char *>(payload),
-                len,
-                country
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        duplicate = is_duplicate_payload_locked(
+                &state_.last_ecc_valid,
+                state_.last_ecc,
+                sizeof(state_.last_ecc),
+                payload,
+                len
         );
+        if (!duplicate) {
+            has_country = parse_rds_ecc_payload(
+                    reinterpret_cast<const unsigned char *>(payload),
+                    len,
+                    country
+            );
+        }
     }
-    pthread_mutex_unlock(&state_.lock);
     if (duplicate) {
         return;
     }
@@ -1565,18 +1578,21 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
 
 // Handles fm_get_station_param_cb for asynchronous SINR/RMSSI responses.
 void HalHeliumBackend::on_station_param(int value, int status) {
-    pthread_mutex_lock(&state_.lock);
+    HeliumMetricType type = HeliumMetricType::kNone;
+    bool publish = false;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
 
-    const HeliumMetricType type = state_.rmssi.type;
-    const int requested_frequency = state_.rmssi.request_frequency_khz;
-    const bool publish = (type != HeliumMetricType::kNone) &&
-            state_.enabled &&
-            !state_.rmssi.paused &&
-            !state_.scan.active &&
-            requested_frequency == state_.current_frequency_khz;
+        type = state_.rmssi.type;
+        const int requested_frequency = state_.rmssi.request_frequency_khz;
+        publish = (type != HeliumMetricType::kNone) &&
+                state_.enabled &&
+                !state_.rmssi.paused &&
+                !state_.scan.active &&
+                requested_frequency == state_.current_frequency_khz;
 
-    state_.rmssi.clear_request();
-    pthread_mutex_unlock(&state_.lock);
+        state_.rmssi.clear_request();
+    }
 
     const unsigned int raw_value = static_cast<unsigned int>(value) & 0xffU;
 
@@ -1611,9 +1627,8 @@ void HalHeliumBackend::on_station_param(int value, int status) {
 // Handles enable_slimbus_cb status updates.
 void HalHeliumBackend::on_enable_slimbus(int status) {
     log("event", "slimbus status=%d", status);
-    pthread_mutex_lock(&state_.lock);
+    std::lock_guard<std::mutex> lock(state_lock_);
     state_.audio.slimbus_enabled = status == 0;
-    pthread_mutex_unlock(&state_.lock);
 }
 
 void HalHeliumBackend::enabled_cb() {
