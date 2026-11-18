@@ -588,11 +588,15 @@ If an older request is still pending, the immediate refresh is skipped and the
 normal pending-request guard prevents overlap.
 
 Qualcomm drivers also expose SINR through `kV4l2CtrlIrisSinr`
-(`V4L2_PRIVATE_BASE + 0x2c`). The HAL backend attempts SINR first and falls
-back to RMSSI if SINR is unsupported by the vendor interface or fails
-asynchronously (`HeliumMetricRequestResult::kUnsupported`). Busy or skipped requests
-do not disable capability. On metric fallback or station tune, stale SINR
-values are invalidated via `"sinr": null` JSON patches.
+(`V4L2_PRIVATE_BASE + 0x2c`). Both backends attempt SINR first and fall
+back to RMSSI if SINR is unsupported or fails (`HeliumMetricRequestResult::kUnsupported`
+or V4L2 control failure). Busy, scan-active, or settle-window skipped requests
+do not change capability or emit metric clears. Whenever the active metric
+changes in either direction (SINR to RMSSI fallback, including synchronous HAL
+rejection, or RMSSI to SINR recovery), the inactive metric is explicitly cleared
+via `RADIO_PATCH_CLEAR_METRIC` (`"sinr": null` / `"rmssi": null`). Repeated or
+already-absent metric clears are deduplicated at JSON serialization time in
+`ctl_json.cpp`, where cleared fields normalize back to `RADIO_PATCH_ABSENT_METRIC`.
 
 ### HAL RDS and Audio
 
@@ -880,7 +884,10 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
   using an injected vendor interface (not device HAL libraries)
 - Legacy V4L2 Qcom lifecycle transitions (repeated `enable` rejection,
   `disable` -> `enable` recovery, setup/timeout rollback joining the event
-  thread) using fake fd/ioctl/sleep overrides (`tests/v4l2_qcom_lifecycle_test.cpp`)
+  thread) and bidirectional metric switching using fake fd/ioctl/sleep
+  overrides (`tests/v4l2_qcom_lifecycle_test.cpp`)
+- HAL signal-metric switching, sync/async SINR fallback, recovery clears, and
+  skipped-poll preservation (`tests/hal_metric_test.cpp`)
 - region profiles and frequency clamping
 - frequency-list formatting
 - shared sequential-scan result collection

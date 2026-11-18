@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.controller;
 
 import com.vlad805.fmradio.models.RtPlusInfo;
+import com.vlad805.fmradio.view.SignalStrength;
 
 import org.junit.Test;
 
@@ -66,5 +67,25 @@ public class RadioStateTest {
         assertEquals("Title B", state.getRtPlus().getTitle());
         assertEquals("Artist A", state.getRtPlus().getArtist());
         assertEquals("Album A", state.getRtPlus().getAlbum());
+    }
+
+    @Test
+    public void clearsStaleMetricWhenSwitchingSignalQualityMetric() {
+        final RadioState state = new RadioState();
+        state.setFrequency(101700);
+        state.setSinr(-5);
+        state.setRmssi(-60);
+        assertEquals(0, SignalStrength.levelForMetrics(state.getRmssi(), state.getSinr()));
+
+        // Null sinr patch resets SINR_UNKNOWN so strong RMSSI determines bars.
+        state.setSinr(RadioState.SINR_UNKNOWN);
+        assertEquals(5, SignalStrength.levelForMetrics(state.getRmssi(), state.getSinr()));
+
+        // Reverse transition: weak RMSSI replaced by strong SINR after clearing RMSSI.
+        state.setRmssi(-106);
+        state.setSinr(16);
+        assertEquals(0, SignalStrength.levelForMetrics(state.getRmssi(), state.getSinr()));
+        state.setRmssi(RadioState.RMSSI_UNKNOWN);
+        assertEquals(5, SignalStrength.levelForMetrics(state.getRmssi(), state.getSinr()));
     }
 }

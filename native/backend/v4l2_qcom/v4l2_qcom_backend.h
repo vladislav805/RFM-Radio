@@ -55,6 +55,11 @@ protected:
         return event_thread_started_;
     }
 
+    // Clears the post-tune metric settle deadline for host tests.
+    void clear_metric_settle_for_test() {
+        metric_resume_at_ms_ = 0;
+    }
+
 private:
     bool rollback_enable();
 

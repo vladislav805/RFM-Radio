@@ -311,3 +311,44 @@ TEST(CtlJsonTest, AppliesPatchAfterSuccessfulSend) {
     EXPECT_EQ(cache.af_khz[1], 101700);
     EXPECT_EQ(cache.stereo, 1);
 }
+
+TEST(CtlJsonTest, ClearsActiveMetricOnceAndDeduplicatesRepeats) {
+    RadioStateJsonCache cache;
+    cache.frequency_khz = 101700;
+    cache.sinr = 12;
+
+    radio_state_patch_t patch = make_empty_patch();
+    patch.rmssi = -70;
+    patch.sinr = RADIO_PATCH_CLEAR_METRIC;
+
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rmssi\":-70,\"sinr\":null}");
+
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_EQ(cache.rmssi, -70);
+    EXPECT_EQ(cache.sinr, RADIO_PATCH_ABSENT_METRIC);
+
+    // Subsequent RMSSI poll with clear SINR must not emit duplicate "sinr":null.
+    patch = make_empty_patch();
+    patch.rmssi = -68;
+    patch.sinr = RADIO_PATCH_CLEAR_METRIC;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rmssi\":-68}");
+    apply_radio_state_patch(&cache, &patch);
+
+    // Repeating only a clear for an already cleared/absent metric is suppressed.
+    patch = make_empty_patch();
+    patch.sinr = RADIO_PATCH_CLEAR_METRIC;
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+
+    // Switching back to SINR clears the active RMSSI in the same patch.
+    patch = make_empty_patch();
+    patch.sinr = 15;
+    patch.rmssi = RADIO_PATCH_CLEAR_METRIC;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, "{\"type\":\"state\",\"rmssi\":null,\"sinr\":15}");
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_EQ(cache.rmssi, RADIO_PATCH_ABSENT_METRIC);
+    EXPECT_EQ(cache.sinr, 15);
+}

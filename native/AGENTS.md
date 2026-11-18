@@ -128,13 +128,15 @@ indices refer to raw characters.
 ## RMSSI
 
 The native command loop polls signal metrics every 2 s while enabled
-(suppressed during tune/seek/scan). Helium attempts SINR (`kV4l2CtrlIrisSinr`)
-first and falls back to RMSSI (`kV4l2CtrlIrisRmssi`) if SINR is unsupported
-by the vendor interface or fails asynchronously. Skipped or busy requests do
-not disable SINR capability. Explicit null metrics (`"sinr": null`) invalidate
-stale values in Java state. Qualcomm V4L2 reads `VIDIOC_G_TUNER.signal` and waits
-750 ms (`kMetricSettleMs`) after tune/jump before sampling. Decoding is shared
-in `rmssi.h` (`decode_rmssi`, signed low byte).
+(suppressed during tune/seek/scan). Both backends attempt SINR
+(`kV4l2CtrlIrisSinr`) first and fall back to RMSSI if SINR is unsupported or
+fails. Skipped/busy requests do not disable SINR capability or emit clears.
+Both backends clear the inactive metric in both directions using
+`RADIO_PATCH_CLEAR_METRIC` (`"sinr": null` / `"rmssi": null`), with duplicate
+and already-absent clears deduplicated during JSON serialization (`ctl_json.cpp`).
+Qualcomm V4L2 reads `VIDIOC_G_TUNER.signal` for RMSSI and waits 750 ms
+(`kMetricSettleMs`) after tune/jump before sampling. Decoding is shared in
+`rmssi.h` (`decode_rmssi`, signed low byte).
 
 ## Tests
 
@@ -142,7 +144,9 @@ in `rmssi.h` (`decode_rmssi`, signed low byte).
 (`rds_parser_test`), JSON serialization and state cache (`ctl_json_test`),
 request frames (`ctl_protocol_test`), startup config (`startup_config_test`),
 region profiles, frequency formatting, shared and V4L2 scan state (`v4l2_scan_state_test`),
-Helium shutdown state machine with an injected vendor interface (`hal_shutdown_test`), RMSSI decoding
+V4L2 Qcom lifecycle and metric switching (`v4l2_qcom_lifecycle_test`),
+Helium shutdown state machine (`hal_shutdown_test`) and metric switching
+(`hal_metric_test`) with injected vendor interfaces, RMSSI decoding
 (`rmssi_test.cpp`), and polling deadlines (`periodic_deadline_test.cpp`).
 
 Not covered: `main.cpp` routing, process transport, backend detection,

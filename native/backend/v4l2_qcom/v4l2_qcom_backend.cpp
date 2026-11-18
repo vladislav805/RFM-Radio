@@ -437,15 +437,27 @@ bool V4l2QcomBackend::request_signal_metric() {
         return false;
     }
 
+    bool cleared_sinr_on_fallback = false;
     if (sinr_supported_) {
         if (command_publish_sinr()) {
             return true;
         }
         log("legacy", "SINR not supported via V4L2, falling back to RMSSI");
         sinr_supported_ = false;
+        cleared_sinr_on_fallback = true;
     }
 
-    return command_publish_rmssi();
+    if (command_publish_rmssi()) {
+        return true;
+    }
+
+    if (cleared_sinr_on_fallback) {
+        radio_state_patch_t patch = radio_state_patch_empty();
+        patch.sinr = RADIO_PATCH_CLEAR_METRIC;
+        send_radio_state_patch(&patch);
+    }
+
+    return false;
 }
 
 // Performs process teardown and turns off the receiver.
@@ -1650,6 +1662,7 @@ bool V4l2QcomBackend::command_publish_sinr() {
     log("metric", "sinr=%d", sinr);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.sinr = sinr;
+    patch.rmssi = RADIO_PATCH_CLEAR_METRIC;
     send_radio_state_patch(&patch);
     return true;
 }
@@ -1665,6 +1678,7 @@ bool V4l2QcomBackend::command_publish_rmssi() {
     log("metric", "rmssi=%d", rmssi);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rmssi = rmssi;
+    patch.sinr = RADIO_PATCH_CLEAR_METRIC;
     send_radio_state_patch(&patch);
     return true;
 }

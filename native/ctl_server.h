@@ -35,6 +35,7 @@ typedef struct {
 typedef response_t (*fm_srv_callback)(char *);
 
 void poll_rmssi(void);
+void reset_ctl_server_state_for_test(void);
 int init_server(fm_srv_callback request_callback);
 radio_state_patch_t radio_state_patch_empty(void);
 bool send_radio_state_patch(const radio_state_patch_t *patch);

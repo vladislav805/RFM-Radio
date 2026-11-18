@@ -40,6 +40,7 @@ if(RFM_NATIVE_TESTS)
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
         tests/hal_shutdown_test.cpp
+        tests/hal_metric_test.cpp
         backend/v4l2_qcom/v4l2_qcom_backend.cpp
         backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp

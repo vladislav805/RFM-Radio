@@ -9,14 +9,83 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unistd.h>
+#include <vector>
 
 #include "backend/qcom_fm_controls.h"
 #include "backend/v4l2_qcom/v4l2_qcom_backend.h"
+#include "ctl_server.h"
 
 namespace {
 
 constexpr uint8_t kEvtRadioReady = 0;
+constexpr uint8_t kEvtTuneSucc = 1;
 constexpr uint8_t kEvtRadioDisabled = 18;
+
+// Captures JSON messages written to STDOUT_FILENO during a test scope.
+class StdoutCapture {
+public:
+    StdoutCapture() {
+        if (pipe(pipe_fds_) == 0) {
+            saved_stdout_ = dup(STDOUT_FILENO);
+            if (saved_stdout_ >= 0) {
+                dup2(pipe_fds_[1], STDOUT_FILENO);
+            }
+        }
+    }
+
+    ~StdoutCapture() {
+        restore();
+        if (pipe_fds_[0] >= 0) {
+            close(pipe_fds_[0]);
+            pipe_fds_[0] = -1;
+        }
+    }
+
+    std::string read_all() {
+        restore();
+        std::string output;
+        if (pipe_fds_[0] >= 0) {
+            char buffer[512];
+            ssize_t n = 0;
+            while ((n = read(pipe_fds_[0], buffer, sizeof(buffer))) > 0) {
+                output.append(buffer, static_cast<size_t>(n));
+            }
+        }
+        return output;
+    }
+
+private:
+    void restore() {
+        if (saved_stdout_ >= 0) {
+            dup2(saved_stdout_, STDOUT_FILENO);
+            close(saved_stdout_);
+            saved_stdout_ = -1;
+        }
+        if (pipe_fds_[1] >= 0) {
+            close(pipe_fds_[1]);
+            pipe_fds_[1] = -1;
+        }
+    }
+
+    int pipe_fds_[2] = {-1, -1};
+    int saved_stdout_ = -1;
+};
+
+std::vector<std::string> split_lines(const std::string &text) {
+    std::vector<std::string> lines;
+    size_t start = 0;
+    while (start < text.size()) {
+        size_t end = text.find('\n', start);
+        if (end == std::string::npos) {
+            lines.push_back(text.substr(start));
+            break;
+        }
+        lines.push_back(text.substr(start, end - start));
+        start = end + 1;
+    }
+    return lines;
+}
 
 // Fake V4L2 device harness overriding file descriptors, ioctls, and sleeps.
 class FakeV4l2QcomBackend : public V4l2QcomBackend {
@@ -24,11 +93,18 @@ public:
     bool emit_ready_on_rx = true;
     bool emit_disabled_on_off = true;
     bool fail_set_tuner = false;
+    bool fail_get_sinr = false;
+    int sinr_value = 12;
+    int rmssi_signal = -70;
 
     void push_event(uint8_t event_id) {
         std::lock_guard<std::mutex> lock(mu_);
         events_.push_back(event_id);
         cv_.notify_all();
+    }
+
+    void clear_metric_settle() {
+        clear_metric_settle_for_test();
     }
 
     int open_calls() const {
@@ -119,6 +195,14 @@ protected:
                 errno = EBADF;
                 return -1;
             }
+            if (ctrl->id == static_cast<uint32_t>(kV4l2CtrlIrisSinr)) {
+                if (fail_get_sinr) {
+                    errno = EINVAL;
+                    return -1;
+                }
+                ctrl->value = sinr_value;
+                return 0;
+            }
             ctrl->value = 0;
             return 0;
         }
@@ -137,11 +221,13 @@ protected:
         }
 
         if (request == VIDIOC_G_TUNER) {
+            auto *tuner = static_cast<struct v4l2_tuner *>(arg);
             std::lock_guard<std::mutex> lock(mu_);
             if (!device_open_ || fd != active_fd_) {
                 errno = EBADF;
                 return -1;
             }
+            tuner->signal = rmssi_signal;
             return 0;
         }
 
@@ -315,6 +401,81 @@ TEST(V4l2QcomLifecycleTest, ReadyTimeoutStopsEventThreadAndCanRecover) {
     backend.shutdown();
     EXPECT_FALSE(backend.event_thread_started());
     EXPECT_FALSE(backend.device_fd_open());
+}
+
+TEST(V4l2QcomLifecycleTest, MetricFallbackClearsSinrAndRecoveryClearsRmssi) {
+    reset_ctl_server_state_for_test();
+    FakeV4l2QcomBackend backend;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(cfg));
+    backend.clear_metric_settle();
+
+    std::string output;
+    {
+        StdoutCapture capture;
+        backend.push_event(kEvtTuneSucc);
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        backend.fail_get_sinr = true;
+        backend.rmssi_signal = -70;
+        ASSERT_TRUE(backend.request_signal_metric());
+
+        backend.rmssi_signal = -68;
+        ASSERT_TRUE(backend.request_signal_metric());
+
+        // Simulate SINR recovery on tune without frequency change -> clears stale RMSSI.
+        backend.fail_get_sinr = false;
+        backend.sinr_value = 15;
+        backend.push_event(kEvtTuneSucc);
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        output = capture.read_all();
+    }
+
+    backend.shutdown();
+    reset_ctl_server_state_for_test();
+
+    const std::vector<std::string> lines = split_lines(output);
+    ASSERT_EQ(lines.size(), 5u) << output;
+    EXPECT_EQ(lines[0], "{\"type\":\"state\",\"frequency\":101700,\"rds\":{\"pty\":0,\"af\":[]}}");
+    EXPECT_EQ(lines[1], "{\"type\":\"state\",\"sinr\":12}");
+    EXPECT_EQ(lines[2], "{\"type\":\"state\",\"rmssi\":-70,\"sinr\":null}");
+    EXPECT_EQ(lines[3], "{\"type\":\"state\",\"rmssi\":-68}");
+    EXPECT_EQ(lines[4], "{\"type\":\"state\",\"rmssi\":null,\"sinr\":15}");
+}
+
+TEST(V4l2QcomLifecycleTest, SkippedPollDuringSettleWindowPreservesSinrSupport) {
+    reset_ctl_server_state_for_test();
+    FakeV4l2QcomBackend backend;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(cfg));
+
+    // Settle window active immediately after enable() must skip without clearing/fallback.
+    backend.fail_get_sinr = true;
+    EXPECT_FALSE(backend.request_signal_metric());
+
+    backend.fail_get_sinr = false;
+    backend.sinr_value = 14;
+    backend.clear_metric_settle();
+
+    std::string output;
+    {
+        StdoutCapture capture;
+        ASSERT_TRUE(backend.request_signal_metric());
+        output = capture.read_all();
+    }
+
+    backend.shutdown();
+    reset_ctl_server_state_for_test();
+
+    EXPECT_EQ(output, "{\"type\":\"state\",\"sinr\":14}\n");
 }
 
 TEST(V4l2QcomLifecycleTest, HardwareDisabledEventAllowsReEnableAndStopsMetricPolling) {

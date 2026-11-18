@@ -245,3 +245,9 @@ bool send_search_done(const int *frequencies_khz, int count) {
     }
     return send_json_message(json);
 }
+
+void reset_ctl_server_state_for_test(void) {
+    pthread_mutex_lock(&g_state_lock);
+    g_last_state = RadioStateJsonCache();
+    pthread_mutex_unlock(&g_state_lock);
+}

@@ -56,6 +56,8 @@ public:
     // Vendor C callback entrypoints exposed for tests; they route to active_instance_.
     static void enabled_cb();
     static void disabled_cb();
+    static void tune_cb(int freq);
+    static void fm_get_station_param_cb(int value, int status);
 
 protected:
     const char *log_prefix() const override {
@@ -109,7 +111,6 @@ private:
     void on_station_param(int value, int status);
     void on_enable_slimbus(int status);
 
-    static void tune_cb(int freq);
     static void seek_complete_cb(int freq);
     static void scan_next_cb();
     static void search_list_cb(uint16_t *raw);
@@ -136,7 +137,6 @@ private:
     static void fm_set_ch_det_thr_cb(int status);
     static void fm_def_data_write_cb(int status);
     static void fm_set_blend_cb(int status);
-    static void fm_get_station_param_cb(int value, int status);
     static void fm_get_station_debug_param_cb(int value, int status);
     static void enable_slimbus_cb(int status);
     static void enable_softmute_cb(int status);

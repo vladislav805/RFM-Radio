@@ -65,6 +65,29 @@ void append_field(std::string &json, bool &first, const char *name, const std::s
     json += value;
 }
 
+bool append_metric_patch(
+        std::string &json,
+        bool &first_top,
+        const char *key,
+        int patch_value,
+        int cache_value
+) {
+    if (patch_value == RADIO_PATCH_ABSENT_METRIC || patch_value == cache_value) {
+        return false;
+    }
+
+    if (patch_value == RADIO_PATCH_CLEAR_METRIC) {
+        if (cache_value == RADIO_PATCH_ABSENT_METRIC) {
+            return false;
+        }
+        append_field(json, first_top, key, "null");
+        return true;
+    }
+
+    append_field(json, first_top, key, std::to_string(patch_value));
+    return true;
+}
+
 bool af_equals_cache(const RadioStateJsonCache &cache, const int *af_khz, int af_count) {
     if (af_count != cache.af_count) {
         return false;
@@ -138,21 +161,11 @@ bool build_radio_state_patch_json(
         changed = true;
     }
 
-    if (patch->rmssi != RADIO_PATCH_ABSENT_METRIC && patch->rmssi != cache.rmssi) {
-        if (patch->rmssi == RADIO_PATCH_CLEAR_METRIC) {
-            append_field(*json, first_top, "rmssi", "null");
-        } else {
-            append_field(*json, first_top, "rmssi", std::to_string(patch->rmssi));
-        }
+    if (append_metric_patch(*json, first_top, "rmssi", patch->rmssi, cache.rmssi)) {
         changed = true;
     }
 
-    if (patch->sinr != RADIO_PATCH_ABSENT_METRIC && patch->sinr != cache.sinr) {
-        if (patch->sinr == RADIO_PATCH_CLEAR_METRIC) {
-            append_field(*json, first_top, "sinr", "null");
-        } else {
-            append_field(*json, first_top, "sinr", std::to_string(patch->sinr));
-        }
+    if (append_metric_patch(*json, first_top, "sinr", patch->sinr, cache.sinr)) {
         changed = true;
     }
 
@@ -291,11 +304,15 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
     }
 
     if (patch->rmssi != RADIO_PATCH_ABSENT_METRIC) {
-        cache->rmssi = patch->rmssi;
+        cache->rmssi = patch->rmssi == RADIO_PATCH_CLEAR_METRIC
+                ? RADIO_PATCH_ABSENT_METRIC
+                : patch->rmssi;
     }
 
     if (patch->sinr != RADIO_PATCH_ABSENT_METRIC) {
-        cache->sinr = patch->sinr;
+        cache->sinr = patch->sinr == RADIO_PATCH_CLEAR_METRIC
+                ? RADIO_PATCH_ABSENT_METRIC
+                : patch->sinr;
     }
 
     if (patch->rt_plus_title != nullptr) {

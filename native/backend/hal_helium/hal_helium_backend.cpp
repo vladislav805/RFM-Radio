@@ -166,8 +166,11 @@ void HalHeliumBackend::reset_for_test(
     state_.enabled = enabled;
     state_.receiver_cleanup_needed = receiver_cleanup_needed;
     state_.disable_pending = false;
+    state_.scan.active = false;
+    state_.current_frequency_khz = 0;
     state_.rmssi.clear_request();
     state_.rmssi.paused = false;
+    sinr_supported_ = true;
     clear_error_locked();
     pthread_mutex_unlock(&state_.lock);
     last_error_.clear();
@@ -1024,6 +1027,9 @@ bool HalHeliumBackend::request_signal_metric() {
         }
         log("hal", "SINR not supported by HAL vendor interface, falling back to RMSSI");
         sinr_supported_ = false;
+        radio_state_patch_t patch = radio_state_patch_empty();
+        patch.sinr = RADIO_PATCH_CLEAR_METRIC;
+        send_radio_state_patch(&patch);
     }
 
     return request_rmssi() == HeliumMetricRequestResult::kOk;
@@ -1568,6 +1574,7 @@ void HalHeliumBackend::on_station_param(int value, int status) {
         if (status == 0 && publish) {
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.sinr = sinr_val;
+            patch.rmssi = RADIO_PATCH_CLEAR_METRIC;
             send_radio_state_patch(&patch);
         } else if (status != 0 && publish) {
             radio_state_patch_t patch = radio_state_patch_empty();
@@ -1582,6 +1589,7 @@ void HalHeliumBackend::on_station_param(int value, int status) {
         if (status == 0 && publish) {
             radio_state_patch_t patch = radio_state_patch_empty();
             patch.rmssi = rmssi_val;
+            patch.sinr = RADIO_PATCH_CLEAR_METRIC;
             send_radio_state_patch(&patch);
         }
     }
