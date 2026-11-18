@@ -12,6 +12,9 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.media.VolumeProvider;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -24,6 +27,7 @@ import androidx.annotation.RequiresPermission;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
@@ -31,6 +35,8 @@ import com.vlad805.fmradio.service.recording.PcmRecorderSession;
 import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordService;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
+
+import java.util.Locale;
 
 /**
  * FM2/Helium devices route FM audio directly inside audio HAL.
@@ -47,11 +53,40 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private static final int DEVICE_OUT_FM = resolveAudioSystemDevice("DEVICE_OUT_FM", 0);
 	private static final int DEVICE_OUT_SPEAKER = resolveAudioSystemDevice("DEVICE_OUT_SPEAKER", 0x2);
 	private static final int DEVICE_OUT_WIRED_HEADSET = resolveAudioSystemDevice("DEVICE_OUT_WIRED_HEADSET", 0x4);
+	private static final int SAMSUNG_FM_AUDIO_SOURCE = 11;
+	/**
+	 * Hardware gain curve copied verbatim from {@code vol_level_init[0..15]} in
+	 * Samsung's Exynos 9611 FM kernel driver ({@code drivers/media/radio/s610/radio-s610.c}).
+	 *
+	 * <p>Each index corresponds to {@code V4L2_CID_AUDIO_VOLUME} (0..15) and sets an
+	 * 11-bit linear chip multiplier in ~3 dB steps ({@code 0} = digital mute,
+	 * {@code 2047} = 0 dB full scale). Because S610 applies this attenuation
+	 * upstream of the digital ABOX PCM capture tap ({@code fmrec_in}), low
+	 * listening volumes attenuate FM recordings unless compensated here.
+	 */
+	private static final int[] S610_VOLUME_GAINS = {
+			0, 16, 23, 32, 45, 64, 90, 128, 181, 256, 362, 512, 724, 1024, 1447, 2047
+	};
+	/**
+	 * Caps inverse gain scaling at 64x (+36 dB) so volumes 1..2 do not amplify
+	 * analog/quantization noise excessively, while steps 3..15 (2047/32 = 63.97)
+	 * are restored 1:1 to full scale.
+	 */
+	private static final float S610_MAX_COMPENSATION_GAIN = 64.0f;
 
-    private final Context mContext;
+	public interface HardwareVolumeListener {
+		void onVolumeChanged(int volume0To15);
+	}
+
+	private final Context mContext;
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
 	private boolean mSpeakerEnabled = false;
+	private HardwareVolumeListener mHardwareVolumeListener;
+	private volatile TunerDriver mTunerDriverKind = TunerDriver.NONE;
+	private volatile int mLastExynosVolume = -1;
+	private MediaSession mExynosRecordingVolumeSession;
+	private volatile VolumeProvider mExynosRecordingVolumeProvider;
 
 	/** FM input capture kept alive while pre-roll or on-demand recording is active. */
 	private AudioRecord mRecordingAudioRecord;
@@ -131,6 +166,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		Log.d(TAG, "startAudio: enabling FM route");
 		requestForFocus(true);
 		registerVolumeListener();
+		mLastExynosVolume = -1;
 		mIsActive = true;
 		applyRoute(true, mSpeakerEnabled, true);
 		if (mPreRollEnabled && hasRecordAudioPermission()) {
@@ -155,8 +191,17 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		Log.d(TAG, "stopAudio: disabling FM route");
 		applyRoute(false, mSpeakerEnabled, false);
 		mIsActive = false;
+		mLastExynosVolume = -1;
 		unregisterVolumeListener();
 		requestForFocus(false);
+	}
+
+	public void setHardwareVolumeListener(final HardwareVolumeListener listener) {
+		mHardwareVolumeListener = listener;
+	}
+
+	public void setTunerDriverKind(final TunerDriver driverKind) {
+		mTunerDriverKind = driverKind != null ? driverKind : TunerDriver.NONE;
 	}
 
 	@Override
@@ -178,11 +223,16 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			return;
 		}
 
+		if (isExynosDevice()) {
+			applySamsungExynosRoute(enable, speakerEnabled, updateVolume);
+			return;
+		}
+
 		final int routeDevice = speakerEnabled ? DEVICE_OUT_SPEAKER : DEVICE_OUT_WIRED_HEADSET;
 		final int volumeDeviceType = speakerEnabled ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_WIRED_HEADPHONES;
 		final int route = enable ? (routeDevice | DEVICE_OUT_FM) : routeDevice;
 		Log.d(TAG, "applyRoute: enable=" + enable + " speaker=" + speakerEnabled + " routeDevice=" + routeDevice + " deviceOutFm=" + DEVICE_OUT_FM + " route=" + route);
-		applyFrameworkRoute(speakerEnabled);
+		applyFrameworkRoute(enable && speakerEnabled);
 
 		if (enable) {
 			final String fmStatus = mAudioManager.getParameters("fm_status");
@@ -204,6 +254,36 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 		sendAudioParameter("fm_routing", route);
 		sendAudioParameter("handle_fm", route);
+	}
+
+	private boolean isExynosDevice() {
+		return mTunerDriverKind == TunerDriver.V4L2_EXYNOS || isSamsungExynosBuild();
+	}
+
+	private static boolean isSamsungExynosBuild() {
+		return Build.MANUFACTURER != null
+				&& "samsung".equalsIgnoreCase(Build.MANUFACTURER)
+				&& Build.HARDWARE != null
+				&& Build.HARDWARE.toLowerCase(Locale.US).contains("exynos");
+	}
+
+	private void applySamsungExynosRoute(
+			final boolean enable,
+			final boolean speakerEnabled,
+			final boolean updateVolume
+	) {
+		applyFrameworkRoute(enable && speakerEnabled);
+		if (enable) {
+			if (updateVolume) {
+				applyVolume(getCurrentVolumeDeviceType());
+			}
+			sendAudioParameter("g_fmradio_mute", "true");
+			sendAudioParameter("g_fmradio_mute", "false");
+			sendAudioParameter("g_fmradio_enable", "true");
+			return;
+		}
+		sendAudioParameter("g_fmradio_mute", "true");
+		sendAudioParameter("g_fmradio_enable", "false");
 	}
 
 	private void applyFrameworkRoute(final boolean speakerEnabled) {
@@ -229,6 +309,25 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	private void applyVolume(final int device) {
 		try {
 			final int volumeIndex = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+			if (isExynosDevice()) {
+				final VolumeProvider volumeProvider = mExynosRecordingVolumeProvider;
+				if (volumeProvider != null) {
+					volumeProvider.setCurrentVolume(volumeIndex);
+				}
+				final int maxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+				final int scaled = maxVolume > 0
+						? Math.max(0, Math.min(15, Math.round(volumeIndex * 15f / maxVolume)))
+						: 0;
+				if (scaled == mLastExynosVolume) {
+					return;
+				}
+				mLastExynosVolume = scaled;
+				Log.d(TAG, "applyVolume(exynos): index=" + volumeIndex + "/" + maxVolume + " scaled=" + scaled);
+				if (mHardwareVolumeListener != null) {
+					mHardwareVolumeListener.onVolumeChanged(scaled);
+				}
+				return;
+			}
 			final float volume = resolveMusicStreamGain(volumeIndex, device);
 			Log.d(TAG, "applyVolume: index=" + volumeIndex + " volume=" + volume);
 			sendAudioParameter("fm_volume", String.valueOf(volume));
@@ -355,35 +454,24 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
 				.build();
 
-		final AudioRecord audioRecord;
-		try {
-			audioRecord = new AudioRecord.Builder()
-					.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
-					.setAudioFormat(format)
-					.setBufferSizeInBytes(bufferSize * 2)
-					.build();
-		} catch (Throwable t) {
-			Log.e(TAG, "startAudioRecordRecorder: AudioRecord build failed", t);
-			throw new RecordError("Cannot create AudioRecord");
+		final boolean isExynos = isExynosDevice();
+		if (isExynos) {
+			// Intentionally spelled "fmradio_recoding" (without 'r') to match Samsung's audio HAL key.
+			sendAudioParameter("fmradio_recoding", "on");
 		}
 
-		if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-			audioRecord.release();
+		final AudioRecord audioRecord = createFmAudioRecord(format, bufferSize * 2, fmTuner, isExynos);
+		if (audioRecord == null) {
+			if (isExynos) {
+				sendAudioParameter("fmradio_recoding", "off");
+			}
 			throw new RecordError("AudioRecord init failed");
 		}
 
-		if (!audioRecord.setPreferredDevice(fmTuner)) {
-			Log.w(TAG, "startAudioRecordRecorder: setPreferredDevice(FM Tuner) returned false");
-		}
-
-		try {
-			audioRecord.startRecording();
-		} catch (Throwable t) {
-			audioRecord.release();
-			throw new RecordError("AudioRecord.startRecording failed");
-		}
-
 		mRecordingAudioRecord = audioRecord;
+		if (isExynos) {
+			startExynosRecordingVolumeSession();
+		}
 
 		mRecordingThread = new Thread(() -> {
 			final short[] buffer = new short[bufferSize / 2];
@@ -391,6 +479,9 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				while (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
 					final int read = audioRecord.read(buffer, 0, buffer.length);
 					if (read > 0) {
+						if (isExynos) {
+							compensateExynosVolume(buffer, read, mLastExynosVolume);
+						}
 						mPcmSession.append(buffer, read);
 					} else if (read == AudioRecord.ERROR_DEAD_OBJECT) {
 						Log.e(TAG, "FM capture audio server died");
@@ -410,6 +501,10 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 					}
 				}
 				if (ownsAudioRecord) {
+					if (isExynos) {
+						releaseExynosRecordingVolumeSession();
+						sendAudioParameter("fmradio_recoding", "off");
+					}
 					audioRecord.release();
 				}
 			}
@@ -528,6 +623,199 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			}
 		}
 		audioRecord.release();
+		if (isExynosDevice()) {
+			releaseExynosRecordingVolumeSession();
+			sendAudioParameter("fmradio_recoding", "off");
+		}
+	}
+
+	/**
+	 * Bypasses Samsung AudioService's FM recording volume lock while FM tuner
+	 * capture is active.
+	 *
+	 * <p>On Samsung firmware, any active {@code AudioRecord} using
+	 * {@code AUDIO_DEVICE_IN_FM_TUNER} makes {@code SecAudioParamPolicy} report
+	 * {@code l_fmradio_record_active}, causing {@code AudioService.adjustStreamVolume}
+	 * (hardware volume keys) and SystemUI slider {@code setStreamVolume} calls to be
+	 * ignored. An active remote-volume {@link MediaSession} intercepts hardware volume
+	 * keys via {@code MediaSessionService} and applies {@code setStreamVolume} with
+	 * {@link AudioManager#FLAG_SHOW_UI}, which Samsung's policy allows.
+	 */
+	private synchronized void startExynosRecordingVolumeSession() {
+		if (mAudioManager == null || mExynosRecordingVolumeSession != null) {
+			return;
+		}
+		final int maxVolume = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+		final int currentVolume = Math.max(
+				0,
+				Math.min(maxVolume, mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+		);
+		final VolumeProvider provider = new VolumeProvider(
+				VolumeProvider.VOLUME_CONTROL_ABSOLUTE,
+				maxVolume,
+				currentVolume
+		) {
+			@Override
+			public void onAdjustVolume(final int direction) {
+				if (direction != 0) {
+					adjustExynosStreamVolume(direction);
+				}
+			}
+
+			@Override
+			public void onSetVolumeTo(final int volume) {
+				setExynosStreamVolume(volume);
+			}
+		};
+
+		final MediaSession session = new MediaSession(mContext, TAG + "-RecVol");
+		session.setCallback(new MediaSession.Callback() {
+		}, mRecordingHandler);
+		session.setFlags(
+				MediaSession.FLAG_HANDLES_MEDIA_BUTTONS
+						| MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
+		);
+		session.setPlaybackState(new PlaybackState.Builder()
+				.setState(PlaybackState.STATE_PLAYING, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+				.build());
+		session.setPlaybackToRemote(provider);
+		session.setActive(true);
+
+		mExynosRecordingVolumeProvider = provider;
+		mExynosRecordingVolumeSession = session;
+	}
+
+	private synchronized void releaseExynosRecordingVolumeSession() {
+		final MediaSession session = mExynosRecordingVolumeSession;
+		mExynosRecordingVolumeSession = null;
+		mExynosRecordingVolumeProvider = null;
+		if (session != null) {
+			try {
+				session.setActive(false);
+				session.release();
+			} catch (Throwable t) {
+				Log.w(TAG, "Failed to release Exynos recording MediaSession", t);
+			}
+		}
+	}
+
+	static int computeAdjustedStreamVolume(
+			final int currentVolume,
+			final int maxVolume,
+			final int direction
+	) {
+		final int step;
+		if (direction == AudioManager.ADJUST_RAISE) {
+			step = 1;
+		} else if (direction == AudioManager.ADJUST_LOWER) {
+			step = -1;
+		} else if (direction == AudioManager.ADJUST_MUTE) {
+			return 0;
+		} else {
+			return Math.max(0, Math.min(maxVolume, currentVolume));
+		}
+		return Math.max(0, Math.min(maxVolume, currentVolume + step));
+	}
+
+	private void adjustExynosStreamVolume(final int direction) {
+		if (mAudioManager == null) {
+			return;
+		}
+		final int maxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		final int currentVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		final int target = computeAdjustedStreamVolume(currentVolume, maxVolume, direction);
+		if (target != currentVolume) {
+			setExynosStreamVolume(target);
+		}
+	}
+
+	private void setExynosStreamVolume(final int volume) {
+		if (mAudioManager == null) {
+			return;
+		}
+		final int maxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		final int target = Math.max(0, Math.min(maxVolume, volume));
+		Log.d(TAG, "setExynosStreamVolume: setting STREAM_MUSIC=" + target + "/" + maxVolume);
+		mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, AudioManager.FLAG_SHOW_UI);
+		final VolumeProvider provider = mExynosRecordingVolumeProvider;
+		if (provider != null) {
+			provider.setCurrentVolume(target);
+		}
+	}
+
+	@SuppressLint("MissingPermission")
+	private AudioRecord createFmAudioRecord(
+			final AudioFormat format,
+			final int bufferBytes,
+			final AudioDeviceInfo fmTuner,
+			final boolean isExynos
+	) {
+		final int[] sources = isExynos
+				? new int[]{SAMSUNG_FM_AUDIO_SOURCE, MediaRecorder.AudioSource.DEFAULT}
+				: new int[]{MediaRecorder.AudioSource.DEFAULT};
+		for (final int source : sources) {
+			AudioRecord candidate = null;
+			try {
+				candidate = new AudioRecord.Builder()
+						.setAudioSource(source)
+						.setAudioFormat(format)
+						.setBufferSizeInBytes(bufferBytes)
+						.build();
+				if (candidate.getState() != AudioRecord.STATE_INITIALIZED) {
+					candidate.release();
+					continue;
+				}
+				if (!candidate.setPreferredDevice(fmTuner)) {
+					Log.w(TAG, "createFmAudioRecord: setPreferredDevice(FM Tuner) returned false for source=" + source);
+				}
+				candidate.startRecording();
+				Log.d(TAG, "createFmAudioRecord: started FM capture with source=" + source);
+				return candidate;
+			} catch (Throwable t) {
+				Log.w(TAG, "createFmAudioRecord: source=" + source + " failed", t);
+				if (candidate != null) {
+					candidate.release();
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Compensates S610 hardware gain attenuation in captured PCM so recordings
+	 * remain at full level while listening volume can still be adjusted freely.
+	 *
+	 * <p>Uses {@link #S610_VOLUME_GAINS} ({@code vol_level_init} from Samsung's
+	 * {@code radio-s610.c}): step {@code 0} is a digital mute in the chip and
+	 * remains silent, steps {@code 3..15} are restored 1:1 to full scale, and
+	 * steps {@code 1..2} are capped at {@link #S610_MAX_COMPENSATION_GAIN}.
+	 */
+	static void compensateExynosVolume(final short[] buffer, final int length, final int volumeIndex) {
+		if (buffer == null || volumeIndex <= 0 || volumeIndex >= S610_VOLUME_GAINS.length - 1) {
+			return;
+		}
+		final int chipGain = S610_VOLUME_GAINS[volumeIndex];
+		if (chipGain <= 0) {
+			return;
+		}
+		final int fullScaleGain = S610_VOLUME_GAINS[S610_VOLUME_GAINS.length - 1];
+		final int maxScaledNumerator = Math.round(S610_MAX_COMPENSATION_GAIN * chipGain);
+		final int numerator = Math.min(fullScaleGain, maxScaledNumerator);
+		final int halfDenominator = chipGain / 2;
+		final int limit = Math.min(length, buffer.length);
+		for (int i = 0; i < limit; ++i) {
+			final int sample = buffer[i];
+			final int scaled = sample >= 0
+					? (sample * numerator + halfDenominator) / chipGain
+					: (sample * numerator - halfDenominator) / chipGain;
+			if (scaled > Short.MAX_VALUE) {
+				buffer[i] = Short.MAX_VALUE;
+			} else if (scaled < Short.MIN_VALUE) {
+				buffer[i] = Short.MIN_VALUE;
+			} else {
+				buffer[i] = (short) scaled;
+			}
+		}
 	}
 
 	/** Starts periodic recording progress broadcasts. */
@@ -618,7 +906,11 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			final Class<?> audioSystemClass = Class.forName("android.media.AudioSystem");
 			return audioSystemClass.getField(fieldName).getInt(null);
 		} catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
-			Log.e(TAG, "resolveAudioSystemDevice failed for " + fieldName + ", fallback=" + fallbackValue, e);
+			try {
+				Log.e(TAG, "resolveAudioSystemDevice failed for " + fieldName + ", fallback=" + fallbackValue, e);
+			} catch (RuntimeException ignored) {
+				// android.util.Log is unmocked in local JVM unit tests.
+			}
 			return fallbackValue;
 		}
 	}

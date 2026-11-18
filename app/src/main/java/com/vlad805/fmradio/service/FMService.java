@@ -344,7 +344,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
-                final boolean isSpeaker = isHalDriver()
+                final boolean usesRoutingAudio = mAudioService instanceof RoutingAudioService;
+                final boolean isSpeaker = usesRoutingAudio
                         ? mState.isForceSpeaker()
                         : Audio.isForceSpeakerNow();
                 mAudioService.setSpeakerEnabled(!isSpeaker);
@@ -352,7 +353,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 if (mTunerDriver instanceof QualcommNative) {
                     ((QualcommNative) mTunerDriver).refreshAudioRoute();
                 }
-                if (!isHalDriver()) {
+                if (!usesRoutingAudio) {
                     Audio.toggleThroughSpeaker(!isSpeaker);
                 }
                 break;
@@ -414,7 +415,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private AudioService getAudioService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Android 8+
-            return new RoutingAudioService(this);
+            final RoutingAudioService service = new RoutingAudioService(this);
+            service.setTunerDriverKind(mTunerDriverKind);
+            service.setHardwareVolumeListener(volume -> {
+                if (mTunerDriver instanceof QualcommNative) {
+                    ((QualcommNative) mTunerDriver).setVolume(volume);
+                }
+            });
+            return service;
         }
 
         // Android 7-
@@ -430,6 +438,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         switch (mTunerDriverKind) {
             case HAL_HELIUM:
+            case V4L2_EXYNOS:
             case V4L2_QCOM: {
                 return new QualcommNative(this, mTunerDriverKind);
             }
@@ -562,6 +571,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 case C.Event.LAUNCHED: {
                     if (mTunerDriver instanceof QualcommNative) {
                         mTunerDriverKind = ((QualcommNative) mTunerDriver).getDriverKind();
+                    }
+                    if (mAudioService instanceof RoutingAudioService) {
+                        ((RoutingAudioService) mAudioService).setTunerDriverKind(mTunerDriverKind);
                     }
                     mRadioController.enable();
                     break;

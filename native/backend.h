@@ -10,6 +10,7 @@
 enum class BackendKind {
     kNone = 0,
     kV4l2Qcom,
+    kV4l2Exynos,
     kHelium,
 };
 
@@ -26,6 +27,7 @@ public:
     virtual bool seek(int direction) = 0;
     virtual bool set_power_mode(bool low_power) = 0;
     virtual bool set_stereo(bool enabled) = 0;
+    virtual bool set_volume(int /*volume*/) { return true; }
     virtual bool set_antenna(int antenna) = 0;
     virtual bool set_region(StartupRegion region) = 0;
     virtual bool set_spacing(int spacing_khz) = 0;

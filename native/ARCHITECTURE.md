@@ -78,6 +78,7 @@ Android QualcommNative
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
+| `native/backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend (`v4l2_exynos_backend.cpp`, `v4l2_exynos_backend.h`, `s610_fm_controls.h`) |
 | `native/backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
@@ -280,6 +281,7 @@ NUL behavior.
 | `set_stereo <0|1>` | Select mono/stereo mode | `ok` |
 | `set_soft_mute <0|1>` | Enable or disable weak-signal attenuation | `ok` |
 | `set_notch_filter <0|1|2>` | Set hardware notch filter (0=auto, 1=low, 2=high) | `ok` |
+| `set_volume <0..15>` | Set hardware FM gain (`V4L2_CID_AUDIO_VOLUME` on Exynos; no-op elsewhere, immediate response without 300 ms delay) | `ok` |
 | `set_antenna <value>` | Select antenna | `ok` |
 | `set_region <name>` | Change region and clamp current tune if needed | `ok` |
 | `set_spacing <50|100|200>` | Change channel spacing | `ok` |
@@ -392,12 +394,14 @@ driver name once on stderr (`drv/detect`):
 
 1. `/sys/class/video4linux/radio0/name` (when readable) must contain `iris` or
    `tavarua` (case-insensitive) alongside `/dev/radio0` to select legacy
-   (`BackendKind::kV4l2Qcom`). Non-Qualcomm drivers (`s610`, `si4709`, etc.) or
-   empty names do not select legacy and fall through. If the sysfs name node is
-   absent while `/dev/radio0` exists, legacy fallback is retained for older kernels.
-2. Existence of `fm_helium.so` in known vendor, system vendor, system_ext, or
-   ODM 32/64-bit locations selects HAL (`BackendKind::kHelium`).
-3. Otherwise no backend is available (`BackendKind::kNone` / `ERR_UNSUPPORTED`).
+   (`BackendKind::kV4l2Qcom`). If the sysfs name node is absent while
+   `/dev/radio0` exists, legacy fallback is retained for older kernels.
+2. A name containing `s610` alongside `/dev/radio0` selects Samsung Exynos S610
+   (`BackendKind::kV4l2Exynos`, protocol token `v4l2_exynos`).
+3. Other names (`si4709`, etc.) or empty names do not select a V4L2 backend and
+   fall through. Existence of `fm_helium.so` in known vendor, system vendor,
+   system_ext, or ODM 32/64-bit locations selects HAL (`BackendKind::kHelium`).
+4. Otherwise no backend is available (`BackendKind::kNone` / `ERR_UNSUPPORTED`).
 
 Detection tests file existence and the sysfs driver name string only. It does not prove that `/dev/radio0` can
 be opened or that the HAL ABI is compatible.
@@ -987,8 +991,8 @@ Agent-facing documentation layers:
 
 - `native/README.md` is a shorter human-oriented overview; treat the command
   tables here as canonical when they disagree.
-- `native/backend/v4l2_qcom/README.md` and `native/backend/hal_helium/README.md`
-  summarize each backend directory.
+- `native/backend/v4l2_qcom/README.md`, `native/backend/v4l2_exynos/README.md`,
+  and `native/backend/hal_helium/README.md` summarize each backend directory.
 
 Use source code and this document for current navigation. Update this document
 when architecture, protocol, lifecycle, or known invariants change.

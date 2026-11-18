@@ -40,6 +40,14 @@ public final class TunerDriverDetector {
         return normalized.contains("iris") || normalized.contains("tavarua");
     }
 
+    /** Matches Samsung Exynos S610 FM driver name ("s610-radio"), mirroring native. */
+    public static boolean isSamsungS610DriverName(final String name) {
+        if (name == null) {
+            return false;
+        }
+        return name.trim().toLowerCase(Locale.US).contains("s610");
+    }
+
     /**
      * Maps the native ready handshake "backend" token to the active TunerDriver,
      * returning null if absent, "none", or unrecognized so callers keep fallback.
@@ -51,6 +59,8 @@ public final class TunerDriverDetector {
         switch (backend.trim().toLowerCase(Locale.US)) {
             case "v4l2_qcom":
                 return TunerDriver.V4L2_QCOM;
+            case "v4l2_exynos":
+                return TunerDriver.V4L2_EXYNOS;
             case "hal_helium":
                 return TunerDriver.HAL_HELIUM;
             default:
@@ -71,6 +81,9 @@ public final class TunerDriverDetector {
         if (v4l2DriverName != null) {
             if (hasDevRadio0 && isQualcommV4l2DriverName(v4l2DriverName)) {
                 return TunerDriver.V4L2_QCOM;
+            }
+            if (hasDevRadio0 && isSamsungS610DriverName(v4l2DriverName)) {
+                return TunerDriver.V4L2_EXYNOS;
             }
             return hasFmHeliumLibrary ? TunerDriver.HAL_HELIUM : TunerDriver.NONE;
         }
