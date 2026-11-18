@@ -357,6 +357,13 @@ stereo, RMSSI, PS, RT, PI, country, PTY, and AF frequencies. RMSSI is a signed
 receiver value serialized as a top-level `rmssi` field. Country is a two-letter
 code decoded from the registered ECC and PI country-code combination.
 
+Seek completion (emitted for single hardware seeks even when landing back on the
+cached frequency):
+
+```json
+{"type":"seek_done"}
+```
+
 Search completion:
 
 ```json

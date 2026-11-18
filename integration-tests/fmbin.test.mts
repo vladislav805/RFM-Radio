@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { ensureDeviceAndRoot, pushFmbin } from "./lib/adb.mts";
 import {
     FmbinClient,
+    runSeekThenSearch,
     type DisabledEvent,
-    type SearchDoneEvent,
 } from "./lib/fmbin_client.mts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -132,17 +132,10 @@ describe("fmbin device integration", () => {
             true,
         );
 
-        const seekResp = await client.sendCommand("seekhw 1", 10000);
-        assert.equal(seekResp.ok, true, seekResp.data);
-
-        const searchResp = await client.sendCommand("searchhw", 10000);
-        assert.equal(searchResp.ok, true, searchResp.data);
-
-        const searchDone = await client.waitForEvent(
-            (m): m is SearchDoneEvent => m.type === "search_done",
-            Number(process.env.RFM_SEARCH_TIMEOUT_MS ?? "90000"),
-            "search_done event",
-        );
+        const searchDone = await runSeekThenSearch(client, {
+            seekTimeoutMs: Number(process.env.RFM_SEEK_TIMEOUT_MS ?? "30000"),
+            searchTimeoutMs: Number(process.env.RFM_SEARCH_TIMEOUT_MS ?? "90000"),
+        });
         assert.ok(Array.isArray(searchDone.stations));
         assert.ok(searchDone.stations.length <= 64);
 

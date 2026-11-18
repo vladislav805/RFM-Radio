@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <condition_variable>
@@ -253,6 +254,15 @@ protected:
             return 0;
         }
 
+        if (request == VIDIOC_S_HW_FREQ_SEEK) {
+            std::lock_guard<std::mutex> lock(mu_);
+            if (!device_open_ || fd != active_fd_) {
+                errno = EBADF;
+                return -1;
+            }
+            return 0;
+        }
+
         if (request == VIDIOC_DQBUF) {
             auto *buf = static_cast<struct v4l2_buffer *>(arg);
             std::unique_lock<std::mutex> lock(mu_);
@@ -476,6 +486,45 @@ TEST(V4l2QcomLifecycleTest, SkippedPollDuringSettleWindowPreservesSinrSupport) {
     reset_ctl_server_state_for_test();
 
     EXPECT_EQ(output, "{\"type\":\"state\",\"sinr\":14}\n");
+}
+
+TEST(V4l2QcomLifecycleTest, SameFrequencySeekEmitsSeekDoneAndUnblocksSearch) {
+    reset_ctl_server_state_for_test();
+    FakeV4l2QcomBackend backend;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(cfg));
+    backend.clear_metric_settle();
+
+    std::string output;
+    {
+        StdoutCapture capture;
+        // Prime initial cached state at 101700 kHz.
+        backend.push_event(kEvtTuneSucc);
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        ASSERT_TRUE(backend.seek(1));
+        // Scan cannot start while seek is in flight.
+        EXPECT_FALSE(backend.search());
+
+        // Driver finishes seek back on the SAME frequency (101700 kHz).
+        backend.push_event(kEvtTuneSucc);
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        EXPECT_TRUE(backend.search());
+        output = capture.read_all();
+    }
+
+    backend.shutdown();
+    reset_ctl_server_state_for_test();
+
+    const std::vector<std::string> lines = split_lines(output);
+    EXPECT_TRUE(std::find(lines.begin(), lines.end(), "{\"type\":\"seek_done\"}") != lines.end())
+            << output;
 }
 
 TEST(V4l2QcomLifecycleTest, HardwareDisabledEventAllowsReEnableAndStopsMetricPolling) {

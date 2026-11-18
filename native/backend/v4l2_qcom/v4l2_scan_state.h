@@ -17,7 +17,7 @@ public:
     void start_failed();
     bool begin_cancel();
     void cancel_failed();
-    void on_tune(int frequency_khz);
+    bool on_tune(int frequency_khz);
     int on_scan_next(int fallback_frequency_khz);
     V4l2ScanTerminal on_seek_complete(ScanResult *result);
     bool busy() const;

@@ -1124,6 +1124,7 @@ void HalHeliumBackend::on_seek_complete(int freq) {
     patch.ps = patch.rt = patch.pi = patch.country = "";
     patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
+    send_native_event("seek_done");
 }
 
 // Handles scan_next_cb, collecting found frequencies and checking wrap completion.

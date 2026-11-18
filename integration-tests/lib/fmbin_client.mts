@@ -46,6 +46,10 @@ export interface SearchDoneEvent {
     stations: number[];
 }
 
+export interface SeekDoneEvent {
+    type: "seek_done";
+}
+
 export interface DisabledEvent {
     type: "disabled";
 }
@@ -55,6 +59,7 @@ export type FmbinMessage =
     | ResponseMessage
     | StateEvent
     | SearchDoneEvent
+    | SeekDoneEvent
     | DisabledEvent;
 
 interface PendingWaiter {
@@ -310,4 +315,44 @@ export class FmbinClient {
         }
         return `stderr (last ${this.stderrLines.length} lines):\n${this.stderrLines.join("\n")}`;
     }
+}
+
+export interface SeekThenSearchOptions {
+    seekCommand?: string;
+    seekTimeoutMs?: number;
+    searchTimeoutMs?: number;
+}
+
+export async function runSeekThenSearch(
+    client: FmbinClient,
+    options: SeekThenSearchOptions = {},
+): Promise<SearchDoneEvent> {
+    const seekCommand = options.seekCommand ?? "seekhw 1";
+    const seekTimeoutMs = options.seekTimeoutMs ?? 30000;
+    const searchTimeoutMs = options.searchTimeoutMs ?? 90000;
+
+    // Clear pre-seek state patches so waitForEvent cannot match an older tune.
+    client.drainMessages();
+
+    const seekResp = await client.sendCommand(seekCommand, 10000);
+    if (!seekResp.ok) {
+        throw new Error(`'${seekCommand}' failed: ${seekResp.data}\n${client.getDiagnostics()}`);
+    }
+
+    await client.waitForEvent(
+        (m): m is SeekDoneEvent => m.type === "seek_done",
+        seekTimeoutMs,
+        "seek_done event",
+    );
+
+    const searchResp = await client.sendCommand("searchhw", 10000);
+    if (!searchResp.ok) {
+        throw new Error(`'searchhw' failed: ${searchResp.data}\n${client.getDiagnostics()}`);
+    }
+
+    return client.waitForEvent(
+        (m): m is SearchDoneEvent => m.type === "search_done",
+        searchTimeoutMs,
+        "search_done event",
+    );
 }

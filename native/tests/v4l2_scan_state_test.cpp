@@ -8,7 +8,7 @@ TEST(V4l2ScanStateTest, CollectsConfirmedStationsAndSortsResult) {
 
     state.on_tune(101700);
     EXPECT_EQ(state.on_scan_next(101800), 101700);
-    state.on_tune(87950);
+    EXPECT_FALSE(state.on_tune(87950));
     EXPECT_EQ(state.on_scan_next(88000), 87950);
 
     ScanResult result;
@@ -114,7 +114,8 @@ TEST(V4l2ScanStateTest, SeekBlocksScanUntilTuneCompletesIt) {
     EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
     EXPECT_TRUE(state.busy());
 
-    state.on_tune(101700);
+    EXPECT_TRUE(state.on_tune(101700));
+    EXPECT_FALSE(state.on_tune(101700));
     EXPECT_FALSE(state.busy());
     EXPECT_TRUE(state.start());
 }

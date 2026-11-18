@@ -1089,7 +1089,7 @@ void V4l2QcomBackend::event_thread() {
                 case TAVARUA_EVT_TUNE_SUCC: {
                     fm_storage_.frequency = receiver_get_tuned_frequency();
                     pthread_mutex_lock(&legacy_scan_lock_);
-                    legacy_scan_.on_tune(static_cast<int>(fm_storage_.frequency));
+                    const bool seek_completed = legacy_scan_.on_tune(static_cast<int>(fm_storage_.frequency));
                     pthread_mutex_unlock(&legacy_scan_lock_);
 
                     fm_storage_.rds.program_name[0] = '\0';
@@ -1103,6 +1103,10 @@ void V4l2QcomBackend::event_thread() {
                     patch.ps = patch.rt = patch.pi = patch.country = patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = "";
                     patch.af_count = patch.pty = 0;
                     send_radio_state_patch(&patch);
+
+                    if (seek_completed) {
+                        send_native_event("seek_done");
+                    }
 
                     // The tune event is authoritative for the new station. Full scans
                     // remain busy here and use the periodic refresh after completion.

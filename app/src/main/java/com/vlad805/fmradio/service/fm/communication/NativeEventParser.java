@@ -49,6 +49,11 @@ public final class NativeEventParser {
                 break;
             }
 
+            case "seek_done": {
+                callback.onEvent(C.Event.HW_SEEK_COMPLETE);
+                break;
+            }
+
             default: {
                 Log.w(TAG, "Unknown native message type: " + type);
                 break;

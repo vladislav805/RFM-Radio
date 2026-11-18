@@ -48,12 +48,15 @@ void V4l2ScanState::cancel_failed() {
     }
 }
 
-void V4l2ScanState::on_tune(int frequency_khz) {
+bool V4l2ScanState::on_tune(int frequency_khz) {
     if (status_ == Status::kSeeking) {
         reset();
-    } else if (status_ == Status::kScanning && frequency_khz > 0) {
+        return true;
+    }
+    if (status_ == Status::kScanning && frequency_khz > 0) {
         pending_frequency_khz_ = frequency_khz;
     }
+    return false;
 }
 
 int V4l2ScanState::on_scan_next(int fallback_frequency_khz) {
