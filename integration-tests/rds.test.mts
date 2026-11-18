@@ -8,6 +8,13 @@ import {
     type RtPlusInfo,
     type StateEvent,
 } from "./lib/fmbin_client.mts";
+import {
+    allRequiredRdsFound,
+    getMissingRequiredRdsFields,
+    getSkippedOptionalRdsFields,
+    parseRdsRequirements,
+    type RdsChecklist,
+} from "./lib/rds_requirements.mts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -17,27 +24,11 @@ const initialFreqKhz = Number(process.env.RFM_INITIAL_FREQ ?? "87500");
 const rdsDwellMs = Number(process.env.RFM_RDS_DWELL_MS ?? "6000");
 const maxSeeks = Number(process.env.RFM_RDS_MAX_SEEKS ?? "35");
 
-interface RdsChecklist {
-    ps: { found: boolean; freqKhz?: number; value?: string };
-    rt: { found: boolean; freqKhz?: number; value?: string };
-    rtPlus: { found: boolean; freqKhz?: number; value?: RtPlusInfo };
-    af: { found: boolean; freqKhz?: number; value?: number[] };
-}
-
 function hasNonEmptyRtPlus(rtPlus: RtPlusInfo): boolean {
     return (
         (rtPlus.title?.trim().length ?? 0) > 0 ||
         (rtPlus.artist?.trim().length ?? 0) > 0 ||
         (rtPlus.album?.trim().length ?? 0) > 0
-    );
-}
-
-function allFound(checklist: RdsChecklist): boolean {
-    return (
-        checklist.ps.found &&
-        checklist.rt.found &&
-        checklist.rtPlus.found &&
-        checklist.af.found
     );
 }
 
@@ -86,7 +77,8 @@ describe("fmbin RDS integration", () => {
         }
     });
 
-    it("observes non-empty PS, RT, RT+, and AF across seekhw 1 steps", async (t) => {
+    it("observes required RDS fields across seekhw 1 steps", async (t) => {
+        const requiredFields = parseRdsRequirements();
         const client = FmbinClient.start({ remotePath: remoteBinaryPath });
         activeClient = client;
 
@@ -109,7 +101,7 @@ describe("fmbin RDS integration", () => {
 
         for (let step = 0; step <= maxSeeks; step++) {
             const deadline = Date.now() + rdsDwellMs;
-            while (Date.now() < deadline && !allFound(checklist)) {
+            while (Date.now() < deadline && !allRequiredRdsFound(checklist, requiredFields)) {
                 const remaining = deadline - Date.now();
                 if (remaining <= 0) {
                     break;
@@ -129,7 +121,7 @@ describe("fmbin RDS integration", () => {
                 }
             }
 
-            if (allFound(checklist) || step === maxSeeks) {
+            if (allRequiredRdsFound(checklist, requiredFields) || step === maxSeeks) {
                 break;
             }
 
@@ -153,16 +145,22 @@ describe("fmbin RDS integration", () => {
             }
         }
 
-        t.diagnostic(`RDS checklist: ${JSON.stringify(checklist)}`);
-
-        assert.equal(checklist.ps.found, true, `PS was not observed: ${JSON.stringify(checklist)}`);
-        assert.equal(checklist.rt.found, true, `RT was not observed: ${JSON.stringify(checklist)}`);
-        assert.equal(
-            checklist.rtPlus.found,
-            true,
-            `RT+ was not observed: ${JSON.stringify(checklist)}`,
+        const optionalSkipped = getSkippedOptionalRdsFields(checklist, requiredFields);
+        const missingRequired = getMissingRequiredRdsFields(checklist, requiredFields);
+        t.diagnostic(
+            `RDS checklist (required=${[...requiredFields].join(",") || "none"}): ${JSON.stringify(checklist)}`,
         );
-        assert.equal(checklist.af.found, true, `AF was not observed: ${JSON.stringify(checklist)}`);
+        if (optionalSkipped.length > 0) {
+            t.diagnostic(
+                `Optional RDS fields not observed in broadcast RF (not a failure): ${optionalSkipped.join(",")}`,
+            );
+        }
+
+        assert.deepEqual(
+            missingRequired,
+            [],
+            `Required RDS field(s) not observed (${missingRequired.join(",")}): ${JSON.stringify(checklist)}`,
+        );
 
         assert.equal((await client.sendCommand("disable", 10000)).ok, true);
         const exit = await client.shutdown();
