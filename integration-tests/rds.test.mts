@@ -78,10 +78,11 @@ describe("fmbin RDS integration", () => {
         }
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         if (activeClient) {
-            activeClient.forceKill();
+            const client = activeClient;
             activeClient = null;
+            await client.cleanup();
         }
     });
 

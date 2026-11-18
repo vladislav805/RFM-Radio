@@ -1,6 +1,9 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import readline from "node:readline";
+import { promisify } from "node:util";
 import type { AdbOptions } from "./adb.mts";
+
+const execFileAsync = promisify(execFile);
 
 export interface ReadyEvent {
     type: "ready";
@@ -72,6 +75,7 @@ interface PendingWaiter {
 export interface FmbinClientOptions extends AdbOptions {
     remotePath?: string;
     localBinaryPath?: string;
+    terminateRemotePid?: (pid: number, deadlineMs: number) => Promise<void>;
 }
 
 export class FmbinClient {
@@ -80,13 +84,30 @@ export class FmbinClient {
     private readonly messageQueue: FmbinMessage[] = [];
     private readonly waiters: PendingWaiter[] = [];
     private readonly stderrLines: string[] = [];
+    private readonly isLocal: boolean;
+    private readonly serial?: string;
+    private readonly terminateRemotePidFn?: (pid: number, deadlineMs: number) => Promise<void>;
     private nextRequestId = 1;
+    private remotePid: number | null = null;
     private exitPromise: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
     private exited = false;
     private exitError: Error | null = null;
 
-    private constructor(proc: ChildProcessWithoutNullStreams) {
+    private constructor(
+        proc: ChildProcessWithoutNullStreams,
+        options: {
+            isLocal: boolean;
+            serial?: string;
+            terminateRemotePid?: (pid: number, deadlineMs: number) => Promise<void>;
+        },
+    ) {
         this.proc = proc;
+        this.isLocal = options.isLocal;
+        this.serial = options.serial;
+        this.terminateRemotePidFn = options.terminateRemotePid;
+        this.proc.stdin.on("error", () => {
+            // Ignore EPIPE when the child closes before cleanup writes EOF/shutdown.
+        });
         this.rl = readline.createInterface({ input: proc.stdout });
 
         this.rl.on("line", (line) => {
@@ -156,7 +177,15 @@ export class FmbinClient {
         const proc = spawn(cmd, args, {
             stdio: ["pipe", "pipe", "pipe"],
         });
-        return new FmbinClient(proc);
+        return new FmbinClient(proc, {
+            isLocal: Boolean(options.localBinaryPath),
+            serial: options.serial ?? process.env.RFM_ADB_SERIAL,
+            terminateRemotePid: options.terminateRemotePid,
+        });
+    }
+
+    getRemotePid(): number | null {
+        return this.remotePid;
     }
 
     getDiagnostics(): string {
@@ -243,7 +272,128 @@ export class FmbinClient {
         }
     }
 
+    async cleanup(timeoutMs = 6000): Promise<void> {
+        const deadlineMs = Date.now() + timeoutMs;
+
+        if (!this.exited) {
+            // Attempt graceful shutdown first so native backend tears down the receiver.
+            const shutdownBudget = Math.min(2500, Math.max(200, deadlineMs - Date.now()));
+            if (this.proc.stdin.writable && !this.proc.stdin.destroyed) {
+                try {
+                    const resp = await this.sendCommand("shutdown", shutdownBudget);
+                    if (resp.ok) {
+                        const exitWait = Math.max(100, deadlineMs - Date.now());
+                        await this.tryWaitForExit(exitWait);
+                    }
+                } catch {
+                    // Fall back to EOF and targeted remote kill below.
+                }
+            }
+        }
+
+        if (!this.exited) {
+            // Closing stdin triggers fmbin's fail-closed EOF teardown if still running.
+            if (this.proc.stdin.writable && !this.proc.stdin.destroyed) {
+                this.closeStdin();
+            }
+            const eofBudget = Math.min(1500, Math.max(100, deadlineMs - Date.now()));
+            await this.tryWaitForExit(eofBudget);
+        }
+
+        if (this.remotePid !== null && this.remotePid > 0) {
+            // Confirm remote receiver process termination even after local transport loss.
+            if (this.terminateRemotePidFn) {
+                await this.terminateRemotePidFn(this.remotePid, deadlineMs);
+            } else if (!this.isLocal) {
+                await this.terminateRemoteProcess(this.remotePid, deadlineMs);
+            }
+        }
+
+        if (!this.exited) {
+            this.proc.kill("SIGTERM");
+            const termWait = Math.min(500, Math.max(50, deadlineMs - Date.now()));
+            if (!(await this.tryWaitForExit(termWait))) {
+                this.proc.kill("SIGKILL");
+                await this.tryWaitForExit(Math.min(500, Math.max(50, deadlineMs - Date.now())));
+            }
+        }
+
+        this.rl.close();
+    }
+
+    private async tryWaitForExit(timeoutMs: number): Promise<boolean> {
+        if (this.exited) {
+            return true;
+        }
+        try {
+            await this.waitForExit(timeoutMs);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private async terminateRemoteProcess(pid: number, deadlineMs: number): Promise<void> {
+        const remaining = (): number => Math.max(100, deadlineMs - Date.now());
+        if (!(await this.isRemotePidAlive(pid, remaining()))) {
+            return;
+        }
+
+        await this.runRemoteRootCommand(`kill -TERM ${pid} 2>/dev/null || true`, remaining());
+        const pollUntil = Math.min(deadlineMs - 300, Date.now() + 1500);
+        while (Date.now() < pollUntil) {
+            if (!(await this.isRemotePidAlive(pid, remaining()))) {
+                return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        if (await this.isRemotePidAlive(pid, remaining())) {
+            await this.runRemoteRootCommand(`kill -KILL ${pid} 2>/dev/null || true`, remaining());
+        }
+    }
+
+    private async isRemotePidAlive(pid: number, timeoutMs: number): Promise<boolean> {
+        const args = [
+            ...(this.serial && this.serial.trim().length > 0 ? ["-s", this.serial.trim()] : []),
+            "shell",
+            "su",
+            "-c",
+            `kill -0 ${pid} 2>/dev/null`,
+        ];
+        try {
+            await execFileAsync("adb", args, {
+                timeout: Math.min(1500, timeoutMs),
+                killSignal: "SIGKILL",
+            });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private async runRemoteRootCommand(shellCmd: string, timeoutMs: number): Promise<void> {
+        const args = [
+            ...(this.serial && this.serial.trim().length > 0 ? ["-s", this.serial.trim()] : []),
+            "shell",
+            "su",
+            "-c",
+            shellCmd,
+        ];
+        try {
+            await execFileAsync("adb", args, {
+                timeout: Math.min(1500, timeoutMs),
+                killSignal: "SIGKILL",
+            });
+        } catch {
+            // Best-effort bounded cleanup.
+        }
+    }
+
     private dispatchMessage(msg: FmbinMessage): void {
+        if (msg.type === "ready" && typeof msg.pid === "number") {
+            this.remotePid = msg.pid;
+        }
         const waiterIndex = this.waiters.findIndex((w) => w.predicate(msg));
         if (waiterIndex >= 0) {
             const [waiter] = this.waiters.splice(waiterIndex, 1);

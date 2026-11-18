@@ -3,6 +3,9 @@ import readline from "node:readline";
 
 const seekDelayMs = Number(process.env.STUB_SEEK_DELAY_MS ?? "120");
 const emitStateOnSeek = process.env.STUB_EMIT_STATE_ON_SEEK !== "0";
+const shutdownDelayMs = Number(process.env.STUB_SHUTDOWN_DELAY_MS ?? "0");
+const shutdownMode = process.env.STUB_SHUTDOWN_MODE ?? "ok";
+const dropAfterEnable = process.env.STUB_DROP_AFTER_ENABLE === "1";
 
 let seekInFlight = false;
 let seekDoneEmitted = false;
@@ -15,6 +18,12 @@ function emit(obj) {
 emit({ type: "ready", protocol: 1, pid: process.pid });
 
 const rl = readline.createInterface({ input: process.stdin });
+rl.on("close", () => {
+    setTimeout(() => {
+        process.exit(0);
+    }, shutdownDelayMs);
+});
+
 rl.on("line", (line) => {
     const trimmed = line.trim();
     if (!trimmed) {
@@ -39,6 +48,9 @@ rl.on("line", (line) => {
         // Emit an initial state patch before/around enable response to test queue draining.
         emit({ type: "state", frequency: 87500 });
         emit({ type: "response", id, ok: true, data: "ok" });
+        if (dropAfterEnable) {
+            setTimeout(() => process.exit(1), 20);
+        }
         return;
     }
 
@@ -67,8 +79,19 @@ rl.on("line", (line) => {
     }
 
     if (cmd === "shutdown") {
+        if (shutdownMode === "fail") {
+            emit({ type: "response", id, ok: false, data: "ERR_FAILED" });
+            return;
+        }
+        if (shutdownMode === "hang") {
+            // Never respond; EOF or kill must tear down the process.
+            return;
+        }
         emit({ type: "response", id, ok: true, data: "ok" });
-        process.exit(0);
+        setTimeout(() => {
+            process.exit(0);
+        }, shutdownDelayMs);
+        return;
     }
 
     emit({ type: "response", id, ok: false, data: "ERR_UNK_CMD" });

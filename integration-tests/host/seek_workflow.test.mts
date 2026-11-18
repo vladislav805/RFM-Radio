@@ -18,8 +18,9 @@ describe("seekhw -> searchhw synchronization (host stub)", () => {
             process.env.STUB_EMIT_STATE_ON_SEEK = prevEmitState;
         }
         if (activeClient) {
-            activeClient.forceKill();
+            const client = activeClient;
             activeClient = null;
+            await client.cleanup();
         }
     });
 
