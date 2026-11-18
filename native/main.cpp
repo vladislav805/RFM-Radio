@@ -293,6 +293,18 @@ response_t handle_notch_filter(const std::vector<std::string> &args) {
     return make_ok();
 }
 
+response_t handle_volume(const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        return make_error(kErrNoArg);
+    }
+
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_volume(parse_int_arg(args, 1, 15))) {
+        return make_backend_error(backend);
+    }
+    return {0, kResponseOk};
+}
+
 }  // namespace
 
 void poll_rmssi() {
@@ -326,6 +338,7 @@ response_t api_handler(char *request) {
     if (command == "slimbus") return handle_slimbus(args);
     if (command == "set_soft_mute") return handle_soft_mute(args);
     if (command == "set_notch_filter") return handle_notch_filter(args);
+    if (command == "set_volume") return handle_volume(args);
     return make_error(kErrUnknown);
 }
 

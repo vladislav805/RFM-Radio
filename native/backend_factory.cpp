@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 Backend *create_v4l2_qcom_backend();
+Backend *create_v4l2_exynos_backend();
 Backend *create_hal_helium_backend();
 
 namespace {
@@ -67,6 +68,15 @@ bool is_qualcomm_v4l2_driver_name(std::string_view name) {
             lowered.find("tavarua") != std::string::npos;
 }
 
+// Matches Samsung Exynos S610 FM driver ("s610-radio").
+bool is_samsung_s610_driver_name(std::string_view name) {
+    if (name.empty()) {
+        return false;
+    }
+
+    return to_lower_ascii(name).find("s610") != std::string::npos;
+}
+
 BackendKind classify_backend_kind(
         std::optional<std::string_view> v4l2_driver_name,
         bool has_dev_radio0,
@@ -75,6 +85,9 @@ BackendKind classify_backend_kind(
     if (v4l2_driver_name.has_value()) {
         if (has_dev_radio0 && is_qualcomm_v4l2_driver_name(*v4l2_driver_name)) {
             return BackendKind::kV4l2Qcom;
+        }
+        if (has_dev_radio0 && is_samsung_s610_driver_name(*v4l2_driver_name)) {
+            return BackendKind::kV4l2Exynos;
         }
         return has_helium_lib ? BackendKind::kHelium : BackendKind::kNone;
     }
@@ -101,6 +114,8 @@ const char *backend_kind_name(const BackendKind kind) {
     switch (kind) {
         case BackendKind::kV4l2Qcom:
             return "v4l2_qcom";
+        case BackendKind::kV4l2Exynos:
+            return "v4l2_exynos";
         case BackendKind::kHelium:
             return "hal_helium";
         case BackendKind::kNone:
@@ -137,6 +152,10 @@ BackendKind detect_backend_kind() {
 
 Backend *create_backend(const BackendKind kind) {
     switch (kind) {
+        case BackendKind::kV4l2Exynos: {
+            return create_v4l2_exynos_backend();
+        }
+
         case BackendKind::kV4l2Qcom: {
             return create_v4l2_qcom_backend();
         }

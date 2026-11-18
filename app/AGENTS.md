@@ -37,14 +37,16 @@ Key flows:
 - `getTunerDriver()`: `TunerDriverDetector` mirrors native detection — checks
   `/sys/class/video4linux/radio0/name` (`iris`/`tavarua` allowlist, or fallback
   to `/dev/radio0` when the sysfs node is absent/SELinux-unreadable) alongside
-  `/dev/radio0` (`V4L2_QCOM`), and vendor paths for `fm_helium.so` (`HAL_HELIUM`);
-  both map to `new QualcommNative(context, kind)`, unsupported devices get `Empty`.
+  `/dev/radio0` (`V4L2_QCOM`), `s610` alongside `/dev/radio0` (`V4L2_EXYNOS`),
+  and vendor paths for `fm_helium.so` (`HAL_HELIUM`); all supported backends
+  map to `new QualcommNative(context, kind)`, unsupported devices get `Empty`.
 - `getAudioService()`: API ≥ 26 → `RoutingAudioService`, else
   `LightAudioService`.
 - `ENABLE` starts HAL audio before enabling the tuner; `DISABLE` stops audio,
   disables the tuner, and calls `stopSelf()`.
-- `SPEAKER_STATE` toggles the speaker; for `QualcommNative` it also calls
-  `refreshAudioRoute()` (Slimbus restart).
+- `SPEAKER_STATE` toggles the speaker (`mAudioService instanceof RoutingAudioService`
+  reads `mState.isForceSpeaker()`, skipping legacy `Audio` reflection); for
+  `QualcommNative` it also calls `refreshAudioRoute()` (Slimbus restart).
 - `RECORD_START`/`RECORD_STOP` go through the audio service's
   `IAudioRecordable`.
 - `NOTIFICATION_SEEK` seeks via the favorites list or hardware seek.
@@ -89,11 +91,19 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
 
 ## Audio
 
-- `RoutingAudioService` (API ≥ 26, HAL devices): audio is routed by the audio
-  HAL; device switching via `AudioManager.setParameters`
+- `RoutingAudioService` (API ≥ 26, HAL and Exynos devices): audio is routed by the audio
+  HAL; Qualcomm device switching via `AudioManager.setParameters`
   (`fm_mute`, `fm_routing`, `fm_volume`) plus hidden `AudioSystem` constants
-  through reflection. Recording opens a separate `AudioRecord` (48 kHz
-  stereo) with `setPreferredDevice(TYPE_FM_TUNER)`.
+  through reflection. On Samsung Exynos devices (`TunerDriver.V4L2_EXYNOS`
+  propagated from `FMService`, or `Build.MANUFACTURER == "samsung"` and
+  `Build.HARDWARE` containing `exynos` fallback), routing uses `g_fmradio_mute=true/false`
+  and `g_fmradio_enable=true/false`, hardware volume (`0..15`) is forwarded through
+  `HardwareVolumeListener` → `QualcommNative.setVolume()` (`set_volume`), and FM
+  recording toggles `fmradio_recoding=on/off` trying Samsung audio source `11`
+  before falling back to `DEFAULT`.
+  Because S610 applies `V4L2_CID_AUDIO_VOLUME` (`vol_level_init[0..15]` in Samsung's `universal9611` kernel driver `drivers/media/radio/s610/radio-s610.c`: `{0, 16, 23, 32, 45, 64, 90, 128, 181, 256, 362, 512, 724, 1024, 1447, 2047}`) upstream of the `ABOX` PCM capture tap, `compensateExynosVolume` scales captured 16-bit PCM by `2047 / S610_VOLUME_GAINS[vol]` (capped at `64x` = `+36 dB`; steps `3..15` restore 1:1 to full scale, while step `0` is digital mute). While Exynos `TYPE_FM_TUNER` capture is active, Samsung `SecAudioParamPolicy` reports `l_fmradio_record_active`, causing `AudioService.adjustStreamVolume` and SystemUI slider updates to be ignored; `RoutingAudioService` registers a temporary remote-volume `MediaSession` (`VolumeProvider`) that forwards volume keys via `AudioManager.setStreamVolume(..., FLAG_SHOW_UI)` (allowed by Samsung's `AudioService`) so listening volume stays unlocked. Recording opens a separate `AudioRecord` (48 kHz
+  stereo) with `setPreferredDevice(TYPE_FM_TUNER)`. Note: `QualcommNative.getRecorderSampleRate()`
+  returns `48000` for both `HAL_HELIUM` and `V4L2_EXYNOS` (`44100` for `V4L2_QCOM`).
 - `LightAudioService` (API < 26, legacy): `AudioRecord` (source 1998) →
   `AudioTrack` bridge loop at 44.1 kHz.
 - Both implement `IAudioRecordable` (start/stop record, `updateRds`) and feed

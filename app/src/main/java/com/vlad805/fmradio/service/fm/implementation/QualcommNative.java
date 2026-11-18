@@ -183,9 +183,11 @@ public class QualcommNative extends AbstractQualcommNativeController {
     }
 
     public int getRecorderSampleRate() {
-        // HAL Helium - 48kHz
-        // V4L2 Qcom - 44.1kHz
-        return mDriverKind == TunerDriver.HAL_HELIUM ? 48000 : 44100;
+        // HAL Helium and Exynos S610 (RoutingAudioService) - 48kHz
+        // V4L2 Qcom (LightAudioService) - 44.1kHz
+        return mDriverKind == TunerDriver.HAL_HELIUM || mDriverKind == TunerDriver.V4L2_EXYNOS
+                ? 48000
+                : 44100;
     }
 
     public void refreshAudioRoute() {
@@ -193,6 +195,10 @@ public class QualcommNative extends AbstractQualcommNativeController {
             sendCommand(new Request("slimbus 0", 2000));
             sendCommand(new Request("slimbus 1", 2000));
         }
+    }
+
+    public void setVolume(final int volume) {
+        sendCommand(new Request("set_volume " + volume));
     }
 
     private static String regionName(final int region) {

@@ -254,9 +254,13 @@ anything else → warning.
   (recomputed from `getStreamVolumeDb` on API ≥ 28, linear index below);
   framework route via `setCommunicationDevice`/`clearCommunicationDevice`
   (API ≥ 31) and `setSpeakerphoneOn`; hidden `VOLUME_CHANGED_ACTION`
-  listener keeps `fm_volume` in sync. Recording: separate `AudioRecord`
+  listener keeps `fm_volume` in sync (or on Samsung Exynos devices detected via
+  `TunerDriver.V4L2_EXYNOS` / `Build.MANUFACTURER`+`Build.HARDWARE` fallback, invokes
+  `HardwareVolumeListener` → `QualcommNative.setVolume()` with `0..15` hardware
+  volume and routes via `g_fmradio_mute` / `g_fmradio_enable`). Recording: separate `AudioRecord`
   (48000 Hz stereo PCM16) with `setPreferredDevice(TYPE_FM_TUNER)` found by
-  `findFmTunerInputDevice`; `Fm2RecordPcm` thread feeds
+  `findFmTunerInputDevice` (and on Samsung Exynos, sends `fmradio_recoding=on/off`
+  and tries audio source `11` before falling back to `DEFAULT`. Because S610 attenuates hardware gain (`vol_level_init[0..15]` = `{0, 16, 23, 32, 45, 64, 90, 128, 181, 256, 362, 512, 724, 1024, 1447, 2047}` in Samsung's `drivers/media/radio/s610/radio-s610.c`) upstream of `fmrec_in`, `compensateExynosVolume` scales captured 16-bit PCM by `2047 / S610_VOLUME_GAINS[vol]` capped at `64x` (`+36 dB`; exact 1:1 for steps `3..15`, silent at `0`). To bypass Samsung `AudioService`'s `l_fmradio_record_active` volume lock while `TYPE_FM_TUNER` capture is open, a temporary remote-volume `MediaSession` + `VolumeProvider` forwards hardware volume keys to `setStreamVolume(..., FLAG_SHOW_UI)` so playback volume stays adjustable); `Fm2RecordPcm` thread feeds
   `PcmRecorderSession`; pre-roll keeps capture alive during playback
   (`RECORDING_SAVE_PAST`), deferred while a recording is active; progress
   `Handler` (1000 ms) → `RECORD_TIME_UPDATE` broadcast; permission checks
