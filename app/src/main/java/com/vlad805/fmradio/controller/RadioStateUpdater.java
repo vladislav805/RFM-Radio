@@ -271,7 +271,11 @@ public class RadioStateUpdater extends BroadcastReceiver {
     }
 
     private static String getExtraString(final Intent intent, final String key, final String fallback) {
-        return intent.hasExtra(key) ? intent.getStringExtra(key) : (fallback != null ? fallback : "");
+        if (!intent.hasExtra(key)) {
+            return fallback != null ? fallback : "";
+        }
+        final String value = intent.getStringExtra(key);
+        return value != null ? value : "";
     }
 
     /**
