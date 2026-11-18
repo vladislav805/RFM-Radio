@@ -27,6 +27,7 @@ import com.vlad805.fmradio.service.audio.AudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.QualcommRoutedAudio;
 import com.vlad805.fmradio.service.audio.RoutingAudioService;
+import com.vlad805.fmradio.service.audio.SamsungS610Audio;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.implementation.NativeTunerController;
@@ -359,6 +360,20 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                         audioManager,
                         !isHelium,
                         refreshAudioRoute
+                );
+                audioService = new RoutingAudioService(this, policy);
+                break;
+            }
+
+            case SAMSUNG_ROUTED: {
+                final AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                final SamsungS610Audio policy = new SamsungS610Audio(
+                        audioManager,
+                        volume -> {
+                            if (mTunerDriver != null) {
+                                mTunerDriver.setVolume(volume);
+                            }
+                        }
                 );
                 audioService = new RoutingAudioService(this, policy);
                 break;

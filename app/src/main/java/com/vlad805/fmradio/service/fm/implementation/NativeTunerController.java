@@ -72,6 +72,10 @@ public final class NativeTunerController {
         }
     }
 
+    public void setVolume(final int volume) {
+        sendCommand(new Request("set_volume " + volume));
+    }
+
     public void setEventListener(final FMEventCallback callback) {
         mEventCallback = callback;
     }

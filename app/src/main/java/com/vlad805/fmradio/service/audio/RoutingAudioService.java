@@ -12,6 +12,9 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.media.VolumeProvider;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -40,12 +43,19 @@ public class RoutingAudioService extends AudioService {
 	private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
 	private static final int RECORDING_UPDATE_MS = 1000;
+	private static final int SAMSUNG_FM_AUDIO_SOURCE = 11;
+	private static final int[] S610_VOLUME_GAINS = {
+			0, 16, 23, 32, 45, 64, 90, 128, 181, 256, 362, 512, 724, 1024, 1447, 2047
+	};
+	private static final float S610_MAX_COMPENSATION_GAIN = 64.0f;
 
 	private final Context mContext;
 	private final RoutedAudioPolicy mPolicy;
 	private boolean mIsActive = false;
 	private boolean mVolumeListenerRegistered = false;
 	private AudioOutput mOutput = AudioOutput.HEADPHONES;
+	private MediaSession mExynosRecordingVolumeSession;
+	private volatile VolumeProvider mExynosRecordingVolumeProvider;
 
 	/** FM input capture kept alive while pre-roll or on-demand recording is active. */
 	private AudioRecord mRecordingAudioRecord;
@@ -245,42 +255,27 @@ public class RoutingAudioService extends AudioService {
 				.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
 				.build();
 
-		final AudioRecord audioRecord;
-		try {
-			audioRecord = new AudioRecord.Builder()
-					.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
-					.setAudioFormat(format)
-					.setBufferSizeInBytes(bufferSize * 2)
-					.build();
-		} catch (Throwable t) {
-			Log.e(TAG, "startAudioRecordRecorder: AudioRecord build failed", t);
-			throw new RecordError("Cannot create AudioRecord");
+		final SamsungS610Audio exynosPolicy = mPolicy instanceof SamsungS610Audio
+				? (SamsungS610Audio) mPolicy
+				: null;
+		final boolean isExynos = exynosPolicy != null;
+		if (isExynos && mAudioManager != null) {
+			// Intentionally spelled "fmradio_recoding" (without 'r') to match Samsung's audio HAL key.
+			mAudioManager.setParameters("fmradio_recoding=on");
 		}
 
-		if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-			audioRecord.release();
+		final AudioRecord audioRecord = createFmAudioRecord(format, bufferSize * 2, fmTuner, pcmFormat, isExynos);
+		if (audioRecord == null) {
+			if (isExynos && mAudioManager != null) {
+				mAudioManager.setParameters("fmradio_recoding=off");
+			}
 			throw new RecordError("AudioRecord init failed");
 		}
 
-		if (!pcmFormat.matches(audioRecord.getSampleRate(), audioRecord.getChannelCount())) {
-			final int actualRate = audioRecord.getSampleRate();
-			final int actualChannels = audioRecord.getChannelCount();
-			audioRecord.release();
-			throw new RecordError("AudioRecord format mismatch: " + actualRate + " Hz, " + actualChannels + " ch");
-		}
-
-		if (!audioRecord.setPreferredDevice(fmTuner)) {
-			Log.w(TAG, "startAudioRecordRecorder: setPreferredDevice(FM Tuner) returned false");
-		}
-
-		try {
-			audioRecord.startRecording();
-		} catch (Throwable t) {
-			audioRecord.release();
-			throw new RecordError("AudioRecord.startRecording failed");
-		}
-
 		mRecordingAudioRecord = audioRecord;
+		if (isExynos) {
+			startExynosRecordingVolumeSession(exynosPolicy);
+		}
 
 		mRecordingThread = new Thread(() -> {
 			final short[] buffer = new short[bufferSize / 2];
@@ -288,6 +283,9 @@ public class RoutingAudioService extends AudioService {
 				while (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
 					final int read = audioRecord.read(buffer, 0, buffer.length);
 					if (read > 0) {
+						if (exynosPolicy != null) {
+							compensateExynosVolume(buffer, read, exynosPolicy.getLastVolume());
+						}
 						mPcmSession.append(buffer, read);
 					} else if (read == AudioRecord.ERROR_DEAD_OBJECT) {
 						Log.e(TAG, "FM capture audio server died");
@@ -307,6 +305,12 @@ public class RoutingAudioService extends AudioService {
 					}
 				}
 				if (ownsAudioRecord) {
+					if (exynosPolicy != null) {
+						releaseExynosRecordingVolumeSession(exynosPolicy);
+						if (mAudioManager != null) {
+							mAudioManager.setParameters("fmradio_recoding=off");
+						}
+					}
 					audioRecord.release();
 				}
 			}
@@ -391,6 +395,187 @@ public class RoutingAudioService extends AudioService {
 			}
 		}
 		audioRecord.release();
+		if (mPolicy instanceof SamsungS610Audio) {
+			releaseExynosRecordingVolumeSession((SamsungS610Audio) mPolicy);
+			if (mAudioManager != null) {
+				mAudioManager.setParameters("fmradio_recoding=off");
+			}
+		}
+	}
+
+	private synchronized void startExynosRecordingVolumeSession(final SamsungS610Audio exynosPolicy) {
+		if (mAudioManager == null || mExynosRecordingVolumeSession != null) {
+			return;
+		}
+		final int maxVolume = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+		final int currentVolume = Math.max(
+				0,
+				Math.min(maxVolume, mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+		);
+		final VolumeProvider provider = new VolumeProvider(
+				VolumeProvider.VOLUME_CONTROL_ABSOLUTE,
+				maxVolume,
+				currentVolume
+		) {
+			@Override
+			public void onAdjustVolume(final int direction) {
+				if (direction != 0) {
+					adjustExynosStreamVolume(direction);
+				}
+			}
+
+			@Override
+			public void onSetVolumeTo(final int volume) {
+				setExynosStreamVolume(volume);
+			}
+		};
+
+		final MediaSession session = new MediaSession(mContext, TAG + "-RecVol");
+		session.setCallback(new MediaSession.Callback() {
+		}, mRecordingHandler);
+		session.setFlags(
+				MediaSession.FLAG_HANDLES_MEDIA_BUTTONS
+						| MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
+		);
+		session.setPlaybackState(new PlaybackState.Builder()
+				.setState(PlaybackState.STATE_PLAYING, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+				.build());
+		session.setPlaybackToRemote(provider);
+		session.setActive(true);
+
+		mExynosRecordingVolumeProvider = provider;
+		mExynosRecordingVolumeSession = session;
+		exynosPolicy.setRecordingVolumeProvider(provider);
+	}
+
+	private synchronized void releaseExynosRecordingVolumeSession(final SamsungS610Audio exynosPolicy) {
+		final MediaSession session = mExynosRecordingVolumeSession;
+		mExynosRecordingVolumeSession = null;
+		mExynosRecordingVolumeProvider = null;
+		exynosPolicy.setRecordingVolumeProvider(null);
+		if (session != null) {
+			try {
+				session.setActive(false);
+				session.release();
+			} catch (Throwable t) {
+				Log.w(TAG, "Failed to release Exynos recording MediaSession", t);
+			}
+		}
+	}
+
+	static int computeAdjustedStreamVolume(
+			final int currentVolume,
+			final int maxVolume,
+			final int direction
+	) {
+		final int step;
+		if (direction == AudioManager.ADJUST_RAISE) {
+			step = 1;
+		} else if (direction == AudioManager.ADJUST_LOWER) {
+			step = -1;
+		} else if (direction == AudioManager.ADJUST_MUTE) {
+			return 0;
+		} else {
+			return Math.max(0, Math.min(maxVolume, currentVolume));
+		}
+		return Math.max(0, Math.min(maxVolume, currentVolume + step));
+	}
+
+	private void adjustExynosStreamVolume(final int direction) {
+		if (mAudioManager == null) {
+			return;
+		}
+		final int maxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		final int currentVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		final int target = computeAdjustedStreamVolume(currentVolume, maxVolume, direction);
+		if (target != currentVolume) {
+			setExynosStreamVolume(target);
+		}
+	}
+
+	private void setExynosStreamVolume(final int volume) {
+		if (mAudioManager == null) {
+			return;
+		}
+		final int maxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		final int target = Math.max(0, Math.min(maxVolume, volume));
+		Log.d(TAG, "setExynosStreamVolume: setting STREAM_MUSIC=" + target + "/" + maxVolume);
+		mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, AudioManager.FLAG_SHOW_UI);
+		final VolumeProvider provider = mExynosRecordingVolumeProvider;
+		if (provider != null) {
+			provider.setCurrentVolume(target);
+		}
+	}
+
+	@SuppressLint("MissingPermission")
+	private AudioRecord createFmAudioRecord(
+			final AudioFormat format,
+			final int bufferBytes,
+			final AudioDeviceInfo fmTuner,
+			final PcmFormat pcmFormat,
+			final boolean isExynos
+	) {
+		final int[] sources = isExynos
+				? new int[]{SAMSUNG_FM_AUDIO_SOURCE, MediaRecorder.AudioSource.DEFAULT}
+				: new int[]{MediaRecorder.AudioSource.DEFAULT};
+		for (final int source : sources) {
+			AudioRecord candidate = null;
+			try {
+				candidate = new AudioRecord.Builder()
+						.setAudioSource(source)
+						.setAudioFormat(format)
+						.setBufferSizeInBytes(bufferBytes)
+						.build();
+				if (candidate.getState() != AudioRecord.STATE_INITIALIZED) {
+					candidate.release();
+					continue;
+				}
+				if (!pcmFormat.matches(candidate.getSampleRate(), candidate.getChannelCount())) {
+					candidate.release();
+					continue;
+				}
+				if (!candidate.setPreferredDevice(fmTuner)) {
+					Log.w(TAG, "createFmAudioRecord: setPreferredDevice(FM Tuner) returned false for source=" + source);
+				}
+				candidate.startRecording();
+				Log.d(TAG, "createFmAudioRecord: started FM capture with source=" + source);
+				return candidate;
+			} catch (Throwable t) {
+				Log.w(TAG, "createFmAudioRecord: source=" + source + " failed", t);
+				if (candidate != null) {
+					candidate.release();
+				}
+			}
+		}
+		return null;
+	}
+
+	static void compensateExynosVolume(final short[] buffer, final int length, final int volumeIndex) {
+		if (buffer == null || volumeIndex <= 0 || volumeIndex >= S610_VOLUME_GAINS.length - 1) {
+			return;
+		}
+		final int chipGain = S610_VOLUME_GAINS[volumeIndex];
+		if (chipGain <= 0) {
+			return;
+		}
+		final int fullScaleGain = S610_VOLUME_GAINS[S610_VOLUME_GAINS.length - 1];
+		final int maxScaledNumerator = Math.round(S610_MAX_COMPENSATION_GAIN * chipGain);
+		final int numerator = Math.min(fullScaleGain, maxScaledNumerator);
+		final int halfDenominator = chipGain / 2;
+		final int limit = Math.min(length, buffer.length);
+		for (int i = 0; i < limit; ++i) {
+			final int sample = buffer[i];
+			final int scaled = sample >= 0
+					? (sample * numerator + halfDenominator) / chipGain
+					: (sample * numerator - halfDenominator) / chipGain;
+			if (scaled > Short.MAX_VALUE) {
+				buffer[i] = Short.MAX_VALUE;
+			} else if (scaled < Short.MIN_VALUE) {
+				buffer[i] = Short.MIN_VALUE;
+			} else {
+				buffer[i] = (short) scaled;
+			}
+		}
 	}
 
 	/** Starts periodic recording progress broadcasts. */

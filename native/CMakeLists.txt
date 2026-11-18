@@ -36,6 +36,7 @@ if(RFM_NATIVE_TESTS)
         tests/v4l2_scan_state_test.cpp
         tests/v4l2_backend_base_test.cpp
         tests/v4l2_qcom_lifecycle_test.cpp
+        tests/v4l2_exynos_backend_test.cpp
         tests/rmssi_test.cpp
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
@@ -44,6 +45,7 @@ if(RFM_NATIVE_TESTS)
         tests/backend_factory_test.cpp
         backend_factory.cpp
         backend/v4l2_qcom/v4l2_qcom_backend.cpp
+        backend/v4l2_exynos/v4l2_exynos_backend.cpp
         backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp
         ctl_server.cpp
@@ -78,6 +80,7 @@ add_executable(
     backend_factory.cpp
     backend/v4l2_qcom/v4l2_qcom_backend.cpp
     backend/v4l2_qcom/v4l2_scan_state.cpp
+    backend/v4l2_exynos/v4l2_exynos_backend.cpp
     backend/hal_helium/hal_helium_backend.cpp
     hex_dump.cpp
     system.cpp
@@ -89,6 +92,7 @@ target_include_directories(
     .
     backend/v4l2_base
     backend/v4l2_qcom
+    backend/v4l2_exynos
     backend/hal_helium
 )
 

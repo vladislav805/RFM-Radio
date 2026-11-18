@@ -13,7 +13,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
 | `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |
-| `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
+| `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
 | `service/fm/` | Contract: `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
@@ -35,10 +35,10 @@ package-scoped app broadcasts (`C.Event.*`). No binder/AIDL. Returns
 Key flows:
 
 - `getTunerDriver()`: `TunerDriverDetector` mirrors native detection — checks
-  `/sys/class/video4linux/radio0/name` (`iris`/`tavarua` allowlist, or fallback
-  to `/dev/radio0` when the sysfs node is absent/SELinux-unreadable) alongside
-  `/dev/radio0` (`V4L2_QCOM`), and vendor paths for `fm_helium.so` (`HAL_HELIUM`);
-  both map to `new NativeTunerController(context, kind)`, unsupported devices get `null` (and fail launch).
+  `/sys/class/video4linux/radio0/name` (`iris`/`tavarua` → `V4L2_QCOM`,
+  `s610` → `V4L2_EXYNOS`, or fallback to `/dev/radio0` when sysfs is
+  absent/SELinux-unreadable) alongside vendor paths for `fm_helium.so`
+  (`HAL_HELIUM`); supported drivers map to `new NativeTunerController(context, kind)`.
 - Audio selection: resolved once per session on `LAUNCHED` via
   `AudioSelection.resolve(resolvedDriver, SDK_INT)` and coordinated by
   `AudioLifecycle` (`HAL_HELIUM` starts audio before `ENABLE` and stops before
@@ -94,9 +94,10 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
 - `RoutingAudioService` (API ≥ 26): owns audio focus, volume broadcast
   listener, and FM PCM capture (`AudioRecord` at 48 kHz stereo with
   `setPreferredDevice(TYPE_FM_TUNER)`). Delegates vendor output routing to
-  `RoutedAudioPolicy` (`QualcommRoutedAudio`: `fm_status`, `fm_mute`,
-  `fm_routing`, `handle_fm`, `fm_volume`, hidden `AudioSystem` masks,
-  V4L2 `FOR_MEDIA`, Helium-only Slimbus refresh).
+  `RoutedAudioPolicy` (`QualcommRoutedAudio` or `SamsungS610Audio` for
+  Exynos `g_fmradio_*` parameters, hardware volume `set_volume`, source 11
+  capture, `fmradio_recoding`, `MediaSession` volume session, and software
+  gain compensation).
 - `LightAudioService` (API < 26, legacy): `AudioRecord` (source 1998) →
   `AudioTrack` bridge loop at 44.1 kHz, retaining `FOR_MEDIA` speaker routing.
 - Both implement `IAudioRecordable` (start/stop record, `updateRds`) and feed

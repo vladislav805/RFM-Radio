@@ -50,7 +50,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `preferences/` | 2 | `BandUtils`, `Vars` |
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 2 | `FMService`, `FMNotificationManager` |
-| `service/audio/` | 8 | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
+| `service/audio/` | 9 | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
 | `service/fm/` | 4 | `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
 | `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
@@ -253,15 +253,18 @@ anything else → warning.
   (`setCommunicationDevice`/`clearCommunicationDevice` on API ≥ 31 and
   `setSpeakerphoneOn`), V4L2 `FOR_MEDIA` force-use, and Helium-only Slimbus
   refresh callback.
+- `SamsungS610Audio.java` — Samsung Exynos S610 `RoutedAudioPolicy`:
+  `g_fmradio_mute`, `g_fmradio_enable`, framework speaker routing, and
+  scaled 0..15 hardware volume updates via `HardwareVolumeListener`
+  (`NativeTunerController.setVolume`).
 - `RoutingAudioService.java` (API ≥ 26) — owns audio focus, hidden
   `VOLUME_CHANGED_ACTION` listener, and FM capture (`AudioRecord` 48000 Hz
   stereo PCM16 with `setPreferredDevice(TYPE_FM_TUNER)` found by
-  `findFmTunerInputDevice`); `Fm2RecordPcm` thread feeds
-  `PcmRecorderSession`; pre-roll keeps capture alive during playback
-  (`RECORDING_SAVE_PAST`), deferred while a recording is active; progress
-  `Handler` (1000 ms) → `RECORD_TIME_UPDATE` broadcast; permission checks
-  (`RECORD_AUDIO` + storage when `RecordingStorage` requires it). Delegates
-  output routing and speaker side effects to its `RoutedAudioPolicy`.
+  `findFmTunerInputDevice`; Samsung Exynos also tries source `11`,
+  `fmradio_recoding=on/off`, `MediaSession` volume bypass, and
+  `compensateExynosVolume`); `Fm2RecordPcm` thread feeds
+  `PcmRecorderSession`. Delegates output routing and speaker side effects to
+  its `RoutedAudioPolicy`.
 - `LightAudioService.java` (API < 26, legacy) — `AudioRecord` (source
   1998, 44100) → `AudioTrack` (`STREAM_MUSIC`) loop on a thread; the same
   `PcmRecorderSession.append()` sits on the capture path; same pre-roll;
