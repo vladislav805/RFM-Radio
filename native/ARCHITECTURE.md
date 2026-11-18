@@ -312,6 +312,7 @@ Common textual errors include:
 | `ERR_UNK_CMD` | Empty or unknown command |
 | `ERR_UNSUPPORTED` | No backend or unsupported device |
 | `ERR_FAILED` | Generic backend operation failure |
+| `ERR_ALREADY_ENABLED` | Legacy `enable` rejected because receiver is already enabled |
 | `ERR_UNV_ANT` | Legacy antenna value rejected |
 | `ERR_CNS_REG` | Legacy region/band could not be set |
 
@@ -718,10 +719,17 @@ mutex. The event thread can close the descriptor while command handling issues
 an ioctl. Any lifecycle or concurrency change must account for these existing
 data races rather than assuming this layer is thread-safe.
 
-The return value of `pthread_create` is not checked, and the event thread is
-neither detached nor joined. The power-completion flag is set on enable but is
-not consistently reset during disable, making repeated enable/disable cycles
-within one process sensitive.
+If `enable()` is called while the receiver is already enabled, it rejects fast
+with `ERR_ALREADY_ENABLED` without disturbing the active session or event thread.
+If `enable()` is called while disabled (including after a prior `disable()` or
+failed enable rollback), it first calls `stop_event_thread()` to stop and join
+any lingering event thread and reopens `/dev/radio0` via `command_open()` when
+`fd_radio_ < 0` before preparing the receiver.
+
+Legacy `pthread_create()` return codes are checked; on `command_setup_receiver()`
+failures, `rollback_enable()`, or `command_shutdown()`, `stop_event_thread()`
+clears `power_on_completed_` and `thread_running_`, closes the descriptor to
+unblock any pending `VIDIOC_DQBUF`, and joins the event thread deterministically.
 
 ### Tune, Jump, Seek, and Search
 
@@ -870,6 +878,9 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 - strict startup configuration parsing
 - HAL shutdown callback waits, pending OFF/rollback cleanup, timeout, and retry
   using an injected vendor interface (not device HAL libraries)
+- Legacy V4L2 Qcom lifecycle transitions (repeated `enable` rejection,
+  `disable` -> `enable` recovery, setup/timeout rollback joining the event
+  thread) using fake fd/ioctl/sleep overrides (`tests/v4l2_qcom_lifecycle_test.cpp`)
 - region profiles and frequency clamping
 - frequency-list formatting
 - shared sequential-scan result collection

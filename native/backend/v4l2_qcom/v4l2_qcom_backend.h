@@ -10,7 +10,7 @@
 #include <string>
 
 // Qualcomm V4L2 implementation of Backend for Iris/Tavarua receivers.
-class V4l2QcomBackend final : public V4l2BackendBase {
+class V4l2QcomBackend : public V4l2BackendBase {
 public:
     V4l2QcomBackend();
     ~V4l2QcomBackend() override;
@@ -43,6 +43,16 @@ public:
 protected:
     const char *log_prefix() const override {
         return "qcom";
+    }
+
+    // Sleeps for the requested microseconds; virtual for host test seams.
+    virtual void sleep_us(unsigned int usec) {
+        usleep(usec);
+    }
+
+    // Reports whether an event thread handle is currently joinable.
+    bool is_event_thread_started() const {
+        return event_thread_started_;
     }
 
 private:
@@ -113,9 +123,10 @@ private:
     static void *event_thread_stub(void *arg);
     void event_thread();
     void join_event_thread();
+    void stop_event_thread();
 
     // Member State
-    bool enabled_ = false;
+    std::atomic<bool> enabled_{false};
     uint64_t metric_resume_at_ms_ = 0;
     bool sinr_supported_ = true;
 

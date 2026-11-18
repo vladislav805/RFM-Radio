@@ -27,6 +27,7 @@
 namespace {
 
 constexpr const char *kErrFailed = "ERR_FAILED";
+constexpr const char *kErrAlreadyEnabled = "ERR_ALREADY_ENABLED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 constexpr uint64_t kMetricSettleMs = 750;
@@ -195,6 +196,19 @@ bool V4l2QcomBackend::init() {
 
 // Enables the FM receiver with the given startup configuration.
 bool V4l2QcomBackend::enable(const StartupConfig &config) {
+    if (enabled_) {
+        log("enable", "rejected: already enabled");
+        return set_status(false, kErrAlreadyEnabled);
+    }
+
+    if (event_thread_started_) {
+        stop_event_thread();
+    }
+
+    if (fd_radio_ < 0 && !set_status(command_open() == FM_CMD_SUCCESS, kErrFailed)) {
+        return false;
+    }
+
     const RegionProfile &profile = get_region_profile(config.region);
     fm_config_data cfg_data = {
             .emphasis = static_cast<emphasis_t>(profile.emphasis),
@@ -419,7 +433,7 @@ bool V4l2QcomBackend::set_slimbus(bool /*enabled*/) {
 
 // Requests signal metrics (SINR or RMSSI) from the hardware.
 bool V4l2QcomBackend::request_signal_metric() {
-    if (!enabled_ || command_search_busy() || monotonic_ms() < metric_resume_at_ms_) {
+    if (!enabled_ || fd_radio_ < 0 || command_search_busy() || monotonic_ms() < metric_resume_at_ms_) {
         return false;
     }
 
@@ -447,9 +461,9 @@ bool V4l2QcomBackend::rollback_enable() {
 
     if (command_disable() != FM_CMD_SUCCESS) {
         receiver_set_state(OFF);
-        receiver_close();
     }
 
+    stop_event_thread();
     last_error_ = error;
     return false;
 }
@@ -501,7 +515,7 @@ bool V4l2QcomBackend::receiver_set_band(radio_band_t band) {
     tuner.rangehigh = khz_to_freq(limits.upper_limit);
     tuner.signal = 0;
 
-    if (ioctl(fd_radio_, VIDIOC_S_TUNER, &tuner) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_S_TUNER, &tuner) < 0) {
         return false;
     }
 
@@ -533,7 +547,7 @@ bool V4l2QcomBackend::receiver_set_tuned_frequency(uint32_t frequency_khz) {
     freq_struct.type = V4L2_TUNER_RADIO;
     freq_struct.frequency = khz_to_freq(frequency_khz);
 
-    if (ioctl(fd_radio_, VIDIOC_S_FREQUENCY, &freq_struct) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_S_FREQUENCY, &freq_struct) < 0) {
         const int saved_errno = errno;
         log("tune", "set frequency_khz=%d failed, errno=%d (%s)", frequency_khz, saved_errno, strerror(saved_errno));
         return false;
@@ -551,7 +565,7 @@ uint32_t V4l2QcomBackend::receiver_get_tuned_frequency() {
     struct v4l2_frequency freq_struct = {};
     freq_struct.type = V4L2_TUNER_RADIO;
 
-    if (ioctl(fd_radio_, VIDIOC_G_FREQUENCY, &freq_struct) == 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_G_FREQUENCY, &freq_struct) == 0) {
         return freq_to_khz(freq_struct.frequency);
     }
 
@@ -570,7 +584,7 @@ bool V4l2QcomBackend::receiver_get_rmssi(int *rmssi) {
     tuner.index = 0;
     tuner.type = V4L2_TUNER_RADIO;
 
-    if (ioctl(fd_radio_, VIDIOC_G_TUNER, &tuner) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_G_TUNER, &tuner) < 0) {
         const int saved_errno = errno;
         log("metric", "get rmssi failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return false;
@@ -623,7 +637,7 @@ bool V4l2QcomBackend::receiver_set_stereo_mode(stereo_t mode) {
     tuner.type = V4L2_TUNER_RADIO;
     tuner.audmode = mode;
 
-    if (ioctl(fd_radio_, VIDIOC_S_TUNER, &tuner) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_S_TUNER, &tuner) < 0) {
         const int saved_errno = errno;
         log("audio", "set stereo failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return false;
@@ -654,7 +668,7 @@ bool V4l2QcomBackend::receiver_search_station_seek(search_t mode, int8_t search_
     hw_seek.type = V4L2_TUNER_RADIO;
     hw_seek.seek_upward = static_cast<uint32_t>(search_dir);
 
-    if (ioctl(fd_radio_, VIDIOC_S_HW_FREQ_SEEK, &hw_seek) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_S_HW_FREQ_SEEK, &hw_seek) < 0) {
         const int saved_errno = errno;
         log("search", "seek failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return false;
@@ -692,7 +706,7 @@ bool V4l2QcomBackend::receiver_search_station_list(fm_search_list_stations optio
     hwseek.type = V4L2_TUNER_RADIO;
     hwseek.seek_upward = static_cast<uint32_t>(options.search_dir);
 
-    if (ioctl(fd_radio_, VIDIOC_S_HW_FREQ_SEEK, &hwseek) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_S_HW_FREQ_SEEK, &hwseek) < 0) {
         const int saved_errno = errno;
         log("search", "scan failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
         return false;
@@ -720,7 +734,7 @@ int32_t V4l2QcomBackend::read_buffer(uint8_t *buf, uint32_t buffer_size, int ind
     v4l2_buf.m.userptr = reinterpret_cast<unsigned long>(buf);
     v4l2_buf.length = buffer_size;
 
-    if (ioctl(fd_radio_, VIDIOC_DQBUF, &v4l2_buf) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_DQBUF, &v4l2_buf) < 0) {
         const int saved_errno = errno;
         log("v4l2", "read buffer index=0x%x failed, errno=%d (%s)", index, saved_errno, strerror(saved_errno));
         return -1;
@@ -961,7 +975,7 @@ uint8_t V4l2QcomBackend::extract_search_station_list(uint32_t *list) {
     struct v4l2_tuner tuner = {};
     tuner.index = 0;
 
-    if (ioctl(fd_radio_, VIDIOC_G_TUNER, &tuner) == 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_G_TUNER, &tuner) == 0) {
         lower_limit = freq_to_khz(tuner.rangelow);
         upper_limit = freq_to_khz(tuner.rangehigh);
     } else {
@@ -1050,6 +1064,7 @@ void V4l2QcomBackend::event_thread() {
                     pthread_mutex_lock(&legacy_scan_lock_);
                     legacy_scan_.reset();
                     pthread_mutex_unlock(&legacy_scan_lock_);
+                    enabled_ = false;
                     fm_storage_.state = OFF;
                     power_on_completed_ = false;
                     clear_direct_init_marker();
@@ -1274,6 +1289,14 @@ void V4l2QcomBackend::join_event_thread() {
     }
 }
 
+// Signals the event thread to exit, closes the device, and joins it.
+void V4l2QcomBackend::stop_event_thread() {
+    power_on_completed_ = false;
+    thread_running_ = false;
+    receiver_close();
+    join_event_thread();
+}
+
 // Opens the V4L2 device and initiates firmware bootstrap if needed.
 fm_cmd_status_t V4l2QcomBackend::command_open() {
     direct_v4l2_transport_ = false;
@@ -1307,7 +1330,7 @@ fm_cmd_status_t V4l2QcomBackend::command_open() {
                 init_success = 1;
                 break;
             }
-            usleep(10000);
+            sleep_us(10000);
         }
 
         if (!init_success) {
@@ -1316,7 +1339,7 @@ fm_cmd_status_t V4l2QcomBackend::command_open() {
         }
     }
 
-    usleep(500000);
+    sleep_us(500000);
     log("open", "opening /dev/radio0");
 
     if (!receiver_open()) {
@@ -1324,7 +1347,7 @@ fm_cmd_status_t V4l2QcomBackend::command_open() {
         return FM_CMD_FAILURE;
     }
 
-    usleep(700000);
+    sleep_us(700000);
     return FM_CMD_SUCCESS;
 }
 
@@ -1335,7 +1358,7 @@ fm_cmd_status_t V4l2QcomBackend::command_prepare(fm_config_data *config_ptr) {
 
     log("prep", "reading driver version");
 
-    if (ioctl(fd_radio_, VIDIOC_QUERYCAP, &cap) < 0) {
+    if (v4l2_ioctl(fd_radio_, VIDIOC_QUERYCAP, &cap) < 0) {
         log("prep", "query capabilities failed");
         return FM_CMD_FAILURE;
     }
@@ -1384,7 +1407,7 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
 
         // Stock no-firmware libfmjni.so waits for the transport to settle
         // after publishing readiness and before starting the event listener.
-        usleep(200000);
+        sleep_us(200000);
     } else if (is_smd_transport_layer()) {
         __system_property_set("ctl.start", "fm_dl");
         sleep(1);
@@ -1421,10 +1444,8 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
 
     if (!receiver_set_state(RX)) {
         log("setup", "set radio state failed");
-        thread_running_ = false;
         clear_direct_init_marker();
-        receiver_close();
-        join_event_thread();
+        stop_event_thread();
         return FM_CMD_FAILURE;
     }
 
@@ -1432,16 +1453,14 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
         int ready_attempt = 0;
 
         while (!power_on_completed_ && ready_attempt < 500) {
-            usleep(10000);
+            sleep_us(10000);
             ++ready_attempt;
         }
 
         if (!power_on_completed_) {
             log("setup", "RADIO_READY timeout attempts=%d state=%d", ready_attempt, fm_storage_.state);
-            thread_running_ = false;
             clear_direct_init_marker();
-            receiver_close();
-            join_event_thread();
+            stop_event_thread();
             return FM_CMD_FAILURE;
         }
     }
@@ -1583,10 +1602,7 @@ void V4l2QcomBackend::command_shutdown(bool disable_receiver) {
     }
 #endif
 
-    power_on_completed_ = false;
-    thread_running_ = false;
-    receiver_close();
-    join_event_thread();
+    stop_event_thread();
     log("shutdown", "completed");
 }
 

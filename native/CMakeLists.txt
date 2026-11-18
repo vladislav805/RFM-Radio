@@ -35,10 +35,12 @@ if(RFM_NATIVE_TESTS)
         tests/scan_result_test.cpp
         tests/v4l2_scan_state_test.cpp
         tests/v4l2_backend_base_test.cpp
+        tests/v4l2_qcom_lifecycle_test.cpp
         tests/rmssi_test.cpp
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
         tests/hal_shutdown_test.cpp
+        backend/v4l2_qcom/v4l2_qcom_backend.cpp
         backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp
         ctl_server.cpp

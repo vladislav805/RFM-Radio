@@ -32,12 +32,31 @@ public:
     }
 
 protected:
+    // Opens the underlying file descriptor; virtual for host test seams.
+    virtual int open_device_fd(const char *path) {
+        return open(path, O_RDWR | O_NONBLOCK);
+    }
+
+    // Closes the underlying file descriptor; virtual for host test seams.
+    virtual void close_device_fd(int fd) {
+        close(fd);
+    }
+
+    // Performs a V4L2 ioctl on the open file descriptor; virtual for host test seams.
+    virtual int v4l2_ioctl(int fd, unsigned long request, void *arg) {
+#ifdef __ANDROID__
+        return ioctl(fd, static_cast<int>(request), arg);
+#else
+        return ioctl(fd, request, arg);
+#endif
+    }
+
     // Opens the V4L2 character device file descriptor in non-blocking mode.
     bool open_device(const char *path = "/dev/radio0") {
         if (fd_radio_ >= 0) {
             return true;
         }
-        fd_radio_ = open(path, O_RDWR | O_NONBLOCK);
+        fd_radio_ = open_device_fd(path);
         if (fd_radio_ < 0) {
             const int saved_errno = errno;
             log("open", "path=%s failed, errno=%d (%s)", path, saved_errno, std::strerror(saved_errno));
@@ -50,7 +69,7 @@ protected:
     // Closes the open V4L2 character device file descriptor.
     void close_device() {
         if (fd_radio_ >= 0) {
-            close(fd_radio_);
+            close_device_fd(fd_radio_);
             fd_radio_ = -1;
         }
     }
@@ -63,7 +82,7 @@ protected:
         struct v4l2_control control = {};
         control.id = id;
         control.value = value;
-        const int err = ioctl(fd_radio_, VIDIOC_S_CTRL, &control);
+        const int err = v4l2_ioctl(fd_radio_, VIDIOC_S_CTRL, &control);
         if (err < 0) {
             const int saved_errno = errno;
             log("v4l2", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)",
@@ -80,7 +99,7 @@ protected:
         }
         struct v4l2_control control = {};
         control.id = id;
-        const int err = ioctl(fd_radio_, VIDIOC_G_CTRL, &control);
+        const int err = v4l2_ioctl(fd_radio_, VIDIOC_G_CTRL, &control);
         if (err < 0) {
             const int saved_errno = errno;
             log("v4l2", "get id=0x%x failed, ret=%d errno=%d (%s)",
