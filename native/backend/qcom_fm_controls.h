@@ -73,6 +73,3 @@ constexpr int kV4l2CtrlSinrFirstStage      = kV4l2PrivateBase + 0x3b; // 0x80000
 constexpr int kV4l2CtrlRmssiFirstStage     = kV4l2PrivateBase + 0x3c; // 0x800003c
 constexpr int kV4l2CtrlRxRepeatCount       = kV4l2PrivateBase + 0x3d; // 0x800003d
 constexpr int kV4l2CtrlRdsGroupCountersExt = kV4l2PrivateBase + 0x42; // 0x8000042
-
-constexpr int kHeliumDefaultRdsGroupProcMask = 0xEF;
-constexpr int kHeliumDefaultRawRdsGroupMask = 40;

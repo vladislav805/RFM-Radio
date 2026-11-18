@@ -42,6 +42,16 @@ constexpr int kMaxRtTextLen = 64;
 // Leave room for the terminating null in RdsTextPayload::text.
 constexpr int kMaxOutputTextLen = sizeof(RdsTextPayload::text) - 1;
 
+// Reads a little-endian 32-bit unsigned integer from a 4-byte RDS buffer.
+uint32_t read_le32(const unsigned char *bytes) {
+    return (
+            static_cast<uint32_t>(bytes[0]) |
+            (static_cast<uint32_t>(bytes[1]) << 8) |
+            (static_cast<uint32_t>(bytes[2]) << 16) |
+            (static_cast<uint32_t>(bytes[3]) << 24)
+    );
+}
+
 struct RdsCountryRow {
     int ecc;
     char iso_codes[31];
@@ -149,17 +159,20 @@ int convert_ebu_latin_to_utf8(
             const uint32_t code_point = kEbuLatinG0CodePoints[src[i]];
             char encoded[3];
             int encoded_len;
-            if (code_point < 0x80) {
+
+            if (code_point < kRdsUtf8OneByteLimit) {
                 encoded[0] = static_cast<char>(code_point);
                 encoded_len = 1;
-            } else if (code_point < 0x800) {
-                encoded[0] = static_cast<char>(0xC0 | (code_point >> 6));
-                encoded[1] = static_cast<char>(0x80 | (code_point & 0x3F));
+            } else if (code_point < kRdsUtf8TwoByteLimit) {
+                encoded[0] = static_cast<char>(kRdsUtf8TwoByteLeadPrefix | (code_point >> kRdsUtf8ShiftMid));
+                encoded[1] = static_cast<char>(kRdsUtf8ContinuationPrefix | (code_point & kRdsUtf8ContinuationMask));
                 encoded_len = 2;
             } else {
-                encoded[0] = static_cast<char>(0xE0 | (code_point >> 12));
-                encoded[1] = static_cast<char>(0x80 | ((code_point >> 6) & 0x3F));
-                encoded[2] = static_cast<char>(0x80 | (code_point & 0x3F));
+                encoded[0] = static_cast<char>(kRdsUtf8ThreeByteLeadPrefix | (code_point >> kRdsUtf8ShiftHigh));
+                encoded[1] = static_cast<char>(
+                        kRdsUtf8ContinuationPrefix | ((code_point >> kRdsUtf8ShiftMid) & kRdsUtf8ContinuationMask)
+                );
+                encoded[2] = static_cast<char>(kRdsUtf8ContinuationPrefix | (code_point & kRdsUtf8ContinuationMask));
                 encoded_len = 3;
             }
 
@@ -196,8 +209,8 @@ bool parse_rds_text_payload(
     }
 
     const int unit_count = kind == RdsTextPayloadKind::kProgramService
-            ? (payload[0] & 0x0f)
-            : (payload[0] & 0x7f);
+            ? (payload[0] & kRdsPsCountMask)
+            : (payload[0] & kRdsRtLengthMask);
 
     const int max_units = kind == RdsTextPayloadKind::kProgramService
             ? kMaxPsBlocks
@@ -268,8 +281,8 @@ bool parse_rds_text_payload(
             max_output_bytes + 1
     );
 
-    out->pi = (payload[2] << 8) | payload[3];
-    out->pty = payload[1] & 0x1f;
+    out->pi = rds_read_be16(payload, kRdsTextPiOffset);
+    out->pty = rds_decode_pty(payload[kRdsTextPtyOffset]);
     out->block_count = kind == RdsTextPayloadKind::kProgramService ? unit_count : 0;
 
     return true;
@@ -307,24 +320,11 @@ bool parse_rds_af_payload(
         return false;
     }
 
-    const uint32_t current_frequency_khz =
-            static_cast<uint32_t>(payload[0]) |
-            (static_cast<uint32_t>(payload[1]) << 8) |
-            (static_cast<uint32_t>(payload[2]) << 16) |
-            (static_cast<uint32_t>(payload[3]) << 24);
-
-    out->current_frequency_khz = static_cast<int>(current_frequency_khz);
+    out->current_frequency_khz = static_cast<int>(read_le32(payload));
 
     for (int i = 0; i < count; ++i) {
         const int offset = kAfMetadataSize + i * kAfEntrySize;
-
-        const uint32_t frequency_khz =
-                static_cast<uint32_t>(payload[offset]) |
-                (static_cast<uint32_t>(payload[offset + 1]) << 8) |
-                (static_cast<uint32_t>(payload[offset + 2]) << 16) |
-                (static_cast<uint32_t>(payload[offset + 3]) << 24);
-
-        out->frequencies_khz[i] = static_cast<int>(frequency_khz);
+        out->frequencies_khz[i] = static_cast<int>(read_le32(payload + offset));
     }
 
     out->count = count;
@@ -366,11 +366,11 @@ bool parse_rds_search_list_payload(
     for (int i = 0; i < count; ++i) {
         const int offset = 1 + i * kSearchEntrySize;
 
-        const int raw = (static_cast<int>(payload[offset]) << 8) | payload[offset + 1];
+        const int raw = rds_read_be16(payload, offset);
 
         out->frequencies_khz[i] = kind == RdsSearchListKind::kRelativeOffsets
-                ? lower_frequency_khz + raw * 50
-                : raw * 50;
+                ? lower_frequency_khz + raw * kRdsSearchChannelStepKhz
+                : raw * kRdsSearchChannelStepKhz;
     }
 
     out->count = count;
@@ -385,7 +385,7 @@ bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]) {
     }
 
     country_iso[0] = '\0';
-    if (country_code < 1 || country_code > 15) {
+    if (country_code < kRdsMinPiCountryCode || country_code > kRdsMaxPiCountryCode) {
         return false;
     }
 
@@ -394,7 +394,7 @@ bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]) {
             continue;
         }
 
-        const int offset = (country_code - 1) * 2;
+        const int offset = (country_code - kRdsMinPiCountryCode) * kRdsIsoCountryCodeStride;
         if (
             row.iso_codes[offset] == '-' ||
             row.iso_codes[offset] == '\0' ||
@@ -425,15 +425,15 @@ bool parse_rds_ecc_payload(
         return false;
     }
 
-    const int variant = payload[5];
-    if (variant != 0) {
+    const int variant = payload[kRdsEccVariantOffset];
+    if (variant != kRdsEccVariantSlowLabelling) {
         // Other 1A variants carry different slow-labelling data.
         return false;
     }
 
-    const int pi = (payload[2] << 8) | payload[3];
-    const int ecc = payload[9];
-    return decode_rds_country_iso(ecc, (pi >> 12) & 0x0f, country_iso);
+    const int pi = rds_read_be16(payload, kRdsEccPiOffset);
+    const int ecc = payload[kRdsEccValueOffset];
+    return decode_rds_country_iso(ecc, rds_decode_pi_country_code(pi), country_iso);
 }
 
 bool parse_v4l2_raw_rds_ecc(
@@ -441,7 +441,7 @@ bool parse_v4l2_raw_rds_ecc(
         int payload_len,
         char country_iso[3]
 ) {
-    if (payload == nullptr || country_iso == nullptr || payload_len < 3) {
+    if (payload == nullptr || country_iso == nullptr || payload_len < kRdsRawTupleSize) {
         return false;
     }
 
@@ -450,12 +450,12 @@ bool parse_v4l2_raw_rds_ecc(
     bool is_group_1a = false;
     int pi = 0;
 
-    for (int i = 0; i + 2 < payload_len; i += 3) {
+    for (int i = 0; i + kRdsRawTupleSize - 1 < payload_len; i += kRdsRawTupleSize) {
         const int lsb = payload[i];
         const int msb = payload[i + 1];
         const int block = payload[i + 2];
-        const int block_id = block & 0x07;
-        const bool has_error = (block & 0x80) != 0;
+        const int block_id = block & kRdsRawBlockIdMask;
+        const bool has_error = (block & kRdsRawBlockErrorBit) != 0;
 
         if (has_error) {
             has_a = false;
@@ -464,21 +464,21 @@ bool parse_v4l2_raw_rds_ecc(
             continue;
         }
 
-        const int word = (msb << 8) | lsb;
+        const int word = (msb << kRdsByteBits) | lsb;
 
-        if (block_id == 0) {
+        if (block_id == kRdsRawBlockA) {
             pi = word;
             has_a = true;
             has_b = false;
             is_group_1a = false;
-        } else if (block_id == 1) {
-            is_group_1a = has_a && (((word >> 11) & 0x1f) == 0x02);
+        } else if (block_id == kRdsRawBlockB) {
+            is_group_1a = has_a && (((word >> kRdsRawGroupTypeShift) & kRdsRawGroupTypeMask) == kRdsRawGroup1A);
             has_b = has_a;
-        } else if (block_id == 2 && has_a && has_b && is_group_1a) {
-            const int variant = (word >> 12) & 0x07;
-            if (variant == 0) {
-                const int ecc = word & 0xff;
-                const int country_code = (pi >> 12) & 0x0f;
+        } else if (block_id == kRdsRawBlockC && has_a && has_b && is_group_1a) {
+            const int variant = (word >> kRdsRawVariantShift) & kRdsRawVariantMask;
+            if (variant == kRdsEccVariantSlowLabelling) {
+                const int ecc = word & kRdsByteMask;
+                const int country_code = rds_decode_pi_country_code(pi);
                 if (decode_rds_country_iso(ecc, country_code, country_iso)) {
                     return true;
                 }
@@ -520,8 +520,8 @@ bool parse_rds_rt_plus_payload(
         }
 
         // Byte [7] bit 0 signals item toggle (new song started), bit 1 signals item running.
-        out->toggle = (payload[7] & 0x01) != 0;
-        out->running = (payload[7] & 0x02) != 0;
+        out->toggle = (payload[7] & kRdsHeliumRtPlusToggleBit) != 0;
+        out->running = (payload[7] & kRdsHeliumRtPlusRunningBit) != 0;
 
         // Tag length in the HAL vendor payload is 0-indexed (encoded as length - 1),
         // so +1 is applied to recover the true character count. content_type == 0
@@ -654,7 +654,7 @@ constexpr const char *kRtpContentTypeNames[64] = {
 };
 
 const char *get_rds_rt_plus_content_type_name(int content_type) {
-    if (content_type >= 0 && content_type < 64) {
+    if (content_type >= 0 && content_type < kRdsRtpContentTypeTableSize) {
         return kRtpContentTypeNames[content_type];
     }
     return kRtpContentTypeUnknown;
@@ -682,7 +682,7 @@ bool evaluate_rds_rt_plus_slices(
         const RdsRtPlusTag &tag = tags[i];
 
         if (
-                tag.content_type == 0 ||
+                tag.content_type == kRdsRtpContentTypeUnused ||
                 tag.start < 0 ||
                 tag.length <= 0 ||
                 tag.start + tag.length > raw_rt_len
@@ -692,7 +692,7 @@ bool evaluate_rds_rt_plus_slices(
 
         // EBU Tech 307 content types
         switch (tag.content_type) {
-            case 1: { // ITEM.TITLE
+            case kRdsRtpContentTypeTitle: { // ITEM.TITLE
                 convert_ebu_latin_to_utf8(
                     raw_rt + tag.start,
                     tag.length,
@@ -703,7 +703,7 @@ bool evaluate_rds_rt_plus_slices(
                 break;
             }
 
-            case 2: { // ITEM.ALBUM
+            case kRdsRtpContentTypeAlbum: { // ITEM.ALBUM
                 convert_ebu_latin_to_utf8(
                         raw_rt + tag.start,
                         tag.length,
@@ -714,7 +714,7 @@ bool evaluate_rds_rt_plus_slices(
                 break;
             }
 
-            case 4: { // ITEM.ARTIST.
+            case kRdsRtpContentTypeArtist: { // ITEM.ARTIST.
                 convert_ebu_latin_to_utf8(
                         raw_rt + tag.start,
                         tag.length,

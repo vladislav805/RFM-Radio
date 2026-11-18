@@ -39,6 +39,12 @@ constexpr int kDefaultSignalThreshold = -100;
 // Sweeping across the entire frequency range stops at each station found and pauses for N seconds.
 constexpr int kDefaultSeekDwell = 2;
 
+// Default Helium processed RDS group mask: 0xEF (0b1110_1111, group-proc flags with bit 4 cleared).
+constexpr int kHeliumDefaultRdsGroupProcMask = 0xEF;
+
+// Default Helium raw RDS group pass-through mask: 40 (0x28 = (1 << 3) | (1 << 5)).
+constexpr int kHeliumDefaultRawRdsGroupMask = (1 << 3) | (1 << 5);
+
 int map_spacing_to_vendor(int spacing_khz) {
     switch (spacing_khz) {
         case 50:
@@ -1306,7 +1312,7 @@ void HalHeliumBackend::on_rt_update(char *rt) {
             sizeof(parsed.text) - 1,
             &parsed
     ) || parsed.text_len == 0) {
-        log("rds", "invalid rt len=%d", static_cast<unsigned char>(rt[0]) & 0x7f);
+        log("rds", "invalid rt len=%d", static_cast<unsigned char>(rt[0]) & kRdsRtLengthMask);
         return;
     }
 
@@ -1354,7 +1360,7 @@ void HalHeliumBackend::on_ps_update(char *ps) {
             sizeof(parsed.text) - 1,
             &parsed
     )) {
-        log("rds", "invalid ps count=%d", static_cast<unsigned char>(ps[0]) & 0x0f);
+        log("rds", "invalid ps count=%d", static_cast<unsigned char>(ps[0]) & kRdsPsCountMask);
         return;
     }
 
@@ -1405,10 +1411,17 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
     format_hex_dump(payload, len, dump, sizeof(dump));
 
     RdsRtPlusPayload parsed;
-    if (parse_rds_rt_plus_payload(reinterpret_cast<const unsigned char *>(payload), len, RdsRtPlusKind::kHelium, &parsed)) {
-        const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
-        const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
-        const int flags = (static_cast<unsigned char>(payload[4]) << 24) |
+
+    if (parse_rds_rt_plus_payload(
+            reinterpret_cast<const unsigned char *>(payload),
+            len,
+            RdsRtPlusKind::kHelium,
+            &parsed
+    )) {
+        const int pty = rds_decode_pty(static_cast<unsigned char>(payload[1]));
+        const int pi = rds_read_be16(payload, 2);
+        const int flags =
+                (static_cast<unsigned char>(payload[4]) << 24) |
                 (static_cast<unsigned char>(payload[5]) << 16) |
                 (static_cast<unsigned char>(payload[6]) << 8) |
                 static_cast<unsigned char>(payload[7]);
@@ -1435,8 +1448,8 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
     }
 
     if (len >= 4) {
-        const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
-        const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
+        const int pty = rds_decode_pty(static_cast<unsigned char>(payload[1]));
+        const int pi = rds_read_be16(payload, 2);
         log("rds", "rt+ len=%d pi=%04x pty=%d data=%s%s",
                 len, pi, pty, dump, len > 32 ? " ..." : "");
         return;
@@ -1500,17 +1513,16 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
     format_hex_dump(payload, len, dump, sizeof(dump));
 
     if (len >= 12) {
-        const int pty = static_cast<unsigned char>(payload[1]) & 0x1f;
-        const int pi = (static_cast<unsigned char>(payload[2]) << 8) | static_cast<unsigned char>(payload[3]);
+        const int pty = rds_decode_pty(static_cast<unsigned char>(payload[1]));
+        const int pi = rds_read_be16(payload, 2);
         const int ta_tp = static_cast<unsigned char>(payload[4]);
         const int variant = static_cast<unsigned char>(payload[5]);
-        const int slow_labelling =
-                (static_cast<unsigned char>(payload[8]) << 8) | static_cast<unsigned char>(payload[9]);
-        const int block_d = (static_cast<unsigned char>(payload[10]) << 8) | static_cast<unsigned char>(payload[11]);
+        const int slow_labelling = rds_read_be16(payload, 8);
+        const int block_d = rds_read_be16(payload, 10);
 
         if (has_country) {
-            const int country_code = (pi >> 12) & 0x0f;
-            const int ecc = slow_labelling & 0xff;
+            const int country_code = rds_decode_pi_country_code(pi);
+            const int ecc = slow_labelling & kRdsByteMask;
             log(
                     "rds",
                     "ecc len=%d pi=%04x pty=%d ta_tp=0x%02x cc=0x%x ecc=0x%02x country=%s sl=0x%04x block_d=0x%04x data=%s%s",

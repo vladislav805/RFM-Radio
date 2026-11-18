@@ -32,10 +32,41 @@ constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 constexpr uint64_t kMetricSettleMs = 750;
 
-constexpr int kV4l2QcomRdsMask = 23;
-// Group 3A (0x40, RT+/ERT ODA discovery) | Group 1A (0x04, ECC slow labelling).
+// Bit 0 in V4L2/Qcom RDS options enabling RadioText (RT) processing.
+constexpr uint8_t kRdsGroupOptionRtMask = 0x01;
+
+// Bit 1 in V4L2/Qcom RDS options enabling Program Service (PS) processing.
+constexpr uint8_t kRdsGroupOptionPsMask = 0x02;
+
+// Bit 2 in V4L2/Qcom RDS options enabling Alternative Frequencies (AF) processing.
+constexpr uint8_t kRdsGroupOptionAfMask = 0x04;
+
+// Combined RT/PS/AF group-processing options mask (0x07).
+constexpr uint8_t kRdsGroupProcOptionsMask = kRdsGroupOptionRtMask | kRdsGroupOptionPsMask | kRdsGroupOptionAfMask;
+
+// Keep mask preserving non-option bits when updating RDSGROUP_PROC (clears bits 3..5).
+constexpr uint8_t kRdsGroupProcPreserveMask = 0xC7;
+
+// Bit shift placing kRdsGroupProcOptionsMask at bits 3..5 of RDSGROUP_PROC.
+constexpr int kRdsGroupProcOptionsShift = 3;
+
+// Bit shift placing PS_ALL enable flag at bit 4 of kV4l2QcomRdsMask.
+constexpr int kRdsOptionPsAllShift = 4;
+
+// Bit 4 enabling V4L2 CID PS_ALL mode.
+constexpr int kRdsOptionPsAllBit = 1 << kRdsOptionPsAllShift;
+
+// Composite legacy Qualcomm RDS control bitmask passed during setup.
+constexpr int kV4l2QcomRdsMask = kRdsGroupProcOptionsMask | kRdsOptionPsAllBit;
+
+// Raw group mask bit enabling group 3A (RT+/ERT ODA discovery).
+constexpr int kV4l2QcomRds3aGroupMask = 0x40;
+
+// Raw group mask bit enabling group 1A (ECC slow labelling).
 constexpr int kV4l2QcomRds1aGroupMask = 0x04;
-constexpr int kV4l2QcomRdsRawGroupMask = 0x40 | kV4l2QcomRds1aGroupMask;
+
+// Combined raw RDS group mask written to kV4l2CtrlRdsGroupMask.
+constexpr int kV4l2QcomRdsRawGroupMask = kV4l2QcomRds3aGroupMask | kV4l2QcomRds1aGroupMask;
 constexpr size_t kPropertyValueBufferSize = 128;
 
 // Tavarua V4L2 event numbers emitted by the Qualcomm kernel driver.
@@ -967,7 +998,7 @@ uint8_t V4l2QcomBackend::extract_rds_af_list(uint32_t *frequencies) {
 
     RdsAfList af;
     if (!parse_rds_af_payload(buf, bytes, &af)) {
-        log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & 0xff);
+        log("af", "invalid list marker=%d count=%d", buf[4], buf[4] & kRdsByteMask);
         return 0;
     }
 
@@ -1541,8 +1572,8 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_rds(rds_system_t system) {
         }
 
         uint8_t rds_group_mask = static_cast<uint8_t>(group_proc);
-        rds_group_mask &= 0xC7;
-        rds_group_mask |= (kV4l2QcomRdsMask & 0x07) << 3;
+        rds_group_mask &= kRdsGroupProcPreserveMask;
+        rds_group_mask |= kRdsGroupProcOptionsMask << kRdsGroupProcOptionsShift;
 
         log("rds", "set group options=0x%x", rds_group_mask);
         if (!set_v4l2_ctrl(kV4l2CtrlRdsGroupProc, rds_group_mask)) {
@@ -1562,7 +1593,7 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_rds(rds_system_t system) {
             return FM_CMD_FAILURE;
         }
 
-        const uint32_t ps_all = (kV4l2QcomRdsMask & (1 << 4)) >> 4;
+        const uint32_t ps_all = (kV4l2QcomRdsMask & kRdsOptionPsAllBit) >> kRdsOptionPsAllShift;
         log("rds", "set ps all=0x%x", ps_all);
         if (!set_v4l2_ctrl(kV4l2CtrlPsAll, ps_all)) {
             log("rds", "failed to change ps all");
