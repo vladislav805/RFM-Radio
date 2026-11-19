@@ -5,6 +5,8 @@ import android.os.Parcelable;
 
 import com.vlad805.fmradio.models.RtPlusInfo;
 
+import java.util.Arrays;
+
 /**
  * A class that stores the current state of the radio tuner, audio service and other
  * parameters.
@@ -16,6 +18,7 @@ import com.vlad805.fmradio.models.RtPlusInfo;
 public final class RadioState implements Parcelable {
     public static final int RMSSI_UNKNOWN = Integer.MIN_VALUE;
     public static final int SINR_UNKNOWN = Integer.MIN_VALUE;
+    private static final int[] EMPTY_AF = new int[0];
 
     // State of tuner
     private TunerStatus status = TunerStatus.IDLE;
@@ -40,6 +43,9 @@ public final class RadioState implements Parcelable {
 
     // RT+ Metadata
     private RtPlusInfo rtPlus = RtPlusInfo.EMPTY;
+
+    // AF - Alternative Frequencies in kHz
+    private int[] af = EMPTY_AF;
 
     // Stereo - is stereo audio?
     private boolean stereo;
@@ -127,6 +133,14 @@ public final class RadioState implements Parcelable {
         this.rtPlus = rtPlus != null ? rtPlus : RtPlusInfo.EMPTY;
     }
 
+    public int[] getAf() {
+        return af;
+    }
+
+    void setAf(final int[] af) {
+        this.af = af != null && af.length > 0 ? Arrays.copyOf(af, af.length) : EMPTY_AF;
+    }
+
     void clear() {
         pi = "";
         country = "";
@@ -134,6 +148,7 @@ public final class RadioState implements Parcelable {
         ps = "";
         rt = "";
         rtPlus = RtPlusInfo.EMPTY;
+        af = EMPTY_AF;
         stereo = false;
         rmssi = RMSSI_UNKNOWN;
         sinr = SINR_UNKNOWN;
@@ -212,6 +227,8 @@ public final class RadioState implements Parcelable {
         forceSpeaker = in.readInt() > 0;
         final RtPlusInfo parsedRtPlus = in.readTypedObject(RtPlusInfo.CREATOR);
         rtPlus = parsedRtPlus != null ? parsedRtPlus : RtPlusInfo.EMPTY;
+        final int[] parsedAf = in.createIntArray();
+        af = parsedAf != null && parsedAf.length > 0 ? parsedAf : EMPTY_AF;
     }
 
     @Override
@@ -235,6 +252,7 @@ public final class RadioState implements Parcelable {
         dest.writeLong(recordingStarted);
         dest.writeInt(forceSpeaker ? 1 : 0);
         dest.writeTypedObject(rtPlus, flags);
+        dest.writeIntArray(af);
     }
 
     public static final Parcelable.Creator<RadioState> CREATOR = new Parcelable.Creator<RadioState>() {

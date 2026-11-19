@@ -2,21 +2,24 @@ package com.vlad805.fmradio.view;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+
+import com.vlad805.fmradio.R;
 
 public final class SignalStrengthView extends View {
     private static final int BAR_COUNT = 5;
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF mBarRect = new RectF();
     private int mLevel;
 
     public SignalStrengthView(final Context context, @Nullable final AttributeSet attrs) {
         super(context, attrs);
-        mPaint.setColor(Color.WHITE);
     }
 
     public void setMetrics(final int rmssi, final int sinr) {
@@ -45,19 +48,25 @@ public final class SignalStrengthView extends View {
         super.onDraw(canvas);
 
         final float density = getResources().getDisplayMetrics().density;
-        final float gap = 1.5f * density;
-        final float inset = 5f * density;
+        final float gap = 2f * density;
+        final float inset = 3f * density;
+        final float radius = 1.5f * density;
         final float availableWidth = getWidth() - 2 * inset - gap * (BAR_COUNT - 1);
-        final float barWidth = availableWidth / BAR_COUNT;
+        final float barWidth = Math.max(2f * density, availableWidth / BAR_COUNT);
         final float bottom = getHeight() - inset;
         final float availableHeight = getHeight() - 2 * inset;
+
+        final int activeColor = ContextCompat.getColor(getContext(), R.color.rfm_emerald);
+        final int inactiveColor = ContextCompat.getColor(getContext(), R.color.rfm_text_muted);
 
         for (int i = 0; i < BAR_COUNT; ++i) {
             final float left = inset + i * (barWidth + gap);
             final float height = availableHeight * (i + 1) / BAR_COUNT;
 
-            mPaint.setAlpha(i < mLevel ? 255 : 76);
-            canvas.drawRect(left, bottom - height, left + barWidth, bottom, mPaint);
+            mPaint.setColor(i < mLevel ? activeColor : inactiveColor);
+            mPaint.setAlpha(i < mLevel ? 255 : 70);
+            mBarRect.set(left, bottom - height, left + barWidth, bottom);
+            canvas.drawRoundRect(mBarRect, radius, radius, mPaint);
         }
     }
 }

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- Legacy & Android references -->
+	<color name="color_accent">@color/primary_blue</color>
+	<color name="ic_launcher_background">#000000</color>
+	<color name="main_background">#0B0F17</color>
+	<color name="primary_blue">#38BDF8</color>
+	<color name="text_primary">#F8FAFC</color>
+	<color name="text_secondary">#94A3B8</color>
+	<color name="favorite_station_active_stroke">#9938BDF8</color>
+	<color name="record_active">#F43F5E</color>
+
+	<!-- Redesigned Instrument Panel Night Theme -->
+	<color name="rfm_bg">#0B0F17</color>
+	<color name="rfm_surface">#131A26</color>
+	<color name="rfm_surface_elevated">#1A2333</color>
+	<color name="rfm_surface_inset">#0E141F</color>
+	<color name="rfm_stroke">#243044</color>
+	<color name="rfm_stroke_subtle">#1C2638</color>
+
+	<color name="rfm_text_primary">#F8FAFC</color>
+	<color name="rfm_text_secondary">#94A3B8</color>
+	<color name="rfm_text_muted">#475569</color>
+
+	<color name="rfm_accent">#38BDF8</color>
+	<color name="rfm_accent_soft">#162C46</color>
+	<color name="rfm_accent_stroke">#0284C7</color>
+	<color name="rfm_on_accent">#082F49</color>
+
+	<color name="rfm_amber">#FBBF24</color>
+	<color name="rfm_amber_soft">#2E2310</color>
+	<color name="rfm_emerald">#34D399</color>
+	<color name="rfm_emerald_soft">#0F2922</color>
+
+	<color name="rfm_record">#F43F5E</color>
+	<color name="rfm_record_soft">#31131C</color>
+	<color name="rfm_record_stroke">#E11D48</color>
+
+	<color name="rfm_dial_bg">#080C12</color>
+	<color name="rfm_dial_tick_minor">#334155</color>
+	<color name="rfm_dial_tick_major">#64748B</color>
+	<color name="rfm_dial_label">#94A3B8</color>
+	<color name="rfm_dial_needle">#38BDF8</color>
+	<color name="rfm_dial_fav">#FBBF24</color>
+</resources>

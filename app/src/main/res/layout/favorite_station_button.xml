@@ -1,25 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		xmlns:app="http://schemas.android.com/apk/res-auto"
-		xmlns:tools="http://schemas.android.com/tools"
-		android:background="?android:attr/selectableItemBackground"
-		android:clickable="true"
-		android:focusable="true"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content">
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="46dp"
+    android:layout_margin="3dp"
+    android:background="@drawable/bg_rfm_fav_tile"
+    android:clickable="true"
+    android:focusable="true">
 
-	<TextView
-		android:id="@+id/favorite_station_item_button"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="8dp"
-		android:layout_marginBottom="8dp"
-		android:textAlignment="center"
-		android:textAppearance="@android:style/TextAppearance.Material.Large"
-		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent"
-		tools:text="+" />
+    <TextView
+        android:id="@+id/favorite_station_item_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textAlignment="center"
+        android:textColor="@color/rfm_accent"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="+" />
 </androidx.constraintlayout.widget.ConstraintLayout>

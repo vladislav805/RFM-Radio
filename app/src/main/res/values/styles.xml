@@ -1,14 +1,19 @@
 <resources>
 
-	<!-- Default style for all activities -->
-	<style name="AppCompatTheme" parent="Theme.AppCompat.NoActionBar">
-		<item name="android:windowBackground">@color/main_background</item>
-		<item name="android:colorBackground">@color/main_background</item>
-		<item name="android:statusBarColor">@color/main_background</item>
-		<item name="android:navigationBarColor">@color/main_background</item>
+	<!-- Default style for all activities (DayNight adaptive) -->
+	<style name="AppCompatTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+		<item name="colorPrimary">@color/rfm_surface</item>
+		<item name="colorPrimaryDark">@color/rfm_bg</item>
+		<item name="colorAccent">@color/rfm_accent</item>
+		<item name="android:windowBackground">@color/rfm_bg</item>
+		<item name="android:colorBackground">@color/rfm_bg</item>
+		<item name="android:statusBarColor">@color/rfm_bg</item>
+		<item name="android:navigationBarColor">@color/rfm_bg</item>
+		<item name="android:textColorPrimary">@color/rfm_text_primary</item>
+		<item name="android:textColorSecondary">@color/rfm_text_secondary</item>
 	</style>
 
-	<style name="DialogActivityTheme" parent="Theme.AppCompat.Dialog">
+	<style name="DialogActivityTheme" parent="Theme.AppCompat.DayNight.Dialog">
 		<item name="windowNoTitle">true</item>
 		<item name="android:windowBackground">@android:color/transparent</item>
 		<item name="android:backgroundDimEnabled">true</item>
@@ -19,25 +24,25 @@
 		<item name="android:lineSpacingMultiplier">1</item>
 		<item name="android:lineSpacingExtra">0sp</item>
 		<item name="android:gravity">end</item>
-		<item name="android:textSize">80sp</item>
-		<item name="android:textColor">@android:color/white</item>
+		<item name="android:textSize">52sp</item>
+		<item name="android:textColor">@color/rfm_text_primary</item>
 	</style>
 
 	<style name="RDS_PS">
 		<item name="android:fontFamily">monospace</item>
-		<item name="android:textSize">20sp</item>
-		<item name="android:textColor">@color/text_primary</item>
+		<item name="android:textSize">18sp</item>
+		<item name="android:textColor">@color/rfm_text_primary</item>
 		<item name="android:gravity">start|center_vertical</item>
 	</style>
 
 	<style name="RDS_RT">
-		<item name="android:textSize">16sp</item>
-		<item name="android:textColor">@color/text_secondary</item>
+		<item name="android:textSize">14sp</item>
+		<item name="android:textColor">@color/rfm_text_secondary</item>
 		<item name="android:gravity">start|top</item>
 	</style>
 	<style name="RDS_PTY">
-		<item name="android:textSize">14sp</item>
-		<item name="android:textColor">@color/text_secondary</item>
+		<item name="android:textSize">12sp</item>
+		<item name="android:textColor">@color/rfm_text_secondary</item>
 		<item name="android:gravity">start|center_vertical</item>
 	</style>
 </resources>

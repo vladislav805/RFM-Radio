@@ -171,14 +171,16 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 			reorder = root.findViewById(R.id.favorite_panel_item_reorder);
 			defaultFrequencyColor = frequency.getTextColors();
 			defaultTitleColor = title.getTextColors();
-			activeFrequencyColor = ContextCompat.getColor(root.getContext(), R.color.color_accent);
+			activeFrequencyColor = ContextCompat.getColor(root.getContext(), R.color.rfm_accent);
 		}
 
 		public void populate(final FavoriteStation station, final boolean active, final boolean editMode) {
 			itemView.setSelected(active);
+			itemView.setBackgroundResource(active ? R.drawable.bg_rfm_fav_tile_active : R.drawable.bg_rfm_fav_tile);
 			itemView.setAlpha(ALPHA_FULL);
 			frequency.setText(Utils.getMHz(station.getFrequency()).trim());
-			title.setText(station.getTitle());
+			final String stationTitle = station.getTitle() != null ? station.getTitle().trim() : "";
+			title.setText(stationTitle.isEmpty() ? itemView.getContext().getString(R.string.rds_placeholder) : stationTitle);
 			frequency.setTextColor(active ? ColorStateList.valueOf(activeFrequencyColor) : defaultFrequencyColor);
 			title.setTextColor(defaultTitleColor);
 			reorder.setVisibility(editMode ? View.VISIBLE : View.GONE);

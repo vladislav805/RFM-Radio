@@ -1,181 +1,352 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		xmlns:app="http://schemas.android.com/apk/res-auto"
-		xmlns:tools="http://schemas.android.com/tools"
-		xmlns:reflect="http://schemas.android.com/apk/res-auto"
-		android:orientation="vertical"
-		android:layout_width="match_parent"
-		android:layout_height="match_parent">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_rfm_card"
+    android:orientation="vertical"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="12dp">
 
-	<com.vlad805.fmradio.view.TextViewWithReflection
-		android:id="@+id/frequency_mhz"
-		style="@style/Frequency"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginStart="16dp"
-		android:layout_marginEnd="16dp"
-		android:paddingBottom="8dp"
-		android:textAlignment="viewEnd"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent"
-		app:reflectionHeightMultiple="0.5"
-		app:reflectionPadding="8"
-		tools:text="88.0" />
+    <!-- Top Row: Large Frequency + PS & PI -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-	<TextView
-		android:id="@+id/frequency_rt"
-		style="@style/RDS_RT"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginStart="16dp"
-		android:layout_marginTop="8dp"
-		android:layout_marginEnd="16dp"
-		android:lines="2"
-		android:ellipsize="end"
-		android:textAlignment="textStart"
-		android:textIsSelectable="true"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/frequency_ps"
-		tools:text="RT" />
+        <!-- Frequency Value + MHz (Fixed width container so 99.9 vs 100.00 never shifts PS/PI) -->
+        <LinearLayout
+            android:layout_width="184dp"
+            android:layout_height="wrap_content"
+            android:gravity="bottom|start"
+            android:orientation="horizontal">
 
-	<ImageButton
-		android:id="@+id/ctl_seek_down"
-		android:layout_width="@dimen/ctl_size_seek"
-		android:layout_height="@dimen/ctl_size_seek"
-		android:layout_marginStart="16dp"
-		android:background="?android:selectableItemBackgroundBorderless"
-		android:contentDescription="@string/seek_down"
-		android:src="@drawable/ic_seek_down"
-		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="@+id/ctl_toggle" />
+            <TextView
+                android:id="@+id/frequency_mhz"
+                android:layout_width="144dp"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.03"
+                android:maxLines="1"
+                android:textColor="@color/rfm_text_primary"
+                android:textSize="42sp"
+                android:textStyle="bold"
+                tools:text="101.7" />
 
-	<ImageButton
-		android:id="@+id/ctl_go_down"
-		android:layout_width="@dimen/ctl_size_jump"
-		android:layout_height="@dimen/ctl_size_jump"
-		android:background="?android:selectableItemBackgroundBorderless"
-		android:contentDescription="@string/jump_down"
-		android:src="@drawable/ic_go_down"
-		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
-		app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
-		app:layout_constraintStart_toEndOf="@+id/ctl_seek_down"
-		app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
-		app:layout_constraintVertical_bias="0.0" />
+            <TextView
+                android:id="@+id/frequency_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_marginBottom="5dp"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:text="@string/mhz_unit"
+                android:textColor="@color/rfm_accent"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
-	<ImageButton
-		android:id="@+id/ctl_toggle"
-		android:layout_width="@dimen/ctl_size_toggle"
-		android:layout_height="@dimen/ctl_size_toggle"
-		android:layout_marginTop="24dp"
-		android:background="?android:selectableItemBackgroundBorderless"
-		android:contentDescription="@string/toggle_play_pause"
-		android:src="@drawable/ic_play"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/frequency_pty" />
+        <Space
+            android:layout_width="12dp"
+            android:layout_height="1dp" />
 
-	<ImageButton
-		android:id="@+id/ctl_go_up"
-		android:layout_width="@dimen/ctl_size_jump"
-		android:layout_height="@dimen/ctl_size_jump"
-		android:background="?android:selectableItemBackgroundBorderless"
-		android:contentDescription="@string/jump_up"
-		android:src="@drawable/ic_go_up"
-		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
-		app:layout_constraintEnd_toStartOf="@+id/ctl_seek_up"
-		app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
-		app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
-		app:layout_constraintVertical_bias="0.0" />
+        <!-- Right column: PS badge & PI chip -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end|center_vertical"
+            android:orientation="vertical">
 
-	<ImageButton
-		android:id="@+id/ctl_seek_up"
-		android:layout_width="@dimen/ctl_size_seek"
-		android:layout_height="@dimen/ctl_size_seek"
-		android:layout_marginEnd="16dp"
-		android:background="?android:selectableItemBackgroundBorderless"
-		android:contentDescription="@string/seek_up"
-		android:src="@drawable/ic_seek_up"
-		app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintTop_toTopOf="@+id/ctl_toggle" />
+            <!-- PS (Program Service) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="26dp"
+                android:background="@drawable/bg_rfm_inset"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
 
-	<com.vlad805.fmradio.view.SignalStrengthView
-		android:id="@+id/signal_strength"
-		android:layout_width="@dimen/icon_size"
-		android:layout_height="@dimen/icon_size"
-		android:layout_marginStart="16dp"
-		android:contentDescription="@string/signal_strength_indicator"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="PS"
+                    android:textColor="@color/rfm_accent"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    tools:ignore="HardcodedText" />
 
-	<TextView
-		android:id="@+id/stereo_mono"
-		android:layout_width="@dimen/audio_mode_badge_width"
-		android:layout_height="@dimen/icon_size"
-		android:layout_marginStart="2dp"
-		android:contentDescription="@string/mono_mode_active"
-		android:fontFamily="sans-serif-medium"
-		android:gravity="center"
-		android:includeFontPadding="false"
-		android:text="@string/mono_mode_label"
-		android:textAllCaps="true"
-		android:textColor="#FFFFFF"
-		android:textSize="9sp"
-		app:layout_constraintStart_toEndOf="@+id/signal_strength"
-		app:layout_constraintTop_toTopOf="@+id/signal_strength" />
+                <TextView
+                    android:id="@+id/frequency_ps"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="monospace"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:text="@string/rds_placeholder"
+                    android:textColor="@color/rfm_text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
-	<TextView
-		android:id="@+id/frequency_ps"
-		style="@style/RDS_PS"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginStart="16dp"
-		android:layout_marginTop="8dp"
-		android:maxLines="1"
-		android:textIsSelectable="true"
-		app:layout_constraintHorizontal_bias="0"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_pi"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/frequency_mhz"
-		tools:text="RETRO FM" />
+            <!-- PI (Program ID + Country) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_rfm_inset"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
 
-	<TextView
-		android:id="@+id/frequency_pty"
-		style="@style/RDS_PTY"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginStart="16dp"
-		android:layout_marginTop="8dp"
-		android:layout_marginEnd="16dp"
-		android:ellipsize="end"
-		android:maxLines="1"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/frequency_rt"
-		tools:text="Program Type" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="@string/rds_pi_prefix"
+                    android:textColor="@color/rfm_text_muted"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
 
-	<TextView
-		android:id="@+id/frequency_pi"
-		style="@style/RDS_PS"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginEnd="16dp"
-		android:layout_marginStart="8dp"
-		android:fontFamily="monospace"
-		android:minEms="4"
-		android:maxEms="7"
-		android:gravity="end"
-		android:maxLines="1"
-		android:textIsSelectable="true"
-		app:layout_constraintBottom_toBottomOf="@+id/frequency_ps"
-		app:layout_constraintHorizontal_bias="1"
-		app:layout_constraintStart_toEndOf="@+id/frequency_ps"
-		app:layout_constraintTop_toTopOf="@+id/frequency_ps"
-		app:layout_constraintEnd_toEndOf="parent"
-		tools:text="7777" />
+                <TextView
+                    android:id="@+id/frequency_pi"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="monospace"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:text="@string/rds_placeholder"
+                    android:textColor="@color/rfm_text_secondary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- Second Row: PTY / Status Banner + RT / RT+ Segmented Toggle -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="28dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- PTY / Tuner Status box (Fixed single line) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_rfm_inset"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/frequency_pty_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="@string/rds_pty_prefix"
+                android:textColor="@color/rfm_amber"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/frequency_pty"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="@color/rfm_text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="8dp"
+            android:layout_height="1dp" />
+
+        <!-- RT / RT+ Mode Switcher -->
+        <LinearLayout
+            android:id="@+id/rt_mode_toggle_container"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_rfm_inset"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="2dp">
+
+            <TextView
+                android:id="@+id/btn_mode_rt"
+                android:layout_width="38dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_rfm_pill_active"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:text="@string/rds_rt_label"
+                android:textColor="@color/rfm_accent"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_mode_rt_plus"
+                android:layout_width="42dp"
+                android:layout_height="match_parent"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:text="@string/rds_rt_plus_label"
+                android:textColor="@color/rfm_text_muted"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Third Row: RT / RT+ Display Container (Fixed height for raw RT so 1..3 lines never jump) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_rfm_inset"
+        android:paddingStart="10dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="8dp">
+
+        <!-- Mode A: Raw RadioText (Fixed 3 lines height) -->
+        <TextView
+            android:id="@+id/frequency_rt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="start|top"
+            android:lineSpacingExtra="2dp"
+            android:lines="3"
+            android:maxLines="3"
+            android:minLines="3"
+            android:text="@string/rds_rt_empty"
+            android:textColor="@color/rfm_text_primary"
+            android:textSize="13sp" />
+
+        <!-- Mode B: Structured RT+ (Artist / Title / Album) -->
+        <LinearLayout
+            android:id="@+id/rt_plus_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <!-- Artist Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="56dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="@string/rds_rt_plus_artist"
+                    android:textAllCaps="true"
+                    android:textColor="@color/rfm_accent"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/rt_plus_artist_value"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/rds_placeholder"
+                    android:textColor="@color/rfm_text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Title Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:layout_marginTop="2dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="56dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="@string/rds_rt_plus_title"
+                    android:textAllCaps="true"
+                    android:textColor="@color/rfm_emerald"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/rt_plus_title_value"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/rds_placeholder"
+                    android:textColor="@color/rfm_text_primary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Album Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:layout_marginTop="2dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="56dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="@string/rds_rt_plus_album"
+                    android:textAllCaps="true"
+                    android:textColor="@color/rfm_amber"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/rt_plus_album_value"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/rds_placeholder"
+                    android:textColor="@color/rfm_text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

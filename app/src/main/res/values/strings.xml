@@ -165,4 +165,23 @@
     <string name="record_subtitles_failed">Audio saved, but RDS subtitles could not be saved.</string>
     <string name="pref_recording_save_srt">Save RDS as subtitles</string>
     <string name="pref_recording_save_srt_summary">Save frequency, PS, RT and PI in a .srt file alongside the audio recording. Applies to new recordings.</string>
+    <string name="mhz_unit" translatable="false">MHz</string>
+    <string name="rds_placeholder" translatable="false">—</string>
+    <string name="rds_rt_empty">No RadioText broadcast</string>
+    <string name="rds_rt_label" translatable="false">RT</string>
+    <string name="rds_rt_plus_label" translatable="false">RT+</string>
+    <string name="rds_rt_plus_title">Title</string>
+    <string name="rds_rt_plus_artist">Artist</string>
+    <string name="rds_rt_plus_album">Album</string>
+    <string name="rds_pi_prefix" translatable="false">PI</string>
+    <string name="rds_pty_prefix" translatable="false">PTY</string>
+    <string name="rds_af_label" translatable="false">AF</string>
+    <string name="rds_af_count" translatable="false">AF · %d</string>
+    <string name="rds_af_dialog_title">Alternative frequencies (AF)</string>
+    <string name="rds_af_dialog_empty">No alternative frequencies broadcasted by this station.</string>
+    <string name="favorites_add_current">Add current frequency</string>
+    <string name="favorites_select_list">Select favorites list</string>
+    <string name="favorites_manage_lists">Manage favorite lists</string>
+    <string name="record_badge_idle" translatable="false">REC</string>
+    <string name="power_toggle_description">Power on/off</string>
 </resources>

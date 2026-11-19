@@ -139,10 +139,10 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   sanitizing, `_N` uniquification), `exportList`/`exportAllLists` (ZIP),
   `migrateLegacyFavorites()` from `/sdcard/RFM/favorites`.
 - `controller/RadioState.java` — Parcelable UI state (frequency, RDS
-  fields, rmssi, stereo). `clear()` resets RDS/rmssi/stereo.
+  fields including RT+ and AF array, rmssi, sinr, stereo). `clear()` resets RDS/rmssi/sinr/stereo.
 - `controller/RadioStateUpdater.java` — registers `C.Event.*` receivers
   and folds broadcasts into `RadioState`, notifying a
-  `TunerStateListener` with a change bitmask (`SET_*` flags).
+  `TunerStateListener` with a change bitmask (`SET_*` flags, including `SET_RT_PLUS` and `SET_AF`).
 - `enums/TunerDriver.java` — `V4L2_QCOM` / `HAL_HELIUM` / `NONE`.
 
 ## service/fm/ Contract
@@ -386,10 +386,10 @@ key `favorites_list_current` (default `"default"`). No SQLite.
 - `RecordingDeleteActivity` — dialog activity (noHistory,
   excludeFromRecents); deletes audio + subtitles via
   `RecordingStorage.deletePublished`, cancels the notification.
-- Views: `RadioUIView` (frequency, PS/RT/PTY/PI, statuses),
-  `FrequencyBarView` (custom seekbar with favorite markers; band/spacing
-  from `BandUtils`), `FavoritesView`/`FavoritesRecyclerView`/
-  `FavoritePanelAdapter` (drag & drop via `SimpleItemTouchHelperCallback`),
+- Views: `RadioUIView` (frequency, PS/RT/PTY/PI, RT ↔ RT+ mode switcher for structured Artist/Title/Album display, statuses),
+  `FrequencyDialView` (custom Canvas drum-style horizontal frequency dial with fling physics, haptic ticks, and favorite markers; band/spacing from `BandUtils`),
+  `FrequencyBarView` (legacy vertical seekbar), `FavoritesView`/`FavoritesRecyclerView`/
+  `FavoritePanelAdapter` (2-column preset grid with list selector, add-station button, lists manager shortcut, and drag & drop via `SimpleItemTouchHelperCallback`),
   `SignalStrength.levelForRmssi` (thresholds −105/−91/−81/−71/−61 → five
   bars), `TextViewWithReflection`.
 

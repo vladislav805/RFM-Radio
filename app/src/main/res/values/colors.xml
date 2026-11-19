@@ -1,16 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<!-- For Android -->
+	<!-- Legacy & Android references -->
 	<color name="color_accent">@color/primary_blue</color>
 	<color name="ic_launcher_background">#000000</color>
+	<color name="main_background">#F4F6F9</color>
+	<color name="primary_blue">#2563EB</color>
+	<color name="text_primary">#0F172A</color>
+	<color name="text_secondary">#475569</color>
+	<color name="favorite_station_active_stroke">#992563EB</color>
+	<color name="record_active">#EF4444</color>
 
-	<!-- App colors -->
-	<color name="main_background">#212121</color>
-	<color name="primary_blue">#2979ff</color>
-	<color name="text_primary">#ffffff</color>
-	<color name="text_secondary">#b0bec5</color>
-	<color name="favorite_station_active_stroke">#992979FF</color>
+	<!-- Redesigned Instrument Panel Day Theme -->
+	<color name="rfm_bg">#F1F5F9</color>
+	<color name="rfm_surface">#FFFFFF</color>
+	<color name="rfm_surface_elevated">#F8FAFC</color>
+	<color name="rfm_surface_inset">#E2E8F0</color>
+	<color name="rfm_stroke">#CBD5E1</color>
+	<color name="rfm_stroke_subtle">#E2E8F0</color>
 
-	<!-- Recording colors -->
-	<color name="record_active">#ff0000</color>
+	<color name="rfm_text_primary">#0F172A</color>
+	<color name="rfm_text_secondary">#475569</color>
+	<color name="rfm_text_muted">#94A3B8</color>
+
+	<color name="rfm_accent">#2563EB</color>
+	<color name="rfm_accent_soft">#DBEAFE</color>
+	<color name="rfm_accent_stroke">#93C5FD</color>
+	<color name="rfm_on_accent">#FFFFFF</color>
+
+	<color name="rfm_amber">#D97706</color>
+	<color name="rfm_amber_soft">#FEF3C7</color>
+	<color name="rfm_emerald">#059669</color>
+	<color name="rfm_emerald_soft">#D1FAE5</color>
+
+	<color name="rfm_record">#DC2626</color>
+	<color name="rfm_record_soft">#FEE2E2</color>
+	<color name="rfm_record_stroke">#FCA5A5</color>
+
+	<color name="rfm_dial_bg">#0F172A</color>
+	<color name="rfm_dial_tick_minor">#475569</color>
+	<color name="rfm_dial_tick_major">#94A3B8</color>
+	<color name="rfm_dial_label">#CBD5E1</color>
+	<color name="rfm_dial_needle">#38BDF8</color>
+	<color name="rfm_dial_fav">#F59E0B</color>
 </resources>

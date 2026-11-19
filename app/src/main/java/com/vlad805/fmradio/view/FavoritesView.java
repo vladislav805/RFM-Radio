@@ -57,6 +57,7 @@ public class FavoritesView extends ConstraintLayout {
 		mEditToggle = findViewById(R.id.favorite_edit_toggle);
 		mListSelector = findViewById(R.id.favorite_list_selector);
 		mEmptyHint = findViewById(R.id.favorite_empty_hint);
+		final ImageButton addButton = findViewById(R.id.favorite_add_button);
 
 		mFavoriteController = new FavoriteController(context);
 		mRecyclerView.setFavoriteController(mFavoriteController);
@@ -67,6 +68,9 @@ public class FavoritesView extends ConstraintLayout {
 			}
 		});
 
+		if (addButton != null) {
+			addButton.setOnClickListener(v -> mRecyclerView.promptAddCurrentStation());
+		}
 		mEditToggle.setOnClickListener(v -> toggleEditMode());
 		mListSelector.setOnClickListener(v -> showFavoriteListsDialog());
 
@@ -110,10 +114,10 @@ public class FavoritesView extends ConstraintLayout {
 		mRecyclerView.setEditMode(editMode);
 		mEditToggle.setImageResource(editMode ? R.drawable.ic_done : R.drawable.ic_preset_order_toggle);
 		mEditToggle.setContentDescription(getContext().getString(editMode ? R.string.favorites_done : R.string.favorites_edit));
-		mEditToggle.setBackgroundTintList(editMode
-				? ColorStateList.valueOf(ContextCompat.getColor(getContext(), R.color.primary_blue))
-				: null
-		);
+		mEditToggle.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(
+				getContext(),
+				editMode ? R.color.rfm_accent : R.color.rfm_text_secondary
+		)));
 	}
 
 	private void updateListSelector() {

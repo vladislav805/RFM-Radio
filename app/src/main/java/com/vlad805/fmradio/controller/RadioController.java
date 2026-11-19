@@ -38,8 +38,10 @@ public class RadioController {
             mState.setRmssi(state.getRmssi());
             mState.setSinr(state.getSinr());
             mState.setRtPlus(state.getRtPlus());
+            mState.setAf(state.getAf());
             mState.setRecording(state.isRecording());
             mState.setRecordingStarted(state.getRecordingStarted());
+            mState.setForceSpeaker(state.isForceSpeaker());
 
             if (callback != null) {
                 final int mode =
@@ -48,6 +50,7 @@ public class RadioController {
                         RadioStateUpdater.SET_RMSSI |
                         RadioStateUpdater.SET_SINR |
                         RadioStateUpdater.SET_RT_PLUS |
+                        RadioStateUpdater.SET_AF |
                         RadioStateUpdater.SET_INITIAL |
                         RadioStateUpdater.SET_RECORDING;
 
