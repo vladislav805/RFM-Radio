@@ -1721,7 +1721,14 @@ void V4l2QcomBackend::command_shutdown(bool disable_receiver) {
 fm_cmd_status_t V4l2QcomBackend::command_tune_frequency(uint32_t frequency) {
     log("tune", "request frequency_khz=%d", frequency);
 
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.on_tune_requested();
+    }
+
     if (!receiver_set_tuned_frequency(frequency)) {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.tune_failed();
         log("tune", "request frequency_khz=%d failed", frequency);
         return FM_CMD_FAILURE;
     }
@@ -1742,7 +1749,16 @@ fm_cmd_status_t V4l2QcomBackend::command_tune_frequency_by_delta(int16_t directi
     }
 
     uint32_t need_frequency_khz = current_frequency_khz + (delta * direction);
-    return receiver_set_tuned_frequency(need_frequency_khz) ? FM_CMD_SUCCESS : FM_CMD_FAILURE;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.on_tune_requested();
+    }
+    if (!receiver_set_tuned_frequency(need_frequency_khz)) {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.tune_failed();
+        return FM_CMD_FAILURE;
+    }
+    return FM_CMD_SUCCESS;
 }
 
 // Returns current frequency in kHz.
@@ -1818,19 +1834,20 @@ bool V4l2QcomBackend::command_start_scan() {
 
 // Starts single seek operation.
 bool V4l2QcomBackend::command_start_seek(int8_t direction, uint8_t dwell_period) {
-    bool started = false;
+    bool reserved = false;
     {
         std::lock_guard<std::mutex> lock(state_lock_);
-        started = legacy_scan_.start_seek();
+        reserved = legacy_scan_.begin_seek();
     }
 
-    if (!started) {
+    if (!reserved) {
         log("search", "seek rejected because another search is active");
         return false;
     }
 
     if (receiver_search_station_seek(SEEK, direction, dwell_period)) {
-        return true;
+        std::lock_guard<std::mutex> lock(state_lock_);
+        return legacy_scan_.start_seek();
     }
 
     std::lock_guard<std::mutex> lock(state_lock_);

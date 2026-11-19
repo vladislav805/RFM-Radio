@@ -547,8 +547,10 @@ normalized by sign.
 
 Seek configures search mode and dwell, then writes the IRIS seek control. The
 immediate `seekhw` response only acknowledges command acceptance. Java does not
-parse it as a frequency. The asynchronous callback updates frequency, clears
-RDS, and emits the authoritative state patch.
+parse it as a frequency. `HeliumScanState::seeking` tracks an accepted ordinary
+seek so `seek_complete_cb` updates frequency, clears RDS, emits the
+authoritative state patch, and sends a single `seek_done` only for a live
+`seekhw` request (rejecting overlapping `seekhw` / `searchhw` while active).
 
 ### Full Search
 
@@ -574,7 +576,9 @@ ordering provides neither terminal completion nor a detectable wrap, search may
 remain active indefinitely. Terminal completion sends an empty station list when
 the scan found no stations. Device testing confirmed that the HAL may emit the
 terminal seek-complete callback twice and then tune back to the lower band; only
-the first callback completes the active scan and sends `search_done`.
+the first callback completes the active scan and sends `search_done`, and the
+duplicate callback is ignored because neither `scan.active` nor `scan.seeking`
+remains set.
 
 A Qualcomm search-list callback is also registered and can independently parse
 and emit station results. If a vendor emits both scan-next and search-list
@@ -775,10 +779,13 @@ empty list when no stations were found. Device testing of
 ordinary legacy scan returned 42 stations, confirming that this path exceeds
 the former 20-station list limit.
 
-The collector has explicit seeking, scanning, and cancelling states protected
-by its own mutex. This prevents an ordinary seek callback from completing an
-active full scan. Tune, jump, region, spacing, low-power, and overlapping search
-commands are rejected while a search operation is unresolved. Cancelled scans consume
+The collector has explicit seek-starting, seeking, scanning, and cancelling
+states (plus a pending-tune flag for direct `setfreq`/`jump` requests) protected
+by `state_lock_`. This prevents an ordinary seek callback from completing an
+active full scan and prevents a delayed `TUNE_SUCC` from a preceding `setfreq`
+from consuming a newly registered seek and emitting a premature `seek_done`
+before the hardware seek finishes. Tune, jump, region, spacing, low-power, and
+overlapping search commands are rejected while a search operation is unresolved. Cancelled scans consume
 their terminal `SEEK_COMPLETE` without sending a result, and disable abandons
 the operation immediately. The old `NEW_SRCH_LIST` payload is still drained and
 logged if received, but no longer completes application full search.

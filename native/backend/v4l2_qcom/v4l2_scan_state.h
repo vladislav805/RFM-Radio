@@ -11,6 +11,9 @@ enum class V4l2ScanTerminal {
 // Manages state and station collection for sequential V4L2 hardware scans and seeks.
 class V4l2ScanState {
 public:
+    void on_tune_requested();
+    void tune_failed();
+    bool begin_seek();
     bool start_seek();
     void seek_failed();
     bool start();
@@ -26,11 +29,13 @@ public:
 private:
     enum class Status {
         kIdle,
+        kSeekStarting,
         kSeeking,
         kScanning,
         kCancelling,
     } status_ = Status::kIdle;
 
+    bool tune_pending_ = false;
     int pending_frequency_khz_ = 0;
     ScanResultCollector stations_;
 };

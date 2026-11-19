@@ -222,10 +222,13 @@ struct HeliumAudioState {
     bool slimbus_enabled = false;
 };
 
-// Sequential full-band scan tracking state.
+// Sequential full-band scan and ordinary seek tracking state.
 struct HeliumScanState {
     // True while a sequential scan is actively collecting stations.
     bool active = false;
+
+    // True while an ordinary single-station seek is in flight.
+    bool seeking = false;
 
     // True once scan_next_cb frequency wraps past the upper band edge.
     bool wrapped = false;

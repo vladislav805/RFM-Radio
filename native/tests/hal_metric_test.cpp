@@ -210,4 +210,55 @@ TEST_F(HalMetricTest, SkippedPollPreservesCapabilityAndDoesNotClearActiveMetric)
     EXPECT_EQ(rmssi_get_calls, 0);
 }
 
+TEST_F(HalMetricTest, DuplicateFullScanCallbackDoesNotEmitSeekDone) {
+    std::string output;
+    {
+        StdoutCapture capture;
+        ASSERT_TRUE(backend->search());
+        // Cannot start another scan or seek while scan is active.
+        EXPECT_FALSE(backend->search());
+        EXPECT_FALSE(backend->seek(1));
+
+        // First terminal callback completes the scan and emits search_done.
+        HalHeliumBackend::seek_complete_cb(87500);
+        // Duplicate terminal callback from HAL must not emit seek_done.
+        HalHeliumBackend::seek_complete_cb(87500);
+        output = capture.read_all();
+    }
+
+    const std::vector<std::string> lines = split_lines(output);
+    ASSERT_EQ(lines.size(), 1u) << output;
+    EXPECT_EQ(lines[0], "{\"type\":\"search_done\",\"stations\":[]}");
+}
+
+TEST_F(HalMetricTest, OrdinarySeekEmitsSingleSeekDoneAtSameFrequencyAndUnblocksScan) {
+    std::string output;
+    {
+        StdoutCapture capture;
+        HalHeliumBackend::tune_cb(101700);
+        HalHeliumBackend::fm_get_station_param_cb(12, 0);
+
+        ASSERT_TRUE(backend->seek(1));
+        // Scan cannot start while ordinary seek is in flight.
+        EXPECT_FALSE(backend->search());
+
+        // Real seek completes at the same frequency (101700 kHz).
+        HalHeliumBackend::seek_complete_cb(101700);
+        // Any duplicate seek callback is ignored.
+        HalHeliumBackend::seek_complete_cb(101700);
+
+        // Scan can start once the matching seek finishes.
+        EXPECT_TRUE(backend->search());
+        HalHeliumBackend::seek_complete_cb(87500);
+        output = capture.read_all();
+    }
+
+    const std::vector<std::string> lines = split_lines(output);
+    ASSERT_EQ(lines.size(), 4u) << output;
+    EXPECT_EQ(lines[0], "{\"type\":\"state\",\"frequency\":101700,\"rds\":{\"pty\":0,\"af\":[]}}");
+    EXPECT_EQ(lines[1], "{\"type\":\"state\",\"sinr\":12}");
+    EXPECT_EQ(lines[2], "{\"type\":\"seek_done\"}");
+    EXPECT_EQ(lines[3], "{\"type\":\"search_done\",\"stations\":[]}");
+}
+
 } // namespace

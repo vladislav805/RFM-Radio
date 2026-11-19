@@ -658,6 +658,64 @@ TEST(V4l2QcomLifecycleTest, SameFrequencySeekEmitsSeekDoneAndUnblocksSearch) {
             << output;
 }
 
+TEST(V4l2QcomLifecycleTest, DelayedSetfreqCallbackAfterSeekDoesNotEmitPrematureSeekDone) {
+    reset_ctl_server_state_for_test();
+    FakeV4l2QcomBackend backend;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(cfg));
+    backend.clear_metric_settle();
+
+    // Deliver the initial enable tune event.
+    backend.push_event(kEvtTuneSucc);
+    for (int attempt = 0; attempt < 50; ++attempt) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    // Issue setfreq 98100 without delivering its TUNE_SUCC yet, then immediately start seek.
+    ASSERT_TRUE(backend.set_frequency(98100));
+    ASSERT_TRUE(backend.seek(1));
+    EXPECT_FALSE(backend.search());
+
+    std::string early_output;
+    {
+        StdoutCapture capture;
+        // Delayed TUNE_SUCC from the previous setfreq arrives after seek was registered.
+        backend.push_event(kEvtTuneSucc);
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        early_output = capture.read_all();
+    }
+
+    const std::vector<std::string> early_lines = split_lines(early_output);
+    EXPECT_TRUE(std::find(early_lines.begin(), early_lines.end(), "{\"type\":\"seek_done\"}") == early_lines.end())
+            << early_output;
+    // Scan still cannot start because the real seek has not completed yet.
+    EXPECT_FALSE(backend.search());
+
+    std::string seek_output;
+    {
+        StdoutCapture capture;
+        // Now the real seek completes at the same frequency (98100 kHz).
+        backend.push_event(kEvtTuneSucc);
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        seek_output = capture.read_all();
+    }
+
+    const std::vector<std::string> seek_lines = split_lines(seek_output);
+    EXPECT_EQ(std::count(seek_lines.begin(), seek_lines.end(), "{\"type\":\"seek_done\"}"), 1)
+            << seek_output;
+    // Scan can start only after the matching seek finishes.
+    EXPECT_TRUE(backend.search());
+
+    backend.shutdown();
+    reset_ctl_server_state_for_test();
+}
+
 TEST(V4l2QcomLifecycleTest, HardwareDisabledEventAllowsReEnableAndStopsMetricPolling) {
     FakeV4l2QcomBackend backend;
     const StartupConfig cfg = make_default_config();

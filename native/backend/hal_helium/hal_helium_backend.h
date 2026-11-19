@@ -63,6 +63,8 @@ public:
     static void enabled_cb();
     static void disabled_cb();
     static void tune_cb(int freq);
+    static void seek_complete_cb(int freq);
+    static void scan_next_cb();
     static void fm_get_station_param_cb(int value, int status);
 
 protected:
@@ -117,8 +119,6 @@ private:
     void on_station_param(int value, int status);
     void on_enable_slimbus(int status);
 
-    static void seek_complete_cb(int freq);
-    static void scan_next_cb();
     static void search_list_cb(uint16_t *raw);
     static void stereo_status_cb(bool stereo);
     static void rds_avail_status_cb(bool rds_available);
