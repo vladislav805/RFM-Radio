@@ -59,6 +59,35 @@ public final class TunerDriverDetector {
     }
 
     /**
+     * Resolves the active backend from the provisional unprivileged guess and the
+     * native ready handshake token. A recognized token overrides the guess, an
+     * explicit "none" resolves to NONE, and an absent or unknown token preserves
+     * the provisional guess.
+     */
+    public static TunerDriver resolveNativeBackend(
+            final TunerDriver detectedDriver,
+            final String reportedBackend
+    ) {
+        final TunerDriver fallback = detectedDriver != null ? detectedDriver : TunerDriver.NONE;
+        if (reportedBackend == null) {
+            return fallback;
+        }
+        final String normalized = reportedBackend.trim().toLowerCase(Locale.US);
+
+        if (normalized.isEmpty()) {
+            return fallback;
+        }
+
+        if ("none".equals(normalized)) {
+            return TunerDriver.NONE;
+        }
+
+        final TunerDriver parsed = fromNativeBackend(normalized);
+
+        return parsed != null ? parsed : fallback;
+    }
+
+    /**
      * Classifies the active backend from optional sysfs driver name, /dev/radio0
      * presence, and fm_helium.so presence. Null v4l2DriverName represents an absent
      * or unreadable sysfs node (e.g. under SELinux in the unprivileged app process).

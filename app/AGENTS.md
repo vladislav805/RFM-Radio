@@ -13,7 +13,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
 | `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |
-| `service/audio/` | `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
+| `service/audio/` | `AudioSelection`, `AudioLifecycle`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
 | `service/fm/` | Contract: `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
@@ -39,10 +39,14 @@ Key flows:
   to `/dev/radio0` when the sysfs node is absent/SELinux-unreadable) alongside
   `/dev/radio0` (`V4L2_QCOM`), and vendor paths for `fm_helium.so` (`HAL_HELIUM`);
   both map to `new NativeTunerController(context, kind)`, unsupported devices get `null` (and fail launch).
-- `getAudioService()`: API ≥ 26 → `RoutingAudioService`, else
-  `LightAudioService`.
-- `ENABLE` starts HAL audio before enabling the tuner; `DISABLE` stops audio,
-  disables the tuner, and calls `stopSelf()`.
+- Audio selection: resolved once per session on `LAUNCHED` via
+  `AudioSelection.resolve(resolvedDriver, SDK_INT)` and coordinated by
+  `AudioLifecycle` (`HAL_HELIUM` starts audio before `ENABLE` and stops before
+  `DISABLE`; `V4L2_QCOM` starts on `ENABLED` and stops on `DISABLED`/teardown;
+  `NONE` creates no hardware audio). Pre-roll preference and current RDS
+  snapshot are applied at attachment.
+- `ENABLE`/`DISABLE` delegate audio ordering to `AudioLifecycle`; `DISABLE`
+  disables the tuner and calls `stopSelf()`.
 - `SPEAKER_STATE` toggles the speaker; for `NativeTunerController` it also calls
   `refreshAudioRoute()` (Slimbus restart).
 - `RECORD_START`/`RECORD_STOP` go through the audio service's
@@ -145,8 +149,9 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   arm64-v8a, NDK 29.0.14033849. `preBuild` runs `native/build.sh` and then
   verifies the `fmbin-*` assets exist.
 - JVM tests (`make test-java`): RadioState, SignalStrength, Request,
-  FMNotificationManager, TunerCommandFormat, PcmRecorderSession,
-  RdsSubtitleWriter, RecordingStorage.
+  FMNotificationManager, TunerCommandFormat, TunerDriverDetector,
+  AudioSelection, AudioLifecycle, PcmRecorderSession, RdsSubtitleWriter,
+  RecordingStorage.
 - Dead code: `service/streaming/` (empty), `enums/MuteState`,
   `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
   returns a null recorder — unreachable from UI),

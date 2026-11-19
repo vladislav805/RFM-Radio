@@ -50,7 +50,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `preferences/` | 2 | `BandUtils`, `Vars` |
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 2 | `FMService`, `FMNotificationManager` |
-| `service/audio/` | 3 | see Audio section |
+| `service/audio/` | 5 | `AudioSelection`, `AudioLifecycle`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
 | `service/fm/` | 4 | `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
 | `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
@@ -69,11 +69,12 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 
 - `onCreate`: creates `RadioState`, `RadioController`,
   `FavoriteController`, `FMNotificationManager` (`createChannels()` for
-  `playback_channel_v3`, `record_channel`, `recording_channel_v2`), `Storage`, the tuner driver,
-  the audio service, and two receivers: `EventReaction` (inner class,
-  reacts to `C.Event.*`) and `RadioStateUpdater` (keeps `mState`; its
-  update callback also pushes `RdsSnapshot` into
-  `IAudioRecordable.updateRds` for subtitles).
+  `playback_channel_v3`, `record_channel`, `recording_channel_v2`), `Storage`,
+  the provisional `NativeTunerController` (or `null` on `NONE`), and two receivers:
+  `EventReaction` (inner class, reacts to `C.Event.*`) and `RadioStateUpdater`
+  (keeps `mState`; its update callback also pushes `RdsSnapshot` into
+  `IAudioRecordable.updateRds` for subtitles when audio is attached). Audio is
+  not instantiated in `onCreate`.
 - `onStartCommand`: null intent/action → `stopSelf()`; returns
   `START_NOT_STICKY` (a process-death restart without a command stops the
   service instead of recreating a disconnected one — pairs with the native
@@ -82,7 +83,10 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   `DISABLE`, `SET_FREQUENCY`, `JUMP`, `HW_SEEK`, `POWER_MODE`, `HW_SEARCH`,
   `HW_SEARCH_CANCEL`, `RECORD_START`, `RECORD_STOP`, `NOTIFICATION_SEEK`,
   `KILL`, `REQUEST_CURRENT_STATE`, `SPEAKER_STATE`.
-- `ENABLE` starts HAL audio before enabling the tuner.
+- `ENABLE` calls `mAudioLifecycle.beforeEnable()` (starts audio before tuner
+  enable on `HAL_HELIUM`) and then `mTunerDriver.enable()`.
+- `DISABLE` calls `mAudioLifecycle.beforeDisable()` (stops audio before tuner
+  disable on `HAL_HELIUM`), then `mTunerDriver.disable()` and `stopSelf()`.
 - `SPEAKER_STATE` toggles the speaker and, for `NativeTunerController`, calls
   `refreshAudioRoute()`; for non-HAL it additionally uses
   `Audio.toggleThroughSpeaker()` (hidden `AudioSystem.setForceUse` via
@@ -92,19 +96,26 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   redirects to `HW_SEEK`.
 - `REQUEST_CURRENT_STATE` ("ui_started") answers with a `CURRENT_STATE`
   broadcast carrying the `RadioState` parcel.
-- Event chain: `INSTALLED` → launch; `LAUNCHED` → enable; `ENABLED` →
-  (non-HAL only) start audio and restore frequency; `LAUNCH_FAILED` /
-  `ROOT_ACCESS_DENIED` → `stopSelf()`. `FREQUENCY_SET`/`STATE_CHANGED` →
+- Event chain: `INSTALLED` → launch; `LAUNCHED` → resolve driver kind,
+  `attachAudioService()` (once per session via `AudioSelection.resolve` +
+  `AudioLifecycle`, applying current pre-roll pref and RDS snapshot), then
+  enable; `ENABLED` → `mAudioLifecycle.onEnabled()` (starts audio on V4L2,
+  no-op on already-started Helium) and update notification; `DISABLED` →
+  `mAudioLifecycle.stop()` (idempotent terminal stop); `LAUNCH_FAILED` /
+  `ROOT_ACCESS_DENIED` → `stopSelf()`. Late `LAUNCHED`/`ENABLED` after
+  teardown are ignored. `FREQUENCY_SET`/`STATE_CHANGED` →
   persist `frequency_last`, update notification; `UPDATE_PS`/`UPDATE_RT` →
   notification; `FAVORITE_LIST_CHANGED` → reload favorites; `RECORD_*` →
   recording state, notifications, "subtitles failed" warning path.
-- `getTunerDriver()` (~L427): `TunerDriverDetector` — `/sys/class/video4linux/radio0/name`
-  allowlist (`iris`/`tavarua`, falling back only if sysfs is absent or
-  unreadable) + `/dev/radio0` → `V4L2_QCOM`; `fm_helium.so` in eight vendor paths
-  → `HAL_HELIUM`; otherwise `NONE`.
-  `V4L2_QCOM`/`HAL_HELIUM` → `new NativeTunerController(this, kind)`; `NONE` → `null` (unsupported devices emit `LAUNCH_FAILED` if started).
-- `getAudioService()` (~L413): API ≥ 26 → `RoutingAudioService`, else
-  `LightAudioService`.
+- Backend resolution: `TunerDriverDetector.getTunerDriver()` gates launching
+  `fmbin` (`/sys/class/video4linux/radio0/name` allowlist `iris`/`tavarua` or
+  `/dev/radio0` fallback → `V4L2_QCOM`; `fm_helium.so` → `HAL_HELIUM`; else
+  `NONE`). On ready handshake, `TunerDriverDetector.resolveNativeBackend()`
+  overrides the guess when a recognized backend is reported; explicit `"none"`
+  fails launch without creating hardware audio.
+- Audio selection (`AudioSelection` + `AudioLifecycle`): API ≥ 26 →
+  `QUALCOMM_ROUTED` (`RoutingAudioService`), API 23–25 → `PCM_LOOPBACK`
+  (`LightAudioService`), `NONE` → no hardware audio.
 - `getPreferredRecorder()` (~L447): `recording_mode` → WAV
   (`RecordRawService`) / MP3 192 or 128 (`RecordLameService`); sample rate
   from `NativeTunerController.getRecorderSampleRate()` (48000 HAL / 44100
@@ -409,7 +420,10 @@ env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 `SignalStrengthTest` (RMSSI thresholds → bars), `RequestTest` (dispatch),
 `FMNotificationManagerTest` (playback title/body precedence, compact actions,
 recording tags/ids), `TunerCommandFormatTest` (atomic enable command,
-region/spacing mapping), `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
+region/spacing mapping), `TunerDriverDetectorTest` (allowlist + handshake
+backend resolution), `AudioSelectionTest` (API/backend matrix),
+`AudioLifecycleTest` (start/stop ordering, idempotent teardown),
+`PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
 zero-duration), `RecordingStorageTest` (subtitle naming, path containment).
 No instrumented tests.

@@ -333,9 +333,21 @@ public final class NativeTunerController {
 
             // Prefer the root helper's reported backend when available: SELinux may hide
             // /sys/class/video4linux/radio0/name from the unprivileged app process.
-            final TunerDriver detectedDriver = TunerDriverDetector.fromNativeBackend(mNativeBackend);
-            if (detectedDriver != null) {
-                mDriverKind = detectedDriver;
+            final TunerDriver resolvedDriver = TunerDriverDetector.resolveNativeBackend(mDriverKind, mNativeBackend);
+            if (
+                    mNativeBackend != null &&
+                    !mNativeBackend.trim().isEmpty() &&
+                    !"none".equalsIgnoreCase(mNativeBackend.trim()) &&
+                    TunerDriverDetector.fromNativeBackend(mNativeBackend) == null
+            ) {
+                Log.w(TAG, "Unknown native backend token '" + mNativeBackend + "', keeping " + mDriverKind);
+            }
+
+            mDriverKind = resolvedDriver;
+
+            if (mDriverKind == TunerDriver.NONE) {
+                failLaunch(callback, "Native tuner reported unsupported backend 'none'", null);
+                return;
             }
 
             // Legacy initialization can spend six seconds waiting for fm_dl,

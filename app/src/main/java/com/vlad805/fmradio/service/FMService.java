@@ -5,7 +5,6 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
@@ -21,6 +20,8 @@ import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
+import com.vlad805.fmradio.service.audio.AudioLifecycle;
+import com.vlad805.fmradio.service.audio.AudioSelection;
 import com.vlad805.fmradio.service.audio.AudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.RoutingAudioService;
@@ -54,12 +55,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private NativeTunerController mTunerDriver;
     private TunerDriver mTunerDriverKind;
     private AudioService mAudioService;
+    private AudioLifecycle mAudioLifecycle;
 
     private BroadcastReceiver mEventReaction;
     private BroadcastReceiver mTunerStateUpdater;
 
     private AppPreferences mStorage;
     private boolean mRecordingNow = false;
+    private boolean mDestroyed = false;
 
     private RadioState mState;
 
@@ -85,21 +88,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mTunerDriver = mTunerDriverKind != TunerDriver.NONE
                 ? new NativeTunerController(this, mTunerDriverKind)
                 : null;
-        mAudioService = getAudioService();
 
         // Broadcast receivers
         mEventReaction = new EventReaction();
         mTunerStateUpdater = new RadioStateUpdater(mState, (state, mode) -> {
             if (mAudioService instanceof IAudioRecordable) {
-                ((IAudioRecordable) mAudioService).updateRds(
-                        new RdsSnapshot(
-                                state.getFrequency(),
-                                state.getPs(),
-                                state.getRt(),
-                                state.getPi(),
-                                state.getRtPlus()
-                        )
-                );
+                ((IAudioRecordable) mAudioService).updateRds(createRdsSnapshot(state));
             }
         });
 
@@ -165,8 +159,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner start and unmute command.
             // When completed, will fire event ENABLED.
             case C.Command.ENABLE: {
-                if (isHalDriver()) {
-                    mAudioService.startAudio();
+                if (mAudioLifecycle != null) {
+                    mAudioLifecycle.beforeEnable();
                 }
                 mTunerDriver.enable();
                 break;
@@ -175,8 +169,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             // Tuner stop and mute command.
             // When complete, will fire event DISABLED.
             case C.Command.DISABLE: {
-                if (isHalDriver()) {
-                    mAudioService.stopAudio();
+                if (mAudioLifecycle != null) {
+                    mAudioLifecycle.beforeDisable();
                 }
                 mTunerDriver.disable();
                 stopSelf();
@@ -276,6 +270,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
 
             case C.Command.SPEAKER_STATE: {
+                if (mAudioService == null) {
+                    break;
+                }
                 final boolean isSpeaker = isHalDriver()
                         ? mState.isForceSpeaker()
                         : Audio.isForceSpeakerNow();
@@ -301,7 +298,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      *   - stop the background operation of the service
      */
     private void kill() {
-        mAudioService.stopAudio();
+        mDestroyed = true;
+        if (mAudioLifecycle != null) {
+            mAudioLifecycle.stop();
+        } else if (mAudioService != null) {
+            mAudioService.stopAudio();
+        }
 
         if (mTunerDriver != null) {
             mTunerDriver.kill();
@@ -334,17 +336,62 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Returns audio service
-     * @return FMAudioService instance
+     * Selects and attaches the audio service once after native launch resolves the backend.
      */
-    private AudioService getAudioService() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Android 8+
-            return new RoutingAudioService(this);
+    private void attachAudioService(final TunerDriver resolvedDriver) {
+        if (mAudioService != null || mAudioLifecycle != null) {
+            return;
         }
 
-        // Android 7-
-        return new LightAudioService(this);
+        final AudioSelection selection = AudioSelection.resolve(resolvedDriver);
+        final AudioService audioService;
+
+        switch (selection.path()) {
+            case QUALCOMM_ROUTED: {
+                audioService = new RoutingAudioService(this);
+                break;
+            }
+
+            case PCM_LOOPBACK: {
+                audioService = new LightAudioService(this);
+                break;
+            }
+
+            case NONE:
+            default: {
+                audioService = null;
+                break;
+            }
+        }
+
+        mAudioService = audioService;
+
+        if (audioService != null) {
+            final boolean preRollEnabled = Storage.getPrefBoolean(
+                    this,
+                    C.PrefKey.RECORDING_SAVE_PAST,
+                    C.PrefDefaultValue.RECORDING_SAVE_PAST
+            );
+            audioService.setPreRollEnabled(preRollEnabled);
+
+            if (audioService instanceof IAudioRecordable) {
+                ((IAudioRecordable) audioService).updateRds(createRdsSnapshot(mState));
+            }
+
+            mAudioLifecycle = new AudioLifecycle(selection, audioService::startAudio, audioService::stopAudio);
+        } else {
+            mAudioLifecycle = new AudioLifecycle(selection, () -> {}, () -> {});
+        }
+    }
+
+    private static RdsSnapshot createRdsSnapshot(final RadioState state) {
+        return new RdsSnapshot(
+                state.getFrequency(),
+                state.getPs(),
+                state.getRt(),
+                state.getPi(),
+                state.getRtPlus()
+        );
     }
 
     /**
@@ -435,7 +482,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         int i = 0;
         for (final TrayItem item : changed) {
             keys[i++] = item.key();
-            if (C.PrefKey.RECORDING_SAVE_PAST.equals(item.key())) {
+            if (mAudioService != null && C.PrefKey.RECORDING_SAVE_PAST.equals(item.key())) {
                 final boolean enabled = Storage.getPrefBoolean(
                         this,
                         C.PrefKey.RECORDING_SAVE_PAST,
@@ -469,9 +516,13 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.LAUNCHED: {
+                    if (mDestroyed) {
+                        break;
+                    }
                     if (mTunerDriver != null) {
                         mTunerDriverKind = mTunerDriver.getDriverKind();
                     }
+                    attachAudioService(mTunerDriverKind);
                     mRadioController.enable();
                     break;
                 }
@@ -483,15 +534,22 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.ENABLED: {
-                    if (!isHalDriver()) {
-                        mAudioService.startAudio();
+                    if (mDestroyed) {
+                        break;
+                    }
+                    if (mAudioLifecycle != null) {
+                        mAudioLifecycle.onEnabled();
                     }
                     updateNotification();
                     break;
                 }
 
                 case C.Event.DISABLED: {
-                    mAudioService.stopAudio();
+                    if (mAudioLifecycle != null) {
+                        mAudioLifecycle.stop();
+                    } else if (mAudioService != null) {
+                        mAudioService.stopAudio();
+                    }
                     break;
                 }
 

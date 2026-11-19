@@ -114,4 +114,36 @@ public class TunerDriverDetectorTest {
         assertNull(TunerDriverDetector.fromNativeBackend(""));
         assertNull(TunerDriverDetector.fromNativeBackend("unknown"));
     }
+
+    @Test
+    public void resolvesNativeBackendFromProvisionalGuess() {
+        assertEquals(
+                TunerDriver.HAL_HELIUM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "hal_helium")
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.HAL_HELIUM, "v4l2_qcom")
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, null)
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "")
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "unknown_backend")
+        );
+        assertEquals(
+                TunerDriver.NONE,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "none")
+        );
+        assertEquals(
+                TunerDriver.NONE,
+                TunerDriverDetector.resolveNativeBackend(null, null)
+        );
+    }
 }
