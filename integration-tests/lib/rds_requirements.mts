@@ -13,7 +13,7 @@ export const DEFAULT_RDS_REQUIREMENTS: readonly RdsRequirementKey[] = ["ps", "rt
 
 const ALL_RDS_REQUIREMENTS: readonly RdsRequirementKey[] = ["ps", "rt", "rt_plus", "af"];
 
-export function parseRdsRequirements(raw = process.env.RFM_RDS_REQUIRE): Set<RdsRequirementKey> {
+export function parseRdsRequirements(raw?: string): Set<RdsRequirementKey> {
     if (raw === undefined) {
         return new Set(DEFAULT_RDS_REQUIREMENTS);
     }
@@ -49,6 +49,12 @@ export function parseRdsRequirements(raw = process.env.RFM_RDS_REQUIRE): Set<Rds
     }
 
     return result;
+}
+
+export function resolveRdsRequirementsFromEnv(
+    env: NodeJS.ProcessEnv = process.env,
+): Set<RdsRequirementKey> {
+    return parseRdsRequirements(env.RFM_RDS_REQUIRE);
 }
 
 export function isRequirementSatisfied(
