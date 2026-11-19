@@ -51,7 +51,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 1 | `FMService` (~940 lines) |
 | `service/audio/` | 3 | see Audio section |
-| `service/fm/` | 8 | contract + `RadioStatePatch`, `RecordError` |
+| `service/fm/` | 7 | contract + `RadioStatePatch`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
 | `service/fm/implementation/` | 3 | see Controller section |
 | `service/recording/` | 11 | see Recording section |
@@ -82,9 +82,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   `DISABLE`, `SET_FREQUENCY`, `JUMP`, `HW_SEEK`, `POWER_MODE`, `HW_SEARCH`,
   `HW_SEARCH_CANCEL`, `RECORD_START`, `RECORD_STOP`, `NOTIFICATION_SEEK`,
   `KILL`, `REQUEST_CURRENT_STATE`, `SPEAKER_STATE`.
-- `ENABLE` starts HAL audio before enabling the tuner; for poll-capable
-  drivers it would start a `Timer("Poll")` (3000 ms delay, 1000 ms period)
-  — dead for current drivers (see Dead Code).
+- `ENABLE` starts HAL audio before enabling the tuner.
 - `SPEAKER_STATE` toggles the speaker and, for `QualcommNative`, calls
   `refreshAudioRoute()`; for non-HAL it additionally uses
   `Audio.toggleThroughSpeaker()` (hidden `AudioSystem.setForceUse` via
@@ -112,7 +110,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   from `QualcommNative.getRecorderSampleRate()` (48000 HAL / 44100
   legacy), otherwise 44100. `AAC_128` is unhandled → null (unreachable
   from the UI).
-- `onDestroy` → `kill()`: cancel poll timer, `stopAudio`, `tuner kill`,
+- `onDestroy` → `kill()`: `stopAudio`, `tuner kill`,
   unregister both receivers and the Tray listener, `stopForeground(true)`.
 - Notifications: playback id 1027 (MediaStyle, seek/stop/seek actions),
   recording progress id 1029, recorded-item (with delete intent into
@@ -140,8 +138,6 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 
 - `IFMController` — full driver contract (see `app/AGENTS.md`).
 - `IFMEventListener` — `setEventListener(FMEventCallback)`.
-- `IFMEventPoller` — `poll(Callback<Bundle>)`; no current driver
-  implements it (legacy of the old polled controller).
 - `FMEventCallback` — `onEvent(String)`, `onStatePatch(RadioStatePatch)`,
   `onSearchDone(int[])`; implemented by `FMService`.
 - `Request.java` — command object: `command` + `timeout` (default 1000 ms),
@@ -436,24 +432,22 @@ No instrumented tests.
 3. `view/IntEditTextPreference` — unreferenced (settings are programmatic).
 4. `C.RecordFormat.AAC_128` (=3) — `getPreferredRecorder()` returns null
    for it; unreachable from the UI but an NPE trap if set manually.
-5. Poll machinery (`PollTunerHandler`, `IFMEventPoller`, `C.Config
-   .Polling`) — dead for current drivers.
-6. `C.Event.HW_SEEK_COMPLETE` — emitted only by `Empty`; the real driver
+5. `C.Event.HW_SEEK_COMPLETE` — emitted only by `Empty`; the real driver
    completes seeks via state patches.
-7. `C.Event.UPDATE_AF` — declared, never sent (AF arrives in state patches).
-8. `FavoriteStation` JSON default 108100 kHz.
-9. `AudioService.mAudioSource = 1998` — an unofficial FM source constant;
+6. `C.Event.UPDATE_AF` — declared, never sent (AF arrives in state patches).
+7. `FavoriteStation` JSON default 108100 kHz.
+8. `AudioService.mAudioSource = 1998` — an unofficial FM source constant;
    device-dependent.
-10. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
-    and `AudioManager.setParameters("fm_…")` — vendor-dependent by design.
-11. `RecordService.record()` swallows `IOException` → silent IDLE.
-12. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
+9. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
+   and `AudioManager.setParameters("fm_…")` — vendor-dependent by design.
+10. `RecordService.record()` swallows `IOException` → silent IDLE.
+11. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
     audio thread.
-13. Debug builds always reinstall `fmbin` (`isObsolete()` includes
+12. Debug builds always reinstall `fmbin` (`isObsolete()` includes
     `BuildConfig.DEBUG`) — frequent binary copies are expected during
     debugging.
-14. `Utils.runAsRoot` has a 15-second shell timeout.
-15. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
+13. `Utils.runAsRoot` has a 15-second shell timeout.
+14. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
     unused (see `QualcommNative`).
-16. Base `AbstractQualcommNativeController.enableImpl` is dead code that
+15. Base `AbstractQualcommNativeController.enableImpl` is dead code that
     would always fail the strict native parser.

@@ -168,10 +168,5 @@ final public class C {
 	public static final class Config {
 		/** Number of seconds retained for recording pre-roll. */
 		public static final int RECORDING_PRE_ROLL_SECONDS = 5;
-
-		public static final class Polling {
-			public static final int DELAY = 3000;
-			public static final int INTERVAL = 1000;
-		}
 	}
 }

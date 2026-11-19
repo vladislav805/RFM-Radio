@@ -36,7 +36,6 @@ import com.vlad805.fmradio.service.audio.RoutingAudioService;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.IFMController;
 import com.vlad805.fmradio.service.fm.IFMEventListener;
-import com.vlad805.fmradio.service.fm.IFMEventPoller;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.implementation.Empty;
 import com.vlad805.fmradio.service.fm.implementation.QualcommNative;
@@ -80,7 +79,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private BroadcastReceiver mTunerStateUpdater;
 
     private AppPreferences mStorage;
-    private Timer mTimer;
     private boolean mNeedRecreateNotification = true;
     private boolean mRecordingNow = false;
 
@@ -213,10 +211,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                     mAudioService.startAudio();
                 }
                 mTunerDriver.enable();
-                if (mTunerDriver instanceof IFMEventPoller) {
-                    mTimer = new Timer("Poll", true);
-                    mTimer.schedule(new PollTunerHandler(), C.Config.Polling.DELAY, C.Config.Polling.INTERVAL);
-                }
                 break;
             }
 
@@ -365,18 +359,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     /**
      * Stop FM
      * Kill the tuner:
-     *   - stop the periodic polling, if it was started;
      *   - the audio recording service;
      *   - the radio controller;
      *   - unregister the event receivers;
      *   - stop the background operation of the service
      */
     private void kill() {
-        if (mTunerDriver instanceof IFMEventPoller) {
-            if (mTimer != null) {
-                mTimer.cancel();
-            }
-        }
         mAudioService.stopAudio();
 
         mTunerDriver.kill();
@@ -890,46 +878,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    /**
-     * Polling current frequency, ps and rt
-     */
-    private class PollTunerHandler extends TimerTask {
-        private Bundle last;
-
-        public void run() {
-            if (mTunerDriver instanceof IFMEventPoller) {
-                ((IFMEventPoller) mTunerDriver).poll(this::get);
-            }
-        }
-
-        private void get(final Bundle bundle) {
-            if (last == null) {
-                last = bundle;
-                return;
-            }
-
-            sendIntEventIfExistsAndDiff(bundle, C.Key.FREQUENCY, C.Event.FREQUENCY_SET);
-            sendIntEventIfExistsAndDiff(bundle, C.Key.PTY, C.Event.UPDATE_PTY);
-            sendStringEventIfExistsAndDiff(bundle, C.Key.PI, C.Event.UPDATE_PI);
-            sendStringEventIfExistsAndDiff(bundle, C.Key.PS, C.Event.UPDATE_PS);
-            sendStringEventIfExistsAndDiff(bundle, C.Key.RT, C.Event.UPDATE_RT); // was skipped, why?
-
-            last = bundle;
-        }
-
-        private void sendIntEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
-            if (last.containsKey(key) && now.containsKey(key) && last.getInt(key) != now.getInt(key)) {
-                Utils.sendAppBroadcast(FMService.this, new Intent(action).putExtra(key, now.getInt(key)));
-            }
-        }
-
-        private void sendStringEventIfExistsAndDiff(final Bundle now, final String key, final String action) {
-            if (last.containsKey(key) && now.containsKey(key) && !Objects.equals(last.getString(key), now.get(key))) {
-                Utils.sendAppBroadcast(FMService.this, new Intent(action).putExtra(key, now.getString(key)));
-            }
-        }
     }
 
     private void reloadFavorite() {

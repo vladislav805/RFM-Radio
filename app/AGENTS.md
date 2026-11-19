@@ -14,7 +14,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
 | `service/` | `FMService` — the orchestrator |
 | `service/audio/` | `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
-| `service/fm/` | Contract: `IFMController`, `IFMEventListener`, `IFMEventPoller`, `FMEventCallback`, `RadioStatePatch`, `Request`, `Empty`, `RecordError` |
+| `service/fm/` | Contract: `IFMController`, `IFMEventListener`, `FMEventCallback`, `RadioStatePatch`, `Request`, `Empty`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
 | `service/fm/implementation/` | `AbstractQualcommNativeController`, `QualcommNative` |
 | `service/recording/` | 11 files: WAV/MP3 recording, SRT subtitles, storage |
@@ -52,7 +52,7 @@ Key flows:
   `LAUNCH_FAILED` stop the service.
 - Unexpected native exit → `QualcommNative.onNativeProcessExit` →
   `context.stopService(FMService)`.
-- `onDestroy()` → `kill()`: stop poll timer, audio, tuner; unregister
+- `onDestroy()` → `kill()`: stop audio and tuner; unregister
   receivers and the Tray preference listener.
 
 ## Controller Hierarchy
@@ -152,8 +152,7 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
 - Dead code: `service/streaming/` (empty), `enums/MuteState`,
   `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
-  returns a null recorder — unreachable from UI), the poll timer
-  (`PollTunerHandler`/`IFMEventPoller` — no current driver implements it),
+  returns a null recorder — unreachable from UI),
   `C.Event.UPDATE_AF` (never sent).
 - `RecordService.record()` on IOException silently goes IDLE, leaving the
   file unfinished. `FavoriteStation`'s JSON constructor defaults the
