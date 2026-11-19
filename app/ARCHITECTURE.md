@@ -50,7 +50,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `preferences/` | 2 | `BandUtils`, `Vars` |
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 2 | `FMService`, `FMNotificationManager` |
-| `service/audio/` | 5 | `AudioSelection`, `AudioLifecycle`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
+| `service/audio/` | 8 | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
 | `service/fm/` | 4 | `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
 | `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
@@ -87,10 +87,11 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   enable on `HAL_HELIUM`) and then `mTunerDriver.enable()`.
 - `DISABLE` calls `mAudioLifecycle.beforeDisable()` (stops audio before tuner
   disable on `HAL_HELIUM`), then `mTunerDriver.disable()` and `stopSelf()`.
-- `SPEAKER_STATE` toggles the speaker and, for `NativeTunerController`, calls
-  `refreshAudioRoute()`; for non-HAL it additionally uses
-  `Audio.toggleThroughSpeaker()` (hidden `AudioSystem.setForceUse` via
-  reflection).
+- `SPEAKER_STATE` toggles `AudioOutput` (`HEADPHONES`/`SPEAKER`) via
+  `mAudioService.getOutput()` / `mAudioService.setOutput(nextOutput)` and
+  broadcasts `CHANGE_SPEAKER_MODE`. Route-specific state lookup and side
+  effects (`FOR_MEDIA` on V4L2, Helium-only Slimbus refresh) stay in the
+  selected audio path/policy.
 - `NOTIFICATION_SEEK` uses `navigateThroughFavorite(direction)` with
   wrap-around when `notification_seek_by_favorites` is enabled, otherwise
   redirects to `HW_SEEK`.
@@ -234,30 +235,39 @@ anything else → warning.
 
 ## service/audio/
 
+- `AudioOutput.java` — output device enum (`HEADPHONES`, `SPEAKER`).
 - `AudioService.java` (abstract) — `AudioManager`, `mSampleRate` 44100,
   `mBufferSize` 16384, `mAudioSource` 1998 (the unofficial FM source);
   `getAudioRecorder()` (stereo PCM16, `STATE_INITIALIZED` check);
   `requestForFocus(boolean)` — the only AudioFocus point
-  (`AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`, `STREAM_MUSIC`); no-op
-  `setPreRollEnabled` / `setSpeakerEnabled` hooks.
-- `RoutingAudioService.java` (~625 lines, API ≥ 26) — for HAL/FM2 devices
-  where the audio HAL carries FM audio: no record→track bridge. Routing via
-  `AudioManager.setParameters`: `fm_mute=0`, `fm_routing=<DEVICE_OUT_FM |
-  DEVICE_OUT_SPEAKER | DEVICE_OUT_WIRED_HEADSET>` (hidden `AudioSystem`
-  constants via reflection with fallback), `handle_fm`, `fm_volume`
-  (recomputed from `getStreamVolumeDb` on API ≥ 28, linear index below);
-  framework route via `setCommunicationDevice`/`clearCommunicationDevice`
-  (API ≥ 31) and `setSpeakerphoneOn`; hidden `VOLUME_CHANGED_ACTION`
-  listener keeps `fm_volume` in sync. Recording: separate `AudioRecord`
-  (48000 Hz stereo PCM16) with `setPreferredDevice(TYPE_FM_TUNER)` found by
-  `findFmTunerInputDevice`; `Fm2RecordPcm` thread feeds
+  (`AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`, `STREAM_MUSIC`); `getOutput()` /
+  `setOutput(AudioOutput)` and `setPreRollEnabled` hooks.
+- `RoutedAudioPolicy.java` — output-routing contract for `RoutingAudioService`:
+  `applyRoute(enabled, output, updateVolume)`,
+  `onMusicVolumeChanged(output)`, `getOutput(requestedOutput)`,
+  `afterOutputChanged(output)`.
+- `QualcommRoutedAudio.java` — Qualcomm `RoutedAudioPolicy` implementation:
+  `AudioManager.setParameters` (`fm_status` reset check, `fm_volume`,
+  `fm_mute=0`, `fm_routing=<DEVICE_OUT_FM | DEVICE_OUT_SPEAKER |
+  DEVICE_OUT_WIRED_HEADSET>`, `handle_fm`), hidden `AudioSystem` device masks
+  via reflection with fallback, `fm_volume` gain computation
+  (`getStreamVolumeDb` on API ≥ 28, linear index below), framework route
+  (`setCommunicationDevice`/`clearCommunicationDevice` on API ≥ 31 and
+  `setSpeakerphoneOn`), V4L2 `FOR_MEDIA` force-use, and Helium-only Slimbus
+  refresh callback.
+- `RoutingAudioService.java` (API ≥ 26) — owns audio focus, hidden
+  `VOLUME_CHANGED_ACTION` listener, and FM capture (`AudioRecord` 48000 Hz
+  stereo PCM16 with `setPreferredDevice(TYPE_FM_TUNER)` found by
+  `findFmTunerInputDevice`); `Fm2RecordPcm` thread feeds
   `PcmRecorderSession`; pre-roll keeps capture alive during playback
   (`RECORDING_SAVE_PAST`), deferred while a recording is active; progress
   `Handler` (1000 ms) → `RECORD_TIME_UPDATE` broadcast; permission checks
-  (`RECORD_AUDIO` + storage when `RecordingStorage` requires it).
+  (`RECORD_AUDIO` + storage when `RecordingStorage` requires it). Delegates
+  output routing and speaker side effects to its `RoutedAudioPolicy`.
 - `LightAudioService.java` (API < 26, legacy) — `AudioRecord` (source
   1998, 44100) → `AudioTrack` (`STREAM_MUSIC`) loop on a thread; the same
-  `PcmRecorderSession.append()` sits on the capture path; same pre-roll.
+  `PcmRecorderSession.append()` sits on the capture path; same pre-roll;
+  retains `FOR_MEDIA` speaker toggle (and Helium Slimbus callback if used).
   Note: writes into `PcmRecorderSession` happen synchronously on the audio
   thread (unlike HAL's queued writer).
 
@@ -423,6 +433,8 @@ recording tags/ids), `TunerCommandFormatTest` (atomic enable command,
 region/spacing mapping), `TunerDriverDetectorTest` (allowlist + handshake
 backend resolution), `AudioSelectionTest` (API/backend matrix),
 `AudioLifecycleTest` (start/stop ordering, idempotent teardown),
+`QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
+`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
 zero-duration), `RecordingStorageTest` (subtitle naming, path containment).

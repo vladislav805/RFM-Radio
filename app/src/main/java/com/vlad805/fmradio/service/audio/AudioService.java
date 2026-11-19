@@ -20,7 +20,9 @@ public abstract class AudioService {
 	protected int mAudioSource = 1998;
 
 	public AudioService(Context context) {
-		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+		mAudioManager = context != null
+				? (AudioManager) context.getSystemService(Context.AUDIO_SERVICE)
+				: null;
 	}
 
 	/**
@@ -43,10 +45,17 @@ public abstract class AudioService {
 	}
 
 	/**
-	 * Update FM output route when user toggles speaker mode.
+	 * @return Current FM audio output route.
 	 */
-	public void setSpeakerEnabled(final boolean enabled) {
-		// Default implementation is for AudioRecord-based services and does nothing.
+	public AudioOutput getOutput() {
+		return AudioOutput.HEADPHONES;
+	}
+
+	/**
+	 * Update FM output route when user switches output device.
+	 */
+	public void setOutput(final AudioOutput output) {
+		// Default implementation does nothing.
 	}
 
 	/**

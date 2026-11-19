@@ -13,7 +13,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
 | `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |
-| `service/audio/` | `AudioSelection`, `AudioLifecycle`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
+| `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
 | `service/fm/` | Contract: `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
@@ -47,8 +47,10 @@ Key flows:
   snapshot are applied at attachment.
 - `ENABLE`/`DISABLE` delegate audio ordering to `AudioLifecycle`; `DISABLE`
   disables the tuner and calls `stopSelf()`.
-- `SPEAKER_STATE` toggles the speaker; for `NativeTunerController` it also calls
-  `refreshAudioRoute()` (Slimbus restart).
+- `SPEAKER_STATE` toggles `AudioOutput` (`HEADPHONES`/`SPEAKER`) through
+  `AudioService` (`getOutput()` / `setOutput()`); route-specific side effects
+  (`FOR_MEDIA` on V4L2, `refreshAudioRoute()` Slimbus restart on Helium) live
+  in the selected audio path/policy.
 - `RECORD_START`/`RECORD_STOP` go through the audio service's
   `IAudioRecordable`.
 - `NOTIFICATION_SEEK` seeks via the favorites list or hardware seek.
@@ -89,13 +91,14 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
 
 ## Audio
 
-- `RoutingAudioService` (API ≥ 26, HAL devices): audio is routed by the audio
-  HAL; device switching via `AudioManager.setParameters`
-  (`fm_mute`, `fm_routing`, `fm_volume`) plus hidden `AudioSystem` constants
-  through reflection. Recording opens a separate `AudioRecord` (48 kHz
-  stereo) with `setPreferredDevice(TYPE_FM_TUNER)`.
+- `RoutingAudioService` (API ≥ 26): owns audio focus, volume broadcast
+  listener, and FM PCM capture (`AudioRecord` at 48 kHz stereo with
+  `setPreferredDevice(TYPE_FM_TUNER)`). Delegates vendor output routing to
+  `RoutedAudioPolicy` (`QualcommRoutedAudio`: `fm_status`, `fm_mute`,
+  `fm_routing`, `handle_fm`, `fm_volume`, hidden `AudioSystem` masks,
+  V4L2 `FOR_MEDIA`, Helium-only Slimbus refresh).
 - `LightAudioService` (API < 26, legacy): `AudioRecord` (source 1998) →
-  `AudioTrack` bridge loop at 44.1 kHz.
+  `AudioTrack` bridge loop at 44.1 kHz, retaining `FOR_MEDIA` speaker routing.
 - Both implement `IAudioRecordable` (start/stop record, `updateRds`) and feed
   the 5-second pre-roll ring buffer in `PcmRecorderSession`.
 - `AudioService.requestForFocus` is the only AudioFocus point
@@ -150,8 +153,8 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   verifies the `fmbin-*` assets exist.
 - JVM tests (`make test-java`): RadioState, SignalStrength, Request,
   FMNotificationManager, TunerCommandFormat, TunerDriverDetector,
-  AudioSelection, AudioLifecycle, PcmRecorderSession, RdsSubtitleWriter,
-  RecordingStorage.
+  AudioSelection, AudioLifecycle, QualcommRoutedAudio, PcmRecorderSession,
+  RdsSubtitleWriter, RecordingStorage.
 - Dead code: `service/streaming/` (empty), `enums/MuteState`,
   `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
   returns a null recorder — unreachable from UI),

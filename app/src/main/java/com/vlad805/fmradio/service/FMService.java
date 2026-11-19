@@ -5,6 +5,7 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
@@ -17,13 +18,14 @@ import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.RadioStateUpdater;
 import com.vlad805.fmradio.enums.TunerDriver;
-import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.service.audio.AudioLifecycle;
+import com.vlad805.fmradio.service.audio.AudioOutput;
 import com.vlad805.fmradio.service.audio.AudioSelection;
 import com.vlad805.fmradio.service.audio.AudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
+import com.vlad805.fmradio.service.audio.QualcommRoutedAudio;
 import com.vlad805.fmradio.service.audio.RoutingAudioService;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
@@ -273,15 +275,15 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 if (mAudioService == null) {
                     break;
                 }
-                final boolean isSpeaker = isHalDriver()
-                        ? mState.isForceSpeaker()
-                        : Audio.isForceSpeakerNow();
-                mAudioService.setSpeakerEnabled(!isSpeaker);
-                Utils.sendAppBroadcast(this, new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
-                mTunerDriver.refreshAudioRoute();
-                if (!isHalDriver()) {
-                    Audio.toggleThroughSpeaker(!isSpeaker);
-                }
+                final AudioOutput nextOutput = mAudioService.getOutput() == AudioOutput.SPEAKER
+                        ? AudioOutput.HEADPHONES
+                        : AudioOutput.SPEAKER;
+                mAudioService.setOutput(nextOutput);
+                Utils.sendAppBroadcast(
+                        this,
+                        new Intent(C.Event.CHANGE_SPEAKER_MODE)
+                                .putExtra(C.Key.IS_SPEAKER, nextOutput == AudioOutput.SPEAKER)
+                );
                 break;
             }
         }
@@ -344,16 +346,26 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         }
 
         final AudioSelection selection = AudioSelection.resolve(resolvedDriver);
+        final boolean isHelium = resolvedDriver == TunerDriver.HAL_HELIUM;
+        final Runnable refreshAudioRoute = isHelium && mTunerDriver != null
+                ? mTunerDriver::refreshAudioRoute
+                : () -> {};
         final AudioService audioService;
 
         switch (selection.path()) {
             case QUALCOMM_ROUTED: {
-                audioService = new RoutingAudioService(this);
+                final AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                final QualcommRoutedAudio policy = new QualcommRoutedAudio(
+                        audioManager,
+                        !isHelium,
+                        refreshAudioRoute
+                );
+                audioService = new RoutingAudioService(this, policy);
                 break;
             }
 
             case PCM_LOOPBACK: {
-                audioService = new LightAudioService(this);
+                audioService = new LightAudioService(this, !isHelium, refreshAudioRoute);
                 break;
             }
 
@@ -625,13 +637,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
             }
         }
-    }
-
-    private boolean isHalDriver() {
-        if (mTunerDriver != null) {
-            return mTunerDriver.getDriverKind() == TunerDriver.HAL_HELIUM;
-        }
-        return mTunerDriverKind == TunerDriver.HAL_HELIUM;
     }
 
     /**

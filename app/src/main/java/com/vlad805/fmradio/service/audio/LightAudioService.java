@@ -8,6 +8,7 @@ import android.media.AudioTrack;
 import android.util.Log;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
@@ -35,15 +36,71 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 	private Boolean mPendingPreRollEnabled;
 
 	private boolean mIsActive = false;
+	private final boolean mUseForceUse;
+	private final Runnable mRefreshAudioRoute;
+	private final QualcommRoutedAudio.ForceUseSink mForceUseSink;
+	private AudioOutput mOutput = AudioOutput.HEADPHONES;
 
 	public LightAudioService(final Context context) {
+		this(context, true, () -> {});
+	}
+
+	public LightAudioService(
+			final Context context,
+			final boolean useForceUse,
+			final Runnable refreshAudioRoute
+	) {
+		this(
+				context,
+				useForceUse,
+				refreshAudioRoute,
+				new QualcommRoutedAudio.ForceUseSink() {
+					@Override
+					public boolean isForceSpeakerNow() {
+						return Audio.isForceSpeakerNow();
+					}
+
+					@Override
+					public void setForceSpeaker(final boolean enabled) {
+						Audio.toggleThroughSpeaker(enabled);
+					}
+				}
+		);
+	}
+
+	LightAudioService(
+			final Context context,
+			final boolean useForceUse,
+			final Runnable refreshAudioRoute,
+			final QualcommRoutedAudio.ForceUseSink forceUseSink
+	) {
 		super(context);
-		mPreRollEnabled = Storage.getPrefBoolean(
+		mUseForceUse = useForceUse;
+		mRefreshAudioRoute = refreshAudioRoute != null ? refreshAudioRoute : () -> {};
+		mForceUseSink = forceUseSink;
+		mPreRollEnabled = context != null && Storage.getPrefBoolean(
 				context,
 				C.PrefKey.RECORDING_SAVE_PAST,
 				C.PrefDefaultValue.RECORDING_SAVE_PAST
 		);
 		mPcmSession = createPcmSession(mPreRollEnabled);
+	}
+
+	@Override
+	public AudioOutput getOutput() {
+		if (mUseForceUse) {
+			return mForceUseSink.isForceSpeakerNow() ? AudioOutput.SPEAKER : AudioOutput.HEADPHONES;
+		}
+		return mOutput;
+	}
+
+	@Override
+	public void setOutput(final AudioOutput output) {
+		mOutput = output;
+		mRefreshAudioRoute.run();
+		if (mUseForceUse) {
+			mForceUseSink.setForceSpeaker(output == AudioOutput.SPEAKER);
+		}
 	}
 
 	@Override
