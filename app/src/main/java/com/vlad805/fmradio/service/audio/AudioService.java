@@ -4,6 +4,12 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.service.recording.IAudioRecordable;
+import com.vlad805.fmradio.service.recording.PcmFormat;
+import com.vlad805.fmradio.service.recording.PcmRecorderSession;
+import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import static com.vlad805.fmradio.Utils.sleep;
 
 /**
@@ -12,17 +18,38 @@ import static com.vlad805.fmradio.Utils.sleep;
  * to a regular audio output (headphones or speaker).
  * vlad805 (c) 2019
  */
-public abstract class AudioService {
+public abstract class AudioService implements IAudioRecordable {
 	protected final AudioManager mAudioManager;
 
 	protected int mSampleRate = 44100; // Default = 8000 (Max with AMR)
 	protected int mBufferSize = 16384;
 	protected int mAudioSource = 1998;
 
-	public AudioService(Context context) {
-		mAudioManager = context != null
-				? (AudioManager) context.getSystemService(Context.AUDIO_SERVICE)
-				: null;
+	/** Session retaining captured PCM and forwarding it to the active recorder. */
+	protected volatile PcmRecorderSession mPcmSession;
+	protected RdsSnapshot mRdsSnapshot = RdsSnapshot.EMPTY;
+
+	/** Whether recent PCM history should remain active during playback. */
+	protected boolean mPreRollEnabled;
+
+	/** Preference value deferred until the active recording is stopped. */
+	private Boolean mPendingPreRollEnabled;
+
+	public AudioService(final Context context) {
+		this(
+				(AudioManager) context.getSystemService(Context.AUDIO_SERVICE),
+				Storage.getPrefBoolean(
+						context,
+						C.PrefKey.RECORDING_SAVE_PAST,
+						C.PrefDefaultValue.RECORDING_SAVE_PAST
+				)
+		);
+	}
+
+	public AudioService(final AudioManager audioManager, final boolean preRollEnabled) {
+		mAudioManager = audioManager;
+		mPreRollEnabled = preRollEnabled;
+		mPcmSession = createPcmSession(mPreRollEnabled);
 	}
 
 	/**
@@ -36,12 +63,51 @@ public abstract class AudioService {
 	public abstract void stopAudio();
 
 	/**
-	 * Applies the recording pre-roll preference to the active audio implementation.
+	 * @return PCM format produced by this audio service's capture source.
+	 */
+	public abstract PcmFormat getPcmFormat();
+
+	protected final PcmRecorderSession createPcmSession(final boolean enabled) {
+		final PcmFormat pcmFormat = getPcmFormat();
+		return new PcmRecorderSession(
+				pcmFormat.sampleRateHz(),
+				pcmFormat.channelCount(),
+				enabled ? C.Config.RECORDING_PRE_ROLL_SECONDS : 0
+		);
+	}
+
+	@Override
+	public synchronized void updateRds(final RdsSnapshot snapshot) {
+		mRdsSnapshot = snapshot;
+		mPcmSession.updateRds(snapshot);
+	}
+
+	/**
+	 * Applies the recording pre-roll preference or defers it during active recording.
 	 *
 	 * @param enabled Whether recent PCM history should be retained
 	 */
-	public void setPreRollEnabled(final boolean enabled) {
-		// Audio services without recording support ignore this preference.
+	public synchronized void setPreRollEnabled(final boolean enabled) {
+		if (mPcmSession.isRecording()) {
+			mPendingPreRollEnabled = enabled;
+			return;
+		}
+		applyPreRollEnabled(enabled);
+	}
+
+	/** Applies any pre-roll preference change that was deferred while recording. */
+	protected synchronized void applyPendingPreRollEnabled() {
+		if (mPendingPreRollEnabled != null) {
+			applyPreRollEnabled(mPendingPreRollEnabled);
+			mPendingPreRollEnabled = null;
+		}
+	}
+
+	/** Applies the preference by replacing the inactive PCM history buffer. */
+	protected void applyPreRollEnabled(final boolean enabled) {
+		mPreRollEnabled = enabled;
+		mPcmSession = createPcmSession(enabled);
+		mPcmSession.updateRds(mRdsSnapshot);
 	}
 
 	/**

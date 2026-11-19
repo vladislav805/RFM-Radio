@@ -17,7 +17,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/` | Contract: `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
-| `service/recording/` | 11 files: WAV/MP3 recording, SRT subtitles, storage |
+| `service/recording/` | 12 files: `PcmFormat`, WAV/MP3 recording, SRT subtitles, storage |
 | `fragments/` | `PreferencesFragment` — settings built in code, no `res/xml` |
 | `view/` | `RadioUIView`, `FrequencyBarView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum, `BandUtils` |
@@ -153,8 +153,8 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   verifies the `fmbin-*` assets exist.
 - JVM tests (`make test-java`): RadioState, SignalStrength, Request,
   FMNotificationManager, TunerCommandFormat, TunerDriverDetector,
-  AudioSelection, AudioLifecycle, QualcommRoutedAudio, PcmRecorderSession,
-  RdsSubtitleWriter, RecordingStorage.
+  AudioSelection, AudioLifecycle, QualcommRoutedAudio, PcmFormat,
+  PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
 - Dead code: `service/streaming/` (empty), `enums/MuteState`,
   `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
   returns a null recorder — unreachable from UI),
@@ -169,9 +169,11 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   is ignored (`NativeTunerController.isOkResponse`). Do not rely on `ok`.
 - **Duplicate-tune suppression**: HAL `setFrequency` drops repeated tunes
   within 1500 ms (`DUPLICATE_TUNE_WINDOW_MS`).
-- **Recorder sample rate is backend-dependent**: 48000 Hz on HAL, 44100 Hz on
-  legacy (`NativeTunerController.getRecorderSampleRate()`); it flows into WAV
-  headers, MP3 encoding, and recorded durations.
+- **Recorder sample rate comes from the PCM source**: `AudioService.getPcmFormat()`
+  returns `PcmFormat.PCM16_STEREO_48000` on `RoutingAudioService` (including
+  routed V4L2 on API ≥ 26) and `PcmFormat.PCM16_STEREO_44100` on
+  `LightAudioService`; it drives capture validation, pre-roll, WAV headers,
+  MP3 encoding, and recorded durations.
 - **Legacy RMSSI settle delay**: the native legacy backend waits 750 ms
   (`kMetricSettleMs`) after tune/jump before sampling RMSSI; do not "fix"
   Java-side timing to compensate.

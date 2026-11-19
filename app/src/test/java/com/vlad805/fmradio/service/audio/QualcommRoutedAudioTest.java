@@ -196,7 +196,6 @@ public class QualcommRoutedAudioTest {
     public void loopbackPathRetainsV4l2ForceUseBehaviorWithoutSlimbus() {
         final FakeSinks sinks = new FakeSinks();
         final LightAudioService loopback = new LightAudioService(
-                null,
                 true,
                 () -> {},
                 sinks.forceUse

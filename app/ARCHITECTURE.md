@@ -54,7 +54,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `service/fm/` | 4 | `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
 | `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
-| `service/recording/` | 11 | see Recording section |
+| `service/recording/` | 12 | see Recording section |
 | `service/streaming/` | 0 | empty leftover directory |
 | `view/` | 11 + `view/adapter/` 1 | see UI section |
 
@@ -117,11 +117,10 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 - Audio selection (`AudioSelection` + `AudioLifecycle`): API ≥ 26 →
   `QUALCOMM_ROUTED` (`RoutingAudioService`), API 23–25 → `PCM_LOOPBACK`
   (`LightAudioService`), `NONE` → no hardware audio.
-- `getPreferredRecorder()` (~L447): `recording_mode` → WAV
-  (`RecordRawService`) / MP3 192 or 128 (`RecordLameService`); sample rate
-  from `NativeTunerController.getRecorderSampleRate()` (48000 HAL / 44100
-  legacy), otherwise 44100. `AAC_128` is unhandled → null (unreachable
-  from the UI).
+- `getPreferredRecorder()`: `recording_mode` → WAV (`RecordRawService`) /
+  MP3 192 or 128 (`RecordLameService`); sample rate comes from
+  `mAudioService.getPcmFormat().sampleRateHz()` (48000 on routed capture,
+  44100 on loopback). `AAC_128` is unhandled → null (unreachable from the UI).
 - `onDestroy` → `kill()`: `stopAudio`, `tuner kill`,
   unregister both receivers and the Tray listener, `stopForeground(true)`.
 - Notifications (`service/FMNotificationManager.java`): playback id 1027 (MediaStyle, seek/stop/record/seek actions; `FMService` calls `startForeground(1027, notification)`),
@@ -191,7 +190,6 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   change re-applies stereo afterwards (vendor quirk).
 - `setFrequency`: HAL only — suppresses a repeated tune within
   `DUPLICATE_TUNE_WINDOW_MS` = 1500 ms.
-- `getRecorderSampleRate()`: 48000 (HAL) / 44100 (legacy).
 - `refreshAudioRoute()`: HAL only — `slimbus 0` then `slimbus 1` (2000 ms
   timeouts each); restarts the audio transport when the output device
   changes. No-op on legacy.
@@ -286,6 +284,9 @@ RDS: RadioStateUpdater -> updateRds(RdsSnapshot)
   -> RecordService.recordRds -> RdsSubtitleWriter
 ```
 
+- `PcmFormat.java` — `PCM16_STEREO_44100` and `PCM16_STEREO_48000` with
+  `sampleRateHz()`, `channelCount()`, and `matches(sampleRateHz, channelCount)`
+  used to configure and validate capture, pre-roll, and recorders.
 - `IAudioRecordable` — `startRecord(IFMRecorder)`, `stopRecord()`,
   `updateRds(RdsSnapshot)`; implemented by both audio services.
 - `IFMRecorder` — `startRecord(initialDurationMillis)`, `record(short[],
@@ -434,7 +435,8 @@ region/spacing mapping), `TunerDriverDetectorTest` (allowlist + handshake
 backend resolution), `AudioSelectionTest` (API/backend matrix),
 `AudioLifecycleTest` (start/stop ordering, idempotent teardown),
 `QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
-`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle),
+`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle), `PcmFormatTest`
+(stereo formats, mismatch rejection, routed V4L2 48 kHz),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
 zero-duration), `RecordingStorageTest` (subtitle naming, path containment).

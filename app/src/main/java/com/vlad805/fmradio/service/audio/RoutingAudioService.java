@@ -22,13 +22,10 @@ import android.util.Log;
 import androidx.annotation.RequiresPermission;
 
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.RecordError;
-import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
-import com.vlad805.fmradio.service.recording.PcmRecorderSession;
-import com.vlad805.fmradio.service.recording.RdsSnapshot;
+import com.vlad805.fmradio.service.recording.PcmFormat;
 import com.vlad805.fmradio.service.recording.RecordService;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
 
@@ -36,7 +33,7 @@ import com.vlad805.fmradio.service.recording.RecordingStorage;
  * FM2/Helium devices route FM audio directly inside audio HAL.
  * No AudioRecord bridge is needed here.
  */
-public class RoutingAudioService extends AudioService implements IAudioRecordable {
+public class RoutingAudioService extends AudioService {
 	private static final String TAG = "QFm2Audio";
 
 	// Values from @hide Android API
@@ -58,16 +55,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 
 	/** Destination recorder used by the current recording request. */
 	private IFMRecorder mPcmRecorder;
-
-	/** Session retaining captured PCM and forwarding it to {@link #mPcmRecorder}. */
-	private volatile PcmRecorderSession mPcmSession;
-	private RdsSnapshot mRdsSnapshot = RdsSnapshot.EMPTY;
-
-	/** Whether FM PCM history should remain active during playback. */
-	private boolean mPreRollEnabled;
-
-	/** Preference value deferred until the active recording is stopped. */
-	private Boolean mPendingPreRollEnabled;
 
 	/** Whether the current record action had to start an on-demand FM capture. */
 	private boolean mCaptureStartedForRecording;
@@ -108,12 +95,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		super(context);
 		mContext = context.getApplicationContext();
 		mPolicy = policy;
-		mPreRollEnabled = Storage.getPrefBoolean(
-				context,
-				C.PrefKey.RECORDING_SAVE_PAST,
-				C.PrefDefaultValue.RECORDING_SAVE_PAST
-		);
-		mPcmSession = createPcmSession(mPreRollEnabled);
 	}
 
 	@Override
@@ -153,6 +134,11 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		mIsActive = false;
 		unregisterVolumeListener();
 		requestForFocus(false);
+	}
+
+	@Override
+	public PcmFormat getPcmFormat() {
+		return PcmFormat.PCM16_STEREO_48000;
 	}
 
 	@Override
@@ -243,8 +229,9 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			throw new RecordError("FM Tuner input device not found");
 		}
 
+		final PcmFormat pcmFormat = getPcmFormat();
 		final int bufferSize = AudioRecord.getMinBufferSize(
-				48000,
+				pcmFormat.sampleRateHz(),
 				AudioFormat.CHANNEL_IN_STEREO,
 				AudioFormat.ENCODING_PCM_16BIT
 		);
@@ -253,7 +240,7 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		}
 
 		final AudioFormat format = new AudioFormat.Builder()
-				.setSampleRate(48000)
+				.setSampleRate(pcmFormat.sampleRateHz())
 				.setEncoding(AudioFormat.ENCODING_PCM_16BIT)
 				.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
 				.build();
@@ -273,6 +260,13 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 		if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
 			audioRecord.release();
 			throw new RecordError("AudioRecord init failed");
+		}
+
+		if (!pcmFormat.matches(audioRecord.getSampleRate(), audioRecord.getChannelCount())) {
+			final int actualRate = audioRecord.getSampleRate();
+			final int actualChannels = audioRecord.getChannelCount();
+			audioRecord.release();
+			throw new RecordError("AudioRecord format mismatch: " + actualRate + " Hz, " + actualChannels + " ch");
 		}
 
 		if (!audioRecord.setPreferredDevice(fmTuner)) {
@@ -321,12 +315,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 	}
 
 	@Override
-	public synchronized void updateRds(final RdsSnapshot snapshot) {
-		mRdsSnapshot = snapshot;
-		mPcmSession.updateRds(snapshot);
-	}
-
-	@Override
 	public void stopRecord() {
 		if (mPcmRecorder == null) {
 			return;
@@ -341,31 +329,17 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 			stopPcmCapture();
 		}
 		mCaptureStartedForRecording = false;
-		if (mPendingPreRollEnabled != null) {
-			applyPreRollEnabled(mPendingPreRollEnabled);
-			mPendingPreRollEnabled = null;
-		}
-	}
-
-	/** Applies a pre-roll preference change or defers it during active recording. */
-	@Override
-	public void setPreRollEnabled(final boolean enabled) {
-		if (mPcmSession.isRecording()) {
-			mPendingPreRollEnabled = enabled;
-			return;
-		}
-		applyPreRollEnabled(enabled);
+		applyPendingPreRollEnabled();
 	}
 
 	/** Reconfigures PCM history and starts or stops persistent HAL capture. */
-	private void applyPreRollEnabled(final boolean enabled) {
+	@Override
+	protected void applyPreRollEnabled(final boolean enabled) {
 		if (!enabled) {
 			stopPcmCapture();
 		}
 
-		mPreRollEnabled = enabled;
-		mPcmSession = createPcmSession(enabled);
-		mPcmSession.updateRds(mRdsSnapshot);
+		super.applyPreRollEnabled(enabled);
 		if (enabled && mIsActive && hasRecordAudioPermission()) {
 			try {
 				startPcmCapture();
@@ -373,20 +347,6 @@ public class RoutingAudioService extends AudioService implements IAudioRecordabl
 				Log.w(TAG, "Cannot start pre-roll capture", error);
 			}
 		}
-	}
-
-	/**
-	 * Creates a session matching the fixed HAL FM capture format.
-	 *
-	 * @param enabled Whether the session should retain pre-roll samples
-	 * @return Configured PCM session
-	 */
-	private PcmRecorderSession createPcmSession(final boolean enabled) {
-		return new PcmRecorderSession(
-				48000,
-				2,
-				enabled ? C.Config.RECORDING_PRE_ROLL_SECONDS : 0
-		);
 	}
 
 	/** Stops the HAL capture worker and releases its {@link AudioRecord}. */

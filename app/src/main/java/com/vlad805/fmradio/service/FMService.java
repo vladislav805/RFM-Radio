@@ -414,9 +414,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
         final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
 
-        final int sampleRate = mTunerDriver != null
-                ? mTunerDriver.getRecorderSampleRate()
-                : 44100;
+        final int sampleRate = mAudioService.getPcmFormat().sampleRateHz();
 
         switch (mode) {
             case C.RecordFormat.WAV: {

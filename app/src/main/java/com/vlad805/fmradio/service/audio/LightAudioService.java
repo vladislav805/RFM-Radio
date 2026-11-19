@@ -6,34 +6,20 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.util.Log;
-import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.Audio;
 import com.vlad805.fmradio.service.fm.RecordError;
-import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
-import com.vlad805.fmradio.service.recording.PcmRecorderSession;
-import com.vlad805.fmradio.service.recording.RdsSnapshot;
+import com.vlad805.fmradio.service.recording.PcmFormat;
 
 /**
  * vlad805 (c) 2019
  */
-public class LightAudioService extends AudioService implements IAudioRecordable {
+public class LightAudioService extends AudioService {
 	private static final String TAG = "LAS";
 	private Thread mThread;
 
 	private AudioTrack mAudioTrack;
 	private AudioRecord mAudioRecorder;
-
-	/** Session retaining legacy PCM and forwarding it to the active recorder. */
-	private volatile PcmRecorderSession mPcmSession;
-	private RdsSnapshot mRdsSnapshot = RdsSnapshot.EMPTY;
-
-	/** Whether PCM history is currently retained. */
-	private boolean mPreRollEnabled;
-
-	/** Preference value deferred until the active recording is stopped. */
-	private Boolean mPendingPreRollEnabled;
 
 	private boolean mIsActive = false;
 	private final boolean mUseForceUse;
@@ -50,40 +36,36 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 			final boolean useForceUse,
 			final Runnable refreshAudioRoute
 	) {
-		this(
-				context,
-				useForceUse,
-				refreshAudioRoute,
-				new QualcommRoutedAudio.ForceUseSink() {
-					@Override
-					public boolean isForceSpeakerNow() {
-						return Audio.isForceSpeakerNow();
-					}
+		super(context);
+		mUseForceUse = useForceUse;
+		mRefreshAudioRoute = refreshAudioRoute != null ? refreshAudioRoute : () -> {};
+		mForceUseSink = new QualcommRoutedAudio.ForceUseSink() {
+			@Override
+			public boolean isForceSpeakerNow() {
+				return Audio.isForceSpeakerNow();
+			}
 
-					@Override
-					public void setForceSpeaker(final boolean enabled) {
-						Audio.toggleThroughSpeaker(enabled);
-					}
-				}
-		);
+			@Override
+			public void setForceSpeaker(final boolean enabled) {
+				Audio.toggleThroughSpeaker(enabled);
+			}
+		};
 	}
 
 	LightAudioService(
-			final Context context,
 			final boolean useForceUse,
 			final Runnable refreshAudioRoute,
 			final QualcommRoutedAudio.ForceUseSink forceUseSink
 	) {
-		super(context);
+		super(null, false);
 		mUseForceUse = useForceUse;
 		mRefreshAudioRoute = refreshAudioRoute != null ? refreshAudioRoute : () -> {};
 		mForceUseSink = forceUseSink;
-		mPreRollEnabled = context != null && Storage.getPrefBoolean(
-				context,
-				C.PrefKey.RECORDING_SAVE_PAST,
-				C.PrefDefaultValue.RECORDING_SAVE_PAST
-		);
-		mPcmSession = createPcmSession(mPreRollEnabled);
+	}
+
+	@Override
+	public PcmFormat getPcmFormat() {
+		return PcmFormat.PCM16_STEREO_44100;
 	}
 
 	@Override
@@ -147,8 +129,9 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 	}
 
 	private final Runnable mReadWrite = () -> {
+		final PcmFormat pcmFormat = getPcmFormat();
 		final int bufferSize = AudioTrack.getMinBufferSize(
-				mSampleRate,
+				pcmFormat.sampleRateHz(),
 				AudioFormat.CHANNEL_IN_STEREO,
 				AudioFormat.ENCODING_PCM_16BIT
 		);
@@ -161,7 +144,7 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 		mAudioTrack = new AudioTrack(
 				AudioManager.STREAM_MUSIC,
-				mSampleRate,
+				pcmFormat.sampleRateHz(),
 				AudioFormat.CHANNEL_OUT_STEREO,
 				AudioFormat.ENCODING_PCM_16BIT,
 				bufferSize,
@@ -183,6 +166,13 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 
 		if (mAudioRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
 			Log.e(TAG, "AudioRecord init failed, state=" + mAudioRecorder.getState());
+			closeAll();
+			return;
+		}
+
+		if (!pcmFormat.matches(mAudioRecorder.getSampleRate(), mAudioRecorder.getChannelCount())) {
+			Log.e(TAG, "AudioRecord format mismatch: rate=" + mAudioRecorder.getSampleRate()
+					+ " channels=" + mAudioRecorder.getChannelCount());
 			closeAll();
 			return;
 		}
@@ -219,47 +209,8 @@ public class LightAudioService extends AudioService implements IAudioRecordable 
 	}
 
 	@Override
-	public synchronized void updateRds(final RdsSnapshot snapshot) {
-		mRdsSnapshot = snapshot;
-		mPcmSession.updateRds(snapshot);
-	}
-
-	@Override
 	public void stopRecord() {
 		mPcmSession.stop();
-		if (mPendingPreRollEnabled != null) {
-			applyPreRollEnabled(mPendingPreRollEnabled);
-			mPendingPreRollEnabled = null;
-		}
-	}
-
-	@Override
-	public synchronized void setPreRollEnabled(final boolean enabled) {
-		if (mPcmSession.isRecording()) {
-			mPendingPreRollEnabled = enabled;
-			return;
-		}
-		applyPreRollEnabled(enabled);
-	}
-
-	/** Applies the preference by replacing the inactive PCM history buffer. */
-	private void applyPreRollEnabled(final boolean enabled) {
-		mPreRollEnabled = enabled;
-		mPcmSession = createPcmSession(enabled);
-		mPcmSession.updateRds(mRdsSnapshot);
-	}
-
-	/**
-	 * Creates a PCM session matching the current legacy capture format.
-	 *
-	 * @param enabled Whether the session should retain pre-roll samples
-	 * @return Configured PCM session
-	 */
-	private PcmRecorderSession createPcmSession(final boolean enabled) {
-		return new PcmRecorderSession(
-				mSampleRate,
-				2,
-				enabled ? C.Config.RECORDING_PRE_ROLL_SECONDS : 0
-		);
+		applyPendingPreRollEnabled();
 	}
 }

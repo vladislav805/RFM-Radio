@@ -65,12 +65,6 @@ public final class NativeTunerController {
         return mDriverKind;
     }
 
-    public int getRecorderSampleRate() {
-        // HAL Helium - 48kHz
-        // V4L2 Qcom - 44.1kHz
-        return mDriverKind == TunerDriver.HAL_HELIUM ? 48000 : 44100;
-    }
-
     public void refreshAudioRoute() {
         if (mDriverKind == TunerDriver.HAL_HELIUM) {
             sendCommand(new Request("slimbus 0", 2000));
