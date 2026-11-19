@@ -25,11 +25,8 @@ import com.vlad805.fmradio.service.audio.AudioService;
 import com.vlad805.fmradio.service.audio.LightAudioService;
 import com.vlad805.fmradio.service.audio.RoutingAudioService;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
-import com.vlad805.fmradio.service.fm.IFMController;
-import com.vlad805.fmradio.service.fm.IFMEventListener;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
-import com.vlad805.fmradio.service.fm.implementation.Empty;
-import com.vlad805.fmradio.service.fm.implementation.QualcommNative;
+import com.vlad805.fmradio.service.fm.implementation.NativeTunerController;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordLameService;
@@ -54,7 +51,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private Map<Integer, String> mFavoriteList;
 
-    private IFMController mTunerDriver;
+    private NativeTunerController mTunerDriver;
     private TunerDriver mTunerDriverKind;
     private AudioService mAudioService;
 
@@ -84,7 +81,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         mStorage.registerOnTrayPreferenceChangeListener(this);
 
         // Services
-        mTunerDriver = getTunerDriver();
+        mTunerDriverKind = TunerDriverDetector.getTunerDriver();
+        mTunerDriver = mTunerDriverKind != TunerDriver.NONE
+                ? new NativeTunerController(this, mTunerDriverKind)
+                : null;
         mAudioService = getAudioService();
 
         // Broadcast receivers
@@ -103,8 +103,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
         });
 
-        if (mTunerDriver instanceof IFMEventListener) {
-            ((IFMEventListener) mTunerDriver).setEventListener(this);
+        if (mTunerDriver != null) {
+            mTunerDriver.setEventListener(this);
         }
 
         reloadFavorite();
@@ -125,7 +125,29 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             return START_NOT_STICKY;
         }
 
-        switch (intent.getAction()) {
+        final String action = intent.getAction();
+        if (C.Command.REQUEST_CURRENT_STATE.equals(action)) {
+            Utils.sendAppBroadcast(this, new Intent(C.Event.CURRENT_STATE).putExtra(C.Key.STATE, mState));
+            return START_NOT_STICKY;
+        }
+
+        if (C.Command.KILL.equals(action)) {
+            if (mState.isRecording() && mAudioService instanceof IAudioRecordable) {
+                ((IAudioRecordable) mAudioService).stopRecord();
+            }
+
+            stopService(new Intent(this, FMService.class));
+            Utils.sendAppBroadcast(this, new Intent(C.Event.KILLED));
+            return START_NOT_STICKY;
+        }
+
+        if (mTunerDriver == null) {
+            onEvent(C.Event.LAUNCH_FAILED);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        switch (action) {
             // Installing the native part to system, if required by the selected tuner.
             // When completed, will fire event INSTALLED.
             case C.Command.INSTALL: {
@@ -167,11 +189,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             case C.Command.SET_FREQUENCY: {
                 if (!intent.hasExtra(C.Key.FREQUENCY)) {
                     Log.e("FMS", "Command SET_FREQUENCY: not specified frequency");
-                    break;
-                }
-
-                if (mTunerDriver == null) {
-                    Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
                     break;
                 }
 
@@ -258,30 +275,13 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 break;
             }
 
-            case C.Command.KILL: {
-                if (mState.isRecording() && mAudioService instanceof IAudioRecordable) {
-                    ((IAudioRecordable) mAudioService).stopRecord();
-                }
-
-                stopService(new Intent(this, FMService.class));
-                Utils.sendAppBroadcast(this, new Intent(C.Event.KILLED));
-                break;
-            }
-
-            case C.Command.REQUEST_CURRENT_STATE: {
-                Utils.sendAppBroadcast(this, new Intent(C.Event.CURRENT_STATE).putExtra(C.Key.STATE, mState));
-                break;
-            }
-
             case C.Command.SPEAKER_STATE: {
                 final boolean isSpeaker = isHalDriver()
                         ? mState.isForceSpeaker()
                         : Audio.isForceSpeakerNow();
                 mAudioService.setSpeakerEnabled(!isSpeaker);
                 Utils.sendAppBroadcast(this, new Intent(C.Event.CHANGE_SPEAKER_MODE).putExtra(C.Key.IS_SPEAKER, !isSpeaker));
-                if (mTunerDriver instanceof QualcommNative) {
-                    ((QualcommNative) mTunerDriver).refreshAudioRoute();
-                }
+                mTunerDriver.refreshAudioRoute();
                 if (!isHalDriver()) {
                     Audio.toggleThroughSpeaker(!isSpeaker);
                 }
@@ -303,7 +303,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private void kill() {
         mAudioService.stopAudio();
 
-        mTunerDriver.kill();
+        if (mTunerDriver != null) {
+            mTunerDriver.kill();
+        }
 
         if (mEventReaction != null) {
             unregisterReceiver(mEventReaction);
@@ -346,26 +348,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Returns tuner driver
-     * @return Tuner driver
-     */
-    private IFMController getTunerDriver() {
-        mTunerDriverKind = TunerDriverDetector.getTunerDriver();
-
-        switch (mTunerDriverKind) {
-            case HAL_HELIUM:
-            case V4L2_QCOM: {
-                return new QualcommNative(this, mTunerDriverKind);
-            }
-
-            case NONE:
-            default: {
-                return new Empty(this);
-            }
-        }
-    }
-
-    /**
      * Returns preferred by user audio recorder (WAV / MP3)
      * @return Recorder
      */
@@ -373,8 +355,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
         final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
 
-        final int sampleRate = mTunerDriver instanceof QualcommNative
-                ? ((QualcommNative) mTunerDriver).getRecorderSampleRate()
+        final int sampleRate = mTunerDriver != null
+                ? mTunerDriver.getRecorderSampleRate()
                 : 44100;
 
         switch (mode) {
@@ -395,9 +377,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Calls by FM implementation which extends IFMEventListener
+     * Called by NativeTunerController via FMEventCallback
      * @param event Action
-     * @param bundle Arguments
      */
     @Override
     public void onEvent(final String event) {
@@ -442,7 +423,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             currentPosition = 0;
         }
 
-        mTunerDriver.setFrequency(stations.get(currentPosition).getFrequency());
+        if (mTunerDriver != null) {
+            mTunerDriver.setFrequency(stations.get(currentPosition).getFrequency());
+        }
     }
 
     @Override
@@ -462,7 +445,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             }
         }
 
-        this.mTunerDriver.setupTunerByPreferences(keys);
+        if (mTunerDriver != null) {
+            mTunerDriver.setupTunerByPreferences(keys);
+        }
     }
 
     /**
@@ -484,8 +469,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 }
 
                 case C.Event.LAUNCHED: {
-                    if (mTunerDriver instanceof QualcommNative) {
-                        mTunerDriverKind = ((QualcommNative) mTunerDriver).getDriverKind();
+                    if (mTunerDriver != null) {
+                        mTunerDriverKind = mTunerDriver.getDriverKind();
                     }
                     mRadioController.enable();
                     break;
@@ -500,10 +485,6 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 case C.Event.ENABLED: {
                     if (!isHalDriver()) {
                         mAudioService.startAudio();
-                    }
-                    if (!(mTunerDriver instanceof QualcommNative)) {
-                        final int frequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
-                        mRadioController.setFrequency(frequency);
                     }
                     updateNotification();
                     break;
@@ -589,8 +570,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     private boolean isHalDriver() {
-        if (mTunerDriver instanceof QualcommNative) {
-            return ((QualcommNative) mTunerDriver).getDriverKind() == TunerDriver.HAL_HELIUM;
+        if (mTunerDriver != null) {
+            return mTunerDriver.getDriverKind() == TunerDriver.HAL_HELIUM;
         }
         return mTunerDriverKind == TunerDriver.HAL_HELIUM;
     }

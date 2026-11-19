@@ -25,7 +25,7 @@ Communication model, end to end:
 UI (MainActivity / views)
   -> RadioController.startService(Intent with C.Command.*)
   -> FMService (":service" process, START_NOT_STICKY)
-  -> IFMController (QualcommNative)
+  -> NativeTunerController
   -> Request -> NativeProcessSession -> su -> fmbin stdin
   -> fmbin stdout JSON -> NativeEventParser
   -> FMEventCallback (implemented by FMService)
@@ -51,9 +51,9 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 2 | `FMService`, `FMNotificationManager` |
 | `service/audio/` | 3 | see Audio section |
-| `service/fm/` | 7 | contract + `RadioStatePatch`, `RecordError` |
+| `service/fm/` | 4 | `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
-| `service/fm/implementation/` | 3 | see Controller section |
+| `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
 | `service/recording/` | 11 | see Recording section |
 | `service/streaming/` | 0 | empty leftover directory |
 | `view/` | 11 + `view/adapter/` 1 | see UI section |
@@ -83,7 +83,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   `HW_SEARCH_CANCEL`, `RECORD_START`, `RECORD_STOP`, `NOTIFICATION_SEEK`,
   `KILL`, `REQUEST_CURRENT_STATE`, `SPEAKER_STATE`.
 - `ENABLE` starts HAL audio before enabling the tuner.
-- `SPEAKER_STATE` toggles the speaker and, for `QualcommNative`, calls
+- `SPEAKER_STATE` toggles the speaker and, for `NativeTunerController`, calls
   `refreshAudioRoute()`; for non-HAL it additionally uses
   `Audio.toggleThroughSpeaker()` (hidden `AudioSystem.setForceUse` via
   reflection).
@@ -102,12 +102,12 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   allowlist (`iris`/`tavarua`, falling back only if sysfs is absent or
   unreadable) + `/dev/radio0` → `V4L2_QCOM`; `fm_helium.so` in eight vendor paths
   → `HAL_HELIUM`; otherwise `NONE`.
-  `V4L2_QCOM`/`HAL_HELIUM` → `new QualcommNative(this, kind)`; `NONE` → `new Empty(this)`.
+  `V4L2_QCOM`/`HAL_HELIUM` → `new NativeTunerController(this, kind)`; `NONE` → `null` (unsupported devices emit `LAUNCH_FAILED` if started).
 - `getAudioService()` (~L413): API ≥ 26 → `RoutingAudioService`, else
   `LightAudioService`.
 - `getPreferredRecorder()` (~L447): `recording_mode` → WAV
   (`RecordRawService`) / MP3 192 or 128 (`RecordLameService`); sample rate
-  from `QualcommNative.getRecorderSampleRate()` (48000 HAL / 44100
+  from `NativeTunerController.getRecorderSampleRate()` (48000 HAL / 44100
   legacy), otherwise 44100. `AAC_128` is unhandled → null (unreachable
   from the UI).
 - `onDestroy` → `kill()`: `stopAudio`, `tuner kill`,
@@ -136,8 +136,6 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 
 ## service/fm/ Contract
 
-- `IFMController` — full driver contract (see `app/AGENTS.md`).
-- `IFMEventListener` — `setEventListener(FMEventCallback)`.
 - `FMEventCallback` — `onEvent(String)`, `onStatePatch(RadioStatePatch)`,
   `onSearchDone(int[])`; implemented by `FMService`.
 - `Request.java` — command object: `command` + `timeout` (default 1000 ms),
@@ -147,17 +145,11 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 - `RadioStatePatch.java` — nullable fields (frequency, ps, rt, pi, country,
   pty, af, stereo, rmssi); `isEmpty()`; `toIntent(action)` fills `C.Key.*`
   extras (AF → `FREQUENCIES`, stereo → `STEREO_MODE`).
-- `Empty.java` — no-op driver for NONE: logs, `sleep()`s for realism,
-  emits the full event chain including `HW_SEEK_COMPLETE` (which the real
-  driver never sends — completion comes from state patches).
 - `RecordError.java` — simple `Throwable` subtype for recording errors.
 
 ## service/fm/implementation/
 
-`AbstractQualcommNativeController.java` (~570 lines) — template method.
-Final public methods emit lifecycle events (`PREPARING`, `INSTALLING`,
-`INSTALLED`, `LAUNCHING`, …) and call protected `*Impl` hooks with
-`Callback<T>`:
+`NativeTunerController.java` (`final`) — the only real driver:
 
 - Binary management: asset `fmbin-<arch>` (`Utils.determineArch()`) →
   `/data/data/<appId>/files/`, `Os.chmod 0755`, installed version in Tray
@@ -166,42 +158,37 @@ Final public methods emit lifecycle events (`PREPARING`, `INSTALLING`,
   lost execute bit in place.
 - `sendCommand(Request)` under `mSessionLock`; no session → immediate
   `IOException("Native process is not running")`.
-- `startNativeProcess(timeoutMs)` — creates `NativeProcessSession`, adapts
-  its events into `onServerEvent`/`onServerStatePatch`/`onServerSearchDone`
-  plus the external `mEventCallback`, and wires
-  `handleUnexpectedNativeExit` as the lifecycle listener.
-- `applyPreferenceImpl` maps preferences to `set_spacing`, `set_region`,
-  `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna`, `power_mode`, `auto_af`.
-  `setupTunerByPreferences(changed)` reads Tray and applies; a spacing
-  change re-applies stereo afterwards (vendor quirk).
-- `kill()` → background graceful stop → `DISABLED`, `KILLED` events.
-- Internal `RootAccessDeniedError` → `ROOT_ACCESS_DENIED` event.
-- **Trap**: the base `enableImpl` sends a bare `enable` with no parameters —
-  dead code that the strict native parser always rejects. Only
-  `QualcommNative.enableImpl` is live.
-
-`QualcommNative.java` (~220 lines) — the only real driver:
-
-- `launchImpl`: background thread "QualcommNativeLaunch":
-  `Utils.runAsRoot("true")` (root probe; denial → `RootAccessDeniedError`),
-  `killall fmbin-*`, 150 ms sleep, `startNativeProcess(5000)` (ready
-  handshake), then `Request("init", 10000)`.
+- `startNativeProcess(timeoutMs)` — creates `NativeProcessSession`, forwards
+  events to `mEventCallback`, and wires `handleUnexpectedNativeExit` as the
+  lifecycle listener (error event + `DISABLED`, then `context.stopService(FMService)`).
+- `launch()`: background thread `"NativeTunerLaunch"` —
+  `Utils.runAsRoot("true")` (root probe; denial → `RootAccessDeniedError` →
+  `ROOT_ACCESS_DENIED`), `killall fmbin-*`, 150 ms sleep,
+  `startNativeProcess(5000)` (ready handshake), then `Request("init", 10000)`.
 - Success test: `response.startsWith("ok")` — the JSON `ok` field is
   ignored throughout the Java bridge.
-- `enableImpl`: one atomic
+- `enable()`: one atomic
   `enable freq= region= spacing= stereo= soft_mute= antenna= af=` command
-  from preferences; saved frequency clamped to `BandUtils` band limits.
-  `shouldApplyStartupPreferences()` → false.
-- `setFrequencyImpl`: HAL only — suppresses a repeated tune within
+  formatted by `TunerCommandFormat` from preferences (saved frequency clamped
+  to `BandUtils` band limits), followed by a non-default `set_notch_filter`
+  when configured.
+- `applyPreference` maps preferences to `set_spacing`, `set_region`,
+  `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna` (emitting
+  `ERROR_INVALID_ANTENNA` on `ERR_UNV_ANT`), `power_mode`, `auto_af`.
+  `setupTunerByPreferences(changed)` reads Tray and applies; a spacing
+  change re-applies stereo afterwards (vendor quirk).
+- `setFrequency`: HAL only — suppresses a repeated tune within
   `DUPLICATE_TUNE_WINDOW_MS` = 1500 ms.
 - `getRecorderSampleRate()`: 48000 (HAL) / 44100 (legacy).
 - `refreshAudioRoute()`: HAL only — `slimbus 0` then `slimbus 1` (2000 ms
   timeouts each); restarts the audio transport when the output device
   changes. No-op on legacy.
-- `onNativeProcessExit`: error event + `DISABLED`, then
-  `context.stopService(FMService)` — the service dies with the process.
-- `regionName`: 1→eu, 2→jp, 3→jp_wide, 4→us; `spacingKhz`: 1→50, 2→100,
-  3→200.
+- `kill()` → background graceful stop → `DISABLED`, `KILLED` events.
+
+`TunerCommandFormat.java` — package-private command formatter:
+- `regionName`: 1→eu, 2→jp, 3→jp_wide, 4→us (default `eu`).
+- `spacingKhz`: 1→50, 2→100, 3→200 (default `100`).
+- `enable(...)`: formats the atomic `enable` command string.
 
 ## service/fm/communication/
 
@@ -210,7 +197,7 @@ Final public methods emit lifecycle events (`PREPARING`, `INSTALLING`,
 - `start(timeoutMs)`: `ProcessBuilder("su")`, writes `exec '<binary>'`
   (shell-quoted), waits on a `CountDownLatch` for
   `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (`backend` overrides
-  local sysfs fallback detection in `QualcommNative`/`FMService` when present).
+  local sysfs fallback detection in `NativeTunerController`/`FMService` when present).
   Protocol mismatch or pid ≤ 0 →
   launch failure.
 - Threads: `NativeStdout` (parses lines; non-JSON → warn+skip),
@@ -421,7 +408,8 @@ env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 `app/src/test/java/…` (JUnit4): `RadioStateTest` (clear semantics),
 `SignalStrengthTest` (RMSSI thresholds → bars), `RequestTest` (dispatch),
 `FMNotificationManagerTest` (playback title/body precedence, compact actions,
-recording tags/ids), `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
+recording tags/ids), `TunerCommandFormatTest` (atomic enable command,
+region/spacing mapping), `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
 zero-duration), `RecordingStorageTest` (subtitle naming, path containment).
 No instrumented tests.
@@ -433,7 +421,7 @@ No instrumented tests.
 3. `view/IntEditTextPreference` — unreferenced (settings are programmatic).
 4. `C.RecordFormat.AAC_128` (=3) — `getPreferredRecorder()` returns null
    for it; unreachable from the UI but an NPE trap if set manually.
-5. `C.Event.HW_SEEK_COMPLETE` — emitted only by `Empty`; the real driver
+5. `C.Event.HW_SEEK_COMPLETE` — unused legacy event; the native driver
    completes seeks via state patches.
 6. `C.Event.UPDATE_AF` — declared, never sent (AF arrives in state patches).
 7. `FavoriteStation` JSON default 108100 kHz.
@@ -449,6 +437,4 @@ No instrumented tests.
     debugging.
 13. `Utils.runAsRoot` has a 15-second shell timeout.
 14. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
-    unused (see `QualcommNative`).
-15. Base `AbstractQualcommNativeController.enableImpl` is dead code that
-    would always fail the strict native parser.
+    unused (see `NativeTunerController`).
