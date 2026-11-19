@@ -49,7 +49,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `models/` | 2 | `FavoriteStation`, `FavoriteFile` |
 | `preferences/` | 2 | `BandUtils`, `Vars` |
 | `receivers/` | 1 | `CallReceiver` |
-| `service/` | 1 | `FMService` (~940 lines) |
+| `service/` | 2 | `FMService`, `FMNotificationManager` |
 | `service/audio/` | 3 | see Audio section |
 | `service/fm/` | 7 | contract + `RadioStatePatch`, `RecordError` |
 | `service/fm/communication/` | 3 | see Communication section |
@@ -68,8 +68,8 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 `FMEventCallback` and the Tray `OnTrayPreferenceChangeListener`.
 
 - `onCreate`: creates `RadioState`, `RadioController`,
-  `FavoriteController`, three notification channels (`playback_channel_v3`,
-  `record_channel`, `recording_channel_v2`), `Storage`, the tuner driver,
+  `FavoriteController`, `FMNotificationManager` (`createChannels()` for
+  `playback_channel_v3`, `record_channel`, `recording_channel_v2`), `Storage`, the tuner driver,
   the audio service, and two receivers: `EventReaction` (inner class,
   reacts to `C.Event.*`) and `RadioStateUpdater` (keeps `mState`; its
   update callback also pushes `RdsSnapshot` into
@@ -112,7 +112,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   from the UI).
 - `onDestroy` → `kill()`: `stopAudio`, `tuner kill`,
   unregister both receivers and the Tray listener, `stopForeground(true)`.
-- Notifications: playback id 1027 (MediaStyle, seek/stop/seek actions),
+- Notifications (`service/FMNotificationManager.java`): playback id 1027 (MediaStyle, seek/stop/record/seek actions; `FMService` calls `startForeground(1027, notification)`),
   recording progress id 1029, recorded-item (with delete intent into
   `RecordingDeleteActivity`) id 1030 under tag `"recording:<uri>"`. Title:
   frequency | PS (if `notification_show_ps`) or favorite name; text: RT.
@@ -420,7 +420,8 @@ env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 
 `app/src/test/java/…` (JUnit4): `RadioStateTest` (clear semantics),
 `SignalStrengthTest` (RMSSI thresholds → bars), `RequestTest` (dispatch),
-`PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
+`FMNotificationManagerTest` (playback title/body precedence, compact actions,
+recording tags/ids), `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
 zero-duration), `RecordingStorageTest` (subtitle naming, path containment).
 No instrumented tests.

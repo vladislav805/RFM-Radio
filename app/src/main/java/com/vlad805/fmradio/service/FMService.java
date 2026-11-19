@@ -1,27 +1,18 @@
 package com.vlad805.fmradio.service;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
-import androidx.annotation.RequiresApi;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
-import com.vlad805.fmradio.activity.MainActivity;
-import com.vlad805.fmradio.activity.RecordingDeleteActivity;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
@@ -50,21 +41,13 @@ import net.grandcentrix.tray.core.TrayItem;
 
 import java.util.*;
 
-import static android.app.PendingIntent.FLAG_IMMUTABLE;
-import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
-import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
-
 @SuppressWarnings({"deprecation", "unused"})
 public class FMService extends Service implements FMEventCallback, OnTrayPreferenceChangeListener {
     private static final String TAG = "FMS";
-    public static final int NOTIFICATION_ID = 1027;
-    public static final int NOTIFICATION_RECORD_ID = 1029;
-    private static final String CHANNEL_ID = "playback_channel_v3";
-    private static final String CHANNEL_RECORD_ID = "record_channel";
-    private static final String CHANNEL_RECORDING_ID = "recording_channel_v2";
+    public static final int NOTIFICATION_ID = FMNotificationManager.NOTIFICATION_ID;
+    public static final int NOTIFICATION_RECORD_ID = FMNotificationManager.NOTIFICATION_RECORD_ID;
 
-    private NotificationCompat.Builder mNBuilder;
-    private NotificationManagerCompat mNotificationManager;
+    private FMNotificationManager mNotifications;
 
     private RadioController mRadioController;
     private FavoriteController mFavoriteController;
@@ -79,56 +62,9 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private BroadcastReceiver mTunerStateUpdater;
 
     private AppPreferences mStorage;
-    private boolean mNeedRecreateNotification = true;
     private boolean mRecordingNow = false;
 
     private RadioState mState;
-
-    @RequiresApi(api = Build.VERSION_CODES.O)
-    private void makeChannelSilent(final NotificationChannel channel) {
-        channel.enableVibration(false);
-        channel.setVibrationPattern(new long[0]);
-        channel.setSound(null, null);
-    }
-
-    private void createNotificationChannels() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
-        final NotificationManager notificationManager = getSystemService(NotificationManager.class);
-        if (notificationManager == null) {
-            return;
-        }
-
-        final NotificationChannel mainChannel = new NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.app_name),
-                NotificationManager.IMPORTANCE_HIGH
-        );
-        mainChannel.setDescription(getString(R.string.app_name));
-        makeChannelSilent(mainChannel);
-
-        final NotificationChannel recordChannel = new NotificationChannel(
-                CHANNEL_RECORD_ID,
-                getString(R.string.app_name) + " recordings",
-                NotificationManager.IMPORTANCE_LOW
-        );
-        recordChannel.setDescription(getString(R.string.notification_recorded, "", 0f, ""));
-        makeChannelSilent(recordChannel);
-
-        final NotificationChannel recordingChannel = new NotificationChannel(
-                CHANNEL_RECORDING_ID,
-                getString(R.string.app_name) + " recording",
-                NotificationManager.IMPORTANCE_HIGH
-        );
-        recordingChannel.setDescription(getString(R.string.notification_recording, "", 0f));
-        makeChannelSilent(recordingChannel);
-
-        notificationManager.createNotificationChannel(mainChannel);
-        notificationManager.createNotificationChannel(recordChannel);
-        notificationManager.createNotificationChannel(recordingChannel);
-    }
 
     @Override
     public void onCreate() {
@@ -140,8 +76,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         // Controllers&managers
         mRadioController = new RadioController(this);
         mFavoriteController = new FavoriteController(this);
-        mNotificationManager = NotificationManagerCompat.from(this);
-        createNotificationChannels();
+        mNotifications = new FMNotificationManager(this);
+        mNotifications.createChannels();
 
         // Preferences
         mStorage = Storage.getInstance(this);
@@ -613,13 +549,12 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
                 case C.Event.RECORD_STARTED: {
                     mRecordingNow = true;
-                    mNeedRecreateNotification = true;
                     updateNotification();
                     break;
                 }
 
                 case C.Event.RECORD_TIME_UPDATE: {
-                    updateRecordingNotification(
+                    mNotifications.showRecordingProgress(
                             intent.getIntExtra(C.Key.DURATION, 0),
                             intent.getIntExtra(C.Key.SIZE, 0)
                     );
@@ -628,21 +563,24 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
                 case C.Event.RECORD_ENDED: {
                     mRecordingNow = false;
-                    mNeedRecreateNotification = true;
                     updateNotification();
-                    mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
+                    mNotifications.cancelRecordingProgress();
 
                     if (intent.getExtras() != null) {
-                        showRecorded(intent.getExtras());
+                        final boolean showSavedNotification = Storage.getPrefBoolean(
+                                FMService.this,
+                                C.PrefKey.RECORDING_SHOW_NOTIFY,
+                                C.PrefDefaultValue.RECORDING_SHOW_NOTIFY
+                        );
+                        mNotifications.showRecordingResult(intent.getExtras(), showSavedNotification);
                     }
                     break;
                 }
 
                 case C.Event.RECORD_FAILED: {
                     mRecordingNow = false;
-                    mNeedRecreateNotification = true;
                     updateNotification();
-                    mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
+                    mNotifications.cancelRecordingProgress();
                     Toast.makeText(FMService.this, R.string.record_save_failed, Toast.LENGTH_LONG).show();
                     break;
                 }
@@ -658,221 +596,25 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     /**
-     * Create notification
-     * @return Notification builder
-     */
-    private NotificationCompat.Builder createNotificationBuilder() {
-        final Intent mainIntent = new Intent(this, MainActivity.class)
-                .setAction(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LAUNCHER);
-
-        final PendingIntent pendingMain = PendingIntent.getActivity(
-                this,
-                0,
-                mainIntent,
-                FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
-        );
-
-        final PendingIntent pendingStop = PendingIntent.getService(
-                this,
-                1,
-                new Intent(this, FMService.class).setAction(C.Command.DISABLE),
-                FLAG_IMMUTABLE
-        );
-
-        final PendingIntent pendingRec = PendingIntent.getService(
-                this,
-                2,
-                new Intent(this, FMService.class)
-                        .setAction(C.Command.RECORD_START),
-                FLAG_IMMUTABLE
-        );
-
-
-        final PendingIntent pendingSeekDown = PendingIntent.getService(
-                this,
-                3,
-                new Intent(this, FMService.class)
-                        .setAction(C.Command.NOTIFICATION_SEEK)
-                        .putExtra(C.Key.SEEK_HW_DIRECTION, -1),
-                FLAG_IMMUTABLE
-        );
-
-        final PendingIntent pendingSeekUp = PendingIntent.getService(
-                this,
-                4,
-                new Intent(this, FMService.class)
-                        .setAction(C.Command.NOTIFICATION_SEEK)
-                        .putExtra(C.Key.SEEK_HW_DIRECTION, 1),
-                FLAG_IMMUTABLE
-        );
-
-        androidx.media.app.NotificationCompat.MediaStyle ms = new androidx.media.app.NotificationCompat.MediaStyle();
-        NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_radio)
-                .setContentIntent(pendingMain)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText(getString(R.string.progress_starting))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setShowWhen(false)
-                .setOnlyAlertOnce(true)
-                .setSilent(true)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .setColor(getResources().getColor(R.color.primary_blue))
-                .addAction(R.drawable.ic_go_down, getString(R.string.seek_down), pendingSeekDown) // #0
-                .addAction(R.drawable.ic_stop, getString(R.string.toggle_play_pause), pendingStop); // #1
-
-        if (!mRecordingNow) {
-            n.addAction(R.drawable.ic_record_off, getString(R.string.menu_record), pendingRec); // #2
-            ms.setShowActionsInCompactView(1, 2);
-        } else {
-            ms.setShowActionsInCompactView(1);
-        }
-
-        n.addAction(R.drawable.ic_go_up, getString(R.string.seek_up), pendingSeekUp) // #3 or #2
-                .setStyle(ms);
-
-        return n;
-    }
-
-    public Notification updateNotification(final RadioState state) {
-        if (mNBuilder == null || mNeedRecreateNotification) {
-            mNBuilder = createNotificationBuilder();
-            mNeedRecreateNotification = false;
-        }
-
-        final int frequency = state.getFrequency();
-        /*
-         * Subtitle
-         */
-        mNBuilder.setSubText(getString(R.string.notification_mhz, frequency / 1000d));
-
-        final boolean isNeedShowRds = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SHOW_RDS, C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
-
-        /*
-         * Title
-         */
-        String title = getString(R.string.notification_mhz, frequency / 1000d).trim();
-        final String stationTitle = mFavoriteList.get(frequency);
-        final String rdsPs = state.getPs();
-
-        if (isNeedShowRds && rdsPs != null && !rdsPs.isEmpty()) {
-            title = title + " | " + rdsPs.trim();
-        } else if (stationTitle != null) {
-            title = title + " | " + stationTitle;
-        }
-
-        mNBuilder.setContentTitle(title);
-
-        /*
-         * Text
-         */
-        String text = "";
-        final String rdsRt = state.getRt();
-
-        if (isNeedShowRds && rdsRt != null && !rdsRt.isEmpty()) {
-            text = rdsRt;
-        }
-
-        mNBuilder.setContentText(text);
-
-        return mNBuilder.build();
-    }
-
-    /**
      * Update notification
      */
     private void updateNotification() {
-        final Notification notification = updateNotification(mState);
-        notification.flags |= Notification.FLAG_NO_CLEAR;
-        notification.flags |= Notification.FLAG_ONGOING_EVENT;
+        final int frequency = mState.getFrequency();
+        final boolean showRds = Storage.getPrefBoolean(
+                this,
+                C.PrefKey.NOTIFICATION_SHOW_RDS,
+                C.PrefDefaultValue.NOTIFICATION_SHOW_RDS
+        );
+        final Notification notification = mNotifications.buildPlayback(
+                frequency,
+                mState.getPs(),
+                mState.getRt(),
+                mFavoriteList.get(frequency),
+                showRds,
+                mRecordingNow
+        );
 
         startForeground(NOTIFICATION_ID, notification);
-    }
-
-    private void updateRecordingNotification(final int duration, final int size) {
-        final PendingIntent pendingRecordStop = PendingIntent.getService(
-                this,
-                5,
-                new Intent(this, FMService.class)
-                        .setAction(C.Command.RECORD_STOP),
-                FLAG_IMMUTABLE
-        );
-        NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORDING_ID)
-                .setSmallIcon(R.drawable.ic_record_on)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText(getString(R.string.notification_recording, getTimeStringBySeconds(duration), size / 1024f / 1024f))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setShowWhen(false)
-                .setOnlyAlertOnce(true)
-                .setSilent(true)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .setColor(getResources().getColor(R.color.record_active))
-                .addAction(R.drawable.ic_record_off, getString(R.string.seek_down), pendingRecordStop)
-                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0));
-
-        mNotificationManager.notify(NOTIFICATION_RECORD_ID, n.build());
-    }
-
-    private void showRecorded(final Bundle extras) {
-        final boolean needNotification = Storage.getPrefBoolean(this, C.PrefKey.RECORDING_SHOW_NOTIFY, C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
-
-        final int size = extras.getInt(C.Key.SIZE);
-        final int duration = extras.getInt(C.Key.DURATION);
-        final String filename = extras.getString(C.Key.DISPLAY_NAME);
-        final String uri = extras.getString(C.Key.RECORDING_URI);
-        final String filePath = extras.getString(C.Key.RECORDING_FILE_PATH);
-        final String subtitleUri = extras.getString(C.Key.SUBTITLE_URI);
-        final String subtitlePath = extras.getString(C.Key.SUBTITLE_FILE_PATH);
-
-        if (needNotification) {
-            final String location = uri != null ? uri : filePath;
-            final String notificationTag = "recording:" + location;
-            final Intent deleteIntent = RecordingDeleteActivity.createIntent(
-                    this,
-                    uri,
-                    filePath,
-                    filename,
-                    notificationTag,
-                    subtitleUri,
-                    subtitlePath
-            );
-            final PendingIntent pendingDelete = PendingIntent.getActivity(
-                    this,
-                    location.hashCode(),
-                    deleteIntent,
-                    FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
-            );
-            final NotificationCompat.Builder n = new NotificationCompat.Builder(this, CHANNEL_RECORD_ID)
-                    .setSmallIcon(R.drawable.ic_radio)
-                    .setContentTitle(getString(R.string.app_name))
-                    .setContentText(getString(R.string.notification_recorded, getTimeStringBySeconds(duration), size / 1024f / 1024f, filename))
-                    .setPriority(NotificationCompat.PRIORITY_LOW)
-                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                    .addAction(R.drawable.ic_favorite_list_remove, getString(R.string.record_delete_action), pendingDelete);
-
-            mNotificationManager.notify(notificationTag, RecordingDeleteActivity.NOTIFICATION_ID, n.build());
-        }
-
-        String message = getString(
-                R.string.toast_record_ended,
-                filename,
-                size / 1024f / 1024f,
-                getTimeStringBySeconds(duration)
-        );
-        if (
-                extras.getBoolean(C.Key.SUBTITLES_REQUESTED, false) &&
-                subtitleUri == null &&
-                subtitlePath == null
-        ) {
-            message += "\n" + getString(R.string.record_subtitles_failed);
-        }
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
     @Override

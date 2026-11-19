@@ -12,7 +12,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | (root) | `C.java` — all constants (commands, events, pref keys), `Storage` (Tray) |
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
-| `service/` | `FMService` — the orchestrator |
+| `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |
 | `service/audio/` | `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
 | `service/fm/` | Contract: `IFMController`, `IFMEventListener`, `FMEventCallback`, `RadioStatePatch`, `Request`, `Empty`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
@@ -149,7 +149,7 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   arm64-v8a, NDK 29.0.14033849. `preBuild` runs `native/build.sh` and then
   verifies the `fmbin-*` assets exist.
 - JVM tests (`make test-java`): RadioState, SignalStrength, Request,
-  PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
+  FMNotificationManager, PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
 - Dead code: `service/streaming/` (empty), `enums/MuteState`,
   `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
   returns a null recorder — unreachable from UI),
