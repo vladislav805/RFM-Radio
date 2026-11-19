@@ -726,26 +726,30 @@ An event thread dequeues the Qualcomm Tavarua event buffer and interprets each
 byte as an event ID. It handles radio ready/disabled, tune/seek, scan progress,
 PS/RT/raw RDS, stereo/mono, station lists, AF, ODA, RT+, and ERT.
 
-On `RADIO_DISABLED`, the thread marks state off, closes the radio file
-descriptor, and exits itself.
+On `RADIO_DISABLED` or loop exit, the event thread marks state off, closes the
+radio file descriptor via `V4l2BackendBase::close_device()` (which atomically
+exchanges `fd_radio_` with `-1` so each descriptor is closed at most once), and
+exits itself.
 
-Legacy globals such as `fd_radio`, `fm_storage`, the power-completion flag, and
-RT+ tags are shared between the command thread and event thread without a
-mutex. The event thread can close the descriptor while command handling issues
-an ioctl. Any lifecycle or concurrency change must account for these existing
-data races rather than assuming this layer is thread-safe.
+Legacy fields such as `fm_storage` and RT+ tags are shared between the command
+thread and event thread without a mutex. Any lifecycle or concurrency change
+must account for these shared fields rather than assuming this layer is fully
+synchronized.
 
 If `enable()` is called while the receiver is already enabled, it rejects fast
 with `ERR_ALREADY_ENABLED` without disturbing the active session or event thread.
 If `enable()` is called while disabled (including after a prior `disable()` or
 failed enable rollback), it first calls `stop_event_thread()` to stop and join
-any lingering event thread and reopens `/dev/radio0` via `command_open()` when
-`fd_radio_ < 0` before preparing the receiver.
+any lingering event thread; if the previous event thread has not stopped within
+the bound, `enable()` rejects with `ERR_FAILED` instead of reopening
+`/dev/radio0`.
 
 Legacy `pthread_create()` return codes are checked; on `command_setup_receiver()`
 failures, `rollback_enable()`, or `command_shutdown()`, `stop_event_thread()`
-clears `power_on_completed_` and `thread_running_`, closes the descriptor to
-unblock any pending `VIDIOC_DQBUF`, and joins the event thread deterministically.
+clears `power_on_completed_` and `thread_running_`, interrupts any in-flight
+`VIDIOC_DQBUF` (`interrupt_event_read()`, sending `SIGUSR1` registered without
+`SA_RESTART`), waits within a bounded loop for the event thread to finish and
+close the descriptor, and joins it only after exit is confirmed.
 
 ### Tune, Jump, Seek, and Search
 

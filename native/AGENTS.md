@@ -117,9 +117,12 @@ indices refer to raw characters.
 - Helium `vendor_set()` holds `state_lock_` across vendor calls and
   `hal_init()` is called under the same non-recursive mutex: a synchronous
   vendor callback that locks state would deadlock. Do not expand this.
-- Qualcomm V4L2 globals (`fd_radio`, `fm_storage`, …) are shared between the
-  command thread and the event thread without a mutex — known race; the
-  event thread closes the fd on `RADIO_DISABLED`.
+- Qualcomm V4L2 `fd_radio_` is atomic (`V4l2BackendBase::close_device()` uses
+  atomic exchange so each descriptor is closed at most once). While the event
+  thread is running, it closes `fd_radio_` on exit (including `RADIO_DISABLED`);
+  `stop_event_thread()` interrupts in-flight `VIDIOC_DQBUF` via non-`SA_RESTART`
+  `SIGUSR1` (`interrupt_event_read()`), waits within a bound before joining, and
+  blocks reopening if a previous event thread has not stopped.
 - Both full-search implementations are sequential scans (tune low → seek up
   → collect); they have no timeout and cap at 64 unique stations.
 - Qualcomm V4L2 (`iris`) does not emit ECC (`country`) on verified devices

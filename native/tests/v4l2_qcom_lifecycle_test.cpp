@@ -94,9 +94,21 @@ public:
     bool emit_ready_on_rx = true;
     bool emit_disabled_on_off = true;
     bool fail_set_tuner = false;
+    bool emit_disabled_on_tuner_fail = false;
+    bool ignore_event_interrupt = false;
     bool fail_get_sinr = false;
     int sinr_value = 12;
     int rmssi_signal = -70;
+
+    ~FakeV4l2QcomBackend() override {
+        {
+            std::lock_guard<std::mutex> lock(mu_);
+            ignore_event_interrupt = false;
+            dqbuf_interrupted_ = true;
+        }
+        cv_.notify_all();
+        shutdown();
+    }
 
     void push_event(uint8_t event_id) {
         std::lock_guard<std::mutex> lock(mu_);
@@ -128,7 +140,7 @@ public:
     }
 
     bool device_fd_open() const {
-        return fd_radio_ >= 0;
+        return fd_radio_.load() >= 0;
     }
 
 protected:
@@ -138,6 +150,8 @@ protected:
         active_fd_ = next_fd_++;
         ++open_calls_;
         events_.clear();
+        dqbuf_interrupted_ = false;
+        dqbuf_waiting_ = false;
         return active_fd_;
     }
 
@@ -147,13 +161,21 @@ protected:
             device_open_ = false;
             active_fd_ = -1;
             ++close_calls_;
-            cv_.notify_all();
         }
     }
 
     void sleep_us(unsigned int usec) override {
         if (usec == 10000) {
             std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+    }
+
+    void interrupt_event_read() override {
+        V4l2QcomBackend::interrupt_event_read();
+        std::lock_guard<std::mutex> lock(mu_);
+        if (!ignore_event_interrupt) {
+            dqbuf_interrupted_ = true;
+            cv_.notify_all();
         }
     }
 
@@ -209,12 +231,21 @@ protected:
         }
 
         if (request == VIDIOC_S_TUNER) {
-            std::lock_guard<std::mutex> lock(mu_);
+            std::unique_lock<std::mutex> lock(mu_);
             if (!device_open_ || fd != active_fd_) {
                 errno = EBADF;
                 return -1;
             }
             if (fail_set_tuner) {
+                if (is_event_thread_started()) {
+                    cv_.wait(lock, [&]() {
+                        return dqbuf_waiting_ || !events_.empty();
+                    });
+                }
+                if (emit_disabled_on_tuner_fail) {
+                    events_.push_back(kEvtRadioDisabled);
+                    cv_.notify_all();
+                }
                 errno = EINVAL;
                 return -1;
             }
@@ -266,11 +297,19 @@ protected:
         if (request == VIDIOC_DQBUF) {
             auto *buf = static_cast<struct v4l2_buffer *>(arg);
             std::unique_lock<std::mutex> lock(mu_);
-            cv_.wait(lock, [&]() {
-                return !device_open_ || fd != active_fd_ || !events_.empty();
-            });
             if (!device_open_ || fd != active_fd_) {
                 errno = EBADF;
+                return -1;
+            }
+            dqbuf_waiting_ = true;
+            cv_.notify_all();
+            cv_.wait(lock, [&]() {
+                return dqbuf_interrupted_ || !events_.empty();
+            });
+            dqbuf_waiting_ = false;
+            if (dqbuf_interrupted_ && events_.empty()) {
+                dqbuf_interrupted_ = false;
+                errno = EINTR;
                 return -1;
             }
             auto *out = reinterpret_cast<uint8_t *>(buf->m.userptr);
@@ -292,6 +331,8 @@ private:
     std::condition_variable cv_;
     std::deque<uint8_t> events_;
     bool device_open_ = false;
+    bool dqbuf_waiting_ = false;
+    bool dqbuf_interrupted_ = false;
     int next_fd_ = 100;
     int active_fd_ = -1;
     int open_calls_ = 0;
@@ -379,6 +420,7 @@ TEST(V4l2QcomLifecycleTest, RollbackOnMidSetupFailureStopsAndJoinsEventThread) {
     ASSERT_TRUE(backend.init());
     EXPECT_FALSE(backend.enable(cfg));
     EXPECT_STREQ(backend.last_error(), "ERR_CNS_REG");
+    EXPECT_EQ(backend.close_calls(), 1);
     EXPECT_FALSE(backend.event_thread_started());
     EXPECT_FALSE(backend.device_fd_open());
 
@@ -388,6 +430,95 @@ TEST(V4l2QcomLifecycleTest, RollbackOnMidSetupFailureStopsAndJoinsEventThread) {
     EXPECT_TRUE(backend.event_thread_started());
 
     backend.shutdown();
+    EXPECT_FALSE(backend.event_thread_started());
+    EXPECT_FALSE(backend.device_fd_open());
+}
+
+TEST(V4l2QcomLifecycleTest, RollbackWakesWaitingEventIoctlWhenOffAndCloseDoNot) {
+    FakeV4l2QcomBackend backend;
+    backend.fail_set_tuner = true;
+    backend.emit_disabled_on_off = false;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    EXPECT_FALSE(backend.enable(cfg));
+    EXPECT_STREQ(backend.last_error(), "ERR_CNS_REG");
+    EXPECT_EQ(backend.close_calls(), 1);
+    EXPECT_FALSE(backend.event_thread_started());
+    EXPECT_FALSE(backend.device_fd_open());
+
+    backend.fail_set_tuner = false;
+    ASSERT_TRUE(backend.enable(cfg));
+    EXPECT_EQ(backend.open_calls(), 2);
+    EXPECT_TRUE(backend.event_thread_started());
+    EXPECT_TRUE(backend.set_frequency(93300));
+    EXPECT_EQ(backend.last_frequency_khz(), 93300u);
+
+    backend.shutdown();
+    EXPECT_EQ(backend.close_calls(), 2);
+    EXPECT_FALSE(backend.event_thread_started());
+    EXPECT_FALSE(backend.device_fd_open());
+}
+
+TEST(V4l2QcomLifecycleTest, RadioDisabledRacingWithRollbackClosesOnceAndRecovers) {
+    FakeV4l2QcomBackend backend;
+    backend.fail_set_tuner = true;
+    backend.emit_disabled_on_off = false;
+    backend.emit_disabled_on_tuner_fail = true;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    EXPECT_FALSE(backend.enable(cfg));
+    EXPECT_STREQ(backend.last_error(), "ERR_CNS_REG");
+    EXPECT_EQ(backend.close_calls(), 1);
+    EXPECT_FALSE(backend.event_thread_started());
+    EXPECT_FALSE(backend.device_fd_open());
+
+    backend.fail_set_tuner = false;
+    backend.emit_disabled_on_tuner_fail = false;
+    ASSERT_TRUE(backend.enable(cfg));
+    EXPECT_EQ(backend.open_calls(), 2);
+    EXPECT_TRUE(backend.event_thread_started());
+    EXPECT_TRUE(backend.set_frequency(98100));
+    EXPECT_EQ(backend.last_frequency_khz(), 98100u);
+
+    backend.shutdown();
+    EXPECT_EQ(backend.close_calls(), 2);
+    EXPECT_FALSE(backend.event_thread_started());
+    EXPECT_FALSE(backend.device_fd_open());
+}
+
+TEST(V4l2QcomLifecycleTest, UnresponsiveEventIoctlBoundsRollbackAndBlocksReopenUntilStopped) {
+    FakeV4l2QcomBackend backend;
+    backend.fail_set_tuner = true;
+    backend.emit_disabled_on_off = false;
+    backend.ignore_event_interrupt = true;
+    const StartupConfig cfg = make_default_config();
+
+    ASSERT_TRUE(backend.init());
+    EXPECT_FALSE(backend.enable(cfg));
+    EXPECT_STREQ(backend.last_error(), "ERR_CNS_REG");
+    EXPECT_TRUE(backend.event_thread_started());
+    EXPECT_EQ(backend.close_calls(), 0);
+
+    // Must not reopen the receiver while the previous event thread is still active.
+    backend.fail_set_tuner = false;
+    EXPECT_FALSE(backend.enable(cfg));
+    EXPECT_STREQ(backend.last_error(), "ERR_FAILED");
+    EXPECT_EQ(backend.open_calls(), 1);
+    EXPECT_EQ(backend.close_calls(), 0);
+
+    // Once the stuck event read becomes interruptible again, enable cleans up and recovers.
+    backend.ignore_event_interrupt = false;
+    ASSERT_TRUE(backend.enable(cfg));
+    EXPECT_EQ(backend.close_calls(), 1);
+    EXPECT_EQ(backend.open_calls(), 2);
+    EXPECT_TRUE(backend.event_thread_started());
+    EXPECT_TRUE(backend.set_frequency(95500));
+    EXPECT_EQ(backend.last_frequency_khz(), 95500u);
+
+    backend.shutdown();
+    EXPECT_EQ(backend.close_calls(), 2);
     EXPECT_FALSE(backend.event_thread_started());
     EXPECT_FALSE(backend.device_fd_open());
 }

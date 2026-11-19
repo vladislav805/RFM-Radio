@@ -51,6 +51,9 @@ protected:
         usleep(usec);
     }
 
+    // Interrupts an in-flight event read on the event thread; virtual for host test seams.
+    virtual void interrupt_event_read();
+
     // Reports whether an event thread handle is currently joinable.
     bool is_event_thread_started() const {
         return event_thread_started_;
@@ -128,8 +131,7 @@ private:
     // Event thread
     static void *event_thread_stub(void *arg);
     void event_thread();
-    void join_event_thread();
-    void stop_event_thread();
+    bool stop_event_thread();
 
     // Member State
     std::atomic<bool> enabled_{false};
@@ -142,6 +144,7 @@ private:
     std::atomic<bool> power_on_completed_{false};
     pthread_t q_event_thread_ = 0;
     bool event_thread_started_ = false;
+    std::atomic<bool> event_thread_running_{false};
     std::atomic<bool> thread_running_{false};
 
     fm_current_storage fm_storage_{};

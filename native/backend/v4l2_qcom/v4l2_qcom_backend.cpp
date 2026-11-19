@@ -9,6 +9,7 @@
 #include "../../rmssi.h"
 
 #include <algorithm>
+#include <csignal>
 #include <cstring>
 #include <errno.h>
 #include <fcntl.h>
@@ -31,6 +32,22 @@ constexpr const char *kErrAlreadyEnabled = "ERR_ALREADY_ENABLED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 constexpr uint64_t kMetricSettleMs = 750;
+constexpr int kEventThreadStopMaxAttempts = 100;
+constexpr unsigned int kEventThreadStopPollUs = 10000;
+
+void on_event_thread_interrupt_signal(int /*signo*/) {
+}
+
+void install_event_interrupt_signal_handler() {
+    static std::once_flag once;
+    std::call_once(once, []() {
+        struct sigaction sa = {};
+        sa.sa_handler = on_event_thread_interrupt_signal;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sigaction(SIGUSR1, &sa, nullptr);
+    });
+}
 
 // Bit 0 in V4L2/Qcom RDS options enabling RadioText (RT) processing.
 constexpr uint8_t kRdsGroupOptionRtMask = 0x01;
@@ -232,8 +249,9 @@ bool V4l2QcomBackend::enable(const StartupConfig &config) {
         return set_status(false, kErrAlreadyEnabled);
     }
 
-    if (event_thread_started_) {
-        stop_event_thread();
+    if (event_thread_started_ && !stop_event_thread()) {
+        log("enable", "rejected: previous event thread still active");
+        return set_status(false, kErrFailed);
     }
 
     if (fd_radio_ < 0 && !set_status(command_open() == FM_CMD_SUCCESS, kErrFailed)) {
@@ -766,7 +784,13 @@ bool V4l2QcomBackend::receiver_cancel_search() {
 
 // Reads a V4L2 private buffer index via VIDIOC_DQBUF.
 int32_t V4l2QcomBackend::read_buffer(uint8_t *buf, uint32_t buffer_size, int index) {
-    if (fd_radio_ < 0 || buf == nullptr || buffer_size == 0) {
+    const int fd = fd_radio_.load();
+    if (fd < 0 || buf == nullptr || buffer_size == 0) {
+        return -1;
+    }
+
+    if (index == kTavaruaBufEvents && !thread_running_) {
+        errno = EINTR;
         return -1;
     }
 
@@ -777,7 +801,7 @@ int32_t V4l2QcomBackend::read_buffer(uint8_t *buf, uint32_t buffer_size, int ind
     v4l2_buf.m.userptr = reinterpret_cast<unsigned long>(buf);
     v4l2_buf.length = buffer_size;
 
-    if (v4l2_ioctl(fd_radio_, VIDIOC_DQBUF, &v4l2_buf) < 0) {
+    if (v4l2_ioctl(fd, VIDIOC_DQBUF, &v4l2_buf) < 0) {
         const int saved_errno = errno;
         log("v4l2", "read buffer index=0x%x failed, errno=%d (%s)", index, saved_errno, strerror(saved_errno));
         return -1;
@@ -1072,11 +1096,18 @@ uint8_t V4l2QcomBackend::extract_search_station_list(uint32_t *list) {
 void *V4l2QcomBackend::event_thread_stub(void *arg) {
     auto *self = static_cast<V4l2QcomBackend *>(arg);
     self->event_thread();
+    self->event_thread_running_ = false;
     return nullptr;
 }
 
 // Background thread that continuously reads V4L2 events.
 void V4l2QcomBackend::event_thread() {
+    install_event_interrupt_signal_handler();
+    sigset_t unblock_set;
+    sigemptyset(&unblock_set);
+    sigaddset(&unblock_set, SIGUSR1);
+    pthread_sigmask(SIG_UNBLOCK, &unblock_set, nullptr);
+
     log("event", "interrupt thread started");
     uint8_t buf[128] = {0};
 
@@ -1330,23 +1361,46 @@ void V4l2QcomBackend::event_thread() {
         }
     }
 
+    receiver_close();
     log("event", "interrupt thread exited");
 }
 
-// Joins the event thread if it was started from another thread.
-void V4l2QcomBackend::join_event_thread() {
+// Interrupts an in-flight event read on the event thread.
+void V4l2QcomBackend::interrupt_event_read() {
     if (event_thread_started_ && !pthread_equal(pthread_self(), q_event_thread_)) {
-        pthread_join(q_event_thread_, nullptr);
-        event_thread_started_ = false;
+        install_event_interrupt_signal_handler();
+        pthread_kill(q_event_thread_, SIGUSR1);
     }
 }
 
-// Signals the event thread to exit, closes the device, and joins it.
-void V4l2QcomBackend::stop_event_thread() {
+// Signals the event thread to exit, waits within a bound, and joins it.
+bool V4l2QcomBackend::stop_event_thread() {
     power_on_completed_ = false;
     thread_running_ = false;
+
+    if (!event_thread_started_) {
+        receiver_close();
+        return true;
+    }
+
+    if (pthread_equal(pthread_self(), q_event_thread_)) {
+        return false;
+    }
+
+    for (int attempt = 0; attempt < kEventThreadStopMaxAttempts && event_thread_running_; ++attempt) {
+        interrupt_event_read();
+        sleep_us(kEventThreadStopPollUs);
+    }
+
+    if (event_thread_running_) {
+        log("event", "timed out waiting for interrupt thread to exit");
+        return false;
+    }
+
+    pthread_join(q_event_thread_, nullptr);
+    event_thread_started_ = false;
     receiver_close();
-    join_event_thread();
+    return true;
 }
 
 // Opens the V4L2 device and initiates firmware bootstrap if needed.
@@ -1448,7 +1502,9 @@ fm_cmd_status_t V4l2QcomBackend::command_prepare(fm_config_data *config_ptr) {
 fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     int thread_ret = 0;
     power_on_completed_ = false;
-    join_event_thread();
+    if (event_thread_started_ && !stop_event_thread()) {
+        return FM_CMD_FAILURE;
+    }
 
 #ifdef __ANDROID_API__
     if (direct_v4l2_transport_) {
@@ -1483,11 +1539,13 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     // before STATE=RX and then waits for RADIO_READY. Start it before the
     // power control here; the established legacy path keeps its old ordering.
     if (direct_v4l2_transport_) {
+        event_thread_running_ = true;
         thread_ret = pthread_create(&q_event_thread_, nullptr, event_thread_stub, this);
 
         if (thread_ret != 0) {
             log("event", "pthread_create failed ret=%d (%s)", thread_ret, strerror(thread_ret));
             thread_running_ = false;
+            event_thread_running_ = false;
             clear_direct_init_marker();
             return FM_CMD_FAILURE;
         }
@@ -1512,7 +1570,6 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
         if (!power_on_completed_) {
             log("setup", "RADIO_READY timeout attempts=%d state=%d", ready_attempt, fm_storage_.state);
             clear_direct_init_marker();
-            stop_event_thread();
             return FM_CMD_FAILURE;
         }
     }
@@ -1540,11 +1597,13 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     }
 
     if (!direct_v4l2_transport_) {
+        event_thread_running_ = true;
         thread_ret = pthread_create(&q_event_thread_, nullptr, event_thread_stub, this);
 
         if (thread_ret != 0) {
             log("event", "pthread_create failed ret=%d (%s)", thread_ret, strerror(thread_ret));
             thread_running_ = false;
+            event_thread_running_ = false;
         } else {
             event_thread_started_ = true;
         }
