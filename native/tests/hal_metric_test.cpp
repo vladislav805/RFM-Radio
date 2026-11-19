@@ -137,18 +137,24 @@ TEST_F(HalMetricTest, SyncFallbackClearsCachedSinrAndDeduplicatesRepeats) {
 
         ASSERT_TRUE(backend->request_signal_metric());
         HalHeliumBackend::fm_get_station_param_cb(static_cast<uint8_t>(-68), 0);
+
+        // Subsequent tune_cb follows the selected RMSSI fallback policy instead of calling SINR directly.
+        HalHeliumBackend::tune_cb(102100);
+        HalHeliumBackend::fm_get_station_param_cb(static_cast<uint8_t>(-65), 0);
         output = capture.read_all();
     }
 
     const std::vector<std::string> lines = split_lines(output);
-    ASSERT_EQ(lines.size(), 5u) << output;
+    ASSERT_EQ(lines.size(), 7u) << output;
     EXPECT_EQ(lines[0], "{\"type\":\"state\",\"frequency\":101700,\"rds\":{\"pty\":0,\"af\":[]}}");
     EXPECT_EQ(lines[1], "{\"type\":\"state\",\"sinr\":12}");
     EXPECT_EQ(lines[2], "{\"type\":\"state\",\"sinr\":null}");
     EXPECT_EQ(lines[3], "{\"type\":\"state\",\"rmssi\":-70}");
     EXPECT_EQ(lines[4], "{\"type\":\"state\",\"rmssi\":-68}");
+    EXPECT_EQ(lines[5], "{\"type\":\"state\",\"frequency\":102100}");
+    EXPECT_EQ(lines[6], "{\"type\":\"state\",\"rmssi\":-65}");
     EXPECT_EQ(sinr_get_calls, 2);
-    EXPECT_EQ(rmssi_get_calls, 2);
+    EXPECT_EQ(rmssi_get_calls, 3);
 }
 
 TEST_F(HalMetricTest, AsyncSinrErrorFallsBackToRmssiAndRecoveryClearsStaleRmssi) {
