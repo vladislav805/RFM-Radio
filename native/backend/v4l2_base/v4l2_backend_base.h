@@ -86,9 +86,10 @@ protected:
         if (fd < 0) {
             return false;
         }
-        struct v4l2_control control = {};
-        control.id = id;
-        control.value = value;
+        struct v4l2_control control = {
+                .id = id,
+                .value = value,
+        };
         const int err = v4l2_ioctl(fd, VIDIOC_S_CTRL, &control);
         if (err < 0) {
             const int saved_errno = errno;
@@ -105,8 +106,9 @@ protected:
         if (fd < 0 || value == nullptr) {
             return false;
         }
-        struct v4l2_control control = {};
-        control.id = id;
+        struct v4l2_control control = {
+                .id = id,
+        };
         const int err = v4l2_ioctl(fd, VIDIOC_G_CTRL, &control);
         if (err < 0) {
             const int saved_errno = errno;

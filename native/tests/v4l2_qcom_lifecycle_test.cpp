@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -93,6 +94,7 @@ class FakeV4l2QcomBackend : public V4l2QcomBackend {
 public:
     bool emit_ready_on_rx = true;
     bool emit_disabled_on_off = true;
+    bool fail_open = false;
     bool fail_set_tuner = false;
     bool emit_disabled_on_tuner_fail = false;
     bool ignore_event_interrupt = false;
@@ -146,6 +148,10 @@ public:
 protected:
     int open_device_fd(const char *) override {
         std::lock_guard<std::mutex> lock(mu_);
+        if (fail_open) {
+            errno = ENODEV;
+            return -1;
+        }
         device_open_ = true;
         active_fd_ = next_fd_++;
         ++open_calls_;
@@ -739,6 +745,25 @@ TEST(V4l2QcomLifecycleTest, HardwareDisabledEventAllowsReEnableAndStopsMetricPol
     backend.shutdown();
     EXPECT_FALSE(backend.event_thread_started());
     EXPECT_FALSE(backend.device_fd_open());
+}
+
+TEST(V4l2QcomLifecycleTest, ClassifiesBootstrapModeAcrossAllProbeCombinations) {
+    EXPECT_EQ(classify_v4l2_bootstrap_mode("", false), V4l2BootstrapMode::kDirect);
+    EXPECT_EQ(classify_v4l2_bootstrap_mode(nullptr, false), V4l2BootstrapMode::kDirect);
+    EXPECT_EQ(classify_v4l2_bootstrap_mode("stopped", false), V4l2BootstrapMode::kFirmwareThenDirect);
+    EXPECT_EQ(classify_v4l2_bootstrap_mode("", true), V4l2BootstrapMode::kFirmwareThenDirect);
+    EXPECT_EQ(classify_v4l2_bootstrap_mode("running", true), V4l2BootstrapMode::kFirmwareThenDirect);
+}
+
+TEST(V4l2QcomLifecycleTest, OpenFailureHardFails) {
+    FakeV4l2QcomBackend backend;
+    backend.fail_open = true;
+    const StartupConfig cfg = make_default_config();
+
+    EXPECT_FALSE(backend.init());
+    EXPECT_STREQ(backend.last_error(), "ERR_FAILED");
+    EXPECT_FALSE(backend.enable(cfg));
+    EXPECT_STREQ(backend.last_error(), "ERR_FAILED");
 }
 
 } // namespace

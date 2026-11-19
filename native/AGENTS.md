@@ -27,6 +27,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `rds_parser.cpp` | Shared PS/RT/AF/ECC/station-list payload parsers |
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
+| `system.cpp` / `.h` | Shared system property, file-existence, and shell command helpers |
 | `periodic_deadline.cpp` | Testable monotonic deadline arithmetic for polling |
 | `tests/` | Host GoogleTest suite |
 
@@ -103,9 +104,16 @@ indices refer to raw characters.
 - Qualcomm V4L2 enable order: prepare (emphasis/spacing/antenna) → RDS config →
   band → stereo → AF → initial tune → unmute last. The driver rejects
   `RDS_ON` if band is configured first.
-- Qualcomm V4L2 has two bootstrap modes: firmware path (`fm_dl`, `hw.fm.init`) and,
-  when both `init.svc.fm_dl` and `fm_qsoc_patches` are absent, a direct
-  no-firmware V4L2 path.
+- Qualcomm V4L2 bootstrap (`select_v4l2_bootstrap_mode`) supports two modes
+  (`V4l2BootstrapMode`): when both `init.svc.fm_dl` and `fm_qsoc_patches` are
+  absent it uses `kDirect`; otherwise it uses `kFirmwareThenDirect`
+  (pre-clears `hw.fm.init=0`, starts `fm_dl`, and falls back to the direct
+  no-firmware V4L2 transport within the same `V4l2QcomBackend` instance if
+  `hw.fm.init` times out or `fm_qsoc_patches` exits non-zero, still attempting
+  `open("/dev/radio0")`). Legacy firmware setup also performs non-fatal
+  post-`STATE=RX` `V4L2_CID_TUNE_POWER_LEVEL=7` and `VIDIOC_G_TUNER` probe steps
+  and a bounded (1 s) non-fatal `RADIO_READY` wait after starting the event
+  thread.
 - Helium normal-power startup deliberately writes low power, then normal power
   — this arms vendor asynchronous event masks (stereo events). Best-effort:
   failure does not abort enable.

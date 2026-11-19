@@ -55,6 +55,7 @@ if(RFM_NATIVE_TESTS)
         backend/v4l2_qcom/v4l2_scan_state.cpp
         periodic_deadline.cpp
         ctl_protocol.cpp
+        system.cpp
     )
     target_include_directories(rfm_native_tests PRIVATE .)
     target_link_libraries(rfm_native_tests GTest::gtest_main)
@@ -79,6 +80,7 @@ add_executable(
     backend/v4l2_qcom/v4l2_scan_state.cpp
     backend/hal_helium/hal_helium_backend.cpp
     hex_dump.cpp
+    system.cpp
 )
 
 target_include_directories(

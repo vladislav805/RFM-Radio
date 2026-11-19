@@ -653,29 +653,50 @@ currently used.
 device:
 
 ```text
+pre-clear hw.fm.init=0
 set hw.fm.mode=normal
 set hw.fm.version=0
 start fm_dl service
 optionally insmod radio-iris-transport.ko
 poll hw.fm.init for readiness
+on timeout in kFirmwareThenDirect: log and fall back to direct mode
 wait for vendor stabilization
 open /dev/radio0 with O_RDWR | O_NONBLOCK
 wait again before use
 ```
 
-The legacy backend has two bootstrap modes. The firmware path above can spend
-roughly six seconds waiting for `hw.fm.init`, followed by fixed delays, and may
-run `fm_qsoc_patches` during receiver setup.
+Bootstrap mode selection is pure (`select_v4l2_bootstrap_mode()`):
+- `V4l2BootstrapMode::kDirect`: selected when both `init.svc.fm_dl` and an
+  executable `fm_qsoc_patches` are absent.
+- `V4l2BootstrapMode::kFirmwareThenDirect` (selected when `fm_dl` or
+  `fm_qsoc_patches` is present): pre-clears `hw.fm.init=0` before starting
+  `fm_dl` so a stale `1` cannot fake readiness. If `hw.fm.init` times out in
+  `command_open()` or `fm_qsoc_patches` fails during `command_setup_receiver()`,
+  the backend logs `mode=firmware_failed reason=...`, latches direct transport
+  (`direct_v4l2_transport_ = true`) within the same `V4l2QcomBackend` instance,
+  and continues via the direct no-firmware sequence (`hw.fm.init=1`, 200 ms
+  settle, event thread before `STATE=RX`, and bounded `RADIO_READY` wait). This
+  is an intra-backend transport fallback and does not cross into `HalHeliumBackend`.
 
-If both `init.svc.fm_dl` and an executable `fm_qsoc_patches` are absent, the
-backend selects the no-firmware direct V4L2 path before inspecting
-`hw.fm.init`, which may be stale from a killed process. During enable this path
-sets `hw.fm.init=1`, waits 200 ms, starts the event listener before `STATE=RX`,
-and waits for `RADIO_READY`. Disable clears `hw.fm.init` instead of stopping
-`fm_dl`.
+On the legacy firmware path (`direct_v4l2_transport_ == false`), after
+`STATE=RX`, `command_setup_receiver()` issues two non-fatal vendor steps
+(`V4L2_CID_TUNE_POWER_LEVEL = 7` and a `VIDIOC_G_TUNER` probe), configures mute,
+emphasis, spacing, and antenna, starts the event thread, and performs a bounded
+(1 s) non-fatal wait for `TAVARUA_EVT_RADIO_READY` before returning.
+
+`command_open()` polls `hw.fm.init` up to 6 s (`600 × 10 ms`, plus 500 ms and
+700 ms settle sleeps and 300 ms `make_ok()` = 7.5 s total, fitting within
+Java's 10 s `init` timeout). Once a firmware timeout or `fm_qsoc_patches`
+failure latches `firmware_bootstrap_failed_`, subsequent `command_open()` calls
+(such as re-enable after `disable()`, where Java's `enable` timeout is 5 s)
+skip the `fm_dl` wait and enter direct mode immediately; direct `RADIO_READY`
+is bounded to 3 s (`300 × 10 ms`) so `enable` plus `make_ok()` (300 ms) fits
+within the 5 s `enable` budget.
 
 The downloader present on Xiaomi Mi A1 keeps it on the firmware path. Xiaomi
-Redmi 4A Android 10 uses the direct path.
+Redmi 4A Android 10 uses the direct path. Devices with broken/inert `fm_dl`
+definitions (such as Redmi 4 Prime / `markw` on MIUI 10) fall back to the direct
+path automatically.
 
 ### Enable and Required Ordering
 
