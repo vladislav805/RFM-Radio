@@ -104,7 +104,7 @@ private:
     bool tune_frequency_khz(uint32_t frequency_khz);
     bool read_frequency_khz(uint32_t *frequency_khz);
     bool read_stereo_state(bool *is_stereo);
-    bool perform_hw_seek(bool upward, bool wrap_around);
+    bool perform_hw_seek(bool upward, bool wrap_around, int *out_errno = nullptr);
     void stop_search_thread();
     void search_worker();
     void start_rds_thread();

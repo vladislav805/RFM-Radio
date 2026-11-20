@@ -472,4 +472,231 @@ TEST(V4l2ExynosBackendTest, SetFrequencyDoesNotBlockOnRdsReadAndDiscardsStaleBlo
     EXPECT_EQ(output.find("\"pi\":\"7714\""), std::string::npos) << output;
 }
 
+class ScanFakeBackend : public FakeV4l2ExynosBackend {
+public:
+    struct SeekStep {
+        int ret = -1;
+        int err = EAGAIN;
+        uint32_t freq_khz = 0;
+        bool block_until_cancelled = false;
+    };
+
+    std::vector<SeekStep> seek_steps;
+    int fail_set_freq_call_index = -1;  // 1-based across VIDIOC_S_FREQUENCY calls
+    int fail_get_freq_call_index = -1;  // 1-based across VIDIOC_G_FREQUENCY calls
+    uint32_t get_freq_override_on_restore_khz = 0;
+
+    void wait_for_seek_count(int target) {
+        std::unique_lock<std::mutex> lock(scan_mu_);
+        scan_cv_.wait_for(lock, std::chrono::milliseconds(2000), [&]() {
+            return seek_calls_ >= target;
+        });
+    }
+
+protected:
+    int v4l2_ioctl(int fd, unsigned long request, void *arg) override {
+        if (request == VIDIOC_S_CTRL) {
+            auto *ctrl = static_cast<struct v4l2_control *>(arg);
+            if (ctrl->id == kS610CidSeekCancel) {
+                std::lock_guard<std::mutex> lock(scan_mu_);
+                seek_cancelled_ = true;
+                scan_cv_.notify_all();
+            }
+            return FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+        }
+
+        if (request == VIDIOC_S_FREQUENCY) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(scan_mu_);
+                idx = ++set_freq_calls_;
+            }
+            if (fail_set_freq_call_index == idx) {
+                errno = EIO;
+                return -1;
+            }
+            return FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+        }
+
+        if (request == VIDIOC_G_FREQUENCY) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(scan_mu_);
+                idx = ++get_freq_calls_;
+            }
+            if (fail_get_freq_call_index == idx) {
+                errno = EIO;
+                return -1;
+            }
+            const int rc = FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+            if (rc == 0 && get_freq_override_on_restore_khz > 0 && idx > 1) {
+                auto *freq = static_cast<struct v4l2_frequency *>(arg);
+                freq->frequency = get_freq_override_on_restore_khz * kS610FreqMultiplier;
+            }
+            return rc;
+        }
+
+        if (request == VIDIOC_S_HW_FREQ_SEEK) {
+            SeekStep step;
+            {
+                std::unique_lock<std::mutex> lock(scan_mu_);
+                const size_t step_idx = static_cast<size_t>(seek_calls_++);
+                scan_cv_.notify_all();
+                if (step_idx < seek_steps.size()) {
+                    step = seek_steps[step_idx];
+                }
+                if (step.block_until_cancelled) {
+                    scan_cv_.wait_for(lock, std::chrono::milliseconds(2000), [&]() {
+                        return seek_cancelled_;
+                    });
+                    errno = ECANCELED;
+                    return -1;
+                }
+            }
+            if (step.ret == 0) {
+                seek_target_khz = step.freq_khz;
+                return FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+            }
+            errno = step.err;
+            return -1;
+        }
+
+        return FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+    }
+
+private:
+    std::mutex scan_mu_;
+    std::condition_variable scan_cv_;
+    int set_freq_calls_ = 0;
+    int get_freq_calls_ = 0;
+    int seek_calls_ = 0;
+    bool seek_cancelled_ = false;
+};
+
+TEST(V4l2ExynosBackendTest, SearchStartTuneFailureEmitsSearchFailedWithoutSearchDone) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        // enable() already called VIDIOC_S_FREQUENCY once; fail the lower-edge tune (call #2).
+        backend.fail_set_freq_call_index = 2;
+        ASSERT_TRUE(backend.search());
+        usleep(100000);
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+    EXPECT_NE(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"type\":\"search_done\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SearchSeekEioAfterStationsEmitsSearchFailedWithoutSearchDone) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {
+                {0, 0, 90500, false},
+                {-1, EIO, 0, false},
+        };
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        ASSERT_TRUE(backend.search());
+        usleep(100000);
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+    EXPECT_NE(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"type\":\"search_done\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SearchFrequencyReadbackFailureEmitsSearchFailed) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {{0, 0, 90500, false}};
+        backend.fail_get_freq_call_index = 1;
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        ASSERT_TRUE(backend.search());
+        usleep(100000);
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+    EXPECT_NE(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"type\":\"search_done\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SearchRestoreFailureEmitsSearchFailedAndPublishesActualFrequency) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {
+                {0, 0, 90500, false},
+                {-1, EAGAIN, 0, false},
+        };
+        // #1: enable(), #2: lower-edge tune, #3: restore saved_khz -> fail.
+        backend.fail_set_freq_call_index = 3;
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        ASSERT_TRUE(backend.search());
+        usleep(100000);
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+    EXPECT_NE(output.find("\"frequency\":90500"), std::string::npos) << output;
+    EXPECT_NE(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"type\":\"search_done\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SearchCancelDoesNotEmitSearchDoneOrSearchFailed) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {{-1, 0, 0, true}};
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        ASSERT_TRUE(backend.search());
+        backend.wait_for_seek_count(1);
+        ASSERT_TRUE(backend.cancel_search());
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+    EXPECT_EQ(output.find("\"type\":\"search_done\""), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SearchZeroStationEndOfBandEmitsEmptySearchDone) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {{-1, EAGAIN, 0, false}};
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        ASSERT_TRUE(backend.search());
+        usleep(100000);
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+    EXPECT_NE(output.find("\"type\":\"search_done\",\"stations\":[]"), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+}
+
 }  // namespace

@@ -397,8 +397,16 @@ bool V4l2ExynosBackend::jump(const int direction, uint32_t *new_frequency) {
     return true;
 }
 
-bool V4l2ExynosBackend::perform_hw_seek(const bool upward, const bool wrap_around) {
+bool V4l2ExynosBackend::perform_hw_seek(const bool upward, const bool wrap_around, int *out_errno) {
+    if (out_errno != nullptr) {
+        *out_errno = 0;
+    }
+
     if (fd_radio_ < 0) {
+        if (out_errno != nullptr) {
+            *out_errno = EBADF;
+        }
+
         return false;
     }
 
@@ -423,6 +431,10 @@ bool V4l2ExynosBackend::perform_hw_seek(const bool upward, const bool wrap_aroun
     }
 
     if (ret < 0) {
+        if (out_errno != nullptr) {
+            *out_errno = saved_errno;
+        }
+
         log(
                 "seek",
                 "VIDIOC_S_HW_FREQ_SEEK upward=%d wrap=%d failed, errno=%d (%s)",
@@ -607,35 +619,78 @@ void V4l2ExynosBackend::search_worker() {
     ScanResultCollector collector;
     const RegionProfile &profile = get_region_profile(region_);
     const uint32_t saved_khz = current_frequency_khz_;
+    bool scan_failed = false;
+    bool cancelled = false;
+    bool publish_restored_state = false;
+    uint32_t restored_khz = saved_khz;
 
     {
         std::lock_guard<std::mutex> lock(ioctl_mutex_);
-        if (fd_radio_ >= 0) {
-            apply_mute(true);
-            tune_frequency_khz(profile.lower_frequency_khz);
 
-            uint32_t prev_khz = profile.lower_frequency_khz;
-            while (!search_cancel_.load() && enabled_.load()) {
-                if (!perform_hw_seek(true, false)) {
-                    break;
-                }
-                uint32_t found_khz = 0;
-                if (!read_frequency_khz(&found_khz)) {
-                    break;
-                }
-                if (found_khz <= prev_khz || found_khz > profile.upper_frequency_khz) {
-                    break;
-                }
-                collector.add(static_cast<int>(found_khz));
-                prev_khz = found_khz;
-                if (found_khz >= profile.upper_frequency_khz) {
-                    break;
+        if (fd_radio_ < 0) {
+            scan_failed = true;
+        } else {
+            apply_mute(true);
+
+            if (!tune_frequency_khz(profile.lower_frequency_khz)) {
+                log("search", "failed to tune to lower band edge %u", profile.lower_frequency_khz);
+                scan_failed = true;
+            } else {
+                uint32_t prev_khz = profile.lower_frequency_khz;
+
+                while (!search_cancel_.load() && enabled_.load()) {
+                    int seek_errno = 0;
+
+                    if (!perform_hw_seek(true, false, &seek_errno)) {
+                        if (search_cancel_.load() || !enabled_.load() || seek_errno == ECANCELED) {
+                            cancelled = true;
+                        } else if (seek_errno != EAGAIN && seek_errno != ENODATA && seek_errno != ERANGE) {
+                            log("search", "seek step failed with errno=%d", seek_errno);
+                            scan_failed = true;
+                        }
+                        break;
+                    }
+
+                    uint32_t found_khz = 0;
+
+                    if (!read_frequency_khz(&found_khz)) {
+                        log("search", "failed to read frequency after seek step");
+                        scan_failed = true;
+                        break;
+                    }
+
+                    if (found_khz <= prev_khz || found_khz > profile.upper_frequency_khz) {
+                        break;
+                    }
+
+                    collector.add(static_cast<int>(found_khz));
+                    prev_khz = found_khz;
+
+                    if (found_khz >= profile.upper_frequency_khz) {
+                        break;
+                    }
                 }
             }
 
+            if (search_cancel_.load() || !enabled_.load()) {
+                cancelled = true;
+            }
+
             reset_rds_state();
+
             if (enabled_.load()) {
-                tune_frequency_khz(saved_khz);
+                if (!tune_frequency_khz(saved_khz)) {
+                    log("search", "failed to restore frequency_khz=%u after scan", saved_khz);
+                    scan_failed = true;
+                    uint32_t actual_khz = 0;
+
+                    if (read_frequency_khz(&actual_khz)) {
+                        current_frequency_khz_ = actual_khz;
+                        restored_khz = actual_khz;
+                        publish_restored_state = true;
+                    }
+                }
+
                 rds_generation_.fetch_add(1, std::memory_order_acq_rel);
                 set_v4l2_ctrl(kS610CidAudioVolume, volume_.load());
                 apply_mute(false);
@@ -643,11 +698,25 @@ void V4l2ExynosBackend::search_worker() {
         }
     }
 
-    if (enabled_.load()) {
-        ScanResult result;
-        collector.copy_sorted(&result);
-        send_search_done(result.frequencies_khz, result.count);
+    if (publish_restored_state) {
+        publish_state(
+                static_cast<int>(restored_khz),
+                RADIO_PATCH_ABSENT_INT,
+                RADIO_PATCH_ABSENT_METRIC,
+                RADIO_PATCH_ABSENT_METRIC
+        );
     }
+
+    if (enabled_.load() && !cancelled) {
+        if (scan_failed) {
+            send_native_event("search_failed");
+        } else {
+            ScanResult result;
+            collector.copy_sorted(&result);
+            send_search_done(result.frequencies_khz, result.count);
+        }
+    }
+
     search_active_.store(false);
 }
 

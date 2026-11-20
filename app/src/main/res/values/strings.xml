@@ -155,6 +155,7 @@
 	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
 	<string name="menu_speaker">Play through speaker</string>
 	<string name="scan_stations_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="scan_stations_failed">Station scan failed.</string>
 	<string name="unsupported_device_title">Device not supported</string>
 	<string name="unsupported_device_message">RFM Radio could not find a supported FM backend on this device. Legacy mode requires /dev/radio0, and HAL mode requires fm_helium.so.</string>
 	<string name="root_required_title">Root access required</string>

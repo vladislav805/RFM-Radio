@@ -388,7 +388,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 })
                 .show();
 
-        Utils.registerAppReceiver(this, mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
+        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_DONE);
+        searchFilter.addAction(C.Event.HW_SEARCH_FAILED);
+        searchFilter.addAction(C.Event.ERROR_OCCURRED);
+        Utils.registerAppReceiver(this, mSearchDone, searchFilter);
     }
 
     private void unregisterSearchReceiver() {
@@ -405,9 +408,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
+            final String action = intent.getAction();
             unregisterSearchReceiver();
 
+            if (mSearchProgress != null) {
+                mSearchProgress.hide();
+                mSearchProgress = null;
+            }
+
+            if (C.Event.HW_SEARCH_FAILED.equals(action) || C.Event.ERROR_OCCURRED.equals(action)) {
+                mToast.text(R.string.scan_stations_failed).show();
+                return;
+            }
+
             final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
+            if (frequencies == null) {
+                mToast.text(R.string.scan_stations_failed).show();
+                return;
+            }
+
             mFavoriteController.reload();
             final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
             stations.clear();
@@ -420,11 +439,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Utils.sendAppBroadcast(MainActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
             mFavoritesView.reload(true);
             updateFavoriteFrequencyMarkers();
-
-            if (mSearchProgress != null) {
-                mSearchProgress.hide();
-                mSearchProgress = null;
-            }
         }
     };
 

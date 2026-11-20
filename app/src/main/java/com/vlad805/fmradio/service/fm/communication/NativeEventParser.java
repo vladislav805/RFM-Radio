@@ -49,6 +49,11 @@ public final class NativeEventParser {
                 break;
             }
 
+            case "search_failed": {
+                callback.onEvent(C.Event.HW_SEARCH_FAILED);
+                break;
+            }
+
             case "seek_done": {
                 callback.onEvent(C.Event.HW_SEEK_COMPLETE);
                 break;
