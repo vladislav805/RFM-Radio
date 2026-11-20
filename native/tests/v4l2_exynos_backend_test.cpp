@@ -253,9 +253,9 @@ TEST(V4l2ExynosBackendTest, UsesS610FrequencyMultiplierMutePolarityAndVolumeClam
     EXPECT_TRUE(backend.saw_blocking_seek());
     EXPECT_EQ(backend.raw_frequency_units(), 104200u * 16000u);
 
-    // Switching to Japan (76000..95000 kHz) clamps and retunes from 104200 kHz to 95000 kHz.
+    // Switching to Japan (S610 band 1: 76000..90000 kHz) clamps and retunes from 104200 kHz to 90000 kHz.
     EXPECT_TRUE(backend.set_region(StartupRegion::kJapan));
-    EXPECT_EQ(backend.raw_frequency_units(), 95000u * 16000u);
+    EXPECT_EQ(backend.raw_frequency_units(), 90000u * 16000u);
 
     EXPECT_TRUE(backend.disable());
     EXPECT_EQ(backend.get_written_ctrl(kS610CidAudioMute), kS610MuteOn);
@@ -622,7 +622,8 @@ TEST(V4l2ExynosBackendTest, SearchFrequencyReadbackFailureEmitsSearchFailed) {
         StdoutCapture capture;
         ScanFakeBackend backend;
         backend.seek_steps = {{0, 0, 90500, false}};
-        backend.fail_get_freq_call_index = 1;
+        // enable() and the lower-edge tune in search() each call VIDIOC_G_FREQUENCY once; fail the scan step readback (call #3).
+        backend.fail_get_freq_call_index = 3;
         ASSERT_TRUE(backend.init());
         ASSERT_TRUE(backend.enable(make_default_config()));
         ASSERT_TRUE(backend.search());
@@ -860,6 +861,96 @@ TEST(V4l2ExynosBackendTest, RdsWorkerShutdownBoundsUninterruptibleReadAndBlocksR
     EXPECT_TRUE(backend.enable(make_default_config()));
     EXPECT_TRUE(backend.disable());
     reset_ctl_server_state_for_test();
+}
+
+TEST(V4l2ExynosBackendTest, JapanPresetClampsTo90000AndWrapsWithinDriverBand) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        FakeV4l2ExynosBackend backend;
+        ASSERT_TRUE(backend.init());
+
+        StartupConfig config = make_default_config();
+        config.region = StartupRegion::kJapan;
+        config.frequency_khz = 93000;
+        ASSERT_TRUE(backend.enable(config));
+
+        EXPECT_EQ(backend.raw_frequency_units(), 90000u * kS610FreqMultiplier);
+
+        uint32_t jumped = 0;
+        ASSERT_TRUE(backend.jump(1, &jumped));
+        EXPECT_EQ(jumped, 76000u);
+
+        ASSERT_TRUE(backend.jump(-1, &jumped));
+        EXPECT_EQ(jumped, 90000u);
+
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+
+    EXPECT_NE(output.find("\"frequency\":90000"), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"frequency\":93000"), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"frequency\":95000"), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, TuneReadsBackDriverClampedFrequency) {
+    class ClampingDriverBackend final : public FakeV4l2ExynosBackend {
+    protected:
+        int v4l2_ioctl(int fd, unsigned long request, void *arg) override {
+            const int ret = FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+            if (ret == 0 && request == VIDIOC_S_FREQUENCY) {
+                struct v4l2_frequency readback = {};
+                readback.tuner = 0;
+                readback.type = V4L2_TUNER_RADIO;
+                readback.frequency = 88100u * kS610FreqMultiplier;
+                FakeV4l2ExynosBackend::v4l2_ioctl(fd, VIDIOC_S_FREQUENCY, &readback);
+            }
+            return ret;
+        }
+    };
+
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ClampingDriverBackend backend;
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+        ASSERT_TRUE(backend.set_frequency(88050));
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+
+    EXPECT_NE(output.find("\"frequency\":88100"), std::string::npos) << output;
+    EXPECT_EQ(output.find("\"frequency\":88050"), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SetRegionJapanRetunesOutOfDriverBand) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        FakeV4l2ExynosBackend backend;
+        ASSERT_TRUE(backend.init());
+
+        StartupConfig config = make_default_config();
+        config.region = StartupRegion::kJapanWide;
+        config.frequency_khz = 93000;
+        ASSERT_TRUE(backend.enable(config));
+        EXPECT_EQ(backend.raw_frequency_units(), 93000u * kS610FreqMultiplier);
+
+        ASSERT_TRUE(backend.set_region(StartupRegion::kJapan));
+        EXPECT_EQ(backend.raw_frequency_units(), 90000u * kS610FreqMultiplier);
+
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+
+    EXPECT_NE(output.find("\"frequency\":90000"), std::string::npos) << output;
 }
 
 }  // namespace

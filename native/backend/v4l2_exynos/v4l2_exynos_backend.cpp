@@ -51,6 +51,22 @@ int32_t map_region_to_s610_band(const StartupRegion region) {
     }
 }
 
+void get_exynos_band_bounds(
+        const StartupRegion region,
+        uint32_t *lower_khz,
+        uint32_t *upper_khz
+) {
+    if (region == StartupRegion::kJapan) {
+        // S610 band 1 (Japan) in radio-s610.c is 76000..90000 kHz.
+        *lower_khz = 76000;
+        *upper_khz = 90000;
+        return;
+    }
+    const RegionProfile &profile = get_region_profile(region);
+    *lower_khz = profile.lower_frequency_khz;
+    *upper_khz = profile.upper_frequency_khz;
+}
+
 int32_t map_spacing_to_s610(const int spacing_khz) {
     if (spacing_khz <= 50) {
         return kS610Spacing50Khz;
@@ -207,8 +223,10 @@ void V4l2ExynosBackend::drain_rds_fifo() {
 }
 
 bool V4l2ExynosBackend::tune_frequency_khz(const uint32_t frequency_khz) {
-    const RegionProfile &profile = get_region_profile(region_);
-    const uint32_t clamped = clamp_frequency_to_region(profile, frequency_khz);
+    uint32_t lower_khz = 0;
+    uint32_t upper_khz = 0;
+    get_exynos_band_bounds(region_, &lower_khz, &upper_khz);
+    const uint32_t clamped = std::min(std::max(frequency_khz, lower_khz), upper_khz);
 
     struct v4l2_frequency freq = {};
     freq.tuner = 0;
@@ -227,7 +245,12 @@ bool V4l2ExynosBackend::tune_frequency_khz(const uint32_t frequency_khz) {
         return false;
     }
 
-    current_frequency_khz_ = clamped;
+    uint32_t actual_khz = clamped;
+    if (read_frequency_khz(&actual_khz)) {
+        current_frequency_khz_ = actual_khz;
+    } else {
+        current_frequency_khz_ = clamped;
+    }
     return true;
 }
 
@@ -400,13 +423,15 @@ bool V4l2ExynosBackend::jump(const int direction, uint32_t *new_frequency) {
         return set_status(false, kErrFailed);
     }
 
-    const RegionProfile &profile = get_region_profile(region_);
+    uint32_t lower_khz = 0;
+    uint32_t upper_khz = 0;
+    get_exynos_band_bounds(region_, &lower_khz, &upper_khz);
     const int step = spacing_khz_ > 0 ? spacing_khz_ : 100;
     const int delta = (direction >= 0 ? 1 : -1) * step;
 
     int32_t target = static_cast<int32_t>(current_frequency_khz_) + delta;
-    const int32_t lower = static_cast<int32_t>(profile.lower_frequency_khz);
-    const int32_t upper = static_cast<int32_t>(profile.upper_frequency_khz);
+    const int32_t lower = static_cast<int32_t>(lower_khz);
+    const int32_t upper = static_cast<int32_t>(upper_khz);
 
     if (target > upper) {
         target = lower;
@@ -592,8 +617,10 @@ bool V4l2ExynosBackend::set_region(const StartupRegion region) {
         if (!apply_region(region)) {
             return set_status(false, kErrCantSetRegion);
         }
-        const RegionProfile &profile = get_region_profile(region);
-        const uint32_t clamped = clamp_frequency_to_region(profile, current_frequency_khz_);
+        uint32_t lower_khz = 0;
+        uint32_t upper_khz = 0;
+        get_exynos_band_bounds(region, &lower_khz, &upper_khz);
+        const uint32_t clamped = std::min(std::max(current_frequency_khz_, lower_khz), upper_khz);
         if (clamped != current_frequency_khz_) {
             reset_rds_state();
             if (!tune_frequency_khz(clamped)) {
@@ -644,7 +671,9 @@ bool V4l2ExynosBackend::search() {
 
 void V4l2ExynosBackend::search_worker() {
     ScanResultCollector collector;
-    const RegionProfile &profile = get_region_profile(region_);
+    uint32_t lower_khz = 0;
+    uint32_t upper_khz = 0;
+    get_exynos_band_bounds(region_, &lower_khz, &upper_khz);
     const uint32_t saved_khz = current_frequency_khz_;
     bool scan_failed = false;
     bool cancelled = false;
@@ -659,11 +688,11 @@ void V4l2ExynosBackend::search_worker() {
         } else {
             apply_mute(true);
 
-            if (!tune_frequency_khz(profile.lower_frequency_khz)) {
-                log("search", "failed to tune to lower band edge %u", profile.lower_frequency_khz);
+            if (!tune_frequency_khz(lower_khz)) {
+                log("search", "failed to tune to lower band edge %u", lower_khz);
                 scan_failed = true;
             } else {
-                uint32_t prev_khz = profile.lower_frequency_khz;
+                uint32_t prev_khz = lower_khz;
 
                 while (!search_cancel_.load() && enabled_.load()) {
                     int seek_errno = 0;
@@ -686,14 +715,14 @@ void V4l2ExynosBackend::search_worker() {
                         break;
                     }
 
-                    if (found_khz <= prev_khz || found_khz > profile.upper_frequency_khz) {
+                    if (found_khz <= prev_khz || found_khz > upper_khz) {
                         break;
                     }
 
                     collector.add(static_cast<int>(found_khz));
                     prev_khz = found_khz;
 
-                    if (found_khz >= profile.upper_frequency_khz) {
+                    if (found_khz >= upper_khz) {
                         break;
                     }
                 }
