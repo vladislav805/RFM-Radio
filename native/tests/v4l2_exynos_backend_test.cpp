@@ -699,4 +699,167 @@ TEST(V4l2ExynosBackendTest, SearchZeroStationEndOfBandEmitsEmptySearchDone) {
     EXPECT_EQ(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
 }
 
+TEST(V4l2ExynosBackendTest, RdsWorkerShutdownInterruptsSignalableBlockingRead) {
+    class SignalableBlockingRdsBackend final : public FakeV4l2ExynosBackend {
+    public:
+        SignalableBlockingRdsBackend() {
+            if (pipe(block_pipe_) == 0) {
+                pipe_ready_ = true;
+            }
+        }
+        ~SignalableBlockingRdsBackend() override {
+            if (pipe_ready_) {
+                close(block_pipe_[0]);
+                close(block_pipe_[1]);
+            }
+        }
+
+        void arm() {
+            armed_.store(true);
+        }
+
+        void wait_until_read_entered() {
+            std::unique_lock<std::mutex> lock(mu_);
+            ASSERT_TRUE(cv_.wait_for(
+                    lock,
+                    std::chrono::milliseconds(1000),
+                    [this]() { return read_entered_; }
+            ));
+        }
+
+        bool saw_eintr() const {
+            std::lock_guard<std::mutex> lock(mu_);
+            return saw_eintr_;
+        }
+
+    protected:
+        int poll_rds_fd(int /*fd*/, int /*timeout_ms*/) override {
+            return (pipe_ready_ && armed_.load()) ? 1 : 0;
+        }
+
+        ssize_t read_rds_fd(int /*fd*/, void * /*buf*/, size_t /*count*/) override {
+            {
+                std::lock_guard<std::mutex> lock(mu_);
+                read_entered_ = true;
+                cv_.notify_all();
+            }
+            char dummy = 0;
+            const ssize_t n = ::read(block_pipe_[0], &dummy, 1);
+            if (n < 0 && errno == EINTR) {
+                std::lock_guard<std::mutex> lock(mu_);
+                saw_eintr_ = true;
+            }
+            return n;
+        }
+
+    private:
+        mutable std::mutex mu_;
+        std::condition_variable cv_;
+        std::atomic<bool> armed_{false};
+        int block_pipe_[2] = {-1, -1};
+        bool pipe_ready_ = false;
+        bool read_entered_ = false;
+        bool saw_eintr_ = false;
+    };
+
+    reset_ctl_server_state_for_test();
+    SignalableBlockingRdsBackend backend;
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(make_default_config()));
+    backend.arm();
+    backend.wait_until_read_entered();
+
+    const auto start = std::chrono::steady_clock::now();
+    EXPECT_TRUE(backend.disable());
+    const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start
+    ).count();
+
+    EXPECT_TRUE(backend.saw_eintr());
+    EXPECT_LT(elapsed_ms, 500);
+    reset_ctl_server_state_for_test();
+}
+
+TEST(V4l2ExynosBackendTest, RdsWorkerShutdownBoundsUninterruptibleReadAndBlocksReopenUntilStopped) {
+    class UninterruptibleRdsBackend final : public FakeV4l2ExynosBackend {
+    public:
+        void arm() {
+            armed_.store(true);
+        }
+
+        void disarm() {
+            armed_.store(false);
+        }
+
+        void wait_until_read_entered() {
+            std::unique_lock<std::mutex> lock(mu_);
+            ASSERT_TRUE(cv_.wait_for(
+                    lock,
+                    std::chrono::milliseconds(1000),
+                    [this]() { return read_entered_; }
+            ));
+        }
+
+        void release_read_and_wait_exit() {
+            std::unique_lock<std::mutex> lock(mu_);
+            release_read_ = true;
+            cv_.notify_all();
+            ASSERT_TRUE(cv_.wait_for(
+                    lock,
+                    std::chrono::milliseconds(1000),
+                    [this]() { return read_exited_; }
+            ));
+        }
+
+    protected:
+        int poll_rds_fd(int /*fd*/, int /*timeout_ms*/) override {
+            return armed_.load() ? 1 : 0;
+        }
+
+        ssize_t read_rds_fd(int /*fd*/, void * /*buf*/, size_t /*count*/) override {
+            std::unique_lock<std::mutex> lock(mu_);
+            read_entered_ = true;
+            cv_.notify_all();
+            cv_.wait(lock, [this]() { return release_read_; });
+            read_exited_ = true;
+            cv_.notify_all();
+            return 0;
+        }
+
+    private:
+        std::mutex mu_;
+        std::condition_variable cv_;
+        std::atomic<bool> armed_{false};
+        bool read_entered_ = false;
+        bool release_read_ = false;
+        bool read_exited_ = false;
+    };
+
+    reset_ctl_server_state_for_test();
+    UninterruptibleRdsBackend backend;
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(make_default_config()));
+    backend.arm();
+    backend.wait_until_read_entered();
+
+    const auto start = std::chrono::steady_clock::now();
+    EXPECT_FALSE(backend.disable());
+    const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start
+    ).count();
+    EXPECT_GE(elapsed_ms, 900);
+    EXPECT_LT(elapsed_ms, 2500);
+
+    // While the detached worker is still stuck in read_rds_fd(), reopening must fail.
+    backend.disarm();
+    EXPECT_FALSE(backend.enable(make_default_config()));
+
+    backend.release_read_and_wait_exit();
+    usleep(50000);
+
+    EXPECT_TRUE(backend.enable(make_default_config()));
+    EXPECT_TRUE(backend.disable());
+    reset_ctl_server_state_for_test();
+}
+
 }  // namespace

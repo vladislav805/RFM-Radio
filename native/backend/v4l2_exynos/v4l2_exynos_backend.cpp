@@ -5,11 +5,13 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <csignal>
 #include <cstdio>
 #include <cstring>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <poll.h>
+#include <pthread.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
@@ -18,7 +20,23 @@ namespace {
 constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 constexpr int kRdsPollTimeoutMs = 50;
+constexpr int kRdsThreadStopMaxAttempts = 100;
+constexpr int kRdsThreadStopPollUs = 10000;
 constexpr size_t kRdsReadBufferBytes = 480;
+
+void on_rds_interrupt_signal(int /*signo*/) {
+}
+
+void install_rds_interrupt_signal_handler() {
+    static std::once_flag once;
+    std::call_once(once, []() {
+        struct sigaction sa = {};
+        sa.sa_handler = on_rds_interrupt_signal;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sigaction(SIGUSR1, &sa, nullptr);
+    });
+}
 
 int32_t map_region_to_s610_band(const StartupRegion region) {
     switch (region) {
@@ -253,7 +271,10 @@ bool V4l2ExynosBackend::enable(const StartupConfig &config) {
             config.soft_mute ? 1 : 0);
 
     stop_search_thread();
-    stop_rds_thread();
+    if (!stop_rds_thread()) {
+        log("enable", "rejected: previous RDS worker still active");
+        return set_status(false, kErrFailed);
+    }
 
     {
         std::lock_guard<std::mutex> lock(ioctl_mutex_);
@@ -324,19 +345,25 @@ bool V4l2ExynosBackend::disable() {
     log("disable", "requested");
     enabled_.store(false);
     stop_search_thread();
-    stop_rds_thread();
 
     {
         std::lock_guard<std::mutex> lock(ioctl_mutex_);
         if (fd_radio_ >= 0) {
             apply_mute(true);
             apply_rds(false);
+        }
+    }
+
+    const bool rds_stopped = stop_rds_thread();
+    {
+        std::lock_guard<std::mutex> lock(ioctl_mutex_);
+        if (fd_radio_ >= 0 && rds_stopped) {
             close_device();
         }
     }
 
     send_native_event("disabled");
-    return set_status(true, "");
+    return set_status(rds_stopped, kErrFailed);
 }
 
 bool V4l2ExynosBackend::set_frequency(const uint32_t frequency_khz) {
@@ -809,30 +836,60 @@ bool V4l2ExynosBackend::request_signal_metric() {
 void V4l2ExynosBackend::shutdown() {
     enabled_.store(false);
     stop_search_thread();
-    stop_rds_thread();
 
+    {
+        std::lock_guard<std::mutex> lock(ioctl_mutex_);
+        if (fd_radio_ >= 0) {
+            apply_mute(true);
+            apply_rds(false);
+        }
+    }
+
+    const bool rds_stopped = stop_rds_thread();
     std::lock_guard<std::mutex> lock(ioctl_mutex_);
-    if (fd_radio_ >= 0) {
-        apply_mute(true);
-        apply_rds(false);
+    if (fd_radio_ >= 0 && rds_stopped) {
         close_device();
     }
 }
 
 void V4l2ExynosBackend::start_rds_thread() {
-    stop_rds_thread();
+    if (!stop_rds_thread()) {
+        return;
+    }
     rds_stop_.store(false);
+    rds_thread_running_.store(true);
     rds_thread_ = std::thread(&V4l2ExynosBackend::rds_worker, this);
 }
 
-void V4l2ExynosBackend::stop_rds_thread() {
+bool V4l2ExynosBackend::stop_rds_thread() {
     rds_stop_.store(true);
     if (rds_thread_.joinable()) {
-        rds_thread_.join();
+        install_rds_interrupt_signal_handler();
+        for (int attempt = 0; attempt < kRdsThreadStopMaxAttempts; ++attempt) {
+            if (!rds_thread_running_.load()) {
+                break;
+            }
+            pthread_kill(rds_thread_.native_handle(), SIGUSR1);
+            usleep(kRdsThreadStopPollUs);
+        }
+        if (!rds_thread_running_.load()) {
+            rds_thread_.join();
+            return true;
+        }
+        log("rds", "RDS worker did not exit within teardown bound");
+        rds_thread_.detach();
+        return false;
     }
+    return !rds_thread_running_.load();
 }
 
 void V4l2ExynosBackend::rds_worker() {
+    install_rds_interrupt_signal_handler();
+    sigset_t unblock_set;
+    sigemptyset(&unblock_set);
+    sigaddset(&unblock_set, SIGUSR1);
+    pthread_sigmask(SIG_UNBLOCK, &unblock_set, nullptr);
+
     uint8_t buf[kRdsReadBufferBytes] = {};
 
     while (!rds_stop_.load() && enabled_.load()) {
@@ -874,6 +931,8 @@ void V4l2ExynosBackend::rds_worker() {
             process_rds_block(data, blk_type, errors);
         }
     }
+
+    rds_thread_running_.store(false);
 }
 
 void V4l2ExynosBackend::reset_rds_state() {

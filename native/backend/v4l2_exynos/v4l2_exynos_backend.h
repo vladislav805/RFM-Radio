@@ -108,7 +108,7 @@ private:
     void stop_search_thread();
     void search_worker();
     void start_rds_thread();
-    void stop_rds_thread();
+    bool stop_rds_thread();
     void rds_worker();
     void reset_rds_state();
     void process_rds_block(uint16_t data, uint8_t blk_type, uint8_t errors);
@@ -124,6 +124,7 @@ private:
 
     std::thread rds_thread_;
     std::atomic<bool> rds_stop_{false};
+    std::atomic<bool> rds_thread_running_{false};
 
     std::thread search_thread_;
     std::atomic<bool> search_active_{false};
