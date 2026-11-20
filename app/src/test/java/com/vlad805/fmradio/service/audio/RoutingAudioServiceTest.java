@@ -1,10 +1,21 @@
 package com.vlad805.fmradio.service.audio;
 
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.media.AudioRecord;
+import com.vlad805.fmradio.service.recording.PcmFormat;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 public class RoutingAudioServiceTest {
     @Test
@@ -53,5 +64,135 @@ public class RoutingAudioServiceTest {
         assertEquals(4, RoutingAudioService.computeAdjustedStreamVolume(4, 15, AudioManager.ADJUST_UNMUTE));
         assertEquals(4, RoutingAudioService.computeAdjustedStreamVolume(4, 15, AudioManager.ADJUST_TOGGLE_MUTE));
         assertEquals(0, RoutingAudioService.computeAdjustedStreamVolume(4, 15, AudioManager.ADJUST_MUTE));
+    }
+
+    private static final class FakeCaptureCandidate implements RoutingAudioService.CaptureCandidate {
+        boolean initialized = true;
+        boolean formatMatches = true;
+        boolean preferredAccepted = true;
+        int recordingState = AudioRecord.RECORDSTATE_RECORDING;
+        Integer[] routedSequence = {AudioDeviceInfo.TYPE_FM_TUNER};
+        int routedIndex = 0;
+        boolean stopped = false;
+        boolean released = false;
+
+        @Override
+        public boolean isInitialized() {
+            return initialized;
+        }
+
+        @Override
+        public boolean matchesFormat(final PcmFormat format) {
+            return formatMatches;
+        }
+
+        @Override
+        public boolean setPreferredFmDevice() {
+            return preferredAccepted;
+        }
+
+        @Override
+        public void startRecording() {
+        }
+
+        @Override
+        public int getRecordingState() {
+            return recordingState;
+        }
+
+        @Override
+        public Integer getRoutedDeviceType() {
+            if (routedSequence.length == 0) {
+                return null;
+            }
+            final int idx = Math.min(routedIndex++, routedSequence.length - 1);
+            return routedSequence[idx];
+        }
+
+        @Override
+        public void stop() {
+            stopped = true;
+        }
+
+        @Override
+        public void release() {
+            released = true;
+        }
+    }
+
+    @Test
+    public void rejectsCandidateWhenPreferredDeviceIsRejectedAndFallsBackToVerifiedSource() {
+        final FakeCaptureCandidate rejected = new FakeCaptureCandidate();
+        rejected.preferredAccepted = false;
+        final FakeCaptureCandidate valid = new FakeCaptureCandidate();
+        final List<Integer> attemptedSources = new ArrayList<>();
+
+        final RoutingAudioService.CaptureCandidate selected = RoutingAudioService.selectVerifiedFmCapture(
+                new int[]{11, 0},
+                PcmFormat.PCM16_STEREO_48000,
+                source -> {
+                    attemptedSources.add(source);
+                    return source == 11 ? rejected : valid;
+                },
+                100,
+                5
+        );
+
+        assertEquals(List.of(11, 0), attemptedSources);
+        assertTrue(rejected.released);
+        assertSame(valid, selected);
+        assertFalse(valid.released);
+    }
+
+    @Test
+    public void rejectsCaptureRoutedToMicrophoneWithoutSilentFallback() {
+        final FakeCaptureCandidate micRouted = new FakeCaptureCandidate();
+        micRouted.routedSequence = new Integer[]{AudioDeviceInfo.TYPE_BUILTIN_MIC};
+
+        final RoutingAudioService.CaptureCandidate selected = RoutingAudioService.selectVerifiedFmCapture(
+                new int[]{11},
+                PcmFormat.PCM16_STEREO_48000,
+                source -> micRouted,
+                100,
+                5
+        );
+
+        assertNull(selected);
+        assertTrue(micRouted.stopped);
+        assertTrue(micRouted.released);
+    }
+
+    @Test
+    public void waitsForDelayedFmRouteEstablishmentWithinTimeout() {
+        final FakeCaptureCandidate delayed = new FakeCaptureCandidate();
+        delayed.routedSequence = new Integer[]{null, null, AudioDeviceInfo.TYPE_FM_TUNER};
+
+        final RoutingAudioService.CaptureCandidate selected = RoutingAudioService.selectVerifiedFmCapture(
+                new int[]{11},
+                PcmFormat.PCM16_STEREO_48000,
+                source -> delayed,
+                200,
+                5
+        );
+
+        assertNotNull(selected);
+        assertSame(delayed, selected);
+        assertFalse(delayed.released);
+    }
+
+    @Test
+    public void detectsFmRouteLossDuringCapture() {
+        assertTrue(RoutingAudioService.isVerifiedFmRoute(
+                AudioRecord.RECORDSTATE_RECORDING,
+                AudioDeviceInfo.TYPE_FM_TUNER
+        ));
+        assertFalse(RoutingAudioService.isVerifiedFmRoute(
+                AudioRecord.RECORDSTATE_RECORDING,
+                AudioDeviceInfo.TYPE_BUILTIN_MIC
+        ));
+        assertFalse(RoutingAudioService.isVerifiedFmRoute(
+                AudioRecord.RECORDSTATE_STOPPED,
+                AudioDeviceInfo.TYPE_FM_TUNER
+        ));
     }
 }

@@ -44,6 +44,8 @@ public class RoutingAudioService extends AudioService {
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
 	private static final int RECORDING_UPDATE_MS = 1000;
 	private static final int SAMSUNG_FM_AUDIO_SOURCE = 11;
+	private static final int FM_ROUTE_SETTLE_TIMEOUT_MS = 300;
+	private static final int FM_ROUTE_POLL_INTERVAL_MS = 25;
 	private static final int[] S610_VOLUME_GAINS = {
 			0, 16, 23, 32, 45, 64, 90, 128, 181, 256, 362, 512, 724, 1024, 1447, 2047
 	};
@@ -283,6 +285,10 @@ public class RoutingAudioService extends AudioService {
 				while (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
 					final int read = audioRecord.read(buffer, 0, buffer.length);
 					if (read > 0) {
+						if (!isActiveFmCapture(audioRecord)) {
+							Log.e(TAG, "FM capture lost FM_TUNER route, stopping capture");
+							break;
+						}
 						if (exynosPolicy != null) {
 							compensateExynosVolume(buffer, read, exynosPolicy.getLastVolume());
 						}
@@ -507,6 +513,123 @@ public class RoutingAudioService extends AudioService {
 		}
 	}
 
+	interface CaptureCandidate {
+		boolean isInitialized();
+
+		boolean matchesFormat(PcmFormat format);
+
+		boolean setPreferredFmDevice();
+
+		void startRecording();
+
+		int getRecordingState();
+
+		Integer getRoutedDeviceType();
+
+		void stop();
+
+		void release();
+	}
+
+	interface CaptureCandidateFactory {
+		CaptureCandidate create(int source);
+	}
+
+	static boolean isActiveFmCapture(final AudioRecord audioRecord) {
+		if (audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
+			return false;
+		}
+		final AudioDeviceInfo routed = audioRecord.getRoutedDevice();
+		return routed == null || routed.getType() == AudioDeviceInfo.TYPE_FM_TUNER;
+	}
+
+	static boolean isVerifiedFmRoute(final int recordingState, final Integer routedDeviceType) {
+		return recordingState == AudioRecord.RECORDSTATE_RECORDING
+				&& routedDeviceType != null
+				&& routedDeviceType == AudioDeviceInfo.TYPE_FM_TUNER;
+	}
+
+	static CaptureCandidate selectVerifiedFmCapture(
+			final int[] sources,
+			final PcmFormat pcmFormat,
+			final CaptureCandidateFactory factory,
+			final long settleTimeoutMs,
+			final long pollIntervalMs
+	) {
+		for (final int source : sources) {
+			CaptureCandidate candidate = null;
+			try {
+				candidate = factory.create(source);
+				if (candidate == null || !candidate.isInitialized() || !candidate.matchesFormat(pcmFormat)) {
+					if (candidate != null) {
+						candidate.release();
+					}
+					continue;
+				}
+				if (!candidate.setPreferredFmDevice()) {
+					logWarn("createFmAudioRecord: setPreferredDevice(FM Tuner) rejected for source=" + source, null);
+					candidate.release();
+					continue;
+				}
+				candidate.startRecording();
+				if (waitForVerifiedFmRoute(candidate, settleTimeoutMs, pollIntervalMs)) {
+					return candidate;
+				}
+				logWarn("createFmAudioRecord: routed device is not FM_TUNER for source=" + source, null);
+				try {
+					candidate.stop();
+				} catch (Throwable ignored) {
+				}
+				candidate.release();
+			} catch (Throwable t) {
+				logWarn("createFmAudioRecord: source=" + source + " failed", t);
+				if (candidate != null) {
+					candidate.release();
+				}
+			}
+		}
+		return null;
+	}
+
+	private static boolean waitForVerifiedFmRoute(
+			final CaptureCandidate candidate,
+			final long settleTimeoutMs,
+			final long pollIntervalMs
+	) {
+		final long deadlineMs = System.currentTimeMillis() + Math.max(0L, settleTimeoutMs);
+		while (true) {
+			if (candidate.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
+				return false;
+			}
+			final Integer routedType = candidate.getRoutedDeviceType();
+			if (routedType != null) {
+				return routedType == AudioDeviceInfo.TYPE_FM_TUNER;
+			}
+			final long remainingMs = deadlineMs - System.currentTimeMillis();
+			if (remainingMs <= 0L) {
+				return false;
+			}
+			try {
+				Thread.sleep(Math.min(pollIntervalMs, remainingMs));
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+		}
+	}
+
+	private static void logWarn(final String message, final Throwable error) {
+		try {
+			if (error != null) {
+				Log.w(TAG, message, error);
+			} else {
+				Log.w(TAG, message);
+			}
+		} catch (RuntimeException ignored) {
+			// Host JVM tests run with unmocked android.util.Log.
+		}
+	}
+
 	@SuppressLint("MissingPermission")
 	private AudioRecord createFmAudioRecord(
 			final AudioFormat format,
@@ -518,36 +641,67 @@ public class RoutingAudioService extends AudioService {
 		final int[] sources = isExynos
 				? new int[]{SAMSUNG_FM_AUDIO_SOURCE, MediaRecorder.AudioSource.DEFAULT}
 				: new int[]{MediaRecorder.AudioSource.DEFAULT};
-		for (final int source : sources) {
-			AudioRecord candidate = null;
-			try {
-				candidate = new AudioRecord.Builder()
-						.setAudioSource(source)
-						.setAudioFormat(format)
-						.setBufferSizeInBytes(bufferBytes)
-						.build();
-				if (candidate.getState() != AudioRecord.STATE_INITIALIZED) {
-					candidate.release();
-					continue;
-				}
-				if (!pcmFormat.matches(candidate.getSampleRate(), candidate.getChannelCount())) {
-					candidate.release();
-					continue;
-				}
-				if (!candidate.setPreferredDevice(fmTuner)) {
-					Log.w(TAG, "createFmAudioRecord: setPreferredDevice(FM Tuner) returned false for source=" + source);
-				}
-				candidate.startRecording();
-				Log.d(TAG, "createFmAudioRecord: started FM capture with source=" + source);
-				return candidate;
-			} catch (Throwable t) {
-				Log.w(TAG, "createFmAudioRecord: source=" + source + " failed", t);
-				if (candidate != null) {
-					candidate.release();
-				}
-			}
-		}
-		return null;
+		final AudioRecord[] selected = new AudioRecord[1];
+		final CaptureCandidate winner = selectVerifiedFmCapture(
+				sources,
+				pcmFormat,
+				source -> {
+					final AudioRecord record = new AudioRecord.Builder()
+							.setAudioSource(source)
+							.setAudioFormat(format)
+							.setBufferSizeInBytes(bufferBytes)
+							.build();
+					return new CaptureCandidate() {
+						@Override
+						public boolean isInitialized() {
+							return record.getState() == AudioRecord.STATE_INITIALIZED;
+						}
+
+						@Override
+						public boolean matchesFormat(final PcmFormat expected) {
+							return expected.matches(record.getSampleRate(), record.getChannelCount());
+						}
+
+						@Override
+						public boolean setPreferredFmDevice() {
+							return record.setPreferredDevice(fmTuner);
+						}
+
+						@Override
+						public void startRecording() {
+							record.startRecording();
+							selected[0] = record;
+						}
+
+						@Override
+						public int getRecordingState() {
+							return record.getRecordingState();
+						}
+
+						@Override
+						public Integer getRoutedDeviceType() {
+							final AudioDeviceInfo routed = record.getRoutedDevice();
+							return routed != null ? routed.getType() : null;
+						}
+
+						@Override
+						public void stop() {
+							record.stop();
+						}
+
+						@Override
+						public void release() {
+							if (selected[0] == record) {
+								selected[0] = null;
+							}
+							record.release();
+						}
+					};
+				},
+				FM_ROUTE_SETTLE_TIMEOUT_MS,
+				FM_ROUTE_POLL_INTERVAL_MS
+		);
+		return winner != null ? selected[0] : null;
 	}
 
 	static void compensateExynosVolume(final short[] buffer, final int length, final int volumeIndex) {
