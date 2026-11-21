@@ -59,6 +59,9 @@ public class RoutingAudioService extends AudioService {
 	private MediaSession mExynosRecordingVolumeSession;
 	private volatile VolumeProvider mExynosRecordingVolumeProvider;
 
+	/** Guards capture lifecycle and Exynos recording session state without colliding with AudioService monitor. */
+	private final Object mCaptureLock = new Object();
+
 	/** FM input capture kept alive while pre-roll or on-demand recording is active. */
 	private AudioRecord mRecordingAudioRecord;
 
@@ -229,9 +232,16 @@ public class RoutingAudioService extends AudioService {
 	 */
 	@SuppressLint("MissingPermission")
 	private void startPcmCapture() throws RecordError {
-		if (mRecordingAudioRecord != null) {
-			return;
+		synchronized (mCaptureLock) {
+			if (mRecordingAudioRecord != null) {
+				return;
+			}
+			startPcmCaptureLocked();
 		}
+	}
+
+	@SuppressLint("MissingPermission")
+	private void startPcmCaptureLocked() throws RecordError {
 		if (!hasRecordAudioPermission()) {
 			throw new RecordError("Please allow microphone access before recording");
 		}
@@ -314,20 +324,20 @@ public class RoutingAudioService extends AudioService {
 				}
 			} finally {
 				boolean ownsAudioRecord = false;
-				synchronized (RoutingAudioService.this) {
+				synchronized (mCaptureLock) {
 					if (mRecordingAudioRecord == audioRecord) {
 						mRecordingAudioRecord = null;
 						mRecordingThread = null;
 						ownsAudioRecord = true;
+						if (exynosPolicy != null) {
+							releaseExynosRecordingVolumeSession(exynosPolicy);
+							if (mAudioManager != null) {
+								mAudioManager.setParameters("fmradio_recoding=off");
+							}
+						}
 					}
 				}
 				if (ownsAudioRecord) {
-					if (exynosPolicy != null) {
-						releaseExynosRecordingVolumeSession(exynosPolicy);
-						if (mAudioManager != null) {
-							mAudioManager.setParameters("fmradio_recoding=off");
-						}
-					}
 					audioRecord.release();
 				}
 			}
@@ -376,7 +386,7 @@ public class RoutingAudioService extends AudioService {
 		final Thread recordingThread;
 
 		// Detach the capture first so the read loop cannot publish more PCM.
-		synchronized (this) {
+		synchronized (mCaptureLock) {
 			audioRecord = mRecordingAudioRecord;
 			recordingThread = mRecordingThread;
 			mRecordingAudioRecord = null;
@@ -412,18 +422,21 @@ public class RoutingAudioService extends AudioService {
 			}
 		}
 		audioRecord.release();
-		if (mPolicy instanceof SamsungS610Audio) {
-			releaseExynosRecordingVolumeSession((SamsungS610Audio) mPolicy);
-			if (mAudioManager != null) {
-				mAudioManager.setParameters("fmradio_recoding=off");
+		synchronized (mCaptureLock) {
+			if (mRecordingAudioRecord == null && mPolicy instanceof SamsungS610Audio) {
+				releaseExynosRecordingVolumeSession((SamsungS610Audio) mPolicy);
+				if (mAudioManager != null) {
+					mAudioManager.setParameters("fmradio_recoding=off");
+				}
 			}
 		}
 	}
 
-	private synchronized void startExynosRecordingVolumeSession(final SamsungS610Audio exynosPolicy) {
-		if (mAudioManager == null || mExynosRecordingVolumeSession != null) {
-			return;
-		}
+	private void startExynosRecordingVolumeSession(final SamsungS610Audio exynosPolicy) {
+		synchronized (mCaptureLock) {
+			if (mAudioManager == null || mExynosRecordingVolumeSession != null) {
+				return;
+			}
 		final int maxVolume = Math.max(1, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
 		final int currentVolume = Math.max(
 				0,
@@ -463,19 +476,22 @@ public class RoutingAudioService extends AudioService {
 		mExynosRecordingVolumeProvider = provider;
 		mExynosRecordingVolumeSession = session;
 		exynosPolicy.setRecordingVolumeProvider(provider);
+		}
 	}
 
-	private synchronized void releaseExynosRecordingVolumeSession(final SamsungS610Audio exynosPolicy) {
-		final MediaSession session = mExynosRecordingVolumeSession;
-		mExynosRecordingVolumeSession = null;
-		mExynosRecordingVolumeProvider = null;
-		exynosPolicy.setRecordingVolumeProvider(null);
-		if (session != null) {
-			try {
-				session.setActive(false);
-				session.release();
-			} catch (Throwable t) {
-				Log.w(TAG, "Failed to release Exynos recording MediaSession", t);
+	private void releaseExynosRecordingVolumeSession(final SamsungS610Audio exynosPolicy) {
+		synchronized (mCaptureLock) {
+			final MediaSession session = mExynosRecordingVolumeSession;
+			mExynosRecordingVolumeSession = null;
+			mExynosRecordingVolumeProvider = null;
+			exynosPolicy.setRecordingVolumeProvider(null);
+			if (session != null) {
+				try {
+					session.setActive(false);
+					session.release();
+				} catch (Throwable t) {
+					Log.w(TAG, "Failed to release Exynos recording MediaSession", t);
+				}
 			}
 		}
 	}
