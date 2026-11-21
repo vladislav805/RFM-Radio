@@ -142,7 +142,10 @@ indices refer to raw characters.
 - Samsung Exynos S610 (`s610-radio`) invariants: `v4l2_frequency.frequency` uses
   `kHz * 16000` (`FAC_VALUE`, not `62.5 Hz` units); `V4L2_CID_AUDIO_MUTE` is
   `0 = mute`, `1 = unmute`; `VIDIOC_S_HW_FREQ_SEEK` returns `-EAGAIN` if
-  `O_NONBLOCK` is set (temporarily cleared around seek); `V4L2_CID_AUDIO_VOLUME`
+  `O_NONBLOCK` is set (temporarily cleared around seek), runs asynchronously on a
+  worker thread for `seekhw` (cancellable via `V4L2_CID_S610_SEEK_CANCEL`), and
+  writes `V4L2_CID_S610_SEEK_MODE = 4` (`FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT`)
+  before each seek; `V4L2_CID_AUDIO_VOLUME`
   (`0..15`) drives hardware gain (`vol_level_init[0..15]` in `radio-s610.c`
   attenuates upstream of PCM capture); RDS uses raw 3-byte blocks
   (`V4L2_CID_S610_RDS_ON = 1` = `FM_RDS_ENABLE` without `RDS_PARSER_ENABLE` bit `0x04`; `5` from stock enables the in-kernel parser and breaks raw 3-byte reads), drops blocks with `errors != 0`, and requires

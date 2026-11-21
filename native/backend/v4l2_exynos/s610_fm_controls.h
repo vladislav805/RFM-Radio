@@ -51,6 +51,10 @@ constexpr int32_t kS610Spacing200Khz = 2;
 constexpr int32_t kS610RdsDisable = 0;
 constexpr int32_t kS610RdsEnableRaw = 1;
 
+// S610 seek mode written before VIDIOC_S_HW_FREQ_SEEK (maps to
+// FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT in radio-s610.c and matches stock logs).
+constexpr int32_t kS610SeekModeNext = 4;
+
 // Tuning/seek defaults observed in Samsung's FmRadioController_slsi.
 constexpr int32_t kS610DefaultRssiThreshold = 156;
 constexpr int32_t kS610DefaultIfCount1 = 4800;

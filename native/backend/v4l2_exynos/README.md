@@ -48,9 +48,12 @@ Audio routing and capture run separately in Android's audio HAL through
   PCM capture, `RoutingAudioService.compensateExynosVolume()` applies the
   inverse scale factor during recording.
 - **Blocking `VIDIOC_S_HW_FREQ_SEEK`**: `s610_radio_s_hw_freq_seek()` returns
-  `-EAGAIN` if `O_NONBLOCK` is set on the fd; `perform_hw_seek()` temporarily
-  clears `O_NONBLOCK` for each seek and restores it afterwards. `cancel_search()`
-  writes `V4L2_CID_S610_SEEK_CANCEL`, which the kernel checks without taking
+  `-EAGAIN` if `O_NONBLOCK` is set on the fd; `perform_hw_seek()` writes
+  `V4L2_CID_S610_SEEK_MODE = 4` (`FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT`) and
+  temporarily clears `O_NONBLOCK` for each seek, restoring it afterwards. Both
+  `seek()` and `search()` run on the cancellable worker thread (`search_thread_`)
+  so long hardware seeks do not stall the command loop; `cancel_search()` writes
+  `V4L2_CID_S610_SEEK_CANCEL`, which the kernel checks without taking
   `s610_core_lock`.
 - **RDS state resets and stabilization**:
   - `V4L2_CID_S610_RDS_ON` is a bitmask in `radio-s610.c` (`FM_RDS_ENABLE = 1`,

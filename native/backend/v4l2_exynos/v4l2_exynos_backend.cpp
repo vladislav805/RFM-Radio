@@ -398,7 +398,7 @@ bool V4l2ExynosBackend::disable() {
 }
 
 bool V4l2ExynosBackend::set_frequency(const uint32_t frequency_khz) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -427,7 +427,7 @@ bool V4l2ExynosBackend::set_frequency(const uint32_t frequency_khz) {
 }
 
 bool V4l2ExynosBackend::jump(const int direction, uint32_t *new_frequency) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -476,6 +476,10 @@ bool V4l2ExynosBackend::perform_hw_seek(const bool upward, const bool wrap_aroun
         set_fd_flags(fd_radio_, orig_flags & ~O_NONBLOCK);
     }
 
+    // Write stock seek mode (FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT) before each seek;
+    // also clears any prior FM_TUNER_STOP_SEARCH_MODE left by SEEK_CANCEL.
+    set_v4l2_ctrl(kS610CidSeekMode, kS610SeekModeNext);
+
     struct v4l2_hw_freq_seek hw_seek = {};
     hw_seek.tuner = 0;
     hw_seek.type = V4L2_TUNER_RADIO;
@@ -509,32 +513,46 @@ bool V4l2ExynosBackend::perform_hw_seek(const bool upward, const bool wrap_aroun
 }
 
 bool V4l2ExynosBackend::seek(const int direction) {
-    if (search_active_.load()) {
+    if (!enabled_.load() || is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
+    stop_search_thread();
+    search_cancel_.store(false);
+    seek_active_.store(true);
+    search_thread_ = std::thread(&V4l2ExynosBackend::seek_worker, this, direction);
+    return set_status(true, "");
+}
+
+void V4l2ExynosBackend::seek_worker(const int direction) {
     uint32_t found_khz = current_frequency_khz_;
     bool ok = false;
+    bool cancelled = false;
 
-    seek_active_.store(true);
     {
         std::lock_guard<std::mutex> lock(ioctl_mutex_);
-        if (fd_radio_ < 0) {
-            seek_active_.store(false);
-            return set_status(false, kErrFailed);
+        if (fd_radio_ >= 0 && enabled_.load() && !search_cancel_.load()) {
+            apply_mute(true);
+            reset_rds_state();
+            ok = perform_hw_seek(direction >= 0, true);
+            cancelled = search_cancel_.load() || !enabled_.load();
+            if (ok && !cancelled && read_frequency_khz(&found_khz)) {
+                current_frequency_khz_ = found_khz;
+            }
+            rds_generation_.fetch_add(1, std::memory_order_acq_rel);
+            {
+                std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+                const int target = desired_volume_;
+                if (set_v4l2_ctrl(kS610CidAudioVolume, target)) {
+                    applied_volume_ = target;
+                }
+            }
+            apply_mute(false);
         }
-        apply_mute(true);
-        reset_rds_state();
-        ok = perform_hw_seek(direction >= 0, true);
-        if (ok && read_frequency_khz(&found_khz)) {
-            current_frequency_khz_ = found_khz;
-        }
-        rds_generation_.fetch_add(1, std::memory_order_acq_rel);
-        apply_mute(false);
     }
-    seek_active_.store(false);
 
-    if (ok) {
+    const bool emit_done = ok && !cancelled && enabled_.load();
+    if (emit_done) {
         publish_state(
                 static_cast<int>(current_frequency_khz_),
                 RADIO_PATCH_ABSENT_INT,
@@ -542,13 +560,17 @@ bool V4l2ExynosBackend::seek(const int direction) {
                 RADIO_PATCH_ABSENT_METRIC
         );
         send_native_event("seek_done");
+    }
+
+    finish_scan_or_seek_volume_sync(&seek_active_);
+
+    if (emit_done) {
         request_signal_metric();
     }
-    return set_status(ok, kErrFailed);
 }
 
 bool V4l2ExynosBackend::set_power_mode(const bool low_power) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -561,7 +583,7 @@ bool V4l2ExynosBackend::set_power_mode(const bool low_power) {
 }
 
 bool V4l2ExynosBackend::set_stereo(const bool enabled) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -597,7 +619,7 @@ bool V4l2ExynosBackend::set_volume(const int volume) {
         // Do not block on ioctl_mutex_ while a full-band scan is running;
         // respond "ok" immediately (hardware mute is active during scan) and let
         // search_worker() sync desired_volume_ before unmuting/completing.
-        if (search_active_.load()) {
+        if (is_scan_or_seek_active()) {
             return set_status(true, "");
         }
     }
@@ -620,7 +642,7 @@ bool V4l2ExynosBackend::set_antenna(const int /*antenna*/) {
 }
 
 bool V4l2ExynosBackend::set_region(const StartupRegion region) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -659,7 +681,7 @@ bool V4l2ExynosBackend::set_region(const StartupRegion region) {
 }
 
 bool V4l2ExynosBackend::set_spacing(const int spacing_khz) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -674,7 +696,7 @@ bool V4l2ExynosBackend::search() {
     if (fd_radio_ < 0) {
         return set_status(false, kErrFailed);
     }
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 
@@ -795,10 +817,14 @@ void V4l2ExynosBackend::search_worker() {
         }
     }
 
+    finish_scan_or_seek_volume_sync(&search_active_);
+}
+
+void V4l2ExynosBackend::finish_scan_or_seek_volume_sync(std::atomic<bool> *active_flag) {
     bool needs_volume_sync = false;
     {
         std::lock_guard<std::mutex> vol_lock(volume_mutex_);
-        search_active_.store(false);
+        active_flag->store(false);
         needs_volume_sync = enabled_.load() && desired_volume_ != applied_volume_;
     }
     if (needs_volume_sync) {
@@ -820,7 +846,7 @@ bool V4l2ExynosBackend::cancel_search() {
 
 void V4l2ExynosBackend::stop_search_thread() {
     search_cancel_.store(true);
-    if (search_active_.load() && fd_radio_ >= 0) {
+    if (is_scan_or_seek_active() && fd_radio_ >= 0) {
         // S610 seeks check seek_status without acquiring s610_core_lock on the caller side.
         set_v4l2_ctrl(kS610CidSeekCancel, 1);
     }
@@ -828,6 +854,7 @@ void V4l2ExynosBackend::stop_search_thread() {
         search_thread_.join();
     }
     search_active_.store(false);
+    seek_active_.store(false);
 }
 
 bool V4l2ExynosBackend::set_auto_af(const bool /*enabled*/) {
@@ -835,7 +862,7 @@ bool V4l2ExynosBackend::set_auto_af(const bool /*enabled*/) {
 }
 
 bool V4l2ExynosBackend::set_soft_mute(const bool enabled) {
-    if (search_active_.load()) {
+    if (is_scan_or_seek_active()) {
         return set_status(false, kErrFailed);
     }
 

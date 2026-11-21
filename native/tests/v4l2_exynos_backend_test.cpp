@@ -251,7 +251,11 @@ TEST(V4l2ExynosBackendTest, UsesS610FrequencyMultiplierMutePolarityAndVolumeClam
     // Seek temporarily clears O_NONBLOCK so s610_radio_s_hw_freq_seek does not fail with EAGAIN.
     backend.seek_target_khz = 104200;
     EXPECT_TRUE(backend.seek(1));
+    for (int i = 0; i < 100 && backend.raw_frequency_units() != 104200u * 16000u; ++i) {
+        usleep(5000);
+    }
     EXPECT_TRUE(backend.saw_blocking_seek());
+    EXPECT_EQ(backend.get_written_ctrl(kS610CidSeekMode), kS610SeekModeNext);
     EXPECT_EQ(backend.raw_frequency_units(), 104200u * 16000u);
 
     // Switching to Japan (S610 band 1: 76000..90000 kHz) clamps and retunes from 104200 kHz to 90000 kHz.
@@ -1023,6 +1027,56 @@ TEST(V4l2ExynosBackendTest, SearchCompletionAppliesVolumeChangedDuringFinalizeWi
 
     ASSERT_TRUE(backend.disable());
     reset_ctl_server_state_for_test();
+}
+
+TEST(V4l2ExynosBackendTest, SeekDoesNotBlockCommandThreadAndCancelsCleanly) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {{0, 0, 103100, true}};
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+
+        const auto start = std::chrono::steady_clock::now();
+        ASSERT_TRUE(backend.seek(1));
+        const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start
+        ).count();
+        EXPECT_LT(elapsed_ms, 200);
+
+        backend.wait_for_seek_count(1);
+        EXPECT_EQ(backend.get_written_ctrl(kS610CidSeekMode), kS610SeekModeNext);
+
+        ASSERT_TRUE(backend.cancel_search());
+        ASSERT_TRUE(backend.disable());
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+
+    EXPECT_EQ(output.find("\"type\":\"seek_done\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, SeekShutdownUnblocksInFlightSeekWithoutSeekDone) {
+    reset_ctl_server_state_for_test();
+    std::string output;
+    {
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        backend.seek_steps = {{0, 0, 103100, true}};
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(make_default_config()));
+
+        ASSERT_TRUE(backend.seek(1));
+        backend.wait_for_seek_count(1);
+
+        backend.shutdown();
+        output = capture.read_all();
+    }
+    reset_ctl_server_state_for_test();
+
+    EXPECT_EQ(output.find("\"type\":\"seek_done\""), std::string::npos) << output;
 }
 
 }  // namespace

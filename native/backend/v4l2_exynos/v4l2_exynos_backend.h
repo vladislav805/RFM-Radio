@@ -105,7 +105,12 @@ private:
     bool read_frequency_khz(uint32_t *frequency_khz);
     bool read_stereo_state(bool *is_stereo);
     bool perform_hw_seek(bool upward, bool wrap_around, int *out_errno = nullptr);
+    bool is_scan_or_seek_active() const {
+        return search_active_.load() || seek_active_.load();
+    }
+    void finish_scan_or_seek_volume_sync(std::atomic<bool> *active_flag);
     void stop_search_thread();
+    void seek_worker(int direction);
     void search_worker();
     void start_rds_thread();
     bool stop_rds_thread();
