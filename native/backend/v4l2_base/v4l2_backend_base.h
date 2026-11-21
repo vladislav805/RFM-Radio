@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../backend.h"
+#include <atomic>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -53,36 +54,43 @@ protected:
 
     // Opens the V4L2 character device file descriptor in non-blocking mode.
     bool open_device(const char *path = "/dev/radio0") {
-        if (fd_radio_ >= 0) {
+        if (fd_radio_.load() >= 0) {
             return true;
         }
-        fd_radio_ = open_device_fd(path);
-        if (fd_radio_ < 0) {
+        const int fd = open_device_fd(path);
+        if (fd < 0) {
             const int saved_errno = errno;
             log("open", "path=%s failed, errno=%d (%s)", path, saved_errno, std::strerror(saved_errno));
             return false;
         }
-        log("open", "path=%s fd=%d", path, fd_radio_);
+        int expected = -1;
+        if (!fd_radio_.compare_exchange_strong(expected, fd)) {
+            close_device_fd(fd);
+            return true;
+        }
+        log("open", "path=%s fd=%d", path, fd);
         return true;
     }
 
-    // Closes the open V4L2 character device file descriptor.
+    // Atomically claims and closes the open V4L2 character device file descriptor.
     void close_device() {
-        if (fd_radio_ >= 0) {
-            close_device_fd(fd_radio_);
-            fd_radio_ = -1;
+        const int fd = fd_radio_.exchange(-1);
+        if (fd >= 0) {
+            close_device_fd(fd);
         }
     }
 
     // Writes a V4L2 control value using VIDIOC_S_CTRL.
     bool set_v4l2_ctrl(uint32_t id, int32_t value) {
-        if (fd_radio_ < 0) {
+        const int fd = fd_radio_.load();
+        if (fd < 0) {
             return false;
         }
-        struct v4l2_control control = {};
-        control.id = id;
-        control.value = value;
-        const int err = v4l2_ioctl(fd_radio_, VIDIOC_S_CTRL, &control);
+        struct v4l2_control control = {
+                .id = id,
+                .value = value,
+        };
+        const int err = v4l2_ioctl(fd, VIDIOC_S_CTRL, &control);
         if (err < 0) {
             const int saved_errno = errno;
             log("v4l2", "set id=0x%x value=%d failed, ret=%d errno=%d (%s)",
@@ -94,12 +102,14 @@ protected:
 
     // Reads a V4L2 control value using VIDIOC_G_CTRL.
     bool get_v4l2_ctrl(uint32_t id, int32_t *value) {
-        if (fd_radio_ < 0 || value == nullptr) {
+        const int fd = fd_radio_.load();
+        if (fd < 0 || value == nullptr) {
             return false;
         }
-        struct v4l2_control control = {};
-        control.id = id;
-        const int err = v4l2_ioctl(fd_radio_, VIDIOC_G_CTRL, &control);
+        struct v4l2_control control = {
+                .id = id,
+        };
+        const int err = v4l2_ioctl(fd, VIDIOC_G_CTRL, &control);
         if (err < 0) {
             const int saved_errno = errno;
             log("v4l2", "get id=0x%x failed, ret=%d errno=%d (%s)",
@@ -116,6 +126,6 @@ protected:
         return ok;
     }
 
-    int fd_radio_ = -1;
+    std::atomic<int> fd_radio_{-1};
     const char *last_error_ = "";
 };

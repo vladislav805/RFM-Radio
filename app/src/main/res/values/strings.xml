@@ -76,6 +76,7 @@
 	<string name="pref_notification_show_ps_disabled">The name from the favorites will be displayed as station name</string>
 	<string name="pref_notification_show_ps">Show PS in title</string>
 	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)\nAF - Alternative Frequencies (list of frequencies on which the same station is broadcasting in neighboring regions )\nPTY - Program TYpe (genre of station)</string>
+	<string name="pref_not_supported_by_device">Not supported by device</string>
 	<string name="pref_header_recording">Recording</string>
 	<string name="pref_recording_path_title">Subdirectory for saving</string>
 	<string name="pref_recording_path_value" translatable="false">$y-$m-$d</string>
@@ -155,6 +156,7 @@
 	<string name="pref_tuner_rds_auto_af_disabled">If the signal deteriorates, nothing will happen, the data on alternative frequencies from the radio station will be ignored.</string>
 	<string name="menu_speaker">Play through speaker</string>
 	<string name="scan_stations_error_tuner_not_enabled">Can\'t search when the tuner is off.</string>
+	<string name="scan_stations_failed">Station scan failed.</string>
 	<string name="unsupported_device_title">Device not supported</string>
 	<string name="unsupported_device_message">RFM Radio could not find a supported FM backend on this device. Legacy mode requires /dev/radio0, and HAL mode requires fm_helium.so.</string>
 	<string name="root_required_title">Root access required</string>

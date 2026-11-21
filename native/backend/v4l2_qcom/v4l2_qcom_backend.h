@@ -10,6 +10,21 @@
 #include <pthread.h>
 #include <string>
 
+// Bootstrap transport selection strategy for Qualcomm V4L2 receivers.
+enum class V4l2BootstrapMode {
+    kDirect,
+    kFirmwareThenDirect,
+};
+
+// Classifies the V4L2 bootstrap mode from pure probe inputs.
+V4l2BootstrapMode classify_v4l2_bootstrap_mode(
+        const char *fm_dl_service_state,
+        bool has_patch_downloader
+);
+
+// Selects the V4L2 bootstrap mode from init.svc.fm_dl and fm_qsoc_patches presence.
+V4l2BootstrapMode select_v4l2_bootstrap_mode();
+
 // Qualcomm V4L2 implementation of Backend for Iris/Tavarua receivers.
 class V4l2QcomBackend : public V4l2BackendBase {
 public:
@@ -50,6 +65,9 @@ protected:
     virtual void sleep_us(unsigned int usec) {
         usleep(usec);
     }
+
+    // Interrupts an in-flight event read on the event thread; virtual for host test seams.
+    virtual void interrupt_event_read();
 
     // Reports whether an event thread handle is currently joinable.
     bool is_event_thread_started() const {
@@ -128,20 +146,21 @@ private:
     // Event thread
     static void *event_thread_stub(void *arg);
     void event_thread();
-    void join_event_thread();
-    void stop_event_thread();
+    bool stop_event_thread();
 
     // Member State
     std::atomic<bool> enabled_{false};
     uint64_t metric_resume_at_ms_ = 0;
     bool sinr_supported_ = true;
 
-    char *qsoc_poweron_path_ = nullptr;
+    char qsoc_poweron_cmd_[64] = {};
+    bool firmware_bootstrap_failed_ = false;
     bool direct_v4l2_transport_ = false;
     V4l2ScanState legacy_scan_;
     std::atomic<bool> power_on_completed_{false};
     pthread_t q_event_thread_ = 0;
     bool event_thread_started_ = false;
+    std::atomic<bool> event_thread_running_{false};
     std::atomic<bool> thread_running_{false};
 
     fm_current_storage fm_storage_{};

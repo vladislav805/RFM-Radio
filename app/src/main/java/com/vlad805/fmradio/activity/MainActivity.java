@@ -245,6 +245,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
         mViewStereoMode = findViewById(R.id.stereo_mono);
+        if (TunerDriverDetector.isExynos(this)) {
+            mViewStereoMode.setVisibility(View.GONE);
+        }
         mSignalStrength = findViewById(R.id.signal_strength);
 
         final int[] ids = {
@@ -388,7 +391,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 })
                 .show();
 
-        Utils.registerAppReceiver(this, mSearchDone, new IntentFilter(C.Event.HW_SEARCH_DONE));
+        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_DONE);
+        searchFilter.addAction(C.Event.HW_SEARCH_FAILED);
+        searchFilter.addAction(C.Event.ERROR_OCCURRED);
+        Utils.registerAppReceiver(this, mSearchDone, searchFilter);
     }
 
     private void unregisterSearchReceiver() {
@@ -405,9 +411,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
+            final String action = intent.getAction();
             unregisterSearchReceiver();
 
+            if (mSearchProgress != null) {
+                mSearchProgress.hide();
+                mSearchProgress = null;
+            }
+
+            if (C.Event.HW_SEARCH_FAILED.equals(action) || C.Event.ERROR_OCCURRED.equals(action)) {
+                mToast.text(R.string.scan_stations_failed).show();
+                return;
+            }
+
             final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
+            if (frequencies == null) {
+                mToast.text(R.string.scan_stations_failed).show();
+                return;
+            }
+
             mFavoriteController.reload();
             final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
             stations.clear();
@@ -420,11 +442,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Utils.sendAppBroadcast(MainActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
             mFavoritesView.reload(true);
             updateFavoriteFrequencyMarkers();
-
-            if (mSearchProgress != null) {
-                mSearchProgress.hide();
-                mSearchProgress = null;
-            }
         }
     };
 
@@ -525,7 +542,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int regionPref = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
         final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
 
-        final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref);
+        final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref, TunerDriverDetector.getTunerDriver(this));
         final int spacing = BandUtils.getSpacing(spacingPref);
 
         mSeek.setMinMaxValue(bandLimit.lower, bandLimit.upper, spacing);
@@ -607,14 +624,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
-            mViewStereoMode.setText(state.isStereo()
-                    ? R.string.stereo_mode_label
-                    : R.string.mono_mode_label
-            );
-            mViewStereoMode.setContentDescription(getString(state.isStereo()
-                    ? R.string.stereo_mode_active
-                    : R.string.mono_mode_active
-            ));
+            if (TunerDriverDetector.isExynos(this)) {
+                mViewStereoMode.setVisibility(View.GONE);
+            } else {
+                mViewStereoMode.setVisibility(View.VISIBLE);
+                mViewStereoMode.setText(state.isStereo()
+                        ? R.string.stereo_mode_label
+                        : R.string.mono_mode_label
+                );
+                mViewStereoMode.setContentDescription(getString(state.isStereo()
+                        ? R.string.stereo_mode_active
+                        : R.string.mono_mode_active
+                ));
+            }
         }
 
         if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {

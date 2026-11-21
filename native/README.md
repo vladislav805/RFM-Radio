@@ -11,16 +11,18 @@ The current design exposes a single native executable per ABI:
 - `app/src/main/assets/fmbin-armv7a`
 - `app/src/main/assets/fmbin-aarch64`
 
-Internally, that executable contains two backend implementations:
+Internally, that executable contains three backend implementations:
 
-- `hal`: talks to Qualcomm's newer FM stack through `fm_helium.so`
-- `legacy`: talks directly to `/dev/radio0` through Qualcomm's older V4L2-based FM driver
+- `hal_helium`: talks to Qualcomm's newer FM stack through `fm_helium.so`
+- `v4l2_qcom`: talks directly to `/dev/radio0` through Qualcomm's V4L2-based FM driver (`iris` / `tavarua`)
+- `v4l2_exynos`: talks directly to `/dev/radio0` through Samsung's Exynos `s610-radio` V4L2 driver
 
 At runtime the executable auto-detects which backend to use:
 
-1. If `/dev/radio0` exists, it selects the legacy backend.
-2. Otherwise, if `fm_helium.so` is present in one of the known vendor/system locations, it selects the HAL backend.
-3. Otherwise, initialization fails and the Java layer treats the device as unsupported.
+1. If `/sys/class/video4linux/radio0/name` contains `iris` or `tavarua` (case-insensitive) alongside `/dev/radio0` (or the sysfs name node is absent while `/dev/radio0` exists), it selects `v4l2_qcom`.
+2. Otherwise, if the sysfs name contains `s610` alongside `/dev/radio0`, it selects `v4l2_exynos`.
+3. Otherwise, if `fm_helium.so` is present in one of the known vendor/system locations, it selects `hal_helium`.
+4. Otherwise, initialization fails and the Java layer treats the device as unsupported.
 
 ## Directory Layout
 
@@ -35,6 +37,7 @@ At runtime the executable auto-detects which backend to use:
 - [`types.h`](types.h): shared primitive typedefs and boolean compatibility helpers
 - [`backend/v4l2_base`](backend/v4l2_base): shared V4L2 base class (`V4l2BackendBase`)
 - [`backend/v4l2_qcom`](backend/v4l2_qcom): Qualcomm V4L2 backend (`V4l2QcomBackend`)
+- [`backend/v4l2_exynos`](backend/v4l2_exynos): Samsung Exynos S610 V4L2 backend (`V4l2ExynosBackend`)
 - [`backend/hal_helium`](backend/hal_helium): Qualcomm FM HAL / `fm_helium.so` backend (`HeliumBackend`)
 
 ## Architecture
@@ -96,6 +99,8 @@ The unified binary accepts the same external command API used before the merge:
 - `set_stereo <0|1>`
 - `set_soft_mute <0|1>`
 - `set_notch_filter <0|1|2>`
+- `set_volume <0..15>`
+- `set_force_use <usage> <config>`
 - `set_antenna <value>`
 - `set_region <eu|us|jp|jp_wide>`
 - `set_spacing <50|100|200>`

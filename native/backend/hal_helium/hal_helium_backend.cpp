@@ -182,9 +182,10 @@ void HalHeliumBackend::reset_search_result_locked() {
     state_.last_search_payload[0] = '\0';
 }
 
-// Resets sequential scan tracking state under state_lock_.
+// Resets sequential scan and ordinary seek tracking state under state_lock_.
 void HalHeliumBackend::reset_scan_locked() {
     state_.scan.active = false;
+    state_.scan.seeking = false;
     state_.scan.wrapped = false;
     state_.scan.start_frequency_khz = 0;
     state_.scan.last_frequency_khz = 0;
@@ -260,10 +261,14 @@ void HalHeliumBackend::evaluate_rt_plus_slices_locked(RdsRtPlusSlices *out) {
 
 // Updates last_error_ from state_.last_error on failure.
 bool HalHeliumBackend::set_status(bool ok) {
-    last_error_ = ok
-            ? ""
-            : (state_.last_error[0] ? state_.last_error : kErrFailed);
-    return ok;
+    if (ok) {
+        last_error_.clear();
+        return true;
+    }
+
+    std::lock_guard<std::mutex> lock(state_lock_);
+    last_error_ = state_.last_error[0] ? state_.last_error : kErrFailed;
+    return false;
 }
 
 // Disables the receiver when enable fails partway while keeping the original error.
@@ -479,7 +484,7 @@ bool HalHeliumBackend::log_snapshot(const char *reason) {
 
 // Loads fm_helium.so, resolves FM_HELIUM_LIB_INTERFACE, and calls hal_init().
 bool HalHeliumBackend::init() {
-    std::lock_guard<std::mutex> lock(state_lock_);
+    std::unique_lock<std::mutex> lock(state_lock_);
     if (state_.initialized) {
         clear_error_locked();
         return set_status(true);
@@ -493,6 +498,7 @@ bool HalHeliumBackend::init() {
         const char *err = dlerror();
         log("open", "dlopen failed for %s: %s", kFmLibraryName, err ? err : "(unknown)");
         set_error_locked(err ? err : "dlopen failed");
+        lock.unlock();
         return set_status(false);
     }
 
@@ -503,6 +509,7 @@ bool HalHeliumBackend::init() {
         set_error_locked(err ? err : "dlsym failed");
         dlclose(state_.lib_handle);
         state_.lib_handle = nullptr;
+        lock.unlock();
         return set_status(false);
     }
 
@@ -512,6 +519,7 @@ bool HalHeliumBackend::init() {
         dlclose(state_.lib_handle);
         state_.lib_handle = nullptr;
         state_.vendor = nullptr;
+        lock.unlock();
         return set_status(false);
     }
 
@@ -565,6 +573,7 @@ bool HalHeliumBackend::enable_receiver() {
         state_.disable_pending = false;
         state_.rmssi.clear_request();
         state_.rmssi.paused = true;
+        reset_scan_locked();
     }
 
     if (!set_slimbus(true)) {
@@ -650,6 +659,7 @@ bool HalHeliumBackend::shutdown_with_timeout(int timeout_ms) {
         );
         if (!cleaned_up) {
             set_error_locked("timed out waiting for disabled_cb");
+            lock.unlock();
             return set_status(false);
         }
         clear_error_locked();
@@ -673,8 +683,10 @@ bool HalHeliumBackend::set_frequency(uint32_t frequency_khz) {
     }
 
     if (!vendor_set(kV4l2CtrlIrisFreq, static_cast<int>(frequency_khz), "failed to tune")) {
-        std::lock_guard<std::mutex> lock(state_lock_);
-        state_.rmssi.paused = false;
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            state_.rmssi.paused = false;
+        }
         return set_status(false);
     }
     log("tune", "request frequency_khz=%u accepted", frequency_khz);
@@ -751,7 +763,14 @@ bool HalHeliumBackend::seek(int direction) {
     log("search", "seek requested direction=%d dwell=%d", direction, kDefaultSeekDwell);
 
     {
-        std::lock_guard<std::mutex> lock(state_lock_);
+        std::unique_lock<std::mutex> lock(state_lock_);
+        if (state_.scan.active || state_.scan.seeking) {
+            set_error_locked("search is already active");
+            log("search", "seek rejected because another search is active");
+            lock.unlock();
+            return set_status(false);
+        }
+        state_.scan.seeking = true;
         state_.rmssi.paused = true;
     }
 
@@ -762,6 +781,7 @@ bool HalHeliumBackend::seek(int direction) {
         log("search", "seek direction=%d accepted", direction);
     } else {
         std::lock_guard<std::mutex> lock(state_lock_);
+        state_.scan.seeking = false;
         state_.rmssi.paused = false;
     }
     return set_status(ok);
@@ -771,7 +791,13 @@ bool HalHeliumBackend::seek(int direction) {
 bool HalHeliumBackend::search() {
     int start_frequency = 0;
     {
-        std::lock_guard<std::mutex> lock(state_lock_);
+        std::unique_lock<std::mutex> lock(state_lock_);
+        if (state_.scan.active || state_.scan.seeking) {
+            set_error_locked("search is already active");
+            log("search", "scan rejected because another search is active");
+            lock.unlock();
+            return set_status(false);
+        }
         start_frequency = state_.lower_band_khz;
         reset_search_result_locked();
         reset_scan_locked();
@@ -921,8 +947,10 @@ bool HalHeliumBackend::set_soft_mute(bool enabled) {
 // Configures hardware notch filter (0 = auto, 1 = low, 2 = high).
 bool HalHeliumBackend::set_notch_filter(int mode) {
     if (mode < 0 || mode > 2) {
-        std::lock_guard<std::mutex> lock(state_lock_);
-        set_error_locked("invalid notch filter mode");
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            set_error_locked("invalid notch filter mode");
+        }
         return set_status(false);
     }
 
@@ -1060,6 +1088,7 @@ void HalHeliumBackend::on_disabled() {
         state_.audio.mode_valid = false;
         state_.rmssi.clear_request();
         state_.rmssi.paused = true;
+        reset_scan_locked();
         state_.cond.notify_all();
     }
 
@@ -1084,8 +1113,9 @@ void HalHeliumBackend::on_tune(int freq) {
     send_radio_state_patch(&patch);
 
     // The tune callback is the first authoritative point at which signal metric belongs
-    // to the new station. Refresh now instead of waiting for the periodic tick.
-    request_sinr();
+    // to the new station. Refresh now using the active metric policy instead of waiting
+    // for the periodic tick.
+    request_signal_metric();
 }
 
 // Handles seek_cmpl_cb for both ordinary seeks and terminal scan completion.
@@ -1099,21 +1129,27 @@ void HalHeliumBackend::on_seek_complete(int freq) {
 
     ScanResult result;
     bool scan_complete = false;
+    bool seek_complete = false;
 
     {
         std::lock_guard<std::mutex> lock(state_lock_);
-        state_.current_frequency_khz = freq;
-        state_.rmssi.paused = false;
-        state_.last_seek_cb_ms = monotonic_ms();
-        reset_search_result_locked();
-        reset_rds_dedup_locked();
-
         // Helium reports terminal SEARCH_COMPLETE through the seek callback and may
-        // repeat it, so claim the active scan under the lock before sending results.
+        // repeat it, so claim the active scan or seek under the lock before sending results.
         if (state_.scan.active) {
             scan_complete = true;
             state_.scan.active = false;
             state_.scan.stations.copy_sorted(&result);
+        } else if (state_.scan.seeking) {
+            seek_complete = true;
+            state_.scan.seeking = false;
+        }
+
+        if (scan_complete || seek_complete) {
+            state_.current_frequency_khz = freq;
+            state_.rmssi.paused = false;
+            state_.last_seek_cb_ms = monotonic_ms();
+            reset_search_result_locked();
+            reset_rds_dedup_locked();
         }
     }
 
@@ -1122,6 +1158,11 @@ void HalHeliumBackend::on_seek_complete(int freq) {
         log("search", "scan complete source=seek_complete count=%d frequencies_khz=%s",
                 result.count, frequencies.c_str());
         send_search_done(result.frequencies_khz, result.count);
+        return;
+    }
+
+    if (!seek_complete) {
+        log("search", "ignoring seek complete without active seek (frequency_khz=%d)", freq);
         return;
     }
 

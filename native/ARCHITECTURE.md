@@ -78,6 +78,7 @@ Android QualcommNative
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
+| `native/backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend (`v4l2_exynos_backend.cpp`, `v4l2_exynos_backend.h`, `s610_fm_controls.h`) |
 | `native/backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
@@ -280,6 +281,8 @@ NUL behavior.
 | `set_stereo <0|1>` | Select mono/stereo mode | `ok` |
 | `set_soft_mute <0|1>` | Enable or disable weak-signal attenuation | `ok` |
 | `set_notch_filter <0|1|2>` | Set hardware notch filter (0=auto, 1=low, 2=high) | `ok` |
+| `set_volume <0..15>` | Set hardware FM gain (`V4L2_CID_AUDIO_VOLUME` on Exynos; no-op elsewhere, immediate response without 300 ms delay) | `ok` |
+| `set_force_use <usage> <config>` | Call `android::AudioSystem::setForceUse(usage, config)` as root via `libaudioclient.so`/`libmedia.so` when app lacks `MODIFY_AUDIO_ROUTING` (immediate response) | `ok` |
 | `set_antenna <value>` | Select antenna | `ok` |
 | `set_region <name>` | Change region and clamp current tune if needed | `ok` |
 | `set_spacing <50|100|200>` | Change channel spacing | `ok` |
@@ -392,12 +395,14 @@ driver name once on stderr (`drv/detect`):
 
 1. `/sys/class/video4linux/radio0/name` (when readable) must contain `iris` or
    `tavarua` (case-insensitive) alongside `/dev/radio0` to select legacy
-   (`BackendKind::kV4l2Qcom`). Non-Qualcomm drivers (`s610`, `si4709`, etc.) or
-   empty names do not select legacy and fall through. If the sysfs name node is
-   absent while `/dev/radio0` exists, legacy fallback is retained for older kernels.
-2. Existence of `fm_helium.so` in known vendor, system vendor, system_ext, or
-   ODM 32/64-bit locations selects HAL (`BackendKind::kHelium`).
-3. Otherwise no backend is available (`BackendKind::kNone` / `ERR_UNSUPPORTED`).
+   (`BackendKind::kV4l2Qcom`). If the sysfs name node is absent while
+   `/dev/radio0` exists, legacy fallback is retained for older kernels.
+2. A name containing `s610` alongside `/dev/radio0` selects Samsung Exynos S610
+   (`BackendKind::kV4l2Exynos`, protocol token `v4l2_exynos`).
+3. Other names (`si4709`, etc.) or empty names do not select a V4L2 backend and
+   fall through. Existence of `fm_helium.so` in known vendor, system vendor,
+   system_ext, or ODM 32/64-bit locations selects HAL (`BackendKind::kHelium`).
+4. Otherwise no backend is available (`BackendKind::kNone` / `ERR_UNSUPPORTED`).
 
 Detection tests file existence and the sysfs driver name string only. It does not prove that `/dev/radio0` can
 be opened or that the HAL ABI is compatible.
@@ -547,8 +552,10 @@ normalized by sign.
 
 Seek configures search mode and dwell, then writes the IRIS seek control. The
 immediate `seekhw` response only acknowledges command acceptance. Java does not
-parse it as a frequency. The asynchronous callback updates frequency, clears
-RDS, and emits the authoritative state patch.
+parse it as a frequency. `HeliumScanState::seeking` tracks an accepted ordinary
+seek so `seek_complete_cb` updates frequency, clears RDS, emits the
+authoritative state patch, and sends a single `seek_done` only for a live
+`seekhw` request (rejecting overlapping `seekhw` / `searchhw` while active).
 
 ### Full Search
 
@@ -574,7 +581,9 @@ ordering provides neither terminal completion nor a detectable wrap, search may
 remain active indefinitely. Terminal completion sends an empty station list when
 the scan found no stations. Device testing confirmed that the HAL may emit the
 terminal seek-complete callback twice and then tune back to the lower band; only
-the first callback completes the active scan and sends `search_done`.
+the first callback completes the active scan and sends `search_done`, and the
+duplicate callback is ignored because neither `scan.active` nor `scan.seeking`
+remains set.
 
 A Qualcomm search-list callback is also registered and can independently parse
 and emit station results. If a vendor emits both scan-next and search-list
@@ -649,29 +658,50 @@ currently used.
 device:
 
 ```text
+pre-clear hw.fm.init=0
 set hw.fm.mode=normal
 set hw.fm.version=0
 start fm_dl service
 optionally insmod radio-iris-transport.ko
 poll hw.fm.init for readiness
+on timeout in kFirmwareThenDirect: log and fall back to direct mode
 wait for vendor stabilization
 open /dev/radio0 with O_RDWR | O_NONBLOCK
 wait again before use
 ```
 
-The legacy backend has two bootstrap modes. The firmware path above can spend
-roughly six seconds waiting for `hw.fm.init`, followed by fixed delays, and may
-run `fm_qsoc_patches` during receiver setup.
+Bootstrap mode selection is pure (`select_v4l2_bootstrap_mode()`):
+- `V4l2BootstrapMode::kDirect`: selected when both `init.svc.fm_dl` and an
+  executable `fm_qsoc_patches` are absent.
+- `V4l2BootstrapMode::kFirmwareThenDirect` (selected when `fm_dl` or
+  `fm_qsoc_patches` is present): pre-clears `hw.fm.init=0` before starting
+  `fm_dl` so a stale `1` cannot fake readiness. If `hw.fm.init` times out in
+  `command_open()` or `fm_qsoc_patches` fails during `command_setup_receiver()`,
+  the backend logs `mode=firmware_failed reason=...`, latches direct transport
+  (`direct_v4l2_transport_ = true`) within the same `V4l2QcomBackend` instance,
+  and continues via the direct no-firmware sequence (`hw.fm.init=1`, 200 ms
+  settle, event thread before `STATE=RX`, and bounded `RADIO_READY` wait). This
+  is an intra-backend transport fallback and does not cross into `HalHeliumBackend`.
 
-If both `init.svc.fm_dl` and an executable `fm_qsoc_patches` are absent, the
-backend selects the no-firmware direct V4L2 path before inspecting
-`hw.fm.init`, which may be stale from a killed process. During enable this path
-sets `hw.fm.init=1`, waits 200 ms, starts the event listener before `STATE=RX`,
-and waits for `RADIO_READY`. Disable clears `hw.fm.init` instead of stopping
-`fm_dl`.
+On the legacy firmware path (`direct_v4l2_transport_ == false`), after
+`STATE=RX`, `command_setup_receiver()` issues two non-fatal vendor steps
+(`V4L2_CID_TUNE_POWER_LEVEL = 7` and a `VIDIOC_G_TUNER` probe), configures mute,
+emphasis, spacing, and antenna, starts the event thread, and performs a bounded
+(1 s) non-fatal wait for `TAVARUA_EVT_RADIO_READY` before returning.
+
+`command_open()` polls `hw.fm.init` up to 6 s (`600 × 10 ms`, plus 500 ms and
+700 ms settle sleeps and 300 ms `make_ok()` = 7.5 s total, fitting within
+Java's 10 s `init` timeout). Once a firmware timeout or `fm_qsoc_patches`
+failure latches `firmware_bootstrap_failed_`, subsequent `command_open()` calls
+(such as re-enable after `disable()`, where Java's `enable` timeout is 5 s)
+skip the `fm_dl` wait and enter direct mode immediately; direct `RADIO_READY`
+is bounded to 3 s (`300 × 10 ms`) so `enable` plus `make_ok()` (300 ms) fits
+within the 5 s `enable` budget.
 
 The downloader present on Xiaomi Mi A1 keeps it on the firmware path. Xiaomi
-Redmi 4A Android 10 uses the direct path.
+Redmi 4A Android 10 uses the direct path. Devices with broken/inert `fm_dl`
+definitions (such as Redmi 4 Prime / `markw` on MIUI 10) fall back to the direct
+path automatically.
 
 ### Enable and Required Ordering
 
@@ -726,26 +756,30 @@ An event thread dequeues the Qualcomm Tavarua event buffer and interprets each
 byte as an event ID. It handles radio ready/disabled, tune/seek, scan progress,
 PS/RT/raw RDS, stereo/mono, station lists, AF, ODA, RT+, and ERT.
 
-On `RADIO_DISABLED`, the thread marks state off, closes the radio file
-descriptor, and exits itself.
+On `RADIO_DISABLED` or loop exit, the event thread marks state off, closes the
+radio file descriptor via `V4l2BackendBase::close_device()` (which atomically
+exchanges `fd_radio_` with `-1` so each descriptor is closed at most once), and
+exits itself.
 
-Legacy globals such as `fd_radio`, `fm_storage`, the power-completion flag, and
-RT+ tags are shared between the command thread and event thread without a
-mutex. The event thread can close the descriptor while command handling issues
-an ioctl. Any lifecycle or concurrency change must account for these existing
-data races rather than assuming this layer is thread-safe.
+Legacy fields such as `fm_storage` and RT+ tags are shared between the command
+thread and event thread without a mutex. Any lifecycle or concurrency change
+must account for these shared fields rather than assuming this layer is fully
+synchronized.
 
 If `enable()` is called while the receiver is already enabled, it rejects fast
 with `ERR_ALREADY_ENABLED` without disturbing the active session or event thread.
 If `enable()` is called while disabled (including after a prior `disable()` or
 failed enable rollback), it first calls `stop_event_thread()` to stop and join
-any lingering event thread and reopens `/dev/radio0` via `command_open()` when
-`fd_radio_ < 0` before preparing the receiver.
+any lingering event thread; if the previous event thread has not stopped within
+the bound, `enable()` rejects with `ERR_FAILED` instead of reopening
+`/dev/radio0`.
 
 Legacy `pthread_create()` return codes are checked; on `command_setup_receiver()`
 failures, `rollback_enable()`, or `command_shutdown()`, `stop_event_thread()`
-clears `power_on_completed_` and `thread_running_`, closes the descriptor to
-unblock any pending `VIDIOC_DQBUF`, and joins the event thread deterministically.
+clears `power_on_completed_` and `thread_running_`, interrupts any in-flight
+`VIDIOC_DQBUF` (`interrupt_event_read()`, sending `SIGUSR1` registered without
+`SA_RESTART`), waits within a bounded loop for the event thread to finish and
+close the descriptor, and joins it only after exit is confirmed.
 
 ### Tune, Jump, Seek, and Search
 
@@ -771,10 +805,13 @@ empty list when no stations were found. Device testing of
 ordinary legacy scan returned 42 stations, confirming that this path exceeds
 the former 20-station list limit.
 
-The collector has explicit seeking, scanning, and cancelling states protected
-by its own mutex. This prevents an ordinary seek callback from completing an
-active full scan. Tune, jump, region, spacing, low-power, and overlapping search
-commands are rejected while a search operation is unresolved. Cancelled scans consume
+The collector has explicit seek-starting, seeking, scanning, and cancelling
+states (plus a pending-tune flag for direct `setfreq`/`jump` requests) protected
+by `state_lock_`. This prevents an ordinary seek callback from completing an
+active full scan and prevents a delayed `TUNE_SUCC` from a preceding `setfreq`
+from consuming a newly registered seek and emitting a premature `seek_done`
+before the hardware seek finishes. Tune, jump, region, spacing, low-power, and
+overlapping search commands are rejected while a search operation is unresolved. Cancelled scans consume
 their terminal `SEEK_COMPLETE` without sending a result, and disable abandons
 the operation immediately. The old `NEW_SRCH_LIST` payload is still drained and
 logged if received, but no longer completes application full search.
@@ -987,8 +1024,8 @@ Agent-facing documentation layers:
 
 - `native/README.md` is a shorter human-oriented overview; treat the command
   tables here as canonical when they disagree.
-- `native/backend/v4l2_qcom/README.md` and `native/backend/hal_helium/README.md`
-  summarize each backend directory.
+- `native/backend/v4l2_qcom/README.md`, `native/backend/v4l2_exynos/README.md`,
+  and `native/backend/hal_helium/README.md` summarize each backend directory.
 
 Use source code and this document for current navigation. Update this document
 when architecture, protocol, lifecycle, or known invariants change.

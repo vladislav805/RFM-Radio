@@ -1,5 +1,8 @@
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef __ANDROID__
+#include <dlfcn.h>
+#endif
 
 #include <cstdio>
 #include <string>
@@ -293,6 +296,64 @@ response_t handle_notch_filter(const std::vector<std::string> &args) {
     return make_ok();
 }
 
+response_t handle_volume(const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        return make_error(kErrNoArg);
+    }
+
+    Backend *backend = ensure_backend();
+    if (backend == nullptr || !backend->set_volume(parse_int_arg(args, 1, 15))) {
+        return make_backend_error(backend);
+    }
+    return {0, kResponseOk};
+}
+
+/*
+ * Routes FM audio between headset and speaker via Android's AudioPolicyService.
+ *
+ * On Android 11+ (including Samsung OneUI), AudioSystem.setForceUse() from the
+ * unprivileged app fails with -1 (MODIFY_AUDIO_ROUTING denied), and IAudioService$Stub
+ * does not expose setForceUse because it talks directly to native media.audio_policy.
+ * Running inside fmbin (uid 0) bypasses that permission check without spawning su/app_process.
+ *
+ * The mangled symbol is android::AudioSystem::setForceUse(audio_policy_force_use_t,
+ * audio_policy_forced_cfg_t) in libaudioclient.so (Android 8+) or libmedia.so (older).
+ */
+response_t handle_force_use(const std::vector<std::string> &args) {
+    if (args.size() < 3) {
+        return make_error(kErrNoArg);
+    }
+#ifdef __ANDROID__
+    const int usage = parse_int_arg(args, 1, 0);
+    const int config = parse_int_arg(args, 2, 0);
+    void *handle = dlopen("libaudioclient.so", RTLD_LAZY);
+    if (handle == nullptr) {
+        handle = dlopen("libmedia.so", RTLD_LAZY);
+    }
+    if (handle == nullptr) {
+        std::fprintf(stderr, "audio/set_force_use: dlopen failed: %s\n", dlerror());
+        return make_error("ERR_FAILED");
+    }
+    using SetForceUseFn = int (*)(int, int);
+    auto *fn = reinterpret_cast<SetForceUseFn>(dlsym(
+            handle,
+            "_ZN7android11AudioSystem11setForceUseE24audio_policy_force_use_t25audio_policy_forced_cfg_t"
+    ));
+    if (fn == nullptr) {
+        std::fprintf(stderr, "audio/set_force_use: dlsym failed: %s\n", dlerror());
+        return make_error("ERR_FAILED");
+    }
+    const int ret = fn(usage, config);
+    std::fprintf(stderr, "audio/set_force_use: usage=%d config=%d ret=%d\n", usage, config, ret);
+    if (ret != 0) {
+        return make_error("ERR_FAILED");
+    }
+    return {0, kResponseOk};
+#else
+    return {0, kResponseOk};
+#endif
+}
+
 }  // namespace
 
 void poll_rmssi() {
@@ -326,6 +387,8 @@ response_t api_handler(char *request) {
     if (command == "slimbus") return handle_slimbus(args);
     if (command == "set_soft_mute") return handle_soft_mute(args);
     if (command == "set_notch_filter") return handle_notch_filter(args);
+    if (command == "set_volume") return handle_volume(args);
+    if (command == "set_force_use") return handle_force_use(args);
     return make_error(kErrUnknown);
 }
 

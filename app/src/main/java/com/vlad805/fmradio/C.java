@@ -30,6 +30,7 @@ final public class C {
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
 		public static final String STATE_CHANGED = BASE + "STATE_CHANGED";
 		public static final String HW_SEARCH_DONE = BASE + "HW_SEARCH_DONE";
+		public static final String HW_SEARCH_FAILED = BASE + "HW_SEARCH_FAILED";
 		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
 		public static final String HW_SEEK_COMPLETE = BASE + "HW_SEEK_COMPLETE";
 
@@ -112,6 +113,7 @@ final public class C {
 		public static final String TUNER_STEREO = "tuner_stereo";
 		public static final String TUNER_SOFT_MUTE = "tuner_soft_mute";
 		public static final String TUNER_NOTCH_FILTER = "tuner_notch_filter";
+		public static final String DETECTED_BACKEND = "detected_backend";
 
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 
@@ -168,10 +170,5 @@ final public class C {
 	public static final class Config {
 		/** Number of seconds retained for recording pre-roll. */
 		public static final int RECORDING_PRE_ROLL_SECONDS = 5;
-
-		public static final class Polling {
-			public static final int DELAY = 3000;
-			public static final int INTERVAL = 1000;
-		}
 	}
 }

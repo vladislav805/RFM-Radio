@@ -1,5 +1,9 @@
 package com.vlad805.fmradio.helper;
 
+import android.content.Context;
+
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.enums.TunerDriver;
 
 import java.io.BufferedReader;
@@ -21,6 +25,34 @@ public final class TunerDriverDetector {
         return getTunerDriver() != TunerDriver.NONE;
     }
 
+    /**
+     * Resolves the active TunerDriver, falling back to the cross-process backend
+     * token persisted by NativeTunerController when sysfs cannot be read
+     * directly from the unprivileged UI process.
+     */
+    public static TunerDriver getTunerDriver(final Context context) {
+        if (context != null) {
+            final String stored = Storage.getPrefString(context, C.PrefKey.DETECTED_BACKEND, "");
+            if (!stored.isEmpty()) {
+                try {
+                    final TunerDriver persisted = TunerDriver.valueOf(stored);
+                    if (persisted != TunerDriver.NONE) {
+                        return persisted;
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+        return getTunerDriver();
+    }
+
+    /**
+     * Checks whether the active backend is Exynos S610.
+     */
+    public static boolean isExynos(final Context context) {
+        return getTunerDriver(context) == TunerDriver.V4L2_EXYNOS;
+    }
+
     public static boolean hasDevRadio0() {
         return new File("/dev/radio0").exists();
     }
@@ -40,6 +72,14 @@ public final class TunerDriverDetector {
         return normalized.contains("iris") || normalized.contains("tavarua");
     }
 
+    /** Matches Samsung Exynos S610 FM driver name ("s610-radio"), mirroring native. */
+    public static boolean isSamsungS610DriverName(final String name) {
+        if (name == null) {
+            return false;
+        }
+        return name.trim().toLowerCase(Locale.US).contains("s610");
+    }
+
     /**
      * Maps the native ready handshake "backend" token to the active TunerDriver,
      * returning null if absent, "none", or unrecognized so callers keep fallback.
@@ -51,11 +91,42 @@ public final class TunerDriverDetector {
         switch (backend.trim().toLowerCase(Locale.US)) {
             case "v4l2_qcom":
                 return TunerDriver.V4L2_QCOM;
+            case "v4l2_exynos":
+                return TunerDriver.V4L2_EXYNOS;
             case "hal_helium":
                 return TunerDriver.HAL_HELIUM;
             default:
                 return null;
         }
+    }
+
+    /**
+     * Resolves the active backend from the provisional unprivileged guess and the
+     * native ready handshake token. A recognized token overrides the guess, an
+     * explicit "none" resolves to NONE, and an absent or unknown token preserves
+     * the provisional guess.
+     */
+    public static TunerDriver resolveNativeBackend(
+            final TunerDriver detectedDriver,
+            final String reportedBackend
+    ) {
+        final TunerDriver fallback = detectedDriver != null ? detectedDriver : TunerDriver.NONE;
+        if (reportedBackend == null) {
+            return fallback;
+        }
+        final String normalized = reportedBackend.trim().toLowerCase(Locale.US);
+
+        if (normalized.isEmpty()) {
+            return fallback;
+        }
+
+        if ("none".equals(normalized)) {
+            return TunerDriver.NONE;
+        }
+
+        final TunerDriver parsed = fromNativeBackend(normalized);
+
+        return parsed != null ? parsed : fallback;
     }
 
     /**
@@ -71,6 +142,9 @@ public final class TunerDriverDetector {
         if (v4l2DriverName != null) {
             if (hasDevRadio0 && isQualcommV4l2DriverName(v4l2DriverName)) {
                 return TunerDriver.V4L2_QCOM;
+            }
+            if (hasDevRadio0 && isSamsungS610DriverName(v4l2DriverName)) {
+                return TunerDriver.V4L2_EXYNOS;
             }
             return hasFmHeliumLibrary ? TunerDriver.HAL_HELIUM : TunerDriver.NONE;
         }

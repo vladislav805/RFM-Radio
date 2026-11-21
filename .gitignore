@@ -59,6 +59,7 @@ cmake-build-*
 app/src/main/assets/fmbin*
 .codex
 .vscode/settings.json
+.vscode/c_cpp_properties.json
 .ideas
 /_*
 node_modules/

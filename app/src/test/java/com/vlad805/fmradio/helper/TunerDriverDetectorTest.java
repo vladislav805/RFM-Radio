@@ -36,17 +36,40 @@ public class TunerDriverDetectorTest {
     }
 
     @Test
-    public void rejectsNonQualcommAndEmptyV4l2Names() {
+    public void allowsSamsungS610DriverName() {
+        assertTrue(TunerDriverDetector.isSamsungS610DriverName("s610-radio"));
+        assertTrue(TunerDriverDetector.isSamsungS610DriverName("S610-RADIO\n"));
+        assertFalse(TunerDriverDetector.isSamsungS610DriverName("radio-iris"));
+        assertFalse(TunerDriverDetector.isSamsungS610DriverName(""));
+        assertFalse(TunerDriverDetector.isSamsungS610DriverName(null));
+
+        assertEquals(
+                TunerDriver.V4L2_EXYNOS,
+                TunerDriverDetector.classifyTunerDriver("s610-radio", true, false)
+        );
+        // The V4L2 node wins over a present HAL library.
+        assertEquals(
+                TunerDriver.V4L2_EXYNOS,
+                TunerDriverDetector.classifyTunerDriver("s610-radio", true, true)
+        );
+        assertEquals(
+                TunerDriver.NONE,
+                TunerDriverDetector.classifyTunerDriver("s610-radio", false, false)
+        );
+        assertEquals(
+                TunerDriver.HAL_HELIUM,
+                TunerDriverDetector.classifyTunerDriver("s610-radio", false, true)
+        );
+    }
+
+    @Test
+    public void rejectsUnknownAndEmptyV4l2Names() {
         assertFalse(TunerDriverDetector.isQualcommV4l2DriverName("s610"));
         assertFalse(TunerDriverDetector.isQualcommV4l2DriverName("si4709"));
         assertFalse(TunerDriverDetector.isQualcommV4l2DriverName(""));
         assertFalse(TunerDriverDetector.isQualcommV4l2DriverName("   "));
         assertFalse(TunerDriverDetector.isQualcommV4l2DriverName(null));
 
-        assertEquals(
-                TunerDriver.NONE,
-                TunerDriverDetector.classifyTunerDriver("s610", true, false)
-        );
         assertEquals(
                 TunerDriver.NONE,
                 TunerDriverDetector.classifyTunerDriver("si4709", true, false)
@@ -56,10 +79,6 @@ public class TunerDriverDetectorTest {
                 TunerDriverDetector.classifyTunerDriver("", true, false)
         );
 
-        assertEquals(
-                TunerDriver.HAL_HELIUM,
-                TunerDriverDetector.classifyTunerDriver("s610", true, true)
-        );
         assertEquals(
                 TunerDriver.HAL_HELIUM,
                 TunerDriverDetector.classifyTunerDriver("si4709", true, true)
@@ -108,10 +127,43 @@ public class TunerDriverDetectorTest {
     @Test
     public void mapsNativeHandshakeBackendToken() {
         assertEquals(TunerDriver.V4L2_QCOM, TunerDriverDetector.fromNativeBackend("v4l2_qcom"));
+        assertEquals(TunerDriver.V4L2_EXYNOS, TunerDriverDetector.fromNativeBackend("v4l2_exynos"));
         assertEquals(TunerDriver.HAL_HELIUM, TunerDriverDetector.fromNativeBackend("hal_helium"));
         assertNull(TunerDriverDetector.fromNativeBackend("none"));
         assertNull(TunerDriverDetector.fromNativeBackend(null));
         assertNull(TunerDriverDetector.fromNativeBackend(""));
         assertNull(TunerDriverDetector.fromNativeBackend("unknown"));
+    }
+
+    @Test
+    public void resolvesNativeBackendFromProvisionalGuess() {
+        assertEquals(
+                TunerDriver.HAL_HELIUM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "hal_helium")
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.HAL_HELIUM, "v4l2_qcom")
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, null)
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "")
+        );
+        assertEquals(
+                TunerDriver.V4L2_QCOM,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "unknown_backend")
+        );
+        assertEquals(
+                TunerDriver.NONE,
+                TunerDriverDetector.resolveNativeBackend(TunerDriver.V4L2_QCOM, "none")
+        );
+        assertEquals(
+                TunerDriver.NONE,
+                TunerDriverDetector.resolveNativeBackend(null, null)
+        );
     }
 }

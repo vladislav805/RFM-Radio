@@ -183,6 +183,28 @@ public class PcmRecorderSessionTest {
         assertEquals(java.util.Arrays.asList(RdsSnapshot.EMPTY), recorder.rdsStates);
     }
 
+    @Test
+    public void computesHalfSecondDurationForStereo44100And48000Formats() throws Throwable {
+        for (final PcmFormat format : new PcmFormat[]{
+                PcmFormat.PCM16_STEREO_44100,
+                PcmFormat.PCM16_STEREO_48000
+        }) {
+            final PcmRecorderSession session = new PcmRecorderSession(
+                    format.sampleRateHz(),
+                    format.channelCount(),
+                    1
+            );
+            final FakeRecorder recorder = new FakeRecorder();
+            final int halfSecondInterleavedSamples = format.sampleRateHz();
+            session.append(new short[halfSecondInterleavedSamples], halfSecondInterleavedSamples);
+
+            assertEquals(500, session.start(recorder));
+            session.stop();
+            assertEquals(500, recorder.initialDurationMillis);
+            assertEquals(halfSecondInterleavedSamples, recorder.samples().length);
+        }
+    }
+
     private static short[] sequence(final int start, final int length) {
         final short[] result = new short[length];
         for (int i = 0; i < length; i++) {

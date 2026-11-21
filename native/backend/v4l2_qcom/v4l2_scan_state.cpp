@@ -1,7 +1,28 @@
 #include "v4l2_scan_state.h"
 
-bool V4l2ScanState::start_seek() {
+void V4l2ScanState::on_tune_requested() {
+    if (status_ == Status::kIdle) {
+        tune_pending_ = true;
+    }
+}
+
+void V4l2ScanState::tune_failed() {
+    if (status_ == Status::kIdle) {
+        tune_pending_ = false;
+    }
+}
+
+bool V4l2ScanState::begin_seek() {
     if (status_ != Status::kIdle) {
+        return false;
+    }
+
+    status_ = Status::kSeekStarting;
+    return true;
+}
+
+bool V4l2ScanState::start_seek() {
+    if (status_ != Status::kIdle && status_ != Status::kSeekStarting) {
         return false;
     }
 
@@ -10,8 +31,8 @@ bool V4l2ScanState::start_seek() {
 }
 
 void V4l2ScanState::seek_failed() {
-    if (status_ == Status::kSeeking) {
-        reset();
+    if (status_ == Status::kSeekStarting || status_ == Status::kSeeking) {
+        status_ = Status::kIdle;
     }
 }
 
@@ -21,6 +42,7 @@ bool V4l2ScanState::start() {
     }
 
     status_ = Status::kScanning;
+    tune_pending_ = false;
     pending_frequency_khz_ = 0;
     stations_.reset();
     return true;
@@ -49,7 +71,15 @@ void V4l2ScanState::cancel_failed() {
 }
 
 bool V4l2ScanState::on_tune(int frequency_khz) {
+    if (status_ == Status::kIdle || status_ == Status::kSeekStarting) {
+        tune_pending_ = false;
+        return false;
+    }
     if (status_ == Status::kSeeking) {
+        if (tune_pending_) {
+            tune_pending_ = false;
+            return false;
+        }
         reset();
         return true;
     }
@@ -77,6 +107,10 @@ int V4l2ScanState::on_scan_next(int fallback_frequency_khz) {
 }
 
 V4l2ScanTerminal V4l2ScanState::on_seek_complete(ScanResult *result) {
+    if (status_ == Status::kSeeking) {
+        tune_pending_ = false;
+        return V4l2ScanTerminal::kNone;
+    }
     if (status_ == Status::kCancelling) {
         reset();
         return V4l2ScanTerminal::kCancelled;
@@ -96,6 +130,7 @@ bool V4l2ScanState::busy() const {
 
 void V4l2ScanState::reset() {
     status_ = Status::kIdle;
+    tune_pending_ = false;
     pending_frequency_khz_ = 0;
     stations_.reset();
 }

@@ -5,6 +5,7 @@ import {
     getMissingRequiredRdsFields,
     getSkippedOptionalRdsFields,
     parseRdsRequirements,
+    resolveRdsRequirementsFromEnv,
     type RdsChecklist,
 } from "../lib/rds_requirements.mts";
 
@@ -48,5 +49,33 @@ describe("RDS requirement configurability", () => {
         assert.equal(allRequiredRdsFound(checklist, strict), false);
         assert.deepEqual(getMissingRequiredRdsFields(checklist, strict), ["rt_plus"]);
         assert.deepEqual(getSkippedOptionalRdsFields(checklist, strict), []);
+    });
+
+    it("wires RFM_RDS_REQUIRE from an environment object without leaking into pure parser defaults", () => {
+        const previous = process.env.RFM_RDS_REQUIRE;
+        process.env.RFM_RDS_REQUIRE = "all";
+        try {
+            assert.deepEqual([...parseRdsRequirements(undefined)], ["ps", "rt"]);
+            assert.deepEqual(
+                [...resolveRdsRequirementsFromEnv()],
+                ["ps", "rt", "rt_plus", "af"],
+            );
+        } finally {
+            if (previous === undefined) {
+                delete process.env.RFM_RDS_REQUIRE;
+            } else {
+                process.env.RFM_RDS_REQUIRE = previous;
+            }
+        }
+
+        assert.deepEqual([...resolveRdsRequirementsFromEnv({})], ["ps", "rt"]);
+        assert.deepEqual(
+            [...resolveRdsRequirementsFromEnv({ RFM_RDS_REQUIRE: "all" })],
+            ["ps", "rt", "rt_plus", "af"],
+        );
+        assert.deepEqual(
+            [...resolveRdsRequirementsFromEnv({ RFM_RDS_REQUIRE: "ps,af" })],
+            ["ps", "af"],
+        );
     });
 });

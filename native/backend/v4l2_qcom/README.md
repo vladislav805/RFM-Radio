@@ -37,10 +37,17 @@ This is the classic "direct driver access" path.
 When the unified binary selects the legacy backend:
 
 1. the Java side sends `init`
-2. the backend opens `/dev/radio0`
-3. FM driver setup is performed
-4. an interrupt thread is created
-5. driver events are translated into JSON app events on stdout
+2. `select_v4l2_bootstrap_mode()` chooses `kDirect` (when both `init.svc.fm_dl`
+   and `fm_qsoc_patches` are absent) or `kFirmwareThenDirect` (pre-clearing
+   `hw.fm.init=0`, starting `fm_dl`, and falling back to the direct no-firmware
+   V4L2 path within `V4l2QcomBackend` if `hw.fm.init` times out or
+   `fm_qsoc_patches` fails)
+3. the backend opens `/dev/radio0`
+4. FM driver setup is performed (including non-fatal post-`STATE=RX`
+   `V4L2_CID_TUNE_POWER_LEVEL=7` + `VIDIOC_G_TUNER` quirks and a bounded
+   non-fatal `RADIO_READY` wait on the legacy firmware path)
+5. an interrupt thread is created
+6. driver events are translated into JSON app events on stdout
 
 Examples of translated events:
 

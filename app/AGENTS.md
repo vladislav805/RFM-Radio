@@ -12,12 +12,12 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | (root) | `C.java` — all constants (commands, events, pref keys), `Storage` (Tray) |
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
-| `service/` | `FMService` — the orchestrator |
-| `service/audio/` | `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
-| `service/fm/` | Contract: `IFMController`, `IFMEventListener`, `IFMEventPoller`, `FMEventCallback`, `RadioStatePatch`, `Request`, `Empty`, `RecordError` |
+| `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |
+| `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
+| `service/fm/` | Contract: `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
-| `service/fm/implementation/` | `AbstractQualcommNativeController`, `QualcommNative` |
-| `service/recording/` | 11 files: WAV/MP3 recording, SRT subtitles, storage |
+| `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
+| `service/recording/` | 12 files: `PcmFormat`, WAV/MP3 recording, SRT subtitles, storage |
 | `fragments/` | `PreferencesFragment` — settings built in code, no `res/xml` |
 | `view/` | `RadioUIView`, `FrequencyBarView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum, `BandUtils` |
@@ -35,41 +35,43 @@ package-scoped app broadcasts (`C.Event.*`). No binder/AIDL. Returns
 Key flows:
 
 - `getTunerDriver()`: `TunerDriverDetector` mirrors native detection — checks
-  `/sys/class/video4linux/radio0/name` (`iris`/`tavarua` allowlist, or fallback
-  to `/dev/radio0` when the sysfs node is absent/SELinux-unreadable) alongside
-  `/dev/radio0` (`V4L2_QCOM`), and vendor paths for `fm_helium.so` (`HAL_HELIUM`);
-  both map to `new QualcommNative(context, kind)`, unsupported devices get `Empty`.
-- `getAudioService()`: API ≥ 26 → `RoutingAudioService`, else
-  `LightAudioService`.
-- `ENABLE` starts HAL audio before enabling the tuner; `DISABLE` stops audio,
-  disables the tuner, and calls `stopSelf()`.
-- `SPEAKER_STATE` toggles the speaker; for `QualcommNative` it also calls
-  `refreshAudioRoute()` (Slimbus restart).
+  `/sys/class/video4linux/radio0/name` (`iris`/`tavarua` → `V4L2_QCOM`,
+  `s610` → `V4L2_EXYNOS`, or fallback to `/dev/radio0` when sysfs is
+  absent/SELinux-unreadable) alongside vendor paths for `fm_helium.so`
+  (`HAL_HELIUM`); supported drivers map to `new NativeTunerController(context, kind)`.
+- Audio selection: resolved once per session on `LAUNCHED` via
+  `AudioSelection.resolve(resolvedDriver, SDK_INT)` and coordinated by
+  `AudioLifecycle` (`HAL_HELIUM` starts audio before `ENABLE` and stops before
+  `DISABLE`; `V4L2_QCOM` starts on `ENABLED` and stops on `DISABLED`/teardown;
+  `NONE` creates no hardware audio). Pre-roll preference and current RDS
+  snapshot are applied at attachment.
+- `ENABLE`/`DISABLE` delegate audio ordering to `AudioLifecycle`; `DISABLE`
+  disables the tuner and calls `stopSelf()`.
+- `SPEAKER_STATE` toggles `AudioOutput` (`HEADPHONES`/`SPEAKER`) through
+  `AudioService` (`getOutput()` / `setOutput()`); route-specific side effects
+  (`FOR_MEDIA` on V4L2, `refreshAudioRoute()` Slimbus restart on Helium) live
+  in the selected audio path/policy.
 - `RECORD_START`/`RECORD_STOP` go through the audio service's
   `IAudioRecordable`.
 - `NOTIFICATION_SEEK` seeks via the favorites list or hardware seek.
 - Enable chain: `INSTALLED → LAUNCHED → ENABLED`; `ROOT_ACCESS_DENIED` and
   `LAUNCH_FAILED` stop the service.
-- Unexpected native exit → `QualcommNative.onNativeProcessExit` →
+- Unexpected native exit → `NativeTunerController` exit handler →
   `context.stopService(FMService)`.
-- `onDestroy()` → `kill()`: stop poll timer, audio, tuner; unregister
+- `onDestroy()` → `kill()`: stop audio and tuner; unregister
   receivers and the Tray preference listener.
 
 ## Controller Hierarchy
 
-- `IFMController` — contract: install/launch/prepareBinary/kill/enable/
-  disable/setFrequency/jump/hwSeek/hwSearch/cancelHwSearch/setPowerMode/
-  applyPreference/setupTunerByPreferences.
-- `AbstractQualcommNativeController` — template method: final public methods
-  emit lifecycle events and call protected `*Impl` hooks. Owns binary install
+- `NativeTunerController` (`final`) — the only tuner controller. Owns binary install
   (asset → `/data/data/<pkg>/files/fmbin-<arch>`, chmod 0755, version in
   Tray; debug builds always reinstall) and `sendCommand` via the session.
-- `QualcommNative` — the only real driver. `launchImpl`: root probe,
-  `killall fmbin-*`, 5 s ready handshake, `init` with 10 s timeout.
-  `enableImpl` sends one atomic `enable` command assembled from preferences
-  (frequency clamped to `BandUtils` band limits).
-  `shouldApplyStartupPreferences()` returns false (everything is in `enable`).
-- `Empty` — no-op driver for unsupported devices; emits the full event chain.
+  `launch()`: root probe, `killall fmbin-*`, 5 s ready handshake, `init` with
+  10 s timeout. `enable()` sends one atomic `enable` command formatted by
+  `TunerCommandFormat` from preferences (frequency clamped to `BandUtils` band
+  limits) plus any non-default `set_notch_filter`.
+- `TunerCommandFormat` — package-private command formatter for `regionName`,
+  `spacingKhz`, and the atomic `enable` command.
 - `Request` — command object; default timeout 1000 ms, per-command overrides
   (init 10 s, enable/disable 5 s, seekhw 4 s, jump 1.5 s, searchhw 60 s,
   slimbus 2 s).
@@ -78,7 +80,7 @@ Key flows:
 
 `NativeProcessSession` owns the root process: `su` + `exec fmbin`, ready
 handshake `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (updating
-`QualcommNative`/`FMService` driver kind when sysfs is hidden by SELinux), serial command queue
+`NativeTunerController`/`FMService` driver kind when sysfs is hidden by SELinux), serial command queue
 (`<id>\t<command>\n`; `\t`, `\r`, `\n` are forbidden inside a command),
 timeout scheduler, and stop escalation (`shutdown` → stdin close → TERM →
 KILL by handshake PID). Native stderr is drained to logcat tag `RFM-QCOM`;
@@ -89,13 +91,15 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
 
 ## Audio
 
-- `RoutingAudioService` (API ≥ 26, HAL devices): audio is routed by the audio
-  HAL; device switching via `AudioManager.setParameters`
-  (`fm_mute`, `fm_routing`, `fm_volume`) plus hidden `AudioSystem` constants
-  through reflection. Recording opens a separate `AudioRecord` (48 kHz
-  stereo) with `setPreferredDevice(TYPE_FM_TUNER)`.
+- `RoutingAudioService` (API ≥ 26): owns audio focus, volume broadcast
+  listener, and FM PCM capture (`AudioRecord` at 48 kHz stereo with
+  `setPreferredDevice(TYPE_FM_TUNER)`). Delegates vendor output routing to
+  `RoutedAudioPolicy` (`QualcommRoutedAudio` or `SamsungS610Audio` for
+  Exynos `g_fmradio_*` parameters, hardware volume `set_volume`, source 11
+  capture, `fmradio_recoding`, `MediaSession` volume session, and software
+  gain compensation).
 - `LightAudioService` (API < 26, legacy): `AudioRecord` (source 1998) →
-  `AudioTrack` bridge loop at 44.1 kHz.
+  `AudioTrack` bridge loop at 44.1 kHz, retaining `FOR_MEDIA` speaker routing.
 - Both implement `IAudioRecordable` (start/stop record, `updateRds`) and feed
   the 5-second pre-roll ring buffer in `PcmRecorderSession`.
 - `AudioService.requestForFocus` is the only AudioFocus point
@@ -149,11 +153,12 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   arm64-v8a, NDK 29.0.14033849. `preBuild` runs `native/build.sh` and then
   verifies the `fmbin-*` assets exist.
 - JVM tests (`make test-java`): RadioState, SignalStrength, Request,
+  FMNotificationManager, TunerCommandFormat, TunerDriverDetector,
+  AudioSelection, AudioLifecycle, QualcommRoutedAudio, PcmFormat,
   PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
 - Dead code: `service/streaming/` (empty), `enums/MuteState`,
   `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
-  returns a null recorder — unreachable from UI), the poll timer
-  (`PollTunerHandler`/`IFMEventPoller` — no current driver implements it),
+  returns a null recorder — unreachable from UI),
   `C.Event.UPDATE_AF` (never sent).
 - `RecordService.record()` on IOException silently goes IDLE, leaving the
   file unfinished. `FavoriteStation`'s JSON constructor defaults the
@@ -162,16 +167,14 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
 ## Critical Android Bridge Traps
 
 - **Success is a string-prefix `"ok"` match on `data`** — the JSON `ok` field
-  is ignored (`QualcommNative` line ~209). Do not rely on `ok`.
-- **Base-class `enableImpl` is dead code**: `AbstractQualcommNativeController`
-  sends a bare `enable` with no parameters, which the strict native parser
-  always rejects. Only `QualcommNative.enableImpl` (the atomic
-  seven-parameter command) is live.
-- **Duplicate-tune suppression**: HAL `setFrequencyImpl` drops repeated tunes
+  is ignored (`NativeTunerController.isOkResponse`). Do not rely on `ok`.
+- **Duplicate-tune suppression**: HAL `setFrequency` drops repeated tunes
   within 1500 ms (`DUPLICATE_TUNE_WINDOW_MS`).
-- **Recorder sample rate is backend-dependent**: 48000 Hz on HAL, 44100 Hz on
-  legacy (`QualcommNative.getRecorderSampleRate()`); it flows into WAV
-  headers, MP3 encoding, and recorded durations.
+- **Recorder sample rate comes from the PCM source**: `AudioService.getPcmFormat()`
+  returns `PcmFormat.PCM16_STEREO_48000` on `RoutingAudioService` (including
+  routed V4L2 on API ≥ 26) and `PcmFormat.PCM16_STEREO_44100` on
+  `LightAudioService`; it drives capture validation, pre-roll, WAV headers,
+  MP3 encoding, and recorded durations.
 - **Legacy RMSSI settle delay**: the native legacy backend waits 750 ms
   (`kMetricSettleMs`) after tune/jump before sampling RMSSI; do not "fix"
   Java-side timing to compensate.

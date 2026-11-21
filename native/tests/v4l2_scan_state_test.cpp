@@ -128,3 +128,50 @@ TEST(V4l2ScanStateTest, FailedSeekReleasesOperation) {
     EXPECT_FALSE(state.busy());
     EXPECT_TRUE(state.start());
 }
+
+TEST(V4l2ScanStateTest, DelayedSetfreqTuneBeforeOrAfterSeekStartDoesNotCompleteSeek) {
+    V4l2ScanState state;
+
+    // 1. Delayed tune arrives while seek ioctl is still starting (begin_seek -> on_tune -> start_seek).
+    state.on_tune_requested();
+    ASSERT_TRUE(state.begin_seek());
+    EXPECT_TRUE(state.busy());
+    EXPECT_FALSE(state.on_tune(101700));
+    EXPECT_TRUE(state.busy());
+    ASSERT_TRUE(state.start_seek());
+    EXPECT_FALSE(state.start());
+
+    // Real seek completes at the same frequency.
+    EXPECT_TRUE(state.on_tune(101700));
+    EXPECT_FALSE(state.busy());
+
+    // 2. Delayed tune from previous setfreq arrives after start_seek() has already committed.
+    state.on_tune_requested();
+    ASSERT_TRUE(state.begin_seek());
+    ASSERT_TRUE(state.start_seek());
+    EXPECT_FALSE(state.on_tune(101700));
+    EXPECT_TRUE(state.busy());
+    EXPECT_FALSE(state.start());
+
+    // Real seek completes at the same frequency and unblocks scan.
+    EXPECT_TRUE(state.on_tune(101700));
+    EXPECT_FALSE(state.busy());
+    EXPECT_TRUE(state.start());
+}
+
+TEST(V4l2ScanStateTest, SeekCompleteClearsUnconsumedPendingSetfreqTune) {
+    V4l2ScanState state;
+    state.on_tune_requested();
+    ASSERT_TRUE(state.begin_seek());
+    ASSERT_TRUE(state.start_seek());
+
+    ScanResult result;
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
+    EXPECT_TRUE(state.busy());
+
+    // Even if the driver coalesced the earlier setfreq tune event, the tune event after
+    // SEEK_COMPLETE belongs to the hardware seek and completes it.
+    EXPECT_TRUE(state.on_tune(101700));
+    EXPECT_FALSE(state.busy());
+    EXPECT_TRUE(state.start());
+}

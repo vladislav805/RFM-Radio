@@ -12,7 +12,7 @@ import {
     allRequiredRdsFound,
     getMissingRequiredRdsFields,
     getSkippedOptionalRdsFields,
-    parseRdsRequirements,
+    resolveRdsRequirementsFromEnv,
     type RdsChecklist,
 } from "./lib/rds_requirements.mts";
 
@@ -78,7 +78,7 @@ describe("fmbin RDS integration", () => {
     });
 
     it("observes required RDS fields across seekhw 1 steps", async (t) => {
-        const requiredFields = parseRdsRequirements();
+        const requiredFields = resolveRdsRequirementsFromEnv();
         const client = FmbinClient.start({ remotePath: remoteBinaryPath });
         activeClient = client;
 

@@ -16,6 +16,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
 | `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
+| `backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend (`v4l2_exynos_backend.cpp`, `v4l2_exynos_backend.h`, `s610_fm_controls.h`) |
 | `backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `backend/qcom_fm_controls.h` | Shared Qualcomm V4L2 control IDs |
 | `hex_dump.cpp` / `.h` | Shared hex dump string formatting utility |
@@ -27,6 +28,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `rds_parser.cpp` | Shared PS/RT/AF/ECC/station-list payload parsers |
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
+| `system.cpp` / `.h` | Shared system property, file-existence, and shell command helpers |
 | `periodic_deadline.cpp` | Testable monotonic deadline arithmetic for polling |
 | `tests/` | Host GoogleTest suite |
 
@@ -55,9 +57,10 @@ Device log evidence lives in `tmp/` and `log.log`; `logcat.sh` captures more.
 
 Selection is process-global, lazy (first command wins), with no fallback:
 
-1. `/sys/class/video4linux/radio0/name` contains `iris` or `tavarua` (case-insensitive) with `/dev/radio0` present, or sysfs name node is absent while `/dev/radio0` exists → `kV4l2Qcom`; other names (such as `s610` or `si4709`) or empty name fail V4L2 matching and fall through
-2. else `fm_helium.so` in known vendor/system/odm locations → `kHelium` (`dlopen`)
-3. else no backend → `ERR_UNSUPPORTED`
+1. `/sys/class/video4linux/radio0/name` contains `iris` or `tavarua` (case-insensitive) with `/dev/radio0` present, or sysfs name node is absent while `/dev/radio0` exists → `kV4l2Qcom`
+2. name contains `s610` with `/dev/radio0` present → `kV4l2Exynos` (Samsung Exynos S610; protocol token `v4l2_exynos`)
+3. other names (such as `si4709`) or empty name fail V4L2 matching and fall through to: `fm_helium.so` in known vendor/system/odm locations → `kHelium` (`dlopen`)
+4. else no backend → `ERR_UNSUPPORTED`
 
 Regions: `eu`/`us` 87500–108000 kHz, `jp` 76000–95000, `jp_wide`
 76000–108000. V4L2 frequency units are 62.5 Hz; the protocol carries kHz.
@@ -73,9 +76,10 @@ success response by 300 ms intentionally — do not remove it. Java matches
 success by a `"ok"` prefix on `data`, not by the `ok` field.
 
 Commands: `init`, `enable`, `disable`, `setfreq`, `jump`, `seekhw`,
-`power_mode`, `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna`, `set_region`,
+`power_mode`, `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_volume`, `set_force_use`, `set_antenna`, `set_region`,
 `set_spacing`, `searchhw`, `search_cancel`, `auto_af`, `slimbus`, plus
-`shutdown` (alias `exit`) for process teardown.
+`shutdown` (alias `exit`) for process teardown. `set_volume` and `set_force_use` return immediately
+without the 300 ms `make_ok()` delay to avoid serial queue lag.
 
 `enable` is strict — exactly seven unique named parameters, any order:
 
@@ -103,9 +107,16 @@ indices refer to raw characters.
 - Qualcomm V4L2 enable order: prepare (emphasis/spacing/antenna) → RDS config →
   band → stereo → AF → initial tune → unmute last. The driver rejects
   `RDS_ON` if band is configured first.
-- Qualcomm V4L2 has two bootstrap modes: firmware path (`fm_dl`, `hw.fm.init`) and,
-  when both `init.svc.fm_dl` and `fm_qsoc_patches` are absent, a direct
-  no-firmware V4L2 path.
+- Qualcomm V4L2 bootstrap (`select_v4l2_bootstrap_mode`) supports two modes
+  (`V4l2BootstrapMode`): when both `init.svc.fm_dl` and `fm_qsoc_patches` are
+  absent it uses `kDirect`; otherwise it uses `kFirmwareThenDirect`
+  (pre-clears `hw.fm.init=0`, starts `fm_dl`, and falls back to the direct
+  no-firmware V4L2 transport within the same `V4l2QcomBackend` instance if
+  `hw.fm.init` times out or `fm_qsoc_patches` exits non-zero, still attempting
+  `open("/dev/radio0")`). Legacy firmware setup also performs non-fatal
+  post-`STATE=RX` `V4L2_CID_TUNE_POWER_LEVEL=7` and `VIDIOC_G_TUNER` probe steps
+  and a bounded (1 s) non-fatal `RADIO_READY` wait after starting the event
+  thread.
 - Helium normal-power startup deliberately writes low power, then normal power
   — this arms vendor asynchronous event masks (stereo events). Best-effort:
   failure does not abort enable.
@@ -117,14 +128,44 @@ indices refer to raw characters.
 - Helium `vendor_set()` holds `state_lock_` across vendor calls and
   `hal_init()` is called under the same non-recursive mutex: a synchronous
   vendor callback that locks state would deadlock. Do not expand this.
-- Qualcomm V4L2 globals (`fd_radio`, `fm_storage`, …) are shared between the
-  command thread and the event thread without a mutex — known race; the
-  event thread closes the fd on `RADIO_DISABLED`.
+- Qualcomm V4L2 `fd_radio_` is atomic (`V4l2BackendBase::close_device()` uses
+  atomic exchange so each descriptor is closed at most once). While the event
+  thread is running, it closes `fd_radio_` on exit (including `RADIO_DISABLED`);
+  `stop_event_thread()` interrupts in-flight `VIDIOC_DQBUF` via non-`SA_RESTART`
+  `SIGUSR1` (`interrupt_event_read()`), waits within a bound before joining, and
+  blocks reopening if a previous event thread has not stopped.
 - Both full-search implementations are sequential scans (tune low → seek up
   → collect); they have no timeout and cap at 64 unique stations.
 - Qualcomm V4L2 (`iris`) does not emit ECC (`country`) on verified devices
   (Xiaomi Mi A1, Xiaomi Redmi 4A): `TAVARUA_EVT_NEW_RAW_RDS` never fires for 1A/0A in
   `kV4l2CtrlRdsGroupMask`, and the kernel drops `HCI_EV_EXT_COUNTRY_CODE`.
+- Samsung Exynos S610 (`s610-radio`) invariants: `v4l2_frequency.frequency` uses
+  `kHz * 16000` (`FAC_VALUE`, not `62.5 Hz` units); `V4L2_CID_AUDIO_MUTE` is
+  `0 = mute`, `1 = unmute`; `VIDIOC_S_HW_FREQ_SEEK` returns `-EAGAIN` if
+  `O_NONBLOCK` is set (temporarily cleared around seek), runs asynchronously on a
+  worker thread for `seekhw` (cancellable via `V4L2_CID_S610_SEEK_CANCEL`), and
+  writes `V4L2_CID_S610_SEEK_MODE = 4` (`FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT`)
+  before each seek; `V4L2_CID_AUDIO_VOLUME`
+  (`0..15`) drives hardware gain (`vol_level_init[0..15]` in `radio-s610.c`
+  attenuates upstream of PCM capture); RDS uses raw 3-byte blocks
+  (`V4L2_CID_S610_RDS_ON = 1` = `FM_RDS_ENABLE` without `RDS_PARSER_ENABLE` bit `0x04`; `5` from stock enables the in-kernel parser and breaks raw 3-byte reads), drops blocks with `errors != 0`, and requires
+  2 consecutive hits for `PI`, `PTY`, `PS`, and `country` (suppressing mid-cycle
+  dynamic PS splices); `kS610CidSnrCurr` is clamped to `[-128, 127]` before JSON emission.
+- Samsung Exynos S610 verified driver semantics (checked against `radio-s610.c`
+  / `fm_low.c` — do not "fix" these to match the V4L2 spec):
+  `use_soft_mute` is hardcoded `TRUE` in `fm_low.c`, so `set_soft_mute()` is a
+  no-op and `enable()` leaves `V4L2_CID_S610_SOFT_MUTE_COEFF` at its driver
+  default (`0x1B16`);
+  `s610_radio_g_tuner` hardcodes `rxsubchans = V4L2_TUNER_SUB_RDS` (never
+  `SUB_STEREO`) and returns `audmode` as a pure echo of the configured mode
+  (`force_mono ? 0 : MODE_MASK_MONO_STEREO`); the pilot-detection call
+  (`low_get_most_mode`) is commented out and has no definition anywhere in the
+  driver, so no live stereo detection exists through V4L2 —
+  `read_stereo_state()` reporting the configured mode is the best available.
+  `V4L2_CID_S610_RSSI_CURR` returns the raw unsigned byte and `fm_low.c`
+  sign-extends it internally (`(rssi & 0x80) ? rssi - 256 : rssi`), so the
+  backend must apply the signed-low-byte cast itself; the seek threshold
+  default `156` reads as `-100` in that representation.
 
 ## RMSSI
 

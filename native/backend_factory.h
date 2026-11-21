@@ -6,6 +6,7 @@
 #include "backend.h"
 
 bool is_qualcomm_v4l2_driver_name(std::string_view name);
+bool is_samsung_s610_driver_name(std::string_view name);
 BackendKind classify_backend_kind(
         std::optional<std::string_view> v4l2_driver_name,
         bool has_dev_radio0,

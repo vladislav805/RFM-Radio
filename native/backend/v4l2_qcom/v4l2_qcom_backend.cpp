@@ -7,8 +7,10 @@
 #include "../../rds_parser.h"
 #include "../../region_profile.h"
 #include "../../rmssi.h"
+#include "../../system.h"
 
 #include <algorithm>
+#include <csignal>
 #include <cstring>
 #include <errno.h>
 #include <fcntl.h>
@@ -16,13 +18,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#ifdef __ANDROID_API__
-#    include <sys/system_properties.h>
-#endif
 
 namespace {
 
@@ -30,7 +27,28 @@ constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrAlreadyEnabled = "ERR_ALREADY_ENABLED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
+constexpr const char *kIrisTransportModulePath = "/system/lib/modules/radio-iris-transport.ko";
 constexpr uint64_t kMetricSettleMs = 750;
+constexpr int kEventThreadStopMaxAttempts = 100;
+constexpr unsigned int kEventThreadStopPollUs = 10000;
+constexpr int kFirmwarePollMaxAttempts = 600;
+constexpr int kDirectReadyWaitMaxAttempts = 300;
+constexpr int kLegacyReadyWaitMaxAttempts = 100;
+constexpr int32_t kDefaultLegacyTunePowerLevel = 7;
+
+void on_event_thread_interrupt_signal(int /*signo*/) {
+}
+
+void install_event_interrupt_signal_handler() {
+    static std::once_flag once;
+    std::call_once(once, []() {
+        struct sigaction sa = {};
+        sa.sa_handler = on_event_thread_interrupt_signal;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sigaction(SIGUSR1, &sa, nullptr);
+    });
+}
 
 // Bit 0 in V4L2/Qcom RDS options enabling RadioText (RT) processing.
 constexpr uint8_t kRdsGroupOptionRtMask = 0x01;
@@ -106,21 +124,6 @@ channel_space_t map_spacing_to_vendor(int spacing_khz) {
     }
 }
 
-// Reads an Android system property into a buffer in a safe way.
-int read_system_property(const char *name, char *value) {
-#ifdef __ANDROID_API__
-    const int length = __system_property_get(name, value);
-    if (length <= 0) {
-        value[0] = '\0';
-    }
-    return length;
-#else
-    (void)name;
-    value[0] = '\0';
-    return 0;
-#endif
-}
-
 // Checks if the Qualcomm FM patch downloader binary exists on disk.
 bool has_fm_patch_downloader() {
     constexpr const char *paths[] = {
@@ -130,18 +133,12 @@ bool has_fm_patch_downloader() {
     };
 
     for (const char *path : paths) {
-        if (access(path, X_OK) == 0) {
+        if (is_executable_file(path)) {
             return true;
         }
     }
 
     return false;
-}
-
-// Returns true if the file or device node exists.
-bool file_exists(const char *file) {
-    struct stat sb;
-    return stat(file, &sb) == 0;
 }
 
 // Fills lower and upper frequency boundaries for a radio band.
@@ -170,6 +167,30 @@ void make_frequency_limit_by_band(radio_band_t band, band_limit_freq *limits) {
 
 }  // namespace
 
+V4l2BootstrapMode classify_v4l2_bootstrap_mode(
+        const char *fm_dl_service_state,
+        bool has_patch_downloader
+) {
+    const bool has_fm_dl_service = (
+            fm_dl_service_state != nullptr &&
+            fm_dl_service_state[0] != '\0'
+    );
+
+    if (!has_fm_dl_service && !has_patch_downloader) {
+        return V4l2BootstrapMode::kDirect;
+    }
+
+    return V4l2BootstrapMode::kFirmwareThenDirect;
+}
+
+V4l2BootstrapMode select_v4l2_bootstrap_mode() {
+    char service[kSystemPropertyBufferSize] = {};
+
+    read_system_property("init.svc.fm_dl", service);
+
+    return classify_v4l2_bootstrap_mode(service, has_fm_patch_downloader());
+}
+
 V4l2QcomBackend::V4l2QcomBackend() {
     fm_storage_.frequency = 0;
     fm_storage_.mute_mode = FM_RX_NO_MUTE;
@@ -185,30 +206,24 @@ V4l2QcomBackend::V4l2QcomBackend() {
 
 V4l2QcomBackend::~V4l2QcomBackend() {
     shutdown();
-    if (qsoc_poweron_path_ != nullptr) {
-        free(qsoc_poweron_path_);
-        qsoc_poweron_path_ = nullptr;
-    }
 }
 
 void V4l2QcomBackend::clear_direct_init_marker() {
-#ifdef __ANDROID_API__
-    if (direct_v4l2_transport_ && __system_property_set("hw.fm.init", "0") != 0) {
+    if (direct_v4l2_transport_ && !write_system_property("hw.fm.init", "0")) {
         log("setup", "failed to clear hw.fm.init");
     }
-#endif
 }
 
 // Checks if Bluetooth HCI transport is SMD.
 bool V4l2QcomBackend::is_smd_transport_layer() {
-    char buf[40] = {0};
+    char buf[kPropertyValueBufferSize] = {0};
     read_system_property("ro.qualcomm.bt.hci_transport", buf);
     return std::strcmp(buf, "smd") == 0;
 }
 
 // Checks if Bluetooth chip is Rome.
 bool V4l2QcomBackend::is_rome_chip() {
-    char buf[40] = {0};
+    char buf[kPropertyValueBufferSize] = {0};
 
     read_system_property("vendor.bluetooth.soc", buf);
     if (std::strcmp(buf, "rome") == 0) {
@@ -232,8 +247,9 @@ bool V4l2QcomBackend::enable(const StartupConfig &config) {
         return set_status(false, kErrAlreadyEnabled);
     }
 
-    if (event_thread_started_) {
-        stop_event_thread();
+    if (event_thread_started_ && !stop_event_thread()) {
+        log("enable", "rejected: previous event thread still active");
+        return set_status(false, kErrFailed);
     }
 
     if (fd_radio_ < 0 && !set_status(command_open() == FM_CMD_SUCCESS, kErrFailed)) {
@@ -551,12 +567,13 @@ bool V4l2QcomBackend::receiver_set_band(radio_band_t band) {
     band_limit_freq limits = {};
     make_frequency_limit_by_band(band, &limits);
 
-    struct v4l2_tuner tuner = {};
-    tuner.index = 0;
-    tuner.type = V4L2_TUNER_RADIO;
-    tuner.rangelow = khz_to_freq(limits.lower_limit);
-    tuner.rangehigh = khz_to_freq(limits.upper_limit);
-    tuner.signal = 0;
+    struct v4l2_tuner tuner = {
+            .index = 0,
+            .type = V4L2_TUNER_RADIO,
+            .rangelow = khz_to_freq(limits.lower_limit),
+            .rangehigh = khz_to_freq(limits.upper_limit),
+            .signal = 0,
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_S_TUNER, &tuner) < 0) {
         return false;
@@ -586,9 +603,10 @@ bool V4l2QcomBackend::receiver_set_tuned_frequency(uint32_t frequency_khz) {
         return false;
     }
 
-    struct v4l2_frequency freq_struct = {};
-    freq_struct.type = V4L2_TUNER_RADIO;
-    freq_struct.frequency = khz_to_freq(frequency_khz);
+    struct v4l2_frequency freq_struct = {
+            .type = V4L2_TUNER_RADIO,
+            .frequency = khz_to_freq(frequency_khz),
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_S_FREQUENCY, &freq_struct) < 0) {
         const int saved_errno = errno;
@@ -605,8 +623,9 @@ uint32_t V4l2QcomBackend::receiver_get_tuned_frequency() {
         return 0;
     }
 
-    struct v4l2_frequency freq_struct = {};
-    freq_struct.type = V4L2_TUNER_RADIO;
+    struct v4l2_frequency freq_struct = {
+            .type = V4L2_TUNER_RADIO,
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_G_FREQUENCY, &freq_struct) == 0) {
         return freq_to_khz(freq_struct.frequency);
@@ -623,9 +642,10 @@ bool V4l2QcomBackend::receiver_get_rmssi(int *rmssi) {
         return false;
     }
 
-    struct v4l2_tuner tuner = {};
-    tuner.index = 0;
-    tuner.type = V4L2_TUNER_RADIO;
+    struct v4l2_tuner tuner = {
+            .index = 0,
+            .type = V4L2_TUNER_RADIO,
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_G_TUNER, &tuner) < 0) {
         const int saved_errno = errno;
@@ -675,10 +695,11 @@ bool V4l2QcomBackend::receiver_set_stereo_mode(stereo_t mode) {
         return false;
     }
 
-    struct v4l2_tuner tuner = {};
-    tuner.index = 0;
-    tuner.type = V4L2_TUNER_RADIO;
-    tuner.audmode = mode;
+    struct v4l2_tuner tuner = {
+            .index = 0,
+            .type = V4L2_TUNER_RADIO,
+            .audmode = mode,
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_S_TUNER, &tuner) < 0) {
         const int saved_errno = errno;
@@ -707,9 +728,10 @@ bool V4l2QcomBackend::receiver_search_station_seek(search_t mode, int8_t search_
         return false;
     }
 
-    struct v4l2_hw_freq_seek hw_seek = {};
-    hw_seek.type = V4L2_TUNER_RADIO;
-    hw_seek.seek_upward = static_cast<uint32_t>(search_dir);
+    struct v4l2_hw_freq_seek hw_seek = {
+            .type = V4L2_TUNER_RADIO,
+            .seek_upward = static_cast<uint32_t>(search_dir),
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_S_HW_FREQ_SEEK, &hw_seek) < 0) {
         const int saved_errno = errno;
@@ -745,9 +767,10 @@ bool V4l2QcomBackend::receiver_search_station_list(fm_search_list_stations optio
         return false;
     }
 
-    struct v4l2_hw_freq_seek hwseek = {};
-    hwseek.type = V4L2_TUNER_RADIO;
-    hwseek.seek_upward = static_cast<uint32_t>(options.search_dir);
+    struct v4l2_hw_freq_seek hwseek = {
+            .type = V4L2_TUNER_RADIO,
+            .seek_upward = static_cast<uint32_t>(options.search_dir),
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_S_HW_FREQ_SEEK, &hwseek) < 0) {
         const int saved_errno = errno;
@@ -766,18 +789,25 @@ bool V4l2QcomBackend::receiver_cancel_search() {
 
 // Reads a V4L2 private buffer index via VIDIOC_DQBUF.
 int32_t V4l2QcomBackend::read_buffer(uint8_t *buf, uint32_t buffer_size, int index) {
-    if (fd_radio_ < 0 || buf == nullptr || buffer_size == 0) {
+    const int fd = fd_radio_.load();
+    if (fd < 0 || buf == nullptr || buffer_size == 0) {
         return -1;
     }
 
-    struct v4l2_buffer v4l2_buf = {};
-    v4l2_buf.index = static_cast<uint32_t>(index);
-    v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
-    v4l2_buf.memory = V4L2_MEMORY_USERPTR;
-    v4l2_buf.m.userptr = reinterpret_cast<unsigned long>(buf);
-    v4l2_buf.length = buffer_size;
+    if (index == kTavaruaBufEvents && !thread_running_) {
+        errno = EINTR;
+        return -1;
+    }
 
-    if (v4l2_ioctl(fd_radio_, VIDIOC_DQBUF, &v4l2_buf) < 0) {
+    struct v4l2_buffer v4l2_buf = {
+            .index = static_cast<uint32_t>(index),
+            .type = V4L2_BUF_TYPE_PRIVATE,
+            .memory = V4L2_MEMORY_USERPTR,
+            .m = { .userptr = reinterpret_cast<unsigned long>(buf) },
+            .length = buffer_size,
+    };
+
+    if (v4l2_ioctl(fd, VIDIOC_DQBUF, &v4l2_buf) < 0) {
         const int saved_errno = errno;
         log("v4l2", "read buffer index=0x%x failed, errno=%d (%s)", index, saved_errno, strerror(saved_errno));
         return -1;
@@ -1015,8 +1045,9 @@ uint8_t V4l2QcomBackend::extract_search_station_list(uint32_t *list) {
     uint8_t buf[100] = {0};
     uint32_t lower_limit, upper_limit;
 
-    struct v4l2_tuner tuner = {};
-    tuner.index = 0;
+    struct v4l2_tuner tuner = {
+            .index = 0,
+    };
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_G_TUNER, &tuner) == 0) {
         lower_limit = freq_to_khz(tuner.rangelow);
@@ -1072,11 +1103,18 @@ uint8_t V4l2QcomBackend::extract_search_station_list(uint32_t *list) {
 void *V4l2QcomBackend::event_thread_stub(void *arg) {
     auto *self = static_cast<V4l2QcomBackend *>(arg);
     self->event_thread();
+    self->event_thread_running_ = false;
     return nullptr;
 }
 
 // Background thread that continuously reads V4L2 events.
 void V4l2QcomBackend::event_thread() {
+    install_event_interrupt_signal_handler();
+    sigset_t unblock_set;
+    sigemptyset(&unblock_set);
+    sigaddset(&unblock_set, SIGUSR1);
+    pthread_sigmask(SIG_UNBLOCK, &unblock_set, nullptr);
+
     log("event", "interrupt thread started");
     uint8_t buf[128] = {0};
 
@@ -1330,64 +1368,105 @@ void V4l2QcomBackend::event_thread() {
         }
     }
 
+    receiver_close();
     log("event", "interrupt thread exited");
 }
 
-// Joins the event thread if it was started from another thread.
-void V4l2QcomBackend::join_event_thread() {
+// Interrupts an in-flight event read on the event thread.
+void V4l2QcomBackend::interrupt_event_read() {
     if (event_thread_started_ && !pthread_equal(pthread_self(), q_event_thread_)) {
-        pthread_join(q_event_thread_, nullptr);
-        event_thread_started_ = false;
+        install_event_interrupt_signal_handler();
+        pthread_kill(q_event_thread_, SIGUSR1);
     }
 }
 
-// Signals the event thread to exit, closes the device, and joins it.
-void V4l2QcomBackend::stop_event_thread() {
+// Signals the event thread to exit, waits within a bound, and joins it.
+bool V4l2QcomBackend::stop_event_thread() {
     power_on_completed_ = false;
     thread_running_ = false;
+
+    if (!event_thread_started_) {
+        receiver_close();
+        return true;
+    }
+
+    if (pthread_equal(pthread_self(), q_event_thread_)) {
+        return false;
+    }
+
+    for (int attempt = 0; attempt < kEventThreadStopMaxAttempts && event_thread_running_; ++attempt) {
+        interrupt_event_read();
+        sleep_us(kEventThreadStopPollUs);
+    }
+
+    if (event_thread_running_) {
+        log("event", "timed out waiting for interrupt thread to exit");
+        return false;
+    }
+
+    pthread_join(q_event_thread_, nullptr);
+    event_thread_started_ = false;
     receiver_close();
-    join_event_thread();
+    return true;
 }
 
 // Opens the V4L2 device and initiates firmware bootstrap if needed.
 fm_cmd_status_t V4l2QcomBackend::command_open() {
     direct_v4l2_transport_ = false;
-    char service[kPropertyValueBufferSize] = {};
-    const int service_length = read_system_property("init.svc.fm_dl", service);
-    const bool patch_downloader_available = has_fm_patch_downloader();
 
     // The legacy backend was already selected from /dev/radio0. If neither
     // bootstrap mechanism exists, use the stock no-firmware path. Decide this
     // before reading hw.fm.init because a killed previous direct session may
     // have left that process-external marker at 1.
-    if (service_length == 0 && !patch_downloader_available) {
+    const V4l2BootstrapMode mode = select_v4l2_bootstrap_mode();
+
+    if (mode == V4l2BootstrapMode::kDirect) {
         direct_v4l2_transport_ = true;
         log("open", "mode=direct_v4l2 reason=fm_dl_absent");
+    } else if (firmware_bootstrap_failed_) {
+        direct_v4l2_transport_ = true;
+        log("open", "mode=direct_v4l2 reason=previous_firmware_failed");
     } else {
-        int exit_code = system("setprop hw.fm.mode normal >/dev/null 2>/dev/null; setprop hw.fm.version 0 >/dev/null 2>/dev/null; setprop ctl.start fm_dl >/dev/null 2>/dev/null");
-        log("open", "setprop exit=%d", exit_code);
+        log("open", "mode=firmware_then_direct");
 
-        if (file_exists("/system/lib/modules/radio-iris-transport.ko")) {
-            log("open", "found radio-iris-transport.ko, loading");
-            system("insmod /system/lib/modules/radio-iris-transport.ko >/dev/null 2>/dev/null");
+        // Pre-clear hw.fm.init=0 before starting fm_dl so a stale 1 from an earlier
+        // session cannot satisfy the readiness poll prematurely.
+        write_system_property("hw.fm.init", "0");
+        write_system_property("hw.fm.mode", "normal");
+        write_system_property("hw.fm.version", "0");
+        write_system_property("ctl.start", "fm_dl");
+        log("open", "started fm_dl with pre-cleared hw.fm.init=0");
+
+        if (file_exists(kIrisTransportModulePath)) {
+            log("open", "found %s, loading", kIrisTransportModulePath);
+            char insmod_cmd[128] = {};
+            snprintf(
+                    insmod_cmd,
+                    sizeof(insmod_cmd),
+                    "insmod %s >/dev/null 2>/dev/null",
+                    kIrisTransportModulePath
+            );
+            run_shell_command(insmod_cmd);
         }
 
         char value[kPropertyValueBufferSize] = {};
-        int attempt;
-        int init_success = 0;
+        int attempt = 0;
+        bool init_success = false;
 
-        for (attempt = 0; attempt < 600; ++attempt) {
+        for (attempt = 0; attempt < kFirmwarePollMaxAttempts; ++attempt) {
             read_system_property("hw.fm.init", value);
             if (value[0] == '1') {
-                init_success = 1;
+                init_success = true;
                 break;
             }
             sleep_us(10000);
         }
 
         if (!init_success) {
-            log("open", "fm_dl init failed after %d attempts", attempt);
-            return FM_CMD_FAILURE;
+            log("open", "mode=firmware_failed reason=hw_fm_init_timeout attempts=%d", attempt);
+            firmware_bootstrap_failed_ = true;
+            direct_v4l2_transport_ = true;
+            log("open", "hw.fm.init=1 never observed — continuing in direct mode");
         }
     }
 
@@ -1408,39 +1487,30 @@ fm_cmd_status_t V4l2QcomBackend::command_prepare(fm_config_data *config_ptr) {
     char version_str[40] = {'\0'};
     struct v4l2_capability cap = {};
 
-    log("prep", "reading driver version");
+    log("prepare", "reading driver version");
 
     if (v4l2_ioctl(fd_radio_, VIDIOC_QUERYCAP, &cap) < 0) {
-        log("prep", "query capabilities failed");
+        log("prepare", "query capabilities failed");
         return FM_CMD_FAILURE;
     }
 
-    log("prep", "VIDIOC_QUERYCAP version=0x%x", cap.version);
+    log("prepare", "VIDIOC_QUERYCAP version=0x%x", cap.version);
 
     int ret = snprintf(version_str, sizeof(version_str), "%d", cap.version);
 
     if (ret >= static_cast<int>(sizeof(version_str))) {
-        log("prep", "version string overflow");
+        log("prepare", "version string overflow");
         receiver_close();
         return FM_CMD_FAILURE;
     }
 
-#ifdef __ANDROID_API__
-    __system_property_set("hw.fm.version", version_str);
-#endif
-    log("prep", "hw.fm.version=%s", version_str);
+    write_system_property("hw.fm.version", version_str);
+    log("prepare", "hw.fm.version=%s", version_str);
 
-    if (qsoc_poweron_path_ != nullptr) {
-        free(qsoc_poweron_path_);
-    }
+    snprintf(qsoc_poweron_cmd_, sizeof(qsoc_poweron_cmd_), "fm_qsoc_patches %u 0", cap.version);
+    log("prepare", "qsoc_onpath=%s", qsoc_poweron_cmd_);
 
-    asprintf(&qsoc_poweron_path_, "fm_qsoc_patches %d 0", cap.version);
-
-    if (qsoc_poweron_path_ != nullptr) {
-        log("prep", "qsoc_onpath=%s", qsoc_poweron_path_);
-    }
-
-    log("prep", "completed");
+    log("prepare", "completed");
     return command_setup_receiver(config_ptr);
 }
 
@@ -1448,11 +1518,32 @@ fm_cmd_status_t V4l2QcomBackend::command_prepare(fm_config_data *config_ptr) {
 fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     int thread_ret = 0;
     power_on_completed_ = false;
-    join_event_thread();
+    if (event_thread_started_ && !stop_event_thread()) {
+        return FM_CMD_FAILURE;
+    }
 
-#ifdef __ANDROID_API__
+    if (!direct_v4l2_transport_) {
+        if (is_smd_transport_layer()) {
+            write_system_property("ctl.start", "fm_dl");
+            sleep_us(1000000);
+        } else if (!is_rome_chip()) {
+            if (qsoc_poweron_cmd_[0] == '\0') {
+                return FM_CMD_FAILURE;
+            }
+
+            int res = run_shell_command(qsoc_poweron_cmd_);
+
+            if (res != 0) {
+                log("setup", "mode=firmware_failed reason=qsoc_patches_failed ret=%d", res);
+                firmware_bootstrap_failed_ = true;
+                direct_v4l2_transport_ = true;
+                log("setup", "fm_qsoc_patches failed (ret=%d) — falling back to direct mode", res);
+            }
+        }
+    }
+
     if (direct_v4l2_transport_) {
-        if (__system_property_set("hw.fm.init", "1") != 0) {
+        if (!write_system_property("hw.fm.init", "1")) {
             log("setup", "failed to set hw.fm.init");
             return FM_CMD_FAILURE;
         }
@@ -1460,22 +1551,7 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
         // Stock no-firmware libfmjni.so waits for the transport to settle
         // after publishing readiness and before starting the event listener.
         sleep_us(200000);
-    } else if (is_smd_transport_layer()) {
-        __system_property_set("ctl.start", "fm_dl");
-        sleep(1);
-    } else if (!is_rome_chip()) {
-        if (qsoc_poweron_path_ == nullptr) {
-            return FM_CMD_FAILURE;
-        }
-
-        int res = system(qsoc_poweron_path_);
-
-        if (res != 0) {
-            log("setup", "patch download failed, ret=%d", res);
-            return FM_CMD_FAILURE;
-        }
     }
-#endif
 
     thread_running_ = true;
 
@@ -1483,11 +1559,13 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     // before STATE=RX and then waits for RADIO_READY. Start it before the
     // power control here; the established legacy path keeps its old ordering.
     if (direct_v4l2_transport_) {
+        event_thread_running_ = true;
         thread_ret = pthread_create(&q_event_thread_, nullptr, event_thread_stub, this);
 
         if (thread_ret != 0) {
             log("event", "pthread_create failed ret=%d (%s)", thread_ret, strerror(thread_ret));
             thread_running_ = false;
+            event_thread_running_ = false;
             clear_direct_init_marker();
             return FM_CMD_FAILURE;
         }
@@ -1504,17 +1582,29 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     if (direct_v4l2_transport_) {
         int ready_attempt = 0;
 
-        while (!power_on_completed_ && ready_attempt < 500) {
+        while (!power_on_completed_ && ready_attempt < kDirectReadyWaitMaxAttempts) {
             sleep_us(10000);
             ++ready_attempt;
         }
 
         if (!power_on_completed_) {
-            log("setup", "RADIO_READY timeout attempts=%d state=%d", ready_attempt, fm_storage_.state);
+            log("setup", "RADIO_READY timeout mode=direct attempts=%d state=%d", ready_attempt, fm_storage_.state);
             clear_direct_init_marker();
-            stop_event_thread();
             return FM_CMD_FAILURE;
         }
+    } else {
+        const bool power_level_ok = set_v4l2_ctrl(V4L2_CID_TUNE_POWER_LEVEL, kDefaultLegacyTunePowerLevel);
+        log("setup", "quirk tune_power_level=%d ok=%d", kDefaultLegacyTunePowerLevel, power_level_ok ? 1 : 0);
+
+        struct v4l2_tuner probe_tuner = {
+                .index = 0,
+                .type = V4L2_TUNER_RADIO,
+        };
+        const bool probe_ok = v4l2_ioctl(fd_radio_.load(), VIDIOC_G_TUNER, &probe_tuner) == 0;
+        log("setup", "quirk g_tuner_probe ok=%d rangelow=%u rangehigh=%u",
+                probe_ok ? 1 : 0,
+                probe_tuner.rangelow,
+                probe_tuner.rangehigh);
     }
 
     if (!receiver_set_mute_mode(FM_RX_MUTE_BOTH)) {
@@ -1540,19 +1630,31 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_receiver(fm_config_data *ptr) {
     }
 
     if (!direct_v4l2_transport_) {
+        event_thread_running_ = true;
         thread_ret = pthread_create(&q_event_thread_, nullptr, event_thread_stub, this);
 
         if (thread_ret != 0) {
             log("event", "pthread_create failed ret=%d (%s)", thread_ret, strerror(thread_ret));
             thread_running_ = false;
+            event_thread_running_ = false;
+            return FM_CMD_FAILURE;
+        }
+        event_thread_started_ = true;
+
+        int ready_attempt = 0;
+        while (!power_on_completed_ && ready_attempt < kLegacyReadyWaitMaxAttempts) {
+            sleep_us(10000);
+            ++ready_attempt;
+        }
+
+        if (power_on_completed_) {
+            log("setup", "RADIO_READY observed mode=firmware attempts=%d", ready_attempt);
         } else {
-            event_thread_started_ = true;
+            log("setup", "RADIO_READY timeout mode=firmware attempts=%d — continuing (non-fatal)", ready_attempt);
+            power_on_completed_ = true;
         }
     }
 
-    if (!direct_v4l2_transport_) {
-        power_on_completed_ = true;
-    }
     return FM_CMD_SUCCESS;
 }
 
@@ -1625,13 +1727,11 @@ fm_cmd_status_t V4l2QcomBackend::command_disable() {
         return FM_CMD_FAILURE;
     }
 
-#ifdef __ANDROID_API__
     if (!direct_v4l2_transport_) {
-        __system_property_set("ctl.stop", "fm_dl");
+        write_system_property("ctl.stop", "fm_dl");
     } else {
         clear_direct_init_marker();
     }
-#endif
 
     log("disable", "accepted");
     return FM_CMD_SUCCESS;
@@ -1646,13 +1746,11 @@ void V4l2QcomBackend::command_shutdown(bool disable_receiver) {
         log("shutdown", "failed to set radio state off");
     }
 
-#ifdef __ANDROID_API__
     if (!direct_v4l2_transport_) {
-        __system_property_set("ctl.stop", "fm_dl");
+        write_system_property("ctl.stop", "fm_dl");
     } else {
         clear_direct_init_marker();
     }
-#endif
 
     stop_event_thread();
     log("shutdown", "completed");
@@ -1662,7 +1760,14 @@ void V4l2QcomBackend::command_shutdown(bool disable_receiver) {
 fm_cmd_status_t V4l2QcomBackend::command_tune_frequency(uint32_t frequency) {
     log("tune", "request frequency_khz=%d", frequency);
 
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.on_tune_requested();
+    }
+
     if (!receiver_set_tuned_frequency(frequency)) {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.tune_failed();
         log("tune", "request frequency_khz=%d failed", frequency);
         return FM_CMD_FAILURE;
     }
@@ -1683,7 +1788,16 @@ fm_cmd_status_t V4l2QcomBackend::command_tune_frequency_by_delta(int16_t directi
     }
 
     uint32_t need_frequency_khz = current_frequency_khz + (delta * direction);
-    return receiver_set_tuned_frequency(need_frequency_khz) ? FM_CMD_SUCCESS : FM_CMD_FAILURE;
+    {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.on_tune_requested();
+    }
+    if (!receiver_set_tuned_frequency(need_frequency_khz)) {
+        std::lock_guard<std::mutex> lock(state_lock_);
+        legacy_scan_.tune_failed();
+        return FM_CMD_FAILURE;
+    }
+    return FM_CMD_SUCCESS;
 }
 
 // Returns current frequency in kHz.
@@ -1759,19 +1873,20 @@ bool V4l2QcomBackend::command_start_scan() {
 
 // Starts single seek operation.
 bool V4l2QcomBackend::command_start_seek(int8_t direction, uint8_t dwell_period) {
-    bool started = false;
+    bool reserved = false;
     {
         std::lock_guard<std::mutex> lock(state_lock_);
-        started = legacy_scan_.start_seek();
+        reserved = legacy_scan_.begin_seek();
     }
 
-    if (!started) {
+    if (!reserved) {
         log("search", "seek rejected because another search is active");
         return false;
     }
 
     if (receiver_search_station_seek(SEEK, direction, dwell_period)) {
-        return true;
+        std::lock_guard<std::mutex> lock(state_lock_);
+        return legacy_scan_.start_seek();
     }
 
     std::lock_guard<std::mutex> lock(state_lock_);
