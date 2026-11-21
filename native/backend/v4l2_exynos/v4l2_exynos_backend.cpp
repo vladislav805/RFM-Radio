@@ -310,8 +310,9 @@ bool V4l2ExynosBackend::enable(const StartupConfig &config) {
         set_v4l2_ctrl(kS610CidIfCount1, kS610DefaultIfCount1);
         set_v4l2_ctrl(kS610CidIfCount2, kS610DefaultIfCount2);
         set_v4l2_ctrl(kS610CidSoftStereoBlendCoeff, kS610DefaultBlendCoeff);
-        soft_mute_ = config.soft_mute;
-        set_v4l2_ctrl(kS610CidSoftMuteCoeff, soft_mute_ ? kS610DefaultSoftMuteCoeff : 0);
+        // Keep the driver's default soft-mute coefficient (0x1B16): Samsung's S610
+        // kernel driver (drivers/media/radio/s610/fm_low.c) hardcodes use_soft_mute = TRUE,
+        // so overwriting kS610CidSoftMuteCoeff only distorts noise gain.
         set_v4l2_ctrl(kS610CidSoftStereoBlend, 0);
 
         if (!apply_region(config.region)) {
@@ -863,21 +864,10 @@ bool V4l2ExynosBackend::set_auto_af(const bool /*enabled*/) {
     return set_status(true, "");
 }
 
-bool V4l2ExynosBackend::set_soft_mute(const bool enabled) {
-    if (is_scan_or_seek_active()) {
-        return set_status(false, kErrFailed);
-    }
-
-    std::lock_guard<std::mutex> lock(ioctl_mutex_);
-    if (fd_radio_ < 0) {
-        return set_status(false, kErrFailed);
-    }
-    soft_mute_ = enabled;
-    const bool ok = set_v4l2_ctrl(
-            kS610CidSoftMuteCoeff,
-            enabled ? kS610DefaultSoftMuteCoeff : 0
-    );
-    return set_status(ok, kErrFailed);
+bool V4l2ExynosBackend::set_soft_mute(const bool /*enabled*/) {
+    // use_soft_mute is hardcoded TRUE in Samsung's S610 kernel driver
+    // (drivers/media/radio/s610/fm_low.c); soft mute cannot be toggled.
+    return set_status(true, "");
 }
 
 bool V4l2ExynosBackend::set_notch_filter(const int /*mode*/) {

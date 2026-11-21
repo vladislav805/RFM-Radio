@@ -68,6 +68,7 @@ separate local directory outside this repository:
 - https://github.com/iusmac/RevampedFMRadio — third-party Qualcomm FM app
   (legacy V4L2 usage; a second local checkout is used for HAL work)
 - https://github.com/sethsong90/vendor_qcom — Qualcomm vendor trees
+- https://github.com/LineageOS/android_hardware_samsung_slsi_fm — LineageOS Samsung SLSI FM HAL (Exynos S610)
 
 Do not scan, search, or read these repositories unless the user explicitly
 requests it and points to their location. The deep references already cite

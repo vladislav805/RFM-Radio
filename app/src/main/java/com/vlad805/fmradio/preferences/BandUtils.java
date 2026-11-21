@@ -1,5 +1,7 @@
 package com.vlad805.fmradio.preferences;
 
+import com.vlad805.fmradio.enums.TunerDriver;
+
 /**
  * vlad805 (c) 2021
  */
@@ -25,9 +27,17 @@ public class BandUtils {
 
     private static final BandLimit LIMIT_EU = new BandLimit(87500, 108000);
     private static final BandLimit LIMIT_JP_STD = new BandLimit(76000, 95000);
+    private static final BandLimit LIMIT_JP_STD_EXYNOS = new BandLimit(76000, 90000);
     private static final BandLimit LIMIT_JP_WIDE = new BandLimit(76000, 108000);
 
     public static BandLimit getBandLimit(final int type) {
+        return getBandLimit(type, TunerDriver.NONE);
+    }
+
+    public static BandLimit getBandLimit(final int type, final TunerDriver driver) {
+        if (driver == TunerDriver.V4L2_EXYNOS && (type == BAND_JAPAN_STANDARD || type == BAND_JAPAN_WIDE)) {
+            return LIMIT_JP_STD_EXYNOS;
+        }
         switch (type) {
             case BAND_JAPAN_STANDARD: {
                 return LIMIT_JP_STD;

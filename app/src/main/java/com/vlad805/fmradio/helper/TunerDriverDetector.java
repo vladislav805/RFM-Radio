@@ -26,17 +26,31 @@ public final class TunerDriverDetector {
     }
 
     /**
-     * Checks whether the active backend is Exynos S610, falling back to the
-     * cross-process backend token persisted by NativeTunerController when sysfs
-     * cannot be read directly from the unprivileged UI process.
+     * Resolves the active TunerDriver, falling back to the cross-process backend
+     * token persisted by NativeTunerController when sysfs cannot be read
+     * directly from the unprivileged UI process.
+     */
+    public static TunerDriver getTunerDriver(final Context context) {
+        if (context != null) {
+            final String stored = Storage.getPrefString(context, C.PrefKey.DETECTED_BACKEND, "");
+            if (!stored.isEmpty()) {
+                try {
+                    final TunerDriver persisted = TunerDriver.valueOf(stored);
+                    if (persisted != TunerDriver.NONE) {
+                        return persisted;
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+        return getTunerDriver();
+    }
+
+    /**
+     * Checks whether the active backend is Exynos S610.
      */
     public static boolean isExynos(final Context context) {
-        if (getTunerDriver() == TunerDriver.V4L2_EXYNOS) {
-            return true;
-        }
-        return context != null && TunerDriver.V4L2_EXYNOS.name().equals(
-                Storage.getPrefString(context, C.PrefKey.DETECTED_BACKEND, "")
-        );
+        return getTunerDriver(context) == TunerDriver.V4L2_EXYNOS;
     }
 
     public static boolean hasDevRadio0() {

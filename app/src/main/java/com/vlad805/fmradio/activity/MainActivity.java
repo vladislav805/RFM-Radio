@@ -542,7 +542,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int regionPref = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
         final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
 
-        final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref);
+        final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref, TunerDriverDetector.getTunerDriver(this));
         final int spacing = BandUtils.getSpacing(spacingPref);
 
         mSeek.setMinMaxValue(bandLimit.lower, bandLimit.upper, spacing);

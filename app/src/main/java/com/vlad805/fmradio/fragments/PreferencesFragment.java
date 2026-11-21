@@ -19,6 +19,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
+import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.preferences.Vars;
 import net.grandcentrix.tray.AppPreferences;
 import org.json.JSONObject;
@@ -84,10 +85,14 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_tuner, "tuner");
 		screen.addPreference(category);
 
+		if (isExynos && mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE) {
+			mPreferences.put(C.PrefKey.TUNER_REGION, BandUtils.BAND_JAPAN_STANDARD);
+		}
+
 		final ListPreference region = new ListPreference(context);
 		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
 		region.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_REGION));
-		setListProviderAndEntries(region, Vars.sTunerRegions);
+		setListProviderAndEntries(region, buildRegionEntries(isExynos));
 		region.setOnPreferenceChangeListener((preference, newValue) -> {
 			mPreferences.put(C.PrefKey.TUNER_REGION, Utils.parseInt((String) newValue));
 			return true;
@@ -122,8 +127,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		softMute.setDefaultValue(C.PrefDefaultValue.TUNER_SOFT_MUTE);
 		if (isExynos) {
 			softMute.setEnabled(false);
-			softMute.setSummaryOn(R.string.pref_not_supported_by_device);
-			softMute.setSummaryOff(R.string.pref_not_supported_by_device);
+			softMute.setSummary(R.string.pref_not_supported_by_device);
 		} else {
 			softMute.setSummaryOn(R.string.pref_tuner_soft_mute_on);
 			softMute.setSummaryOff(R.string.pref_tuner_soft_mute_off);
@@ -390,6 +394,24 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	private void setEditTextMessageAndProvider(final EditTextPreference preference, final int type) {
 		preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) EditTextPreference::getText);
 		preference.setOnBindEditTextListener(editText -> editText.setInputType(type));
+	}
+
+	private SparseArray<String> buildRegionEntries(final boolean isExynos) {
+		if (!isExynos) {
+			return Vars.sTunerRegions;
+		}
+		final SparseArray<String> filtered = new SparseArray<>();
+		for (int i = 0; i < Vars.sTunerRegions.size(); ++i) {
+			final int key = Vars.sTunerRegions.keyAt(i);
+			if (key == BandUtils.BAND_JAPAN_WIDE) {
+				continue;
+			}
+			final String label = key == BandUtils.BAND_JAPAN_STANDARD
+					? "Japan Standard (76-90 MHz, 50µs)"
+					: Vars.sTunerRegions.valueAt(i);
+			filtered.put(key, label);
+		}
+		return filtered;
 	}
 
 	private void setListProviderAndEntries(final ListPreference lp, final SparseArray<String> entries) {

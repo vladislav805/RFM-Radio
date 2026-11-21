@@ -153,6 +153,9 @@ indices refer to raw characters.
   dynamic PS splices); `kS610CidSnrCurr` is clamped to `[-128, 127]` before JSON emission.
 - Samsung Exynos S610 verified driver semantics (checked against `radio-s610.c`
   / `fm_low.c` — do not "fix" these to match the V4L2 spec):
+  `use_soft_mute` is hardcoded `TRUE` in `fm_low.c`, so `set_soft_mute()` is a
+  no-op and `enable()` leaves `V4L2_CID_S610_SOFT_MUTE_COEFF` at its driver
+  default (`0x1B16`);
   `s610_radio_g_tuner` hardcodes `rxsubchans = V4L2_TUNER_SUB_RDS` (never
   `SUB_STEREO`) and returns `audmode` as a pure echo of the configured mode
   (`force_mono ? 0 : MODE_MASK_MONO_STEREO`); the pilot-detection call

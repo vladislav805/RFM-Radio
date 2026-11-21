@@ -58,6 +58,11 @@ Audio routing and capture run separately in Android's audio HAL through
   (`search_thread_`) so long hardware seeks do not stall the command loop;
   `cancel_search()` writes `V4L2_CID_S610_SEEK_CANCEL`, which the kernel
   checks without taking `s610_core_lock`.
+- **Soft mute is always enabled in hardware**: `fm_low.c` hardcodes
+  `use_soft_mute = TRUE` (the toggle is commented out), and
+  `V4L2_CID_S610_SOFT_MUTE_COEFF` writes `mute_coeffs_soft` (default `0x1B16`).
+  `enable()` leaves the driver default untouched and `set_soft_mute()` is a
+  no-op.
 - **No live stereo detection (`VIDIOC_G_TUNER.audmode` echoes configuration)**:
   `s610_radio_g_tuner` hardcodes `tuner->rxsubchans = V4L2_TUNER_SUB_RDS` and
   never sets `V4L2_TUNER_SUB_STEREO`; `tuner->audmode` is computed as
@@ -91,3 +96,7 @@ Audio routing and capture run separately in Android's audio HAL through
 ## Logs
 
 Internal backend logs use the `exynos/` prefix under logcat tag `RFM-QCOM`.
+
+## References
+
+- [LineageOS/android_hardware_samsung_slsi_fm](https://github.com/LineageOS/android_hardware_samsung_slsi_fm) — Samsung SLSI FM HAL (`FmRadioController_slsi.cpp`)

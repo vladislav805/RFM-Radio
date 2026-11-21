@@ -144,7 +144,6 @@ private:
     int desired_volume_ = kS610DefaultVolume;
     int applied_volume_ = -1;
     std::atomic<bool> rds_enabled_{false};
-    bool soft_mute_ = true;
 };
 
 Backend *create_v4l2_exynos_backend();

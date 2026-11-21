@@ -658,7 +658,7 @@ public final class NativeTunerController {
                 C.PrefKey.LAST_FREQUENCY,
                 C.PrefDefaultValue.LAST_FREQUENCY
         );
-        final BandUtils.BandLimit band = BandUtils.getBandLimit(region);
+        final BandUtils.BandLimit band = BandUtils.getBandLimit(region, TunerDriverDetector.getTunerDriver(mContext));
 
         return Math.max(band.lower, Math.min(savedFrequency, band.upper));
     }
