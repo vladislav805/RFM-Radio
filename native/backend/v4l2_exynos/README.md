@@ -48,13 +48,31 @@ Audio routing and capture run separately in Android's audio HAL through
   PCM capture, `RoutingAudioService.compensateExynosVolume()` applies the
   inverse scale factor during recording.
 - **Blocking `VIDIOC_S_HW_FREQ_SEEK`**: `s610_radio_s_hw_freq_seek()` returns
-  `-EAGAIN` if `O_NONBLOCK` is set on the fd; `perform_hw_seek()` writes
-  `V4L2_CID_S610_SEEK_MODE = 4` (`FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT`) and
-  temporarily clears `O_NONBLOCK` for each seek, restoring it afterwards. Both
-  `seek()` and `search()` run on the cancellable worker thread (`search_thread_`)
-  so long hardware seeks do not stall the command loop; `cancel_search()` writes
-  `V4L2_CID_S610_SEEK_CANCEL`, which the kernel checks without taking
-  `s610_core_lock`.
+  `-EAGAIN` if `O_NONBLOCK` is set on the fd (and converts `seek->spacing`
+  from Hz to kHz itself); `perform_hw_seek()` writes
+  `V4L2_CID_S610_SEEK_MODE = 4` for stock-HAL parity — `s_ctrl` maps `4` to
+  `FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT` (= 10) but only records the state for
+  G_CTRL readback; the tuner mode is programmed by the seek ioctl itself.
+  `O_NONBLOCK` is temporarily cleared for each seek and restored afterwards.
+  Both `seek()` and `search()` run on the cancellable worker thread
+  (`search_thread_`) so long hardware seeks do not stall the command loop;
+  `cancel_search()` writes `V4L2_CID_S610_SEEK_CANCEL`, which the kernel
+  checks without taking `s610_core_lock`.
+- **No live stereo detection (`VIDIOC_G_TUNER.audmode` echoes configuration)**:
+  `s610_radio_g_tuner` hardcodes `tuner->rxsubchans = V4L2_TUNER_SUB_RDS` and
+  never sets `V4L2_TUNER_SUB_STEREO`; `tuner->audmode` is computed as
+  `force_mono ? 0 : MODE_MASK_MONO_STEREO` from the mode written via
+  `VIDIOC_S_TUNER` — the pilot-detection call (`low_get_most_mode`) is
+  commented out and undefined in this driver generation. `read_stereo_state()`
+  therefore reports the configured mode; switching it to `rxsubchans` (the
+  V4L2-spec-correct field) would report permanent mono. Reading the chip's
+  status register directly would require `VIDIOC_DBG_G_REGISTER`
+  (`CONFIG_VIDEO_ADV_DEBUG`).
+- **Signed `V4L2_CID_S610_RSSI_CURR`**: G_CTRL returns the raw unsigned byte;
+  `fm_low.c` interprets it as signed 8-bit internally
+  (`(rssi & 0x80) ? rssi - 256 : rssi`), so `request_signal_metric()` must
+  apply the signed-low-byte cast itself; the seek threshold default `156`
+  (`kS610DefaultRssiThreshold`) reads as `-100` in that representation.
 - **RDS state resets and stabilization**:
   - `V4L2_CID_S610_RDS_ON` is a bitmask in `radio-s610.c` (`FM_RDS_ENABLE = 1`,
     `RDS_PARSER_ENABLE = 4`): `fmbin` writes `1` (raw 3-byte block stream,

@@ -476,8 +476,10 @@ bool V4l2ExynosBackend::perform_hw_seek(const bool upward, const bool wrap_aroun
         set_fd_flags(fd_radio_, orig_flags & ~O_NONBLOCK);
     }
 
-    // Write stock seek mode (FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT) before each seek;
-    // also clears any prior FM_TUNER_STOP_SEARCH_MODE left by SEEK_CANCEL.
+    // Stock-HAL ritual before each seek: s_ctrl maps control value 4 to
+    // FM_TUNER_AUTONOMOUS_SEARCH_MODE_NEXT and only records radio->seek_mode
+    // (read back via G_CTRL); the tuner mode itself is programmed by the seek
+    // ioctl, which also clears any FM_TUNER_STOP_SEARCH_MODE left by SEEK_CANCEL.
     set_v4l2_ctrl(kS610CidSeekMode, kS610SeekModeNext);
 
     struct v4l2_hw_freq_seek hw_seek = {};

@@ -151,6 +151,18 @@ indices refer to raw characters.
   (`V4L2_CID_S610_RDS_ON = 1` = `FM_RDS_ENABLE` without `RDS_PARSER_ENABLE` bit `0x04`; `5` from stock enables the in-kernel parser and breaks raw 3-byte reads), drops blocks with `errors != 0`, and requires
   2 consecutive hits for `PI`, `PTY`, `PS`, and `country` (suppressing mid-cycle
   dynamic PS splices); `kS610CidSnrCurr` is clamped to `[-128, 127]` before JSON emission.
+- Samsung Exynos S610 verified driver semantics (checked against `radio-s610.c`
+  / `fm_low.c` — do not "fix" these to match the V4L2 spec):
+  `s610_radio_g_tuner` hardcodes `rxsubchans = V4L2_TUNER_SUB_RDS` (never
+  `SUB_STEREO`) and returns `audmode` as a pure echo of the configured mode
+  (`force_mono ? 0 : MODE_MASK_MONO_STEREO`); the pilot-detection call
+  (`low_get_most_mode`) is commented out and has no definition anywhere in the
+  driver, so no live stereo detection exists through V4L2 —
+  `read_stereo_state()` reporting the configured mode is the best available.
+  `V4L2_CID_S610_RSSI_CURR` returns the raw unsigned byte and `fm_low.c`
+  sign-extends it internally (`(rssi & 0x80) ? rssi - 256 : rssi`), so the
+  backend must apply the signed-low-byte cast itself; the seek threshold
+  default `156` reads as `-100` in that representation.
 
 ## RMSSI
 
