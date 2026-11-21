@@ -76,6 +76,7 @@
 	<string name="pref_notification_show_ps_disabled">The name from the favorites will be displayed as station name</string>
 	<string name="pref_notification_show_ps">Show PS in title</string>
 	<string name="pref_tuner_rds_description">RDS - Radio Data System\nDisplay of radio-related information transmitted by radio stations.\nPS - Program Service (usually name of station)\nRT - Radio Text (usually name of current track, info about station)\nAF - Alternative Frequencies (list of frequencies on which the same station is broadcasting in neighboring regions )\nPTY - Program TYpe (genre of station)</string>
+	<string name="pref_not_supported_by_device">Not supported by device</string>
 	<string name="pref_header_recording">Recording</string>
 	<string name="pref_recording_path_title">Subdirectory for saving</string>
 	<string name="pref_recording_path_value" translatable="false">$y-$m-$d</string>

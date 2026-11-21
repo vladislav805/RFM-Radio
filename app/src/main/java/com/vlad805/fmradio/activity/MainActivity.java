@@ -245,6 +245,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
         mViewStereoMode = findViewById(R.id.stereo_mono);
+        if (TunerDriverDetector.isExynos(this)) {
+            mViewStereoMode.setVisibility(View.GONE);
+        }
         mSignalStrength = findViewById(R.id.signal_strength);
 
         final int[] ids = {
@@ -621,14 +624,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
-            mViewStereoMode.setText(state.isStereo()
-                    ? R.string.stereo_mode_label
-                    : R.string.mono_mode_label
-            );
-            mViewStereoMode.setContentDescription(getString(state.isStereo()
-                    ? R.string.stereo_mode_active
-                    : R.string.mono_mode_active
-            ));
+            if (TunerDriverDetector.isExynos(this)) {
+                mViewStereoMode.setVisibility(View.GONE);
+            } else {
+                mViewStereoMode.setVisibility(View.VISIBLE);
+                mViewStereoMode.setText(state.isStereo()
+                        ? R.string.stereo_mode_label
+                        : R.string.mono_mode_label
+                );
+                mViewStereoMode.setContentDescription(getString(state.isStereo()
+                        ? R.string.stereo_mode_active
+                        : R.string.mono_mode_active
+                ));
+            }
         }
 
         if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {

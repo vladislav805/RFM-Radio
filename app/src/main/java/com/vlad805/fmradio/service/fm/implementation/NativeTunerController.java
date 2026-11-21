@@ -368,6 +368,7 @@ public final class NativeTunerController {
             }
 
             mDriverKind = resolvedDriver;
+            Storage.getInstance(mContext).put(C.PrefKey.DETECTED_BACKEND, resolvedDriver.name());
 
             if (mDriverKind == TunerDriver.NONE) {
                 failLaunch(callback, "Native tuner reported unsupported backend 'none'", null);

@@ -65,6 +65,7 @@
 	<string name="pref_notification_show_ps_disabled">В заголовке уведомления будет отображаться название станции из избранного</string>
 	<string name="pref_notification_show_ps_enabled">В заголовке уведомления будет отображаться PS (если радиостанция его предоставляет), в противном случае, название из избранного</string>
 	<string name="pref_tuner_rds_description">RDS - Radio Data System (Система Радио Данных)\nОтображение связанной с радио информации, передаваемой радиостанциями.\nPS - Program Service (обычно название радиостанции)\nRT - Radio Text (обычно передается название текущего трека или информация о радиостанции)\nAF - Alternative Frequencies (список частот, на которых вещает эта же станция в соседних регионах)\nPTY - Program TYpe (жанр радиостанции)</string>
+	<string name="pref_not_supported_by_device">Не поддерживается устройством</string>
 	<string name="pref_recording_format_title">Формат записи</string>
 	<string name="pref_recording_format_wav">WAV PCM 16 бит</string>
 	<string name="pref_recording_format_mp3_128">MP3 128 кбит/с</string>

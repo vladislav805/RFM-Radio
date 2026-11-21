@@ -1,5 +1,9 @@
 package com.vlad805.fmradio.helper;
 
+import android.content.Context;
+
+import com.vlad805.fmradio.C;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.enums.TunerDriver;
 
 import java.io.BufferedReader;
@@ -19,6 +23,20 @@ public final class TunerDriverDetector {
 
     public static boolean isDeviceSupported() {
         return getTunerDriver() != TunerDriver.NONE;
+    }
+
+    /**
+     * Checks whether the active backend is Exynos S610, falling back to the
+     * cross-process backend token persisted by NativeTunerController when sysfs
+     * cannot be read directly from the unprivileged UI process.
+     */
+    public static boolean isExynos(final Context context) {
+        if (getTunerDriver() == TunerDriver.V4L2_EXYNOS) {
+            return true;
+        }
+        return context != null && TunerDriver.V4L2_EXYNOS.name().equals(
+                Storage.getPrefString(context, C.PrefKey.DETECTED_BACKEND, "")
+        );
     }
 
     public static boolean hasDevRadio0() {

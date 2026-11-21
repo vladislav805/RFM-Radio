@@ -73,6 +73,7 @@
 	<string name="pref_notification_show_ps_disabled">Nazwa z ulubionych będzie wyświetlana jako nazwa stacji</string>
 	<string name="pref_notification_show_ps">Pokaż PS w tytule</string>
 	<string name="pref_tuner_rds_description">RDS - System danych radiowych\nWyświetlanie informacji związanych z radiem nadawanych przez stacje radiowe.\nPS – Usługa programowa (zwykle nazwa stacji)\nRT – Tekst radiowy (zwykle nazwa bieżącego utworu, informacje o stacji)\nAF – Częstotliwości alternatywne (lista częstotliwości, na których nadaje ta sama stacja w sąsiednich regionach )\nPTY - TYP programu (gatunek stacji)</string>
+	<string name="pref_not_supported_by_device">Nieobsługiwane przez urządzenie</string>
 	<string name="pref_header_recording">Nagrywanie</string>
 	<string name="pref_recording_path_title">Podkatalog do zapisywania</string>
 	<string name="pref_recording_name_title">Nazwa pliku</string>

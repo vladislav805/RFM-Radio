@@ -113,6 +113,7 @@ final public class C {
 		public static final String TUNER_STEREO = "tuner_stereo";
 		public static final String TUNER_SOFT_MUTE = "tuner_soft_mute";
 		public static final String TUNER_NOTCH_FILTER = "tuner_notch_filter";
+		public static final String DETECTED_BACKEND = "detected_backend";
 
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 

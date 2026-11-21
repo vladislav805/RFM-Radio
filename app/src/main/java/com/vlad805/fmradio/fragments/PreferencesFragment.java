@@ -16,7 +16,9 @@ import androidx.core.content.ContextCompat;
 import androidx.preference.*;
 import com.vlad805.fmradio.*;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.ProgressDialog;
+import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.preferences.Vars;
 import net.grandcentrix.tray.AppPreferences;
 import org.json.JSONObject;
@@ -78,6 +80,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	private void makeTunerCategoryPreferences(final Context context, final PreferenceScreen screen) {
+		final boolean isExynos = TunerDriverDetector.isExynos(context);
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_tuner, "tuner");
 		screen.addPreference(category);
 
@@ -117,42 +120,56 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final SwitchPreference softMute = new SwitchPreference(context);
 		populatePreference(softMute, C.PrefKey.TUNER_SOFT_MUTE, R.string.pref_tuner_soft_mute, 0);
 		softMute.setDefaultValue(C.PrefDefaultValue.TUNER_SOFT_MUTE);
-		softMute.setSummaryOn(R.string.pref_tuner_soft_mute_on);
-		softMute.setSummaryOff(R.string.pref_tuner_soft_mute_off);
-		softMute.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_SOFT_MUTE, (boolean) newValue);
-			return true;
-		});
+		if (isExynos) {
+			softMute.setEnabled(false);
+			softMute.setSummaryOn(R.string.pref_not_supported_by_device);
+			softMute.setSummaryOff(R.string.pref_not_supported_by_device);
+		} else {
+			softMute.setSummaryOn(R.string.pref_tuner_soft_mute_on);
+			softMute.setSummaryOff(R.string.pref_tuner_soft_mute_off);
+			softMute.setOnPreferenceChangeListener((preference, newValue) -> {
+				mPreferences.put(C.PrefKey.TUNER_SOFT_MUTE, (boolean) newValue);
+				return true;
+			});
+		}
 		category.addPreference(softMute);
 
 		final ListPreference notchFilter = new ListPreference(context);
 		populatePreference(notchFilter, C.PrefKey.TUNER_NOTCH_FILTER, R.string.pref_tuner_notch_filter, 0);
 		notchFilter.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_NOTCH_FILTER));
-		notchFilter.setEntries(new CharSequence[]{
-				getString(R.string.pref_tuner_notch_filter_auto),
-				getString(R.string.pref_tuner_notch_filter_low),
-				getString(R.string.pref_tuner_notch_filter_high),
-		});
-		notchFilter.setEntryValues(new CharSequence[]{"0", "1", "2"});
-		notchFilter.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
-		notchFilter.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_NOTCH_FILTER, Utils.parseInt((String) newValue));
-			return true;
-		});
+		if (isExynos) {
+			notchFilter.setEnabled(false);
+			notchFilter.setSummary(R.string.pref_not_supported_by_device);
+		} else {
+			notchFilter.setEntries(new CharSequence[]{
+					getString(R.string.pref_tuner_notch_filter_auto),
+					getString(R.string.pref_tuner_notch_filter_low),
+					getString(R.string.pref_tuner_notch_filter_high),
+			});
+			notchFilter.setEntryValues(new CharSequence[]{"0", "1", "2"});
+			notchFilter.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
+			notchFilter.setOnPreferenceChangeListener((preference, newValue) -> {
+				mPreferences.put(C.PrefKey.TUNER_NOTCH_FILTER, Utils.parseInt((String) newValue));
+				return true;
+			});
+		}
 		category.addPreference(notchFilter);
-
 
 		final EditTextPreference antenna = new EditTextPreference(context);
 		populatePreference(antenna, C.PrefKey.TUNER_ANTENNA, R.string.pref_tuner_antenna, R.drawable.ic_antenna);
 		antenna.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_ANTENNA));
-		setEditTextMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
-		antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
-		antenna.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_ANTENNA, Utils.parseInt((String) newValue));
-			return true;
-		});
+		if (isExynos) {
+			antenna.setEnabled(false);
+			antenna.setSummary(R.string.pref_not_supported_by_device);
+		} else {
+			setEditTextMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
+			antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
+			antenna.setOnPreferenceChangeListener((preference, newValue) -> {
+				mPreferences.put(C.PrefKey.TUNER_ANTENNA, Utils.parseInt((String) newValue));
+				return true;
+			});
+		}
 		category.addPreference(antenna);
-
 
 		final SwitchPreference power = new SwitchPreference(context);
 		populatePreference(power, C.PrefKey.TUNER_POWER_MODE, R.string.pref_tuner_power_mode, R.drawable.ic_power);
@@ -167,6 +184,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	private void makeRdsCategoryPreferences(final Context context, final PreferenceScreen screen) {
+		final boolean isExynos = TunerDriverDetector.isExynos(context);
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_rds, "rds");
 		screen.addPreference(category);
 
@@ -179,12 +197,18 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final SwitchPreference autoAf = new SwitchPreference(context);
 		populatePreference(autoAf, C.PrefKey.RDS_AUTO_AF, R.string.pref_tuner_rds_auto_af, R.drawable.ic_rds);
 		autoAf.setDefaultValue(C.PrefDefaultValue.RDS_AUTO_AF);
-		autoAf.setSummaryOn(R.string.pref_tuner_rds_auto_afenabled);
-		autoAf.setSummaryOff(R.string.pref_tuner_rds_auto_af_disabled);
-		autoAf.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.RDS_AUTO_AF, (boolean) newValue);
-			return true;
-		});
+		if (isExynos) {
+			autoAf.setEnabled(false);
+			autoAf.setSummaryOn(R.string.pref_not_supported_by_device);
+			autoAf.setSummaryOff(R.string.pref_not_supported_by_device);
+		} else {
+			autoAf.setSummaryOn(R.string.pref_tuner_rds_auto_afenabled);
+			autoAf.setSummaryOff(R.string.pref_tuner_rds_auto_af_disabled);
+			autoAf.setOnPreferenceChangeListener((preference, newValue) -> {
+				mPreferences.put(C.PrefKey.RDS_AUTO_AF, (boolean) newValue);
+				return true;
+			});
+		}
 		category.addPreference(autoAf);
 	}
 
