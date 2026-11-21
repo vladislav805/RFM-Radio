@@ -10,6 +10,7 @@ import android.view.View;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.color.MaterialColors;
 import com.vlad805.fmradio.R;
 
 public final class SignalStrengthView extends View {
@@ -56,8 +57,16 @@ public final class SignalStrengthView extends View {
         final float bottom = getHeight() - inset;
         final float availableHeight = getHeight() - 2 * inset;
 
-        final int activeColor = ContextCompat.getColor(getContext(), R.color.rfm_emerald);
-        final int inactiveColor = ContextCompat.getColor(getContext(), R.color.rfm_text_muted);
+        final int activeColor = MaterialColors.getColor(
+                this,
+                androidx.appcompat.R.attr.colorPrimary,
+                ContextCompat.getColor(getContext(), R.color.rfm_md_primary)
+        );
+        final int inactiveColor = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(getContext(), R.color.text_secondary)
+        );
 
         for (int i = 0; i < BAR_COUNT; ++i) {
             final float left = inset + i * (barWidth + gap);

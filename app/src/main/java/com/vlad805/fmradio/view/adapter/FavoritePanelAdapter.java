@@ -10,6 +10,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.MaterialColors;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -156,33 +158,59 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 	}
 
 	public static class ViewHolder extends RecyclerView.ViewHolder implements ItemTouchHelperViewHolder {
+		private final MaterialCardView card;
 		private final TextView frequency;
 		private final TextView title;
 		private final ImageView reorder;
-		private final ColorStateList defaultFrequencyColor;
-		private final ColorStateList defaultTitleColor;
-		private final int activeFrequencyColor;
+		private final int strokeDefaultPx;
+		private final int strokeActivePx;
 
 		private ViewHolder(View root) {
 			super(root);
 
+			card = (MaterialCardView) root;
 			frequency = root.findViewById(R.id.favorite_panel_item_frequency);
 			title = root.findViewById(R.id.favorite_panel_item_title);
 			reorder = root.findViewById(R.id.favorite_panel_item_reorder);
-			defaultFrequencyColor = frequency.getTextColors();
-			defaultTitleColor = title.getTextColors();
-			activeFrequencyColor = ContextCompat.getColor(root.getContext(), R.color.rfm_accent);
+			final float density = root.getResources().getDisplayMetrics().density;
+			strokeDefaultPx = Math.max(1, Math.round(1f * density));
+			strokeActivePx = Math.max(2, Math.round(1.5f * density));
 		}
 
 		public void populate(final FavoriteStation station, final boolean active, final boolean editMode) {
 			itemView.setSelected(active);
-			itemView.setBackgroundResource(active ? R.drawable.bg_rfm_fav_tile_active : R.drawable.bg_rfm_fav_tile);
 			itemView.setAlpha(ALPHA_FULL);
+
+			final int bgColor = MaterialColors.getColor(
+					card,
+					active ? com.google.android.material.R.attr.colorPrimaryContainer : com.google.android.material.R.attr.colorSurfaceContainer,
+					ContextCompat.getColor(card.getContext(), active ? R.color.rfm_md_primary_container : R.color.rfm_md_secondary_container)
+			);
+			final int strokeColor = MaterialColors.getColor(
+					card,
+					active ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOutlineVariant,
+					ContextCompat.getColor(card.getContext(), active ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
+			);
+			final int freqColor = MaterialColors.getColor(
+					card,
+					active ? com.google.android.material.R.attr.colorOnPrimaryContainer : com.google.android.material.R.attr.colorOnSurface,
+					ContextCompat.getColor(card.getContext(), active ? R.color.rfm_md_on_primary_container : R.color.text_primary)
+			);
+			final int titleColor = MaterialColors.getColor(
+					card,
+					active ? com.google.android.material.R.attr.colorOnPrimaryContainer : com.google.android.material.R.attr.colorOnSurfaceVariant,
+					ContextCompat.getColor(card.getContext(), active ? R.color.rfm_md_on_primary_container : R.color.text_secondary)
+			);
+
+			card.setCardBackgroundColor(bgColor);
+			card.setStrokeColor(strokeColor);
+			card.setStrokeWidth(active ? strokeActivePx : strokeDefaultPx);
+
 			frequency.setText(Utils.getMHz(station.getFrequency()).trim());
 			final String stationTitle = station.getTitle() != null ? station.getTitle().trim() : "";
 			title.setText(stationTitle.isEmpty() ? itemView.getContext().getString(R.string.rds_placeholder) : stationTitle);
-			frequency.setTextColor(active ? ColorStateList.valueOf(activeFrequencyColor) : defaultFrequencyColor);
-			title.setTextColor(defaultTitleColor);
+			frequency.setTextColor(freqColor);
+			title.setTextColor(titleColor);
 			reorder.setVisibility(editMode ? View.VISIBLE : View.GONE);
 		}
 

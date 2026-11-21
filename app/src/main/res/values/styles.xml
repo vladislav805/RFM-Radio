@@ -1,22 +1,59 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
-	<!-- Default style for all activities (DayNight adaptive) -->
-	<style name="AppCompatTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-		<item name="colorPrimary">@color/rfm_surface</item>
-		<item name="colorPrimaryDark">@color/rfm_bg</item>
-		<item name="colorAccent">@color/rfm_accent</item>
-		<item name="android:windowBackground">@color/rfm_bg</item>
-		<item name="android:colorBackground">@color/rfm_bg</item>
-		<item name="android:statusBarColor">@color/rfm_bg</item>
-		<item name="android:navigationBarColor">@color/rfm_bg</item>
-		<item name="android:textColorPrimary">@color/rfm_text_primary</item>
-		<item name="android:textColorSecondary">@color/rfm_text_secondary</item>
+	<!-- Default Material 3 DayNight theme for all activities -->
+	<style name="AppCompatTheme" parent="Theme.Material3.DayNight.NoActionBar">
+		<item name="colorPrimary">@color/rfm_md_primary</item>
+		<item name="colorOnPrimary">@color/rfm_md_on_primary</item>
+		<item name="colorPrimaryContainer">@color/rfm_md_primary_container</item>
+		<item name="colorOnPrimaryContainer">@color/rfm_md_on_primary_container</item>
+		<item name="colorSecondary">@color/rfm_md_secondary</item>
+		<item name="colorOnSecondary">@color/rfm_md_on_secondary</item>
+		<item name="colorSecondaryContainer">@color/rfm_md_secondary_container</item>
+		<item name="colorOnSecondaryContainer">@color/rfm_md_on_secondary_container</item>
+		<item name="colorTertiary">@color/rfm_md_tertiary</item>
+		<item name="colorErrorContainer">@color/rfm_md_error_container</item>
+		<item name="colorOnErrorContainer">@color/rfm_md_on_error_container</item>
+		<item name="android:windowBackground">?android:attr/colorBackground</item>
+		<item name="android:statusBarColor">@android:color/transparent</item>
+		<item name="android:navigationBarColor">@android:color/transparent</item>
+		<item name="android:windowLightStatusBar">@bool/rfm_light_system_bars</item>
+		<item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/rfm_light_system_bars</item>
+		<item name="actionBarTheme">@style/ThemeOverlay.Material3.Dark.ActionBar</item>
 	</style>
 
-	<style name="DialogActivityTheme" parent="Theme.AppCompat.DayNight.Dialog">
+	<style name="DialogActivityTheme" parent="Theme.Material3.DayNight.Dialog">
 		<item name="windowNoTitle">true</item>
 		<item name="android:windowBackground">@android:color/transparent</item>
 		<item name="android:backgroundDimEnabled">true</item>
+	</style>
+
+	<!-- Compact Material 3 IconButton for transport deck & headers -->
+	<style name="RfmIconButtonTonal" parent="Widget.Material3.Button.IconButton.Filled.Tonal">
+		<item name="android:insetTop">0dp</item>
+		<item name="android:insetBottom">0dp</item>
+		<item name="android:insetLeft">0dp</item>
+		<item name="android:insetRight">0dp</item>
+		<item name="cornerRadius">16dp</item>
+	</style>
+
+	<style name="RfmIconButtonStandard" parent="Widget.Material3.Button.IconButton">
+		<item name="android:insetTop">0dp</item>
+		<item name="android:insetBottom">0dp</item>
+		<item name="android:insetLeft">0dp</item>
+		<item name="android:insetRight">0dp</item>
+	</style>
+
+	<style name="RfmSegmentedButton" parent="Widget.Material3.Button.OutlinedButton">
+		<item name="android:minWidth">0dp</item>
+		<item name="android:minHeight">0dp</item>
+		<item name="android:insetTop">0dp</item>
+		<item name="android:insetBottom">0dp</item>
+		<item name="android:paddingStart">12dp</item>
+		<item name="android:paddingEnd">12dp</item>
+		<item name="android:paddingTop">4dp</item>
+		<item name="android:paddingBottom">4dp</item>
+		<item name="android:textSize">11sp</item>
+		<item name="android:textStyle">bold</item>
 	</style>
 
 	<!-- Frequency TextView and reflection -->
@@ -25,24 +62,24 @@
 		<item name="android:lineSpacingExtra">0sp</item>
 		<item name="android:gravity">end</item>
 		<item name="android:textSize">52sp</item>
-		<item name="android:textColor">@color/rfm_text_primary</item>
+		<item name="android:textColor">?attr/colorOnSurface</item>
 	</style>
 
 	<style name="RDS_PS">
 		<item name="android:fontFamily">monospace</item>
 		<item name="android:textSize">18sp</item>
-		<item name="android:textColor">@color/rfm_text_primary</item>
+		<item name="android:textColor">?attr/colorOnSurface</item>
 		<item name="android:gravity">start|center_vertical</item>
 	</style>
 
 	<style name="RDS_RT">
 		<item name="android:textSize">14sp</item>
-		<item name="android:textColor">@color/rfm_text_secondary</item>
+		<item name="android:textColor">?attr/colorOnSurfaceVariant</item>
 		<item name="android:gravity">start|top</item>
 	</style>
 	<style name="RDS_PTY">
 		<item name="android:textSize">12sp</item>
-		<item name="android:textColor">@color/rfm_text_secondary</item>
+		<item name="android:textColor">?attr/colorOnSurfaceVariant</item>
 		<item name="android:gravity">start|center_vertical</item>
 	</style>
 </resources>

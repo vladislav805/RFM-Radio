@@ -386,10 +386,10 @@ key `favorites_list_current` (default `"default"`). No SQLite.
 - `RecordingDeleteActivity` — dialog activity (noHistory,
   excludeFromRecents); deletes audio + subtitles via
   `RecordingStorage.deletePublished`, cancels the notification.
-- Views: `RadioUIView` (frequency, PS/RT/PTY/PI, RT ↔ RT+ mode switcher for structured Artist/Title/Album display, statuses),
-  `FrequencyDialView` (custom Canvas drum-style horizontal frequency dial with fling physics, haptic ticks, and favorite markers; band/spacing from `BandUtils`),
+- Views: `RadioUIView` (Material 3 card with frequency, PS/RT/PTY/PI, `MaterialButtonToggleGroup` RT ↔ RT+ mode switcher for structured Artist/Title/Album display, statuses),
+  `FrequencyDialView` (custom Canvas drum-style horizontal frequency dial themed via Material 3 `MaterialColors` with fling physics, haptic ticks, and favorite markers; band/spacing from `BandUtils`),
   `FrequencyBarView` (legacy vertical seekbar), `FavoritesView`/`FavoritesRecyclerView`/
-  `FavoritePanelAdapter` (2-column preset grid with list selector, add-station button, lists manager shortcut, and drag & drop via `SimpleItemTouchHelperCallback`),
+  `FavoritePanelAdapter` (Material 3 card-based 2-column preset grid with tonal list selector, add-station button, lists manager shortcut, and drag & drop via `SimpleItemTouchHelperCallback`),
   `SignalStrength.levelForRmssi` (thresholds −105/−91/−81/−71/−61 → five
   bars), `TextViewWithReflection`.
 

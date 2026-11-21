@@ -1,129 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.Material3.CardView.Elevated"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_rfm_card"
-    android:paddingStart="10dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="10dp"
-    android:paddingBottom="8dp">
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="1dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp">
 
-    <!-- Header Row: List Selector Chip, Add Station (+), Reorder Toggle, Open Lists Manager Activity -->
-    <LinearLayout
-        android:id="@+id/favorite_header_bar"
-        android:layout_width="0dp"
-        android:layout_height="34dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="10dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="8dp">
 
-        <!-- List Selector Pill -->
-        <TextView
-            android:id="@+id/favorite_list_selector"
+        <!-- Header Row: Material Tonal List Selector + Add Station + Reorder + Manage Lists -->
+        <LinearLayout
+            android:id="@+id/favorite_header_bar"
             android:layout_width="0dp"
-            android:layout_height="32dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_rfm_inset"
-            android:clickable="true"
-            android:contentDescription="@string/favorites_select_list"
-            android:drawableEnd="@drawable/ic_rfm_chevron_down"
-            android:drawablePadding="6dp"
-            android:drawableTint="@color/rfm_accent"
-            android:ellipsize="end"
-            android:focusable="true"
-            android:fontFamily="monospace"
+            android:layout_height="36dp"
             android:gravity="center_vertical"
-            android:maxLines="1"
-            android:paddingStart="12dp"
-            android:paddingEnd="10dp"
-            android:textColor="@color/rfm_text_primary"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- List Selector Tonal Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/favorite_list_selector"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:contentDescription="@string/favorites_select_list"
+                android:ellipsize="end"
+                android:gravity="center_vertical|start"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingStart="14dp"
+                android:paddingTop="0dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="0dp"
+                android:textSize="13sp"
+                app:cornerRadius="17dp"
+                app:icon="@drawable/ic_rfm_chevron_down"
+                app:iconGravity="end"
+                app:iconSize="18dp"
+                tools:text="default" />
+
+            <Space
+                android:layout_width="6dp"
+                android:layout_height="1dp" />
+
+            <!-- Add current frequency to favorites -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/favorite_add_button"
+                style="@style/RfmIconButtonTonal"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:contentDescription="@string/favorites_add_current"
+                app:icon="@drawable/ic_rfm_add"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconSize="20dp" />
+
+            <Space
+                android:layout_width="6dp"
+                android:layout_height="1dp" />
+
+            <!-- Edit / Reorder mode toggle -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/favorite_edit_toggle"
+                style="@style/RfmIconButtonTonal"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:contentDescription="@string/favorites_edit"
+                app:icon="@drawable/ic_preset_order_toggle"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconSize="18dp" />
+
+            <Space
+                android:layout_width="6dp"
+                android:layout_height="1dp" />
+
+            <!-- Open FavoriteListsActivity (Manage lists) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/favorite_button"
+                style="@style/RfmIconButtonTonal"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:contentDescription="@string/favorites_manage_lists"
+                app:icon="@drawable/ic_rfm_lists"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconSize="18dp" />
+        </LinearLayout>
+
+        <!-- Grid of favorite stations (scrolls inside this box if many stations, main screen stays fixed) -->
+        <com.vlad805.fmradio.view.FavoritesRecyclerView
+            android:id="@+id/favorite_recycler"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:clickable="true"
+            android:clipToPadding="false"
+            android:focusable="true"
+            android:overScrollMode="never"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/favorite_header_bar"
+            tools:listitem="@layout/favorite_station_item" />
+
+        <TextView
+            android:id="@+id/favorite_empty_hint"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="@string/favorites_empty_hint"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="13sp"
-            android:textStyle="bold"
-            tools:text="default" />
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/favorite_recycler"
+            app:layout_constraintEnd_toEndOf="@id/favorite_recycler"
+            app:layout_constraintStart_toStartOf="@id/favorite_recycler"
+            app:layout_constraintTop_toTopOf="@id/favorite_recycler"
+            tools:visibility="visible" />
 
-        <Space
-            android:layout_width="6dp"
-            android:layout_height="1dp" />
-
-        <!-- Add current frequency to favorites -->
-        <ImageButton
-            android:id="@+id/favorite_add_button"
-            android:layout_width="34dp"
-            android:layout_height="32dp"
-            android:background="@drawable/bg_rfm_inset"
-            android:contentDescription="@string/favorites_add_current"
-            android:padding="6dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_add"
-            app:tint="@color/rfm_accent" />
-
-        <Space
-            android:layout_width="6dp"
-            android:layout_height="1dp" />
-
-        <!-- Edit / Reorder mode toggle -->
-        <ImageButton
-            android:id="@+id/favorite_edit_toggle"
-            android:layout_width="34dp"
-            android:layout_height="32dp"
-            android:background="@drawable/bg_rfm_inset"
-            android:contentDescription="@string/favorites_edit"
-            android:padding="6dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_preset_order_toggle"
-            app:tint="@color/rfm_text_secondary" />
-
-        <Space
-            android:layout_width="6dp"
-            android:layout_height="1dp" />
-
-        <!-- Open FavoriteListsActivity (Manage lists) -->
-        <ImageButton
-            android:id="@+id/favorite_button"
-            android:layout_width="34dp"
-            android:layout_height="32dp"
-            android:background="@drawable/bg_rfm_inset"
-            android:contentDescription="@string/favorites_manage_lists"
-            android:padding="6dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_lists"
-            app:tint="@color/rfm_text_secondary" />
-    </LinearLayout>
-
-    <!-- Grid of favorite stations (scrolls inside this box if many stations, main screen stays fixed) -->
-    <com.vlad805.fmradio.view.FavoritesRecyclerView
-        android:id="@+id/favorite_recycler"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="6dp"
-        android:clickable="true"
-        android:clipToPadding="false"
-        android:focusable="true"
-        android:overScrollMode="never"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/favorite_header_bar"
-        tools:listitem="@layout/favorite_station_item" />
-
-    <TextView
-        android:id="@+id/favorite_empty_hint"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:gravity="center"
-        android:padding="16dp"
-        android:text="@string/favorites_empty_hint"
-        android:textColor="@color/rfm_text_muted"
-        android:textSize="13sp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/favorite_recycler"
-        app:layout_constraintEnd_toEndOf="@id/favorite_recycler"
-        app:layout_constraintStart_toStartOf="@id/favorite_recycler"
-        app:layout_constraintTop_toTopOf="@id/favorite_recycler"
-        tools:visibility="visible" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -18,17 +18,20 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.View;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 
 import androidx.annotation.IdRes;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.widget.ImageViewCompat;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
@@ -78,12 +81,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private AppPreferences mPreferences;
 
-    private ImageButton mCtlToggle;
+    private MaterialButton mCtlToggle;
+    private MaterialCardView mViewStereoModeCard;
     private TextView mViewStereoMode;
+    private MaterialCardView mAfBadgeCard;
     private TextView mAfBadge;
     private SignalStrengthView mSignalStrength;
 
-    private View mBtnRecord;
+    private MaterialCardView mBtnRecord;
     private ImageView mRecordDot;
     private TextView mRecordDuration;
 
@@ -113,7 +118,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (mLastState == null || !mLastState.isRecording()) {
                 mRecordTickerRunning = false;
                 if (mRecordDot != null) {
-                    mRecordDot.setAlpha(1f);
+                    mRecordDot.setAlpha(0.3f);
                 }
                 return;
             }
@@ -132,6 +137,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
 
         if (!Utils.isRootEnvironmentAvailable()) {
@@ -281,10 +287,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
+        mViewStereoModeCard = findViewById(R.id.stereo_mono_card);
         mViewStereoMode = findViewById(R.id.stereo_mono);
-        if (TunerDriverDetector.isExynos(this)) {
-            mViewStereoMode.setVisibility(View.GONE);
+        if (TunerDriverDetector.isExynos(this) && mViewStereoModeCard != null) {
+            mViewStereoModeCard.setVisibility(View.GONE);
         }
+        mAfBadgeCard = findViewById(R.id.af_badge_card);
         mAfBadge = findViewById(R.id.af_badge);
         mSignalStrength = findViewById(R.id.signal_strength);
 
@@ -301,7 +309,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.favorite_button,
                 R.id.btn_record,
                 R.id.btn_settings_menu,
-                R.id.af_badge
+                R.id.af_badge_card
         };
 
         for (final int id : ids) {
@@ -351,7 +359,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             toggleRecording();
         } else if (id == R.id.btn_settings_menu) {
             showSettingsPopupMenu(view);
-        } else if (id == R.id.af_badge) {
+        } else if (id == R.id.af_badge_card) {
             showAfFrequenciesDialog();
         }
     }
@@ -424,7 +432,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void showAfFrequenciesDialog() {
         final int[] rawAf = mLastState != null ? mLastState.getAf() : null;
         if (rawAf == null || rawAf.length == 0) {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle(R.string.rds_af_dialog_title)
                     .setMessage(R.string.rds_af_dialog_empty)
                     .setPositiveButton(android.R.string.ok, null)
@@ -443,7 +451,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             labels[i] = Utils.getMHz(sortedAf[i], precision).trim() + " MHz";
         }
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.rds_af_dialog_title)
                 .setItems(labels, (dialog, which) -> {
                     if (which >= 0 && which < sortedAf.length && mRadioController.getState().getStatus() == TunerStatus.ENABLED) {
@@ -466,7 +474,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle(R.string.scan_stations_confirm_title)
                     .setMessage(R.string.scan_stations_confirm_message)
                     .setCancelable(false)
@@ -606,7 +614,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void showRecordingPermissionSettingsDialog() {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.record_permissions_required_title)
                 .setMessage(R.string.record_permissions_required)
                 .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
@@ -623,7 +631,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void showPlaybackPermissionSettingsDialog() {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.playback_permission_required_title)
                 .setMessage(R.string.playback_permission_required)
                 .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
@@ -744,39 +752,66 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void updateStereoUi(final boolean isStereo) {
-        if (mViewStereoMode == null) {
+        if (mViewStereoMode == null || mViewStereoModeCard == null) {
             return;
         }
         if (TunerDriverDetector.isExynos(this)) {
-            mViewStereoMode.setVisibility(View.GONE);
+            mViewStereoModeCard.setVisibility(View.GONE);
             return;
         }
-        mViewStereoMode.setVisibility(View.VISIBLE);
+        mViewStereoModeCard.setVisibility(View.VISIBLE);
         mViewStereoMode.setText(isStereo ? R.string.stereo_mode_label : R.string.mono_mode_label);
         mViewStereoMode.setContentDescription(getString(
                 isStereo ? R.string.stereo_mode_active : R.string.mono_mode_active
         ));
-        mViewStereoMode.setBackgroundResource(isStereo ? R.drawable.bg_rfm_pill_active : R.drawable.bg_rfm_pill);
-        mViewStereoMode.setTextColor(ContextCompat.getColor(
-                this,
-                isStereo ? R.color.rfm_accent : R.color.rfm_text_secondary
-        ));
+        final int bgColor = MaterialColors.getColor(
+                mViewStereoModeCard,
+                isStereo ? com.google.android.material.R.attr.colorSecondaryContainer : com.google.android.material.R.attr.colorSurfaceContainerHigh,
+                ContextCompat.getColor(this, R.color.rfm_md_secondary_container)
+        );
+        final int strokeColor = MaterialColors.getColor(
+                mViewStereoModeCard,
+                isStereo ? com.google.android.material.R.attr.colorSecondary : com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(this, R.color.rfm_md_secondary)
+        );
+        final int fgColor = MaterialColors.getColor(
+                mViewStereoMode,
+                isStereo ? com.google.android.material.R.attr.colorOnSecondaryContainer : com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(this, R.color.rfm_md_on_secondary_container)
+        );
+        mViewStereoModeCard.setCardBackgroundColor(bgColor);
+        mViewStereoModeCard.setStrokeColor(strokeColor);
+        mViewStereoMode.setTextColor(fgColor);
     }
 
     private void updateAfUi(final int[] af) {
-        if (mAfBadge == null) {
+        if (mAfBadge == null || mAfBadgeCard == null) {
             return;
         }
         final int count = af != null ? af.length : 0;
-        if (count > 0) {
-            mAfBadge.setText(String.format(Locale.US, getString(R.string.rds_af_count), count));
-            mAfBadge.setBackgroundResource(R.drawable.bg_rfm_pill_active);
-            mAfBadge.setTextColor(ContextCompat.getColor(this, R.color.rfm_accent));
-        } else {
-            mAfBadge.setText(R.string.rds_af_label);
-            mAfBadge.setBackgroundResource(R.drawable.bg_rfm_pill);
-            mAfBadge.setTextColor(ContextCompat.getColor(this, R.color.rfm_text_muted));
-        }
+        final boolean hasAf = count > 0;
+        mAfBadge.setText(hasAf
+                ? String.format(Locale.US, getString(R.string.rds_af_count), count)
+                : getString(R.string.rds_af_label)
+        );
+        final int bgColor = MaterialColors.getColor(
+                mAfBadgeCard,
+                hasAf ? com.google.android.material.R.attr.colorPrimaryContainer : com.google.android.material.R.attr.colorSurfaceContainerHigh,
+                ContextCompat.getColor(this, hasAf ? R.color.rfm_md_primary_container : R.color.rfm_md_secondary_container)
+        );
+        final int strokeColor = MaterialColors.getColor(
+                mAfBadgeCard,
+                hasAf ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(this, hasAf ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
+        );
+        final int fgColor = MaterialColors.getColor(
+                mAfBadge,
+                hasAf ? com.google.android.material.R.attr.colorOnPrimaryContainer : com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(this, hasAf ? R.color.rfm_md_on_primary_container : R.color.text_secondary)
+        );
+        mAfBadgeCard.setCardBackgroundColor(bgColor);
+        mAfBadgeCard.setStrokeColor(strokeColor);
+        mAfBadge.setTextColor(fgColor);
     }
 
     private void handleChangingState(final TunerStatus status) {
@@ -861,14 +896,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void setPlayingMainPlayButton(final boolean isPlay) {
-        mCtlToggle.setBackgroundResource(isPlay ? R.drawable.bg_rfm_power_active : R.drawable.bg_rfm_power_idle);
-        ImageViewCompat.setImageTintList(
+        final int bgColor = MaterialColors.getColor(
                 mCtlToggle,
-                ColorStateList.valueOf(ContextCompat.getColor(
-                        this,
-                        isPlay ? R.color.rfm_on_accent : R.color.rfm_accent
-                ))
+                isPlay ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorSurfaceContainerHighest,
+                ContextCompat.getColor(this, isPlay ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
         );
+        final int fgColor = MaterialColors.getColor(
+                mCtlToggle,
+                isPlay ? com.google.android.material.R.attr.colorOnPrimary : androidx.appcompat.R.attr.colorPrimary,
+                ContextCompat.getColor(this, isPlay ? R.color.rfm_md_on_primary : R.color.rfm_md_primary)
+        );
+        mCtlToggle.setBackgroundTintList(ColorStateList.valueOf(bgColor));
+        mCtlToggle.setIconTint(ColorStateList.valueOf(fgColor));
     }
 
     /**
@@ -887,8 +926,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.frequency_rt,
                 R.id.frequency_pty,
                 R.id.frequency_seek,
-                R.id.stereo_mono,
-                R.id.af_badge,
+                R.id.stereo_mono_card,
+                R.id.af_badge_card,
                 R.id.signal_strength,
                 R.id.btn_record,
                 R.id.favorite_list
@@ -909,11 +948,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         final boolean isRecording = state.isRecording();
-        mBtnRecord.setBackgroundResource(isRecording ? R.drawable.bg_rfm_pill_record : R.drawable.bg_rfm_pill);
-        mRecordDuration.setTextColor(ContextCompat.getColor(
-                this,
-                isRecording ? R.color.rfm_record : R.color.rfm_text_primary
-        ));
+        final int bgColor = MaterialColors.getColor(
+                mBtnRecord,
+                isRecording ? com.google.android.material.R.attr.colorErrorContainer : com.google.android.material.R.attr.colorSurfaceContainerHigh,
+                ContextCompat.getColor(this, isRecording ? R.color.rfm_md_error_container : R.color.rfm_md_secondary_container)
+        );
+        final int strokeColor = MaterialColors.getColor(
+                mBtnRecord,
+                isRecording ? androidx.appcompat.R.attr.colorError : com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(this, isRecording ? R.color.rfm_record : R.color.rfm_md_secondary_container)
+        );
+        final int fgColor = MaterialColors.getColor(
+                mRecordDuration,
+                isRecording ? com.google.android.material.R.attr.colorOnErrorContainer : com.google.android.material.R.attr.colorOnSurface,
+                ContextCompat.getColor(this, isRecording ? R.color.rfm_md_on_error_container : R.color.text_primary)
+        );
+        mBtnRecord.setCardBackgroundColor(bgColor);
+        mBtnRecord.setStrokeColor(strokeColor);
+        mRecordDuration.setTextColor(fgColor);
 
         if (isRecording) {
             final long durationSec = Math.max(0L, state.getRecordingDuration());
@@ -927,7 +979,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mRecordTickerRunning = false;
             mRecordDuration.setText(R.string.record_badge_idle);
             if (mRecordDot != null) {
-                mRecordDot.setAlpha(1f);
+                mRecordDot.setAlpha(0.3f);
             }
         }
     }

@@ -4,234 +4,245 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/rfm_bg"
+    android:background="?android:attr/colorBackground"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:paddingStart="12dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="12dp"
+    android:paddingTop="4dp"
     android:paddingBottom="10dp"
     tools:context=".activity.MainActivity">
 
-    <!-- 1. TOP INSTRUMENT STATUS BAR -->
+    <!-- 1. TOP MATERIAL 3 APP BAR -->
     <LinearLayout
         android:id="@+id/top_status_bar"
         android:layout_width="0dp"
-        android:layout_height="42dp"
-        android:background="@drawable/bg_rfm_card"
+        android:layout_height="56dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="10dp"
-        android:paddingEnd="6dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Signal strength bars (reused View) -->
-        <com.vlad805.fmradio.view.SignalStrengthView
-            android:id="@+id/signal_strength"
-            android:layout_width="28dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/signal_strength_indicator" />
-
-        <!-- STEREO / MONO badge -->
         <TextView
-            android:id="@+id/stereo_mono"
-            android:layout_width="wrap_content"
-            android:layout_height="26dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_rfm_pill"
-            android:fontFamily="monospace"
-            android:gravity="center"
-            android:minWidth="56dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="@string/mono_mode_label"
-            android:textAllCaps="true"
-            android:textColor="@color/rfm_text_secondary"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <!-- AF indicator badge (clickable to show AF frequencies dialog) -->
-        <TextView
-            android:id="@+id/af_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="26dp"
-            android:layout_marginStart="6dp"
-            android:background="@drawable/bg_rfm_pill"
-            android:clickable="true"
-            android:focusable="true"
-            android:fontFamily="monospace"
-            android:gravity="center"
-            android:minWidth="42dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="@string/rds_af_label"
-            android:textColor="@color/rfm_text_muted"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <Space
             android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="@string/app_name"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="22sp" />
 
-        <!-- Record toggle + live timer pill -->
-        <LinearLayout
+        <!-- Record toggle + live timer Material pill -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/btn_record"
             android:layout_width="wrap_content"
-            android:layout_height="28dp"
-            android:background="@drawable/bg_rfm_pill"
+            android:layout_height="34dp"
             android:clickable="true"
             android:contentDescription="@string/menu_record"
             android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp">
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="17dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
 
-            <ImageView
-                android:id="@+id/record_dot"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_rfm_rec_dot" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/record_dot"
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:alpha="0.3"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_rfm_rec_dot" />
+
+                <TextView
+                    android:id="@+id/record_duration_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="monospace"
+                    android:text="@string/record_badge_idle"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- AF indicator Material pill (clickable to show AF frequencies dialog) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/af_badge_card"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="17dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
 
             <TextView
-                android:id="@+id/record_duration_text"
+                android:id="@+id/af_badge"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:fontFamily="monospace"
-                android:text="@string/record_badge_idle"
-                android:textColor="@color/rfm_text_primary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+                android:layout_height="match_parent"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:minWidth="44dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="@string/rds_af_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
 
-        <!-- Settings / overflow trigger button -->
-        <ImageButton
+        <!-- Settings / overflow trigger Material IconButton (full 48dp touch target) -->
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_settings_menu"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:layout_marginStart="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            style="@style/RfmIconButtonStandard"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="2dp"
             android:contentDescription="@string/menu_settings"
-            android:padding="6dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_settings"
-            app:tint="@color/rfm_text_secondary" />
+            app:icon="@drawable/ic_settings"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="24dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
-    <!-- 2. TUNER & RDS DISPLAY CARD (FIXED GEOMETRY, NEVER JUMPS) -->
-    <com.vlad805.fmradio.view.RadioUIView
-        android:id="@+id/frequency_info"
+    <View
+        android:id="@+id/top_divider"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_height="1dp"
+        android:alpha="0.5"
+        android:background="?attr/colorOutlineVariant"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_status_bar" />
 
-    <!-- 3. CUSTOM FROM-SCRATCH DRUM FREQUENCY DIAL -->
-    <com.vlad805.fmradio.view.FrequencyDialView
-        android:id="@+id/frequency_seek"
+    <!-- 2. TUNER HEADER + EDGE-TO-EDGE DIAL + RT/RT+ CARD -->
+    <com.vlad805.fmradio.view.RadioUIView
+        android:id="@+id/frequency_info"
         android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/frequency_info" />
+        app:layout_constraintTop_toBottomOf="@id/top_divider" />
 
-    <!-- 4. ONE-HANDED TRANSPORT DECK (SEEK / STEP / POWER) -->
+    <!-- 3. ONE-HANDED MATERIAL 3 TRANSPORT DECK (SEEK / STEP / POWER) -->
     <LinearLayout
         android:id="@+id/transport_deck"
         android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="70dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="14dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/frequency_seek">
+        app:layout_constraintTop_toBottomOf="@id/frequency_info">
 
-        <ImageButton
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/ctl_seek_down"
+            style="@style/RfmIconButtonTonal"
             android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_rfm_button"
-            android:contentDescription="@string/seek_down"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_seek_prev"
-            app:tint="@color/rfm_text_primary" />
-
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp" />
-
-        <ImageButton
-            android:id="@+id/ctl_go_down"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_rfm_button"
-            android:contentDescription="@string/jump_down"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_step_prev"
-            app:tint="@color/rfm_text_primary" />
-
-        <Space
-            android:layout_width="10dp"
-            android:layout_height="1dp" />
-
-        <ImageButton
-            android:id="@+id/ctl_toggle"
-            android:layout_width="76dp"
             android:layout_height="50dp"
-            android:background="@drawable/bg_rfm_power_idle"
-            android:contentDescription="@string/power_toggle_description"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_power"
-            app:tint="@color/rfm_accent" />
-
-        <Space
-            android:layout_width="10dp"
-            android:layout_height="1dp" />
-
-        <ImageButton
-            android:id="@+id/ctl_go_up"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_rfm_button"
-            android:contentDescription="@string/jump_up"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_step_next"
-            app:tint="@color/rfm_text_primary" />
+            android:contentDescription="@string/seek_down"
+            app:icon="@drawable/ic_rfm_seek_prev"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp" />
 
         <Space
             android:layout_width="8dp"
             android:layout_height="1dp" />
 
-        <ImageButton
-            android:id="@+id/ctl_seek_up"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_go_down"
+            style="@style/RfmIconButtonTonal"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="50dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_rfm_button"
+            android:contentDescription="@string/jump_down"
+            app:icon="@drawable/ic_rfm_step_prev"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp" />
+
+        <Space
+            android:layout_width="10dp"
+            android:layout_height="1dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_toggle"
+            style="@style/Widget.Material3.Button.IconButton.Filled"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:contentDescription="@string/power_toggle_description"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="22dp"
+            app:icon="@drawable/ic_rfm_power"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="24dp" />
+
+        <Space
+            android:layout_width="10dp"
+            android:layout_height="1dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_go_up"
+            style="@style/RfmIconButtonTonal"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:contentDescription="@string/jump_up"
+            app:icon="@drawable/ic_rfm_step_next"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp" />
+
+        <Space
+            android:layout_width="8dp"
+            android:layout_height="1dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_seek_up"
+            style="@style/RfmIconButtonTonal"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
             android:contentDescription="@string/seek_up"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_rfm_seek_next"
-            app:tint="@color/rfm_text_primary" />
+            app:icon="@drawable/ic_rfm_seek_next"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp" />
     </LinearLayout>
 
-    <!-- 5. FAVORITES STATION CONSOLE (FILLS REMAINING HEIGHT, NO SCREEN SCROLL) -->
+    <!-- 4. FAVORITES STATION CONSOLE (FILLS REMAINING HEIGHT, NO SCREEN SCROLL) -->
     <com.vlad805.fmradio.view.FavoritesView
         android:id="@+id/favorite_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="14dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

@@ -20,6 +20,7 @@ import android.widget.OverScroller;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.color.MaterialColors;
 import com.vlad805.fmradio.R;
 
 import java.util.Collections;
@@ -69,7 +70,6 @@ public final class FrequencyDialView extends View {
 
     private final RectF mBoundsRect = new RectF();
     private final Path mClipPath = new Path();
-    private final Path mPointerPath = new Path();
 
     private final OverScroller mScroller;
     private VelocityTracker mVelocityTracker;
@@ -118,11 +118,11 @@ public final class FrequencyDialView extends View {
 
         mLabelPaint.setTextSize(11f * scaledDensity);
         mLabelPaint.setTextAlign(Paint.Align.CENTER);
-        mLabelPaint.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
+        mLabelPaint.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL));
 
         mNeedlePaint.setStyle(Paint.Style.FILL_AND_STROKE);
-        mNeedlePaint.setStrokeWidth(2.5f * density);
-        mNeedlePaint.setStrokeCap(Paint.Cap.ROUND);
+        mNeedlePaint.setStrokeWidth(2f * density);
+        mNeedlePaint.setStrokeCap(Paint.Cap.BUTT);
 
         mNeedleGlowPaint.setStyle(Paint.Style.STROKE);
         mNeedleGlowPaint.setStrokeWidth(8f * density);
@@ -196,7 +196,7 @@ public final class FrequencyDialView extends View {
             return;
         }
         mGradientWidth = width;
-        final int bgColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_bg);
+        final int bgColor = getDialBackgroundColor();
         final int transparentBg = bgColor & 0x00FFFFFF;
         final float fadeZone = Math.min(width * 0.22f, 48f * getResources().getDisplayMetrics().density);
 
@@ -209,6 +209,14 @@ public final class FrequencyDialView extends View {
                 width - fadeZone, 0, width, 0,
                 transparentBg, bgColor,
                 Shader.TileMode.CLAMP
+        );
+    }
+
+    private int getDialBackgroundColor() {
+        return MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorSurfaceContainerHighest,
+                ContextCompat.getColor(getContext(), R.color.rfm_md_secondary_container)
         );
     }
 
@@ -227,33 +235,56 @@ public final class FrequencyDialView extends View {
         }
 
         final float density = getResources().getDisplayMetrics().density;
-        final float cornerRadius = 14f * density;
-        final float halfStroke = 0.5f * density;
 
-        final int bgColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_bg);
-        final int strokeColor = ContextCompat.getColor(getContext(), R.color.rfm_stroke);
-        final int minorColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_tick_minor);
-        final int majorColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_tick_major);
-        final int labelColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_label);
-        final int needleColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_needle);
-        final int favColor = ContextCompat.getColor(getContext(), R.color.rfm_dial_fav);
+        final int bgColor = getDialBackgroundColor();
+        final int strokeColor = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(getContext(), R.color.rfm_md_secondary_container)
+        );
+        final int minorColor = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorOutline,
+                ContextCompat.getColor(getContext(), R.color.text_secondary)
+        );
+        final int majorColor = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(getContext(), R.color.text_secondary)
+        );
+        final int labelColor = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(getContext(), R.color.text_secondary)
+        );
+        final int needleColor = MaterialColors.getColor(
+                this,
+                androidx.appcompat.R.attr.colorPrimary,
+                ContextCompat.getColor(getContext(), R.color.rfm_md_primary)
+        );
+        final int favColor = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorTertiary,
+                ContextCompat.getColor(getContext(), R.color.rfm_md_tertiary)
+        );
 
         mBgPaint.setColor(bgColor);
         mBorderPaint.setColor(strokeColor);
         mMinorTickPaint.setColor(minorColor);
+        mMinorTickPaint.setAlpha(150);
         mMajorTickPaint.setColor(majorColor);
         mLabelPaint.setColor(labelColor);
         mNeedlePaint.setColor(needleColor);
         mNeedleGlowPaint.setColor(needleColor);
-        mNeedleGlowPaint.setAlpha(45);
+        mNeedleGlowPaint.setAlpha(36);
         mFavoritePaint.setColor(favColor);
 
-        mBoundsRect.set(halfStroke, halfStroke, width - halfStroke, height - halfStroke);
-        canvas.drawRoundRect(mBoundsRect, cornerRadius, cornerRadius, mBgPaint);
+        mBoundsRect.set(0, 0, width, height);
+        canvas.drawRect(mBoundsRect, mBgPaint);
 
         final int saveCount = canvas.save();
         mClipPath.reset();
-        mClipPath.addRoundRect(mBoundsRect, cornerRadius, cornerRadius, Path.Direction.CW);
+        mClipPath.addRect(mBoundsRect, Path.Direction.CW);
         canvas.clipPath(mClipPath);
 
         final float centerX = width * 0.5f;
@@ -270,11 +301,13 @@ public final class FrequencyDialView extends View {
                 ((int) Math.ceil((mVisualKhz + halfSpanKhz) / drawStepKhz)) * drawStepKhz
         );
 
-        final float tickBottom = height - 8f * density;
-        final float majorTickTop = height * 0.44f;
-        final float mediumTickTop = height * 0.54f;
-        final float minorTickTop = height * 0.65f;
-        final float labelBaseline = height * 0.32f;
+        final float majorTickTop = height * 0.18f;
+        final float majorTickBottom = height * 0.68f;
+        final float mediumTickTop = height * 0.28f;
+        final float mediumTickBottom = height * 0.64f;
+        final float minorTickTop = height * 0.34f;
+        final float minorTickBottom = height * 0.58f;
+        final float labelBaseline = height - 6f * density;
 
         for (int khz = firstTickKhz; khz <= lastTickKhz; khz += drawStepKhz) {
             final float x = centerX + (khz - mVisualKhz) * pxPerKhz;
@@ -283,13 +316,13 @@ public final class FrequencyDialView extends View {
             final boolean isHalfMhz = (khz % 500) == 0;
 
             if (isFullMhz) {
-                canvas.drawLine(x, majorTickTop, x, tickBottom, mMajorTickPaint);
-                final String label = String.format(Locale.US, "%d", khz / 1000);
+                canvas.drawLine(x, majorTickTop, x, majorTickBottom, mMajorTickPaint);
+                final String label = String.format(Locale.US, "%.1f", khz / 1000f);
                 canvas.drawText(label, x, labelBaseline, mLabelPaint);
             } else if (isHalfMhz) {
-                canvas.drawLine(x, mediumTickTop, x, tickBottom, mMajorTickPaint);
+                canvas.drawLine(x, mediumTickTop, x, mediumTickBottom, mMajorTickPaint);
             } else {
-                canvas.drawLine(x, minorTickTop, x, tickBottom, mMinorTickPaint);
+                canvas.drawLine(x, minorTickTop, x, minorTickBottom, mMinorTickPaint);
             }
         }
 
@@ -300,14 +333,14 @@ public final class FrequencyDialView extends View {
                     continue;
                 }
                 final float x = centerX + (khz - mVisualKhz) * pxPerKhz;
-                canvas.drawLine(x, height * 0.73f, x, tickBottom, mMinorTickPaint);
+                canvas.drawLine(x, height * 0.40f, x, minorTickBottom, mMinorTickPaint);
             }
         }
 
-        // Draw favorite station markers as glowing amber diamonds/dots above ticks
+        // Draw favorite station markers as glowing dots along top edge of ticks
         if (!mFavoriteFrequencies.isEmpty()) {
-            final float favY = height - 4.5f * density;
-            final float favRadius = 2.8f * density;
+            final float favY = height * 0.12f;
+            final float favRadius = 2.6f * density;
             for (final Integer favKhz : mFavoriteFrequencies) {
                 if (favKhz == null || favKhz < firstTickKhz || favKhz > lastTickKhz) {
                     continue;
@@ -328,21 +361,17 @@ public final class FrequencyDialView extends View {
             canvas.drawRect(width - fadeZone, 0, width, height, mEdgeFadePaint);
         }
 
-        // Draw center needle + top pointer triangle
-        canvas.drawLine(centerX, 4f * density, centerX, height - 4f * density, mNeedleGlowPaint);
-        canvas.drawLine(centerX, 4f * density, centerX, height - 4f * density, mNeedlePaint);
-
-        final float triHalfW = 5.5f * density;
-        final float triH = 6.5f * density;
-        mPointerPath.reset();
-        mPointerPath.moveTo(centerX - triHalfW, 0);
-        mPointerPath.lineTo(centerX + triHalfW, 0);
-        mPointerPath.lineTo(centerX, triH);
-        mPointerPath.close();
-        canvas.drawPath(mPointerPath, mNeedlePaint);
+        // Draw full-height center needle
+        canvas.drawLine(centerX, 0, centerX, height, mNeedleGlowPaint);
+        canvas.drawLine(centerX, 0, centerX, height, mNeedlePaint);
 
         canvas.restoreToCount(saveCount);
-        canvas.drawRoundRect(mBoundsRect, cornerRadius, cornerRadius, mBorderPaint);
+
+        // Top and bottom hairline borders for edge-to-edge separation
+        final float strokeW = 1f * density;
+        mBorderPaint.setStrokeWidth(strokeW);
+        canvas.drawLine(0, strokeW * 0.5f, width, strokeW * 0.5f, mBorderPaint);
+        canvas.drawLine(0, height - strokeW * 0.5f, width, height - strokeW * 0.5f, mBorderPaint);
     }
 
     @Override
