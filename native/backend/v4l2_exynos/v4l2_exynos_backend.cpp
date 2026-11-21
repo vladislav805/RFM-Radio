@@ -330,7 +330,13 @@ bool V4l2ExynosBackend::enable(const StartupConfig &config) {
             log("enable", "warning: VIDIOC_S_TUNER failed");
         }
 
-        set_v4l2_ctrl(kS610CidAudioVolume, volume_.load());
+        {
+            std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+            const int target = desired_volume_;
+            if (set_v4l2_ctrl(kS610CidAudioVolume, target)) {
+                applied_volume_ = target;
+            }
+        }
 
         reset_rds_state();
         if (!apply_rds(true)) {
@@ -382,6 +388,8 @@ bool V4l2ExynosBackend::disable() {
         std::lock_guard<std::mutex> lock(ioctl_mutex_);
         if (fd_radio_ >= 0 && rds_stopped) {
             close_device();
+            std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+            applied_volume_ = -1;
         }
     }
 
@@ -583,19 +591,27 @@ bool V4l2ExynosBackend::set_stereo(const bool enabled) {
 
 bool V4l2ExynosBackend::set_volume(const int volume) {
     const int clamped = std::max(0, std::min(15, volume));
-    volume_.store(clamped);
-
-    // Do not block on ioctl_mutex_ while a full-band scan is running;
-    // search_worker() restores volume_ before unmuting at the end of the scan.
-    if (search_active_.load()) {
-        return set_status(true, "");
+    {
+        std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+        desired_volume_ = clamped;
+        // Do not block on ioctl_mutex_ while a full-band scan is running;
+        // respond "ok" immediately (hardware mute is active during scan) and let
+        // search_worker() sync desired_volume_ before unmuting/completing.
+        if (search_active_.load()) {
+            return set_status(true, "");
+        }
     }
 
-    std::lock_guard<std::mutex> lock(ioctl_mutex_);
+    std::lock_guard<std::mutex> ioctl_lock(ioctl_mutex_);
+    std::lock_guard<std::mutex> vol_lock(volume_mutex_);
     if (fd_radio_ < 0) {
         return set_status(true, "");
     }
-    const bool ok = set_v4l2_ctrl(kS610CidAudioVolume, clamped);
+    const int target = desired_volume_;
+    const bool ok = set_v4l2_ctrl(kS610CidAudioVolume, target);
+    if (ok) {
+        applied_volume_ = target;
+    }
     return set_status(ok, kErrFailed);
 }
 
@@ -748,7 +764,13 @@ void V4l2ExynosBackend::search_worker() {
                 }
 
                 rds_generation_.fetch_add(1, std::memory_order_acq_rel);
-                set_v4l2_ctrl(kS610CidAudioVolume, volume_.load());
+                {
+                    std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+                    const int target = desired_volume_;
+                    if (set_v4l2_ctrl(kS610CidAudioVolume, target)) {
+                        applied_volume_ = target;
+                    }
+                }
                 apply_mute(false);
             }
         }
@@ -773,7 +795,22 @@ void V4l2ExynosBackend::search_worker() {
         }
     }
 
-    search_active_.store(false);
+    bool needs_volume_sync = false;
+    {
+        std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+        search_active_.store(false);
+        needs_volume_sync = enabled_.load() && desired_volume_ != applied_volume_;
+    }
+    if (needs_volume_sync) {
+        std::lock_guard<std::mutex> ioctl_lock(ioctl_mutex_);
+        std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+        if (fd_radio_ >= 0 && enabled_.load() && desired_volume_ != applied_volume_) {
+            const int target = desired_volume_;
+            if (set_v4l2_ctrl(kS610CidAudioVolume, target)) {
+                applied_volume_ = target;
+            }
+        }
+    }
 }
 
 bool V4l2ExynosBackend::cancel_search() {
@@ -878,6 +915,8 @@ void V4l2ExynosBackend::shutdown() {
     std::lock_guard<std::mutex> lock(ioctl_mutex_);
     if (fd_radio_ >= 0 && rds_stopped) {
         close_device();
+        std::lock_guard<std::mutex> vol_lock(volume_mutex_);
+        applied_volume_ = -1;
     }
 }
 

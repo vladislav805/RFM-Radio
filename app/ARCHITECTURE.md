@@ -255,14 +255,18 @@ anything else → warning.
   refresh callback.
 - `SamsungS610Audio.java` — Samsung Exynos S610 `RoutedAudioPolicy`:
   `g_fmradio_mute`, `g_fmradio_enable`, framework speaker routing, and
-  scaled 0..15 hardware volume updates via `HardwareVolumeListener`
-  (`NativeTunerController.setVolume`).
+  scaled 0..15 hardware volume updates via `HardwareVolumeController`
+  (`NativeTunerController.setVolume` with completion callback). Distinguishes
+  requested vs confirmed applied volume (`getAppliedVolume()`) using strict
+  generation matching so failed/stale updates roll back deduplication without
+  corrupting capture gain.
 - `RoutingAudioService.java` (API ≥ 26) — owns audio focus, hidden
   `VOLUME_CHANGED_ACTION` listener, and FM capture (`AudioRecord` 48000 Hz
   stereo PCM16 with `setPreferredDevice(TYPE_FM_TUNER)` found by
   `findFmTunerInputDevice`; Samsung Exynos also tries source `11`,
   `fmradio_recoding=on/off`, `MediaSession` volume bypass, and
-  `compensateExynosVolume`); `Fm2RecordPcm` thread feeds
+  `compensateExynosVolume` guarded by `ExynosGainCompensationTracker` across
+  `recordBufferShorts` drain transitions); `Fm2RecordPcm` thread feeds
   `PcmRecorderSession`. Delegates output routing and speaker side effects to
   its `RoutedAudioPolicy`.
 - `LightAudioService.java` (API < 26, legacy) — `AudioRecord` (source

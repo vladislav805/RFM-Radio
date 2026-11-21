@@ -279,6 +279,13 @@ public class RoutingAudioService extends AudioService {
 			startExynosRecordingVolumeSession(exynosPolicy);
 		}
 
+		// AudioRecord is created with bufferSize * 2 bytes; each PCM_16BIT sample is 2 bytes,
+		// so its internal ringbuffer holds bufferSize * 2 / 2 = bufferSize shorts.
+		final int recordBufferShorts = (bufferSize * 2) / 2;
+		final ExynosGainCompensationTracker gainTracker = exynosPolicy != null
+				? new ExynosGainCompensationTracker(recordBufferShorts, exynosPolicy.getAppliedVolume())
+				: null;
+
 		mRecordingThread = new Thread(() -> {
 			final short[] buffer = new short[bufferSize / 2];
 			try {
@@ -289,8 +296,12 @@ public class RoutingAudioService extends AudioService {
 							Log.e(TAG, "FM capture lost FM_TUNER route, stopping capture");
 							break;
 						}
-						if (exynosPolicy != null) {
-							compensateExynosVolume(buffer, read, exynosPolicy.getLastVolume());
+						if (exynosPolicy != null && gainTracker != null) {
+							final int gainIndex = gainTracker.nextEffectiveVolume(
+									exynosPolicy.getAppliedVolume(),
+									read
+							);
+							compensateExynosVolume(buffer, read, gainIndex);
 						}
 						mPcmSession.append(buffer, read);
 					} else if (read == AudioRecord.ERROR_DEAD_OBJECT) {
@@ -702,6 +713,46 @@ public class RoutingAudioService extends AudioService {
 				FM_ROUTE_POLL_INTERVAL_MS
 		);
 		return winner != null ? selected[0] : null;
+	}
+
+	/**
+	 * Tracks Exynos hardware volume transitions across buffered PCM reads.
+	 * When hardware gain drops (compensation increases), samples already sitting
+	 * in the AudioRecord ringbuffer were captured at the older higher gain and
+	 * must not receive the higher compensation multiplier until drained.
+	 */
+	static final class ExynosGainCompensationTracker {
+		private final int mRecordBufferShorts;
+		private int mCurrentVolume;
+		private int mConservativeVolume;
+		private int mDrainRemainingShorts;
+
+		ExynosGainCompensationTracker(final int recordBufferShorts, final int initialVolume) {
+			mRecordBufferShorts = Math.max(0, recordBufferShorts);
+			mCurrentVolume = initialVolume;
+			mConservativeVolume = initialVolume;
+			mDrainRemainingShorts = 0;
+		}
+
+		int nextEffectiveVolume(final int appliedVolume, final int readShorts) {
+			if (appliedVolume != mCurrentVolume) {
+				if (mCurrentVolume > 0 && appliedVolume > 0 && appliedVolume < mCurrentVolume) {
+					mConservativeVolume = Math.max(mConservativeVolume, mCurrentVolume);
+					mDrainRemainingShorts = mRecordBufferShorts;
+				} else {
+					mConservativeVolume = appliedVolume;
+					mDrainRemainingShorts = 0;
+				}
+				mCurrentVolume = appliedVolume;
+			}
+
+			if (mDrainRemainingShorts > 0) {
+				final int effective = Math.max(mConservativeVolume, mCurrentVolume);
+				mDrainRemainingShorts = Math.max(0, mDrainRemainingShorts - Math.max(0, readShorts));
+				return effective;
+			}
+			return mCurrentVolume;
+		}
 	}
 
 	static void compensateExynosVolume(final short[] buffer, final int length, final int volumeIndex) {

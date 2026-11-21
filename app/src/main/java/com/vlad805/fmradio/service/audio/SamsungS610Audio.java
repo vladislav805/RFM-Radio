@@ -9,25 +9,33 @@ import android.util.Log;
 public final class SamsungS610Audio implements RoutedAudioPolicy {
     private static final String TAG = "SamsungS610Audio";
 
-    public interface HardwareVolumeListener {
-        void onVolumeChanged(int volume0To15);
+    public interface HardwareVolumeController {
+        interface Completion {
+            void onApplied(int volume0To15);
+            void onFailed();
+        }
+
+        void setVolume(int volume0To15, Completion completion);
     }
 
     private final AudioManager mAudioManager;
-    private final HardwareVolumeListener mHardwareVolumeListener;
-    private volatile int mLastVolume = -1;
+    private final HardwareVolumeController mHardwareVolumeController;
+    private final Object mVolumeLock = new Object();
+    private int mRequestedVolume = -1;
+    private volatile int mAppliedVolume = -1;
+    private int mPendingGeneration = 0;
     private volatile VolumeProvider mRecordingVolumeProvider;
 
     public SamsungS610Audio(
             final AudioManager audioManager,
-            final HardwareVolumeListener hardwareVolumeListener
+            final HardwareVolumeController hardwareVolumeController
     ) {
         mAudioManager = audioManager;
-        mHardwareVolumeListener = hardwareVolumeListener;
+        mHardwareVolumeController = hardwareVolumeController;
     }
 
-    public int getLastVolume() {
-        return mLastVolume;
+    public int getAppliedVolume() {
+        return mAppliedVolume;
     }
 
     public void setRecordingVolumeProvider(final VolumeProvider provider) {
@@ -40,7 +48,7 @@ public final class SamsungS610Audio implements RoutedAudioPolicy {
             return;
         }
         if (!enabled) {
-            mLastVolume = -1;
+            resetVolumeState();
         }
         applyFrameworkRoute(enabled && output == AudioOutput.SPEAKER);
         if (enabled) {
@@ -84,17 +92,60 @@ public final class SamsungS610Audio implements RoutedAudioPolicy {
             final int scaled = maxVolume > 0
                     ? Math.max(0, Math.min(15, Math.round(volumeIndex * 15f / maxVolume)))
                     : 0;
-            if (scaled == mLastVolume) {
-                return;
-            }
-            mLastVolume = scaled;
             Log.d(TAG, "applyVolume(exynos): index=" + volumeIndex + "/" + maxVolume + " scaled=" + scaled);
-            if (mHardwareVolumeListener != null) {
-                mHardwareVolumeListener.onVolumeChanged(scaled);
-            }
+            applyVolumeIndex(scaled);
         } catch (Throwable t) {
             Log.e(TAG, "applyVolume failed", t);
         }
+    }
+
+    void resetVolumeState() {
+        synchronized (mVolumeLock) {
+            mRequestedVolume = -1;
+            mAppliedVolume = -1;
+            mPendingGeneration++;
+        }
+    }
+
+    void applyVolumeIndex(final int scaled) {
+        final int clamped = Math.max(0, Math.min(15, scaled));
+        final int generation;
+        synchronized (mVolumeLock) {
+            if (clamped == mRequestedVolume) {
+                return;
+            }
+            mRequestedVolume = clamped;
+            generation = ++mPendingGeneration;
+        }
+        if (mHardwareVolumeController == null) {
+            synchronized (mVolumeLock) {
+                if (generation == mPendingGeneration) {
+                    mRequestedVolume = mAppliedVolume;
+                }
+            }
+            return;
+        }
+        mHardwareVolumeController.setVolume(clamped, new HardwareVolumeController.Completion() {
+            @Override
+            public void onApplied(final int volume0To15) {
+                synchronized (mVolumeLock) {
+                    // Note: during a full-band scan native responds "ok" immediately and applies
+                    // desired_volume_ on scan completion while hardware mute is active.
+                    if (generation == mPendingGeneration) {
+                        mAppliedVolume = Math.max(0, Math.min(15, volume0To15));
+                    }
+                }
+            }
+
+            @Override
+            public void onFailed() {
+                synchronized (mVolumeLock) {
+                    if (generation == mPendingGeneration) {
+                        mRequestedVolume = mAppliedVolume;
+                    }
+                }
+            }
+        });
     }
 
     private void applyFrameworkRoute(final boolean speakerEnabled) {

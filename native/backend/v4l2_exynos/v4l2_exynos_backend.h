@@ -119,6 +119,7 @@ private:
 
     std::mutex ioctl_mutex_;
     std::mutex rds_mutex_;
+    std::mutex volume_mutex_;
     RdsDecoderState rds_;
     std::atomic<uint64_t> rds_generation_{0};
 
@@ -135,7 +136,8 @@ private:
     StartupRegion region_ = StartupRegion::kEurope;
     int spacing_khz_ = 100;
     uint32_t current_frequency_khz_ = 87500;
-    std::atomic<int> volume_{kS610DefaultVolume};
+    int desired_volume_ = kS610DefaultVolume;
+    int applied_volume_ = -1;
     std::atomic<bool> rds_enabled_{false};
     bool soft_mute_ = true;
 };

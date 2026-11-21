@@ -195,4 +195,28 @@ public class RoutingAudioServiceTest {
                 AudioDeviceInfo.TYPE_FM_TUNER
         ));
     }
+
+    @Test
+    public void exynosGainTrackerDefersHigherCompensationUntilBufferedSamplesDrain() {
+        final RoutingAudioService.ExynosGainCompensationTracker tracker =
+                new RoutingAudioService.ExynosGainCompensationTracker(4096, 15);
+
+        assertEquals(15, tracker.nextEffectiveVolume(15, 1024));
+
+        // Hardware dropped 15 -> 1; buffered samples (4096 shorts) must still use conservative 15 (1x).
+        assertEquals(15, tracker.nextEffectiveVolume(1, 2048));
+        assertEquals(15, tracker.nextEffectiveVolume(1, 2048));
+
+        // Buffer is now drained; subsequent read uses applied volume 1.
+        assertEquals(1, tracker.nextEffectiveVolume(1, 1024));
+    }
+
+    @Test
+    public void exynosGainTrackerImmediatelyAppliesLowerCompensationWhenHardwareVolumeIncreases() {
+        final RoutingAudioService.ExynosGainCompensationTracker tracker =
+                new RoutingAudioService.ExynosGainCompensationTracker(4096, 1);
+
+        assertEquals(1, tracker.nextEffectiveVolume(1, 1024));
+        assertEquals(15, tracker.nextEffectiveVolume(15, 1024));
+    }
 }

@@ -953,4 +953,74 @@ TEST(V4l2ExynosBackendTest, SetRegionJapanRetunesOutOfDriverBand) {
     EXPECT_NE(output.find("\"frequency\":90000"), std::string::npos) << output;
 }
 
+TEST(V4l2ExynosBackendTest, SearchCompletionAppliesVolumeChangedDuringFinalizeWindow) {
+    class VolumeRaceScanBackend final : public ScanFakeBackend {
+    public:
+        void set_on_finalize_unmute(std::function<void()> cb) {
+            std::lock_guard<std::mutex> lock(cb_mu_);
+            on_unmute_ = std::move(cb);
+        }
+
+    protected:
+        int v4l2_ioctl(int fd, unsigned long request, void *arg) override {
+            const int ret = ScanFakeBackend::v4l2_ioctl(fd, request, arg);
+            if (ret == 0 && request == VIDIOC_S_CTRL) {
+                const auto *ctrl = static_cast<const struct v4l2_control *>(arg);
+                if (ctrl->id == kS610CidAudioMute && ctrl->value == kS610MuteOff) {
+                    std::function<void()> cb;
+                    {
+                        std::lock_guard<std::mutex> lock(cb_mu_);
+                        if (armed_ && on_unmute_) {
+                            cb = on_unmute_;
+                            on_unmute_ = nullptr;
+                        }
+                    }
+                    if (cb) {
+                        cb();
+                    }
+                }
+            }
+            return ret;
+        }
+
+    public:
+        void arm_unmute_hook() {
+            std::lock_guard<std::mutex> lock(cb_mu_);
+            armed_ = true;
+        }
+
+    private:
+        std::mutex cb_mu_;
+        bool armed_ = false;
+        std::function<void()> on_unmute_;
+    };
+
+    reset_ctl_server_state_for_test();
+    VolumeRaceScanBackend backend;
+    backend.seek_steps = {{-1, EAGAIN, 0, false}};
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(make_default_config()));
+    ASSERT_TRUE(backend.set_volume(6));
+
+    std::atomic<bool> volume_updated{false};
+    backend.set_on_finalize_unmute([&]() {
+        // Runs after search_worker() restored volume_ and unmuted, before search_active_ is cleared.
+        EXPECT_TRUE(backend.set_volume(11));
+        volume_updated.store(true);
+    });
+    backend.arm_unmute_hook();
+
+    ASSERT_TRUE(backend.search());
+    for (int i = 0; i < 100 && !volume_updated.load(); ++i) {
+        usleep(10000);
+    }
+    usleep(50000);
+
+    EXPECT_TRUE(volume_updated.load());
+    EXPECT_EQ(backend.get_written_ctrl(kS610CidAudioVolume), 11);
+
+    ASSERT_TRUE(backend.disable());
+    reset_ctl_server_state_for_test();
+}
+
 }  // namespace

@@ -73,7 +73,29 @@ public final class NativeTunerController {
     }
 
     public void setVolume(final int volume) {
-        sendCommand(new Request("set_volume " + volume));
+        setVolume(volume, null);
+    }
+
+    public void setVolume(
+            final int volume,
+            final com.vlad805.fmradio.service.audio.SamsungS610Audio.HardwareVolumeController.Completion completion
+    ) {
+        sendCommand(new Request("set_volume " + volume)
+                .onResponse(data -> {
+                    if (completion == null) {
+                        return;
+                    }
+                    if (isOkResponse(data)) {
+                        completion.onApplied(volume);
+                    } else {
+                        completion.onFailed();
+                    }
+                })
+                .onError(error -> {
+                    if (completion != null) {
+                        completion.onFailed();
+                    }
+                }));
     }
 
     public void setEventListener(final FMEventCallback callback) {

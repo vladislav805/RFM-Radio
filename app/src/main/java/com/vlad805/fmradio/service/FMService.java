@@ -369,9 +369,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                 final AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
                 final SamsungS610Audio policy = new SamsungS610Audio(
                         audioManager,
-                        volume -> {
+                        (volume, completion) -> {
                             if (mTunerDriver != null) {
-                                mTunerDriver.setVolume(volume);
+                                mTunerDriver.setVolume(volume, completion);
+                            } else if (completion != null) {
+                                completion.onFailed();
                             }
                         }
                 );
