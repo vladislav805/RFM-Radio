@@ -254,7 +254,9 @@ anything else → warning.
   `setSpeakerphoneOn`), V4L2 `FOR_MEDIA` force-use, and Helium-only Slimbus
   refresh callback.
 - `SamsungS610Audio.java` — Samsung Exynos S610 `RoutedAudioPolicy`:
-  `g_fmradio_mute`, `g_fmradio_enable`, framework speaker routing, and
+  `g_fmradio_mute`, `g_fmradio_enable`, `AudioSystem.setForceUse(FOR_FM=8)`
+  speaker routing (direct call with root `set_force_use` fallback in `fmbin`
+  when `MODIFY_AUDIO_ROUTING` is denied), and
   scaled 0..15 hardware volume updates via `HardwareVolumeController`
   (`NativeTunerController.setVolume` with completion callback). Distinguishes
   requested vs confirmed applied volume (`getAppliedVolume()`) using strict

@@ -2,6 +2,7 @@ package com.vlad805.fmradio.helper;
 
 import android.annotation.SuppressLint;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -10,8 +11,9 @@ import java.lang.reflect.Method;
  */
 public class Audio {
     private static final int FOR_MEDIA = 1;
-    private static final int FORCE_NONE = 0;
-    private static final int FORCE_SPEAKER = 1;
+    private static final int DEFAULT_SAMSUNG_FOR_FM = 8;
+    public static final int FORCE_NONE = 0;
+    public static final int FORCE_SPEAKER = 1;
 
     private static Method setForceUseMethod = null;
     private static Method getForceUseMethod = null;
@@ -58,6 +60,33 @@ public class Audio {
             setForceUse(FORCE_SPEAKER);
         } else {
             setForceUse(FORCE_NONE);
+        }
+    }
+
+    /**
+     * Resolves Samsung's AudioSystem.FOR_FM constant (usage=8 in OneUI AudioPolicyManager).
+     */
+    public static int resolveSamsungFmForceUsage() {
+        try {
+            @SuppressLint("PrivateApi")
+            final Class<?> audioSystemClass = Class.forName("android.media.AudioSystem");
+            final Field field = audioSystemClass.getField("FOR_FM");
+            return field.getInt(null);
+        } catch (ReflectiveOperationException e) {
+            return DEFAULT_SAMSUNG_FOR_FM;
+        }
+    }
+
+    public static int invokeSetForceUseDirect(final int usage, final int config) {
+        if (setForceUseMethod == null) {
+            return -1;
+        }
+        try {
+            final Object result = setForceUseMethod.invoke(null, usage, config);
+            return result instanceof Integer ? (Integer) result : 0;
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+            return -1;
         }
     }
 }

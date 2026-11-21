@@ -1,10 +1,10 @@
 package com.vlad805.fmradio.service.audio;
 
-import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.VolumeProvider;
-import android.os.Build;
 import android.util.Log;
+
+import com.vlad805.fmradio.helper.Audio;
 
 public final class SamsungS610Audio implements RoutedAudioPolicy {
     private static final String TAG = "SamsungS610Audio";
@@ -18,8 +18,13 @@ public final class SamsungS610Audio implements RoutedAudioPolicy {
         void setVolume(int volume0To15, Completion completion);
     }
 
+    public interface ForceUseFallback {
+        void setForceUse(int usage, int config);
+    }
+
     private final AudioManager mAudioManager;
     private final HardwareVolumeController mHardwareVolumeController;
+    private final ForceUseFallback mForceUseFallback;
     private final Object mVolumeLock = new Object();
     private int mRequestedVolume = -1;
     private volatile int mAppliedVolume = -1;
@@ -30,8 +35,17 @@ public final class SamsungS610Audio implements RoutedAudioPolicy {
             final AudioManager audioManager,
             final HardwareVolumeController hardwareVolumeController
     ) {
+        this(audioManager, hardwareVolumeController, null);
+    }
+
+    public SamsungS610Audio(
+            final AudioManager audioManager,
+            final HardwareVolumeController hardwareVolumeController,
+            final ForceUseFallback forceUseFallback
+    ) {
         mAudioManager = audioManager;
         mHardwareVolumeController = hardwareVolumeController;
+        mForceUseFallback = forceUseFallback;
     }
 
     public int getAppliedVolume() {
@@ -50,17 +64,16 @@ public final class SamsungS610Audio implements RoutedAudioPolicy {
         if (!enabled) {
             resetVolumeState();
         }
+        sendAudioParameter("g_fmradio_mute", "true");
         applyFrameworkRoute(enabled && output == AudioOutput.SPEAKER);
         if (enabled) {
             if (updateVolume) {
                 applyVolume();
             }
-            sendAudioParameter("g_fmradio_mute", "true");
             sendAudioParameter("g_fmradio_mute", "false");
             sendAudioParameter("g_fmradio_enable", "true");
             return;
         }
-        sendAudioParameter("g_fmradio_mute", "true");
         sendAudioParameter("g_fmradio_enable", "false");
     }
 
@@ -148,21 +161,19 @@ public final class SamsungS610Audio implements RoutedAudioPolicy {
         });
     }
 
+    /**
+     * Samsung's FM audio HAL routes analog FM playback through AudioPolicyManager
+     * under usage FOR_FM (8), not FOR_COMMUNICATION (setSpeakerphoneOn) or FOR_MEDIA (1).
+     * Direct AudioSystem.setForceUse() requires MODIFY_AUDIO_ROUTING on Android 11+,
+     * so when it returns an error we fall back to the root fmbin process.
+     */
     private void applyFrameworkRoute(final boolean speakerEnabled) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (speakerEnabled) {
-                    for (final AudioDeviceInfo device : mAudioManager.getAvailableCommunicationDevices()) {
-                        if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
-                            mAudioManager.setCommunicationDevice(device);
-                            return;
-                        }
-                    }
-                } else {
-                    mAudioManager.clearCommunicationDevice();
-                }
+            final int usage = Audio.resolveSamsungFmForceUsage();
+            final int config = speakerEnabled ? Audio.FORCE_SPEAKER : Audio.FORCE_NONE;
+            if (Audio.invokeSetForceUseDirect(usage, config) != 0 && mForceUseFallback != null) {
+                mForceUseFallback.setForceUse(usage, config);
             }
-            mAudioManager.setSpeakerphoneOn(speakerEnabled);
         } catch (Throwable t) {
             Log.w(TAG, "applyFrameworkRoute failed for speaker=" + speakerEnabled, t);
         }

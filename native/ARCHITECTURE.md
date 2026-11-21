@@ -282,6 +282,7 @@ NUL behavior.
 | `set_soft_mute <0|1>` | Enable or disable weak-signal attenuation | `ok` |
 | `set_notch_filter <0|1|2>` | Set hardware notch filter (0=auto, 1=low, 2=high) | `ok` |
 | `set_volume <0..15>` | Set hardware FM gain (`V4L2_CID_AUDIO_VOLUME` on Exynos; no-op elsewhere, immediate response without 300 ms delay) | `ok` |
+| `set_force_use <usage> <config>` | Call `android::AudioSystem::setForceUse(usage, config)` as root via `libaudioclient.so`/`libmedia.so` when app lacks `MODIFY_AUDIO_ROUTING` (immediate response) | `ok` |
 | `set_antenna <value>` | Select antenna | `ok` |
 | `set_region <name>` | Change region and clamp current tune if needed | `ok` |
 | `set_spacing <50|100|200>` | Change channel spacing | `ok` |

@@ -375,6 +375,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
                             } else if (completion != null) {
                                 completion.onFailed();
                             }
+                        },
+                        (usage, config) -> {
+                            if (mTunerDriver != null) {
+                                mTunerDriver.setForceUse(usage, config);
+                            }
                         }
                 );
                 audioService = new RoutingAudioService(this, policy);

@@ -76,6 +76,10 @@ public final class NativeTunerController {
         setVolume(volume, null);
     }
 
+    public void setForceUse(final int usage, final int config) {
+        sendCommand(new Request("set_force_use " + usage + " " + config));
+    }
+
     public void setVolume(
             final int volume,
             final com.vlad805.fmradio.service.audio.SamsungS610Audio.HardwareVolumeController.Completion completion
