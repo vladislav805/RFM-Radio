@@ -241,6 +241,7 @@ TEST(V4l2ExynosBackendTest, UsesS610FrequencyMultiplierMutePolarityAndVolumeClam
     EXPECT_EQ(backend.raw_frequency_units(), 101700u * 16000u);
     EXPECT_EQ(backend.get_written_ctrl(kS610CidAudioMute), kS610MuteOff);
     EXPECT_EQ(backend.get_written_ctrl(kS610CidAudioVolume), kS610DefaultVolume);
+    EXPECT_EQ(backend.get_written_ctrl(kS610CidRdsOn), 1);
 
     EXPECT_TRUE(backend.set_volume(20));
     EXPECT_EQ(backend.get_written_ctrl(kS610CidAudioVolume), 15);
@@ -259,6 +260,7 @@ TEST(V4l2ExynosBackendTest, UsesS610FrequencyMultiplierMutePolarityAndVolumeClam
 
     EXPECT_TRUE(backend.disable());
     EXPECT_EQ(backend.get_written_ctrl(kS610CidAudioMute), kS610MuteOn);
+    EXPECT_EQ(backend.get_written_ctrl(kS610CidRdsOn), 0);
     backend.shutdown();
     reset_ctl_server_state_for_test();
 }

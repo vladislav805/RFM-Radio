@@ -53,6 +53,10 @@ Audio routing and capture run separately in Android's audio HAL through
   writes `V4L2_CID_S610_SEEK_CANCEL`, which the kernel checks without taking
   `s610_core_lock`.
 - **RDS state resets and stabilization**:
+  - `V4L2_CID_S610_RDS_ON` is a bitmask in `radio-s610.c` (`FM_RDS_ENABLE = 1`,
+    `RDS_PARSER_ENABLE = 4`): `fmbin` writes `1` (raw 3-byte block stream,
+    in-kernel parser off) and disables with `0`. Stock `com.sec.android.app.fm`
+    writes `5` (`1 | 4`) for the in-kernel parser, which breaks raw reads.
   - `drain_rds_fifo()` flushes stale kernel FIFO blocks on enable/tune/seek
     (checking `poll(0)` first so `read()` never blocks).
   - Any 3-byte block with `errors != 0` aborts the in-flight group.

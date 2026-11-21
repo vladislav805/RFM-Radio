@@ -145,7 +145,7 @@ indices refer to raw characters.
   `O_NONBLOCK` is set (temporarily cleared around seek); `V4L2_CID_AUDIO_VOLUME`
   (`0..15`) drives hardware gain (`vol_level_init[0..15]` in `radio-s610.c`
   attenuates upstream of PCM capture); RDS uses raw 3-byte blocks
-  (`V4L2_CID_S610_RDS_ON = 1`), drops blocks with `errors != 0`, and requires
+  (`V4L2_CID_S610_RDS_ON = 1` = `FM_RDS_ENABLE` without `RDS_PARSER_ENABLE` bit `0x04`; `5` from stock enables the in-kernel parser and breaks raw 3-byte reads), drops blocks with `errors != 0`, and requires
   2 consecutive hits for `PI`, `PTY`, `PS`, and `country` (suppressing mid-cycle
   dynamic PS splices); `kS610CidSnrCurr` is clamped to `[-128, 127]` before JSON emission.
 

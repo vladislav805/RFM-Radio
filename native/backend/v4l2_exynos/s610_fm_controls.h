@@ -44,7 +44,10 @@ constexpr int32_t kS610Spacing50Khz = 0;
 constexpr int32_t kS610Spacing100Khz = 1;
 constexpr int32_t kS610Spacing200Khz = 2;
 
-// S610 RDS modes: raw 3-byte block stream disables the in-kernel parser.
+// S610 RDS modes (bitmask in radio-s610.c s610_radio_s_ctrl):
+//   bit 0 (0x01, FM_RDS_ENABLE): enables RDS reception
+//   bit 2 (0x04, RDS_PARSER_ENABLE): enables the in-kernel RDS parser
+// Official Samsung app writes 5 (1 | 4) for parsed events; fmbin needs 1 (raw 3-byte blocks).
 constexpr int32_t kS610RdsDisable = 0;
 constexpr int32_t kS610RdsEnableRaw = 1;
 
