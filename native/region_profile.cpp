@@ -40,6 +40,24 @@ constexpr RegionProfile kJapanWideProfile = {
         .helium_region = 3,
 };
 
+constexpr RegionProfile kMod1Profile = {
+        .lower_frequency_khz = 30000,
+        .upper_frequency_khz = 999000,
+        .emphasis = kFmEmphasis50Microseconds,
+        .rds_standard = kFmRdsStandardRds,
+        .legacy_band = 4,
+        .helium_region = 0,
+};
+
+constexpr RegionProfile kMod1Profile = {
+        .lower_frequency_khz = 30000,
+        .upper_frequency_khz = 999000,
+        .emphasis = kFmEmphasis75Microseconds,
+        .rds_standard = kFmRdsStandardRds,
+        .legacy_band = 5,
+        .helium_region = 0,
+};
+
 }  // namespace
 
 const RegionProfile &get_region_profile(StartupRegion region) {
@@ -52,6 +70,15 @@ const RegionProfile &get_region_profile(StartupRegion region) {
 
         case StartupRegion::kJapanWide:
             return kJapanWideProfile;
+
+        case StartupRegion::kJapanWide:
+            return kJapanWideProfile;
+
+        case StartupRegion::kMod1:
+            return kMod1Profile;
+
+        case StartupRegion::kMod2:
+            return kMod2Profile;
 
         case StartupRegion::kEurope:
         default:
@@ -69,6 +96,12 @@ const char *get_region_name(StartupRegion region) {
 
         case StartupRegion::kJapanWide:
             return "jp_wide";
+
+        case StartupRegion::kMod1:
+            return "mod1";
+
+        case StartupRegion::kJapanWide:
+            return "mod2";
 
         case StartupRegion::kEurope:
         default:
