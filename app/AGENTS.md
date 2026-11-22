@@ -19,7 +19,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
 | `service/recording/` | 12 files: `PcmFormat`, WAV/MP3 recording, SRT subtitles, storage |
 | `fragments/` | `PreferencesFragment` — settings built in code, no `res/xml` |
-| `view/` | `RadioUIView`, `FrequencyDialView`, `FrequencyBarView`, `FavoritesView`, `SignalStrength`, adapters |
+| `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum, `BandUtils` |
 
 `service/streaming/` is an empty leftover. `app/src/main/cpp/` is the LAME

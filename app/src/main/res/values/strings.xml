@@ -1,6 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 	<string name="app_name">RFM Radio</string>
-	<string name="nil" translatable="false">null</string>
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
@@ -12,7 +11,6 @@
 	<string name="status_installing">Installing…</string>
 	<string name="status_launching">Launching…</string>
 	<string name="favorites_empty_hint">No favorites yet. Tap + to add the current frequency.</string>
-	<string name="open_favorites_lists">Open favorites lists</string>
 	<string name="favorites_edit">Edit</string>
 	<string name="favorites_done">Done</string>
 	<string name="signal_strength_indicator">Signal strength</string>
@@ -34,8 +32,6 @@
 	<string name="popup_station_remove">Remove</string>
 	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Create list</string>
-	<string name="menu_favorite_list_remove">Remove this list</string>
-	<string name="menu_favorite_list_rename">Rename this list</string>
 	<string name="menu_favorite_list_import">Import list</string>
 	<string name="menu_favorite_list_export">Export list</string>
 	<string name="menu_favorite_list_export_all">Export all lists</string>
@@ -168,7 +164,6 @@
     <string name="mhz_unit" translatable="false">MHz</string>
     <string name="rds_placeholder" translatable="false">—</string>
     <string name="rds_rt_empty">No RadioText broadcast</string>
-    <string name="rds_rt_label" translatable="false">RT</string>
     <string name="rds_rt_plus_label" translatable="false">RT+</string>
     <string name="rds_rt_plus_title">Title</string>
     <string name="rds_rt_plus_artist">Artist</string>

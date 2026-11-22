@@ -1,6 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 	<string name="app_name">RFM Radio</string>
-	<string name="nil" translatable="false">null</string>
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
 	<string name="toggle_play_pause">Graj</string>
 	<string name="jump_up">Przeskocz</string>
@@ -12,7 +11,6 @@
 	<string name="status_installing">Instalowanie backendu FM…</string>
 	<string name="status_launching">Uruchamianie backendu FM…</string>
 	<string name="favorites_empty_hint">Lista ulubionych jest pusta. Naciśnij +, aby dodać bieżącą częstotliwość.</string>
-	<string name="open_favorites_lists">Otwórz listy ulubionych</string>
 	<string name="favorites_edit">Edytuj</string>
 	<string name="favorites_done">Gotowe</string>
 	<string name="signal_strength_indicator">Siła sygnału</string>
@@ -34,8 +32,6 @@
 	<string name="popup_station_remove">Usuń</string>
 	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Stwórz listę</string>
-	<string name="menu_favorite_list_remove">Usuń listę</string>
-	<string name="menu_favorite_list_rename">Zmień nazwę listy</string>
 	<string name="menu_favorite_list_import">Importuj listę</string>
 	<string name="menu_favorite_list_export">Eksportuj listę</string>
 	<string name="menu_favorite_list_export_selected">Eksportuj wybrane listy</string>

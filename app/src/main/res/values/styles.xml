@@ -42,44 +42,4 @@
 		<item name="android:insetLeft">0dp</item>
 		<item name="android:insetRight">0dp</item>
 	</style>
-
-	<style name="RfmSegmentedButton" parent="Widget.Material3.Button.OutlinedButton">
-		<item name="android:minWidth">0dp</item>
-		<item name="android:minHeight">0dp</item>
-		<item name="android:insetTop">0dp</item>
-		<item name="android:insetBottom">0dp</item>
-		<item name="android:paddingStart">12dp</item>
-		<item name="android:paddingEnd">12dp</item>
-		<item name="android:paddingTop">4dp</item>
-		<item name="android:paddingBottom">4dp</item>
-		<item name="android:textSize">11sp</item>
-		<item name="android:textStyle">bold</item>
-	</style>
-
-	<!-- Frequency TextView and reflection -->
-	<style name="Frequency">
-		<item name="android:lineSpacingMultiplier">1</item>
-		<item name="android:lineSpacingExtra">0sp</item>
-		<item name="android:gravity">end</item>
-		<item name="android:textSize">52sp</item>
-		<item name="android:textColor">?attr/colorOnSurface</item>
-	</style>
-
-	<style name="RDS_PS">
-		<item name="android:fontFamily">monospace</item>
-		<item name="android:textSize">18sp</item>
-		<item name="android:textColor">?attr/colorOnSurface</item>
-		<item name="android:gravity">start|center_vertical</item>
-	</style>
-
-	<style name="RDS_RT">
-		<item name="android:textSize">14sp</item>
-		<item name="android:textColor">?attr/colorOnSurfaceVariant</item>
-		<item name="android:gravity">start|top</item>
-	</style>
-	<style name="RDS_PTY">
-		<item name="android:textSize">12sp</item>
-		<item name="android:textColor">?attr/colorOnSurfaceVariant</item>
-		<item name="android:gravity">start|center_vertical</item>
-	</style>
 </resources>

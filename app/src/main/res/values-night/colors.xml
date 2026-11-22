@@ -3,13 +3,10 @@
 	<bool name="rfm_light_system_bars">false</bool>
 
 	<!-- Legacy & Android references -->
-	<color name="color_accent">@color/primary_blue</color>
 	<color name="ic_launcher_background">#000000</color>
-	<color name="main_background">#121316</color>
 	<color name="primary_blue">#8AB4F8</color>
 	<color name="text_primary">#E3E3E3</color>
 	<color name="text_secondary">#9AA0A6</color>
-	<color name="favorite_station_active_stroke">#998AB4F8</color>
 	<color name="record_active">#F28B82</color>
 
 	<!-- Material 3 Dark Palette (Fallback for Android < 12) -->

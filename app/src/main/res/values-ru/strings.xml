@@ -11,8 +11,6 @@
 	<string name="jump_up">Прыгнуть вперед</string>
 	<string name="menu_about">О приложении</string>
 	<string name="menu_favorite_list_create">Создать список</string>
-	<string name="menu_favorite_list_remove">Удалить этот список</string>
-	<string name="menu_favorite_list_rename">Переименовать этот список</string>
 	<string name="menu_favorite_list_import">Импортировать список</string>
 	<string name="menu_favorite_list_export">Экспортировать список</string>
 	<string name="menu_favorite_list_export_all">Экспортировать все списки</string>
@@ -89,7 +87,6 @@
 	<string name="status_installing">Установка…</string>
 	<string name="status_launching">Запуск…</string>
 	<string name="favorites_empty_hint">Список избранного пуст. Нажмите +, чтобы добавить текущую частоту.</string>
-	<string name="open_favorites_lists">Открыть списки избранного</string>
 	<string name="favorites_edit">Изменить</string>
 	<string name="favorites_done">Готово</string>
 	<string name="signal_strength_indicator">Уровень сигнала</string>
