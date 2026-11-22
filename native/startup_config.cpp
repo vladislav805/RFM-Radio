@@ -55,6 +55,10 @@ bool parse_region_name(std::string_view value, StartupRegion *region) {
         *region = StartupRegion::kJapan;
     } else if (value == "jp_wide") {
         *region = StartupRegion::kJapanWide;
+    } else if (value == "mod1") {
+        *region = StartupRegion::kMod1;
+    } else if (value == "mod2") {
+        *region = StartupRegion::kMod2;
     } else {
         return false;
     }
@@ -63,6 +67,7 @@ bool parse_region_name(std::string_view value, StartupRegion *region) {
 
 bool parse_spacing_khz(std::string_view value, int *spacing_khz) {
     return parse_int(value, spacing_khz) && (
+        *spacing_khz == 10 ||
         *spacing_khz == 50 ||
         *spacing_khz == 100 ||
         *spacing_khz == 200
@@ -109,7 +114,7 @@ bool parse_startup_config(
                 return fail(error, "duplicate freq");
             }
 
-            if (!parse_int(value, &frequency) || frequency < 76000 || frequency > 108000) {
+            if (!parse_int(value, &frequency) || frequency < 30000 || frequency > 999000) {
                 return fail(error, "invalid freq");
             }
 
