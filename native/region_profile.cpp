@@ -100,7 +100,7 @@ const char *get_region_name(StartupRegion region) {
         case StartupRegion::kMod1:
             return "mod1";
 
-        case StartupRegion::kJapanWide:
+        case StartupRegion::kMod2:
             return "mod2";
 
         case StartupRegion::kEurope:
