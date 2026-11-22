@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<bool name="rfm_light_system_bars">false</bool>
+
+	<!-- Legacy & Android references -->
+	<color name="ic_launcher_background">#000000</color>
+	<color name="primary_blue">#8AB4F8</color>
+	<color name="text_primary">#E3E3E3</color>
+	<color name="text_secondary">#9AA0A6</color>
+	<color name="record_active">#F28B82</color>
+
+	<!-- Material 3 Dark Palette (Fallback for Android < 12) -->
+	<color name="rfm_md_primary">#8AB4F8</color>
+	<color name="rfm_md_on_primary">#062E6F</color>
+	<color name="rfm_md_primary_container">#0842A0</color>
+	<color name="rfm_md_on_primary_container">#D3E3FD</color>
+	<color name="rfm_md_secondary">#9AA0A6</color>
+	<color name="rfm_md_on_secondary">#1F1F1F</color>
+	<color name="rfm_md_secondary_container">#2B2E33</color>
+	<color name="rfm_md_on_secondary_container">#E3E3E3</color>
+	<color name="rfm_md_tertiary">#FDD663</color>
+	<color name="rfm_md_error_container">#601410</color>
+	<color name="rfm_md_on_error_container">#F9DEDC</color>
+
+	<!-- Semantic accents -->
+	<color name="rfm_record">#F28B82</color>
+</resources>

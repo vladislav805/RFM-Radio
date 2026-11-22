@@ -3,12 +3,14 @@ package com.vlad805.fmradio.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
+import com.google.android.material.color.DynamicColors;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Utils;
 
 public class StartupBlockedActivity extends AppCompatActivity {
     private static final String EXTRA_REASON = "reason";
@@ -31,6 +33,7 @@ public class StartupBlockedActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
         mReason = getIntent().getIntExtra(EXTRA_REASON, REASON_UNSUPPORTED_DEVICE);
 
@@ -47,5 +50,16 @@ public class StartupBlockedActivity extends AppCompatActivity {
         setSupportActionBar(findViewById(R.id.startup_blocked_toolbar));
         ((TextView) findViewById(R.id.startup_blocked_title)).setText(titleRes);
         ((TextView) findViewById(R.id.startup_blocked_message)).setText(messageRes);
+
+        final View card = findViewById(R.id.startup_blocked_card);
+        final float offset = 16f * getResources().getDisplayMetrics().density;
+        card.setAlpha(0f);
+        card.setTranslationY(offset);
+        card.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(240L)
+                .setInterpolator(new FastOutSlowInInterpolator())
+                .start();
     }
 }

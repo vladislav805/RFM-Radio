@@ -1,4 +1,4 @@
-.PHONY: help test test-native test-java test-integration build-native build-debug build-release clean-native-tests
+.PHONY: help test test-native test-java test-integration build-native build-debug build-release deploy-debug deploy-release clean-native-tests
 
 NATIVE_TEST_BUILD_DIR ?= /tmp/rfm-radio-native-tests
 
@@ -23,6 +23,18 @@ build-debug:
 
 build-release:
 	./gradlew --no-daemon :app:assembleRelease
+
+deploy-debug:
+	./gradlew --no-daemon :app:installDebug
+
+deploy-release: build-release
+	@APK=$$(ls -1 app/build/outputs/apk/release/*.apk | head -n 1); \
+	SDK_ROOT="$${ANDROID_SDK_ROOT:-$${ANDROID_HOME:-$$HOME/Android/Sdk}}"; \
+	APKSIGNER=$$(ls -1d "$$SDK_ROOT"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1); \
+	if [ -n "$$APKSIGNER" ] && ! "$$APKSIGNER" verify "$$APK" >/dev/null 2>&1; then \
+		"$$APKSIGNER" sign --ks "$$HOME/.android/debug.keystore" --ks-pass pass:android --key-pass pass:android "$$APK"; \
+	fi; \
+	adb install -r "$$APK"
 
 clean-native-tests:
 	rm -rf "$(NATIVE_TEST_BUILD_DIR)"

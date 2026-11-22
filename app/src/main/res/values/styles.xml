@@ -1,43 +1,45 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
-	<!-- Default style for all activities -->
-	<style name="AppCompatTheme" parent="Theme.AppCompat.NoActionBar">
-		<item name="android:windowBackground">@color/main_background</item>
-		<item name="android:colorBackground">@color/main_background</item>
-		<item name="android:statusBarColor">@color/main_background</item>
-		<item name="android:navigationBarColor">@color/main_background</item>
+	<!-- Default Material 3 DayNight theme for all activities -->
+	<style name="AppCompatTheme" parent="Theme.Material3.DayNight.NoActionBar">
+		<item name="colorPrimary">@color/rfm_md_primary</item>
+		<item name="colorOnPrimary">@color/rfm_md_on_primary</item>
+		<item name="colorPrimaryContainer">@color/rfm_md_primary_container</item>
+		<item name="colorOnPrimaryContainer">@color/rfm_md_on_primary_container</item>
+		<item name="colorSecondary">@color/rfm_md_secondary</item>
+		<item name="colorOnSecondary">@color/rfm_md_on_secondary</item>
+		<item name="colorSecondaryContainer">@color/rfm_md_secondary_container</item>
+		<item name="colorOnSecondaryContainer">@color/rfm_md_on_secondary_container</item>
+		<item name="colorTertiary">@color/rfm_md_tertiary</item>
+		<item name="colorErrorContainer">@color/rfm_md_error_container</item>
+		<item name="colorOnErrorContainer">@color/rfm_md_on_error_container</item>
+		<item name="android:windowBackground">?android:attr/colorBackground</item>
+		<item name="android:statusBarColor">@android:color/transparent</item>
+		<item name="android:navigationBarColor">@android:color/transparent</item>
+		<item name="android:windowLightStatusBar">@bool/rfm_light_system_bars</item>
+		<item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/rfm_light_system_bars</item>
+		<item name="actionBarTheme">@style/ThemeOverlay.Material3.Dark.ActionBar</item>
 	</style>
 
-	<style name="DialogActivityTheme" parent="Theme.AppCompat.Dialog">
+	<style name="DialogActivityTheme" parent="Theme.Material3.DayNight.Dialog">
 		<item name="windowNoTitle">true</item>
 		<item name="android:windowBackground">@android:color/transparent</item>
 		<item name="android:backgroundDimEnabled">true</item>
 	</style>
 
-	<!-- Frequency TextView and reflection -->
-	<style name="Frequency">
-		<item name="android:lineSpacingMultiplier">1</item>
-		<item name="android:lineSpacingExtra">0sp</item>
-		<item name="android:gravity">end</item>
-		<item name="android:textSize">80sp</item>
-		<item name="android:textColor">@android:color/white</item>
+	<!-- Compact Material 3 IconButton for transport deck & headers -->
+	<style name="RfmIconButtonTonal" parent="Widget.Material3.Button.IconButton.Filled.Tonal">
+		<item name="android:insetTop">0dp</item>
+		<item name="android:insetBottom">0dp</item>
+		<item name="android:insetLeft">0dp</item>
+		<item name="android:insetRight">0dp</item>
+		<item name="cornerRadius">16dp</item>
 	</style>
 
-	<style name="RDS_PS">
-		<item name="android:fontFamily">monospace</item>
-		<item name="android:textSize">20sp</item>
-		<item name="android:textColor">@color/text_primary</item>
-		<item name="android:gravity">start|center_vertical</item>
-	</style>
-
-	<style name="RDS_RT">
-		<item name="android:textSize">16sp</item>
-		<item name="android:textColor">@color/text_secondary</item>
-		<item name="android:gravity">start|top</item>
-	</style>
-	<style name="RDS_PTY">
-		<item name="android:textSize">14sp</item>
-		<item name="android:textColor">@color/text_secondary</item>
-		<item name="android:gravity">start|center_vertical</item>
+	<style name="RfmIconButtonStandard" parent="Widget.Material3.Button.IconButton">
+		<item name="android:insetTop">0dp</item>
+		<item name="android:insetBottom">0dp</item>
+		<item name="android:insetLeft">0dp</item>
+		<item name="android:insetRight">0dp</item>
 	</style>
 </resources>

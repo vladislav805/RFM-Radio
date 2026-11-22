@@ -1212,13 +1212,22 @@ void V4l2QcomBackend::event_thread() {
                 case TAVARUA_EVT_SCAN_NEXT: {
                     const int current_frequency = static_cast<int>(receiver_get_tuned_frequency());
                     int collected_frequency = 0;
+                    int progress_count = 0;
                     {
                         std::lock_guard<std::mutex> lock(state_lock_);
+                        const int before_count = legacy_scan_.station_count();
                         collected_frequency = legacy_scan_.on_scan_next(current_frequency);
+                        const int after_count = legacy_scan_.station_count();
+                        if (after_count > before_count) {
+                            progress_count = after_count;
+                        }
                     }
 
                     log("search", "scan next frequency_khz=%d collected_frequency_khz=%d",
                             current_frequency, collected_frequency);
+                    if (progress_count > 0) {
+                        send_search_progress(progress_count);
+                    }
                     break;
                 }
 

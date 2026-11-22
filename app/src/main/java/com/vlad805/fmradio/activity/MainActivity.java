@@ -1,30 +1,45 @@
 package com.vlad805.fmradio.activity;
 
 import android.Manifest;
+import android.animation.ArgbEvaluator;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.net.Uri;
-import android.os.Bundle;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.widget.ImageButton;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.service.recording.RecordingStorage;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
@@ -36,31 +51,34 @@ import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
-import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.Toast;
+import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
+import com.vlad805.fmradio.service.recording.RecordingStorage;
 import com.vlad805.fmradio.view.FavoritesView;
-import com.vlad805.fmradio.view.FrequencyBarView;
+import com.vlad805.fmradio.view.FrequencyDialView;
 import com.vlad805.fmradio.view.RadioUIView;
 import com.vlad805.fmradio.view.SignalStrengthView;
 
-import static com.vlad805.fmradio.Utils.alert;
-import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
-
 import net.grandcentrix.tray.AppPreferences;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+
+import static com.vlad805.fmradio.Utils.alert;
+import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 @SuppressLint("NonConstantResourceId")
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
-    private FrequencyBarView mSeek;
+    private FrequencyDialView mSeek;
     private FavoritesView mFavoritesView;
 
     private RadioController mRadioController;
@@ -69,18 +87,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private AppPreferences mPreferences;
 
-    private ImageButton mCtlToggle;
-
+    private MaterialButton mCtlToggle;
+    private MaterialCardView mViewStereoModeCard;
     private TextView mViewStereoMode;
+    private MaterialCardView mAfBadgeCard;
+    private TextView mAfBadge;
     private SignalStrengthView mSignalStrength;
 
+    private MaterialCardView mBtnRecord;
+    private ImageView mRecordDot;
     private TextView mRecordDuration;
 
     private RadioState mLastState;
 
-    private MenuItem mRecordDurationMenuItem;
-    private MenuItem mRecordMenuItem;
-    private MenuItem mSpeakerMenuItem;
+    private static final int MENU_SETTINGS = 1;
+    private static final int MENU_SCAN = 2;
+    private static final int MENU_SPEAKER = 3;
+    private static final int MENU_ABOUT = 4;
 
     private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
@@ -91,8 +114,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean mPendingPlaybackStart = false;
     private boolean mPlaybackPermissionRequested = false;
 
+    private final Handler mUiHandler = new Handler(Looper.getMainLooper());
+    private boolean mRecordTickerRunning = false;
+    private ObjectAnimator mRecordPulseAnimator;
+    private ValueAnimator mPowerColorAnimator;
+    private Boolean mLastPowerPlaying;
+
+    private final Runnable mRecordTicker = new Runnable() {
+        @Override
+        public void run() {
+            if (mLastState == null || !mLastState.isRecording()) {
+                mRecordTickerRunning = false;
+                return;
+            }
+
+            final long durationSec = Math.max(0L, mLastState.getRecordingDuration());
+            if (mRecordDuration != null) {
+                mRecordDuration.setText(getTimeStringBySeconds(durationSec));
+            }
+            mUiHandler.postDelayed(this, 500L);
+        }
+    };
+
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
 
         if (!Utils.isRootEnvironmentAvailable()) {
@@ -113,8 +159,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mToast = Toast.create(this);
 
-        setSupportActionBar(findViewById(R.id.main_toolbar));
-
         mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);
         mFavoriteController = new FavoriteController(this);
@@ -130,15 +174,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Activity handle, UI setup
      */
     private void initUserInterface() {
-        mFrequencyInfo = findViewById(R.id.frequency_info);
+        mFrequencyInfo = new RadioUIView(findViewById(R.id.main_root));
 
         mFavoritesView = findViewById(R.id.favorite_list);
-        mFavoritesView.setOnFavoritesChangedListener(() -> {
-            updateFavoriteFrequencyMarkers();
-        });
-        mFavoritesView.setOnErrorListener(message -> {
-            mToast.text(message).show();
-        });
+        mFavoritesView.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
+        mFavoritesView.setOnErrorListener(message -> mToast.text(message).show());
 
         mSeek = findViewById(R.id.frequency_seek);
 
@@ -180,6 +220,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onDestroy() {
         super.onDestroy();
 
+        mUiHandler.removeCallbacks(mRecordTicker);
+        mRecordTickerRunning = false;
+        stopRecordPulseAnimation();
+        if (mPowerColorAnimator != null) {
+            mPowerColorAnimator.cancel();
+            mPowerColorAnimator = null;
+        }
+        if (mFrequencyInfo != null) {
+            mFrequencyInfo.release();
+        }
+
         if (mRadioController != null) {
             mRadioController.unregisterForUpdates();
         }
@@ -190,10 +241,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
         switch (requestCode) {
             case REQUEST_CODE_FAVORITES_OPENED: {
-                if (resultCode == Activity.RESULT_OK && data.getBooleanExtra("changed", false)) {
+                if (resultCode == Activity.RESULT_OK && data != null && data.getBooleanExtra("changed", false)) {
                     mFavoritesView.reload(true);
                     updateFavoriteFrequencyMarkers();
                 }
@@ -201,7 +252,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             case REQUEST_CODE_SETTINGS_CHANGED: {
-                if (resultCode == RESULT_OK && data.getBooleanExtra("changed", false)) {
+                if (resultCode == RESULT_OK && data != null && data.getBooleanExtra("changed", false)) {
                     alert(
                             this,
                             R.string.main_warning_pref_changed_title,
@@ -209,6 +260,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             android.R.string.ok
                     );
                 }
+                break;
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
@@ -244,11 +296,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
+        mViewStereoModeCard = findViewById(R.id.stereo_mono_card);
         mViewStereoMode = findViewById(R.id.stereo_mono);
-        if (TunerDriverDetector.isExynos(this)) {
-            mViewStereoMode.setVisibility(View.GONE);
+        if (TunerDriverDetector.isExynos(this) && mViewStereoModeCard != null) {
+            mViewStereoModeCard.setVisibility(View.GONE);
         }
+        mAfBadgeCard = findViewById(R.id.af_badge_card);
+        mAfBadge = findViewById(R.id.af_badge);
         mSignalStrength = findViewById(R.id.signal_strength);
+
+        mBtnRecord = findViewById(R.id.btn_record);
+        mRecordDot = findViewById(R.id.record_dot);
+        mRecordDuration = findViewById(R.id.record_duration_text);
 
         final int[] ids = {
                 R.id.ctl_toggle,
@@ -256,20 +315,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.ctl_go_up,
                 R.id.ctl_seek_down,
                 R.id.ctl_seek_up,
-                R.id.favorite_button
+                R.id.favorite_button,
+                R.id.btn_record,
+                R.id.btn_settings_menu,
+                R.id.af_badge_card
         };
 
-        for (int id : ids) {
-            findViewById(id).setOnClickListener(this);
+        for (final int id : ids) {
+            final View view = findViewById(id);
+            if (view != null) {
+                view.setOnClickListener(this);
+            }
         }
+
+        updateAfUi(null);
+        updateStereoUi(false);
     }
 
     @Override
     public void onClick(final View view) {
-        int id = view.getId();
+        final int id = view.getId();
 
         if (id == R.id.ctl_toggle) {
-            // Main play/stop button
+            // Main power toggle button
             switch (mRadioController.getState().getStatus()) {
                 case IDLE: {
                     if (ensurePlaybackPermissionForLegacyAudio()) {
@@ -296,69 +364,116 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mFrequencyInfo.showStatus(R.string.status_searching_station);
         } else if (id == R.id.favorite_button) {
             startActivityForResult(new Intent(this, FavoriteListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
+        } else if (id == R.id.btn_record) {
+            toggleRecording();
+        } else if (id == R.id.btn_settings_menu) {
+            showSettingsPopupMenu(view);
+        } else if (id == R.id.af_badge_card) {
+            showAfFrequenciesDialog();
         }
+    }
+
+    private void toggleRecording() {
+        if (mRadioController.getState().getStatus() != TunerStatus.ENABLED) {
+            return;
+        }
+
+        if (mRadioController.getState().isRecording()) {
+            mRadioController.record(false);
+            return;
+        }
+
+        if (hasRecordingPermissions()) {
+            mRadioController.record(true);
+        } else if (shouldOpenRecordingPermissionSettings()) {
+            showRecordingPermissionSettingsDialog();
+        } else {
+            mPendingRecordStart = true;
+            mRecordPermissionsRequested = true;
+
+            final String[] permissions = !RecordingStorage.requiresStoragePermission(this)
+                    ? new String[]{
+                            Manifest.permission.RECORD_AUDIO
+                    }
+                    : new String[]{
+                            Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    };
+
+            ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
+        }
+    }
+
+    private void showSettingsPopupMenu(final View anchor) {
+        final PopupMenu popup = new PopupMenu(this, anchor);
+        final Menu menu = popup.getMenu();
+
+        menu.add(0, MENU_SETTINGS, 1, R.string.menu_settings);
+        final boolean isEnabled = mLastState != null && mLastState.getStatus() == TunerStatus.ENABLED;
+        menu.add(0, MENU_SCAN, 2, R.string.menu_scan_stations).setEnabled(isEnabled);
+        menu.add(0, MENU_SPEAKER, 3, R.string.menu_speaker)
+                .setCheckable(true)
+                .setChecked(mLastState != null && mLastState.isForceSpeaker())
+                .setEnabled(isEnabled);
+        menu.add(0, MENU_ABOUT, 4, R.string.menu_about);
+
+        popup.setOnMenuItemClickListener(item -> {
+            final int itemId = item.getItemId();
+            if (itemId == MENU_SETTINGS) {
+                startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
+                return true;
+            } else if (itemId == MENU_SCAN) {
+                showSearchDialog();
+                return true;
+            } else if (itemId == MENU_SPEAKER) {
+                startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
+                return true;
+            } else if (itemId == MENU_ABOUT) {
+                startActivity(new Intent(this, AboutActivity.class));
+                return true;
+            }
+            return false;
+        });
+
+        popup.show();
+    }
+
+    private void showAfFrequenciesDialog() {
+        final int[] rawAf = mLastState != null ? mLastState.getAf() : null;
+        if (rawAf == null || rawAf.length == 0) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.rds_af_dialog_title)
+                    .setMessage(R.string.rds_af_dialog_empty)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+            return;
+        }
+
+        final int[] sortedAf = Arrays.copyOf(rawAf, rawAf.length);
+        Arrays.sort(sortedAf);
+
+        final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+        final int precision = spacingPref == BandUtils.SPACING_50kHz ? 2 : 1;
+
+        final String[] labels = new String[sortedAf.length];
+        for (int i = 0; i < sortedAf.length; i++) {
+            labels[i] = Utils.getMHz(sortedAf[i], precision).trim() + " MHz";
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.rds_af_dialog_title)
+                .setItems(labels, (dialog, which) -> {
+                    if (which >= 0 && which < sortedAf.length && mRadioController.getState().getStatus() == TunerStatus.ENABLED) {
+                        mRadioController.setFrequency(sortedAf[which]);
+                    }
+                })
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     private void startRadio() {
         setEnabledToggleButton(false);
         mRadioController.setup();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(final Menu menu) {
-        getMenuInflater().inflate(R.menu.main, menu);
-        mRecordDurationMenuItem = menu.findItem(R.id.menu_record_duration);
-        mRecordMenuItem = menu.findItem(R.id.menu_record);
-        mSpeakerMenuItem = menu.findItem(R.id.menu_speaker);
-        mRecordDuration = (TextView) mRecordDurationMenuItem.getActionView();
-        if (mLastState != null) {
-            updateMenuState();
-            updateRecordingUi(mLastState);
-        }
-        return super.onCreateOptionsMenu(menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(final MenuItem item) {
-        int itemId = item.getItemId();
-
-        if (itemId == R.id.menu_about) {
-            startActivity(new Intent(this, AboutActivity.class));
-        } else if (itemId == R.id.menu_settings) {
-            startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
-        } else if (itemId == R.id.menu_scan_stations) {
-            showSearchDialog();
-        } else if (itemId == R.id.menu_record) {
-            if (mRadioController.getState().isRecording()) {
-                mRadioController.record(false);
-                return super.onOptionsItemSelected(item);
-            }
-
-            if (hasRecordingPermissions()) {
-                mRadioController.record(true);
-            } else if (shouldOpenRecordingPermissionSettings()) {
-                showRecordingPermissionSettingsDialog();
-            } else {
-                mPendingRecordStart = true;
-                mRecordPermissionsRequested = true;
-
-                // Request storage only for destinations that require direct file access.
-                final String[] permissions = !RecordingStorage.requiresStoragePermission(this)
-                        ? new String[]{
-                                Manifest.permission.RECORD_AUDIO
-                        }
-                        : new String[]{
-                                Manifest.permission.RECORD_AUDIO,
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        };
-
-                ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
-            }
-        } else if (itemId == R.id.menu_speaker) {
-            startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 
     private void showSearchDialog() {
@@ -368,7 +483,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
-            new androidx.appcompat.app.AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle(R.string.scan_stations_confirm_title)
                     .setMessage(R.string.scan_stations_confirm_message)
                     .setCancelable(false)
@@ -383,7 +498,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mRadioController.hwSearch();
 
         mSearchProgress = ProgressDialog.create(this)
-                .text(R.string.scan_stations_progress)
+                .title(R.string.scan_stations_title)
+                .text(getString(R.string.scan_stations_progress_count, 0))
                 .negativeButton(android.R.string.cancel, (dialog, buttonId) -> {
                     mRadioController.cancelHwSearch();
                     unregisterSearchReceiver();
@@ -391,7 +507,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 })
                 .show();
 
-        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_DONE);
+        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_PROGRESS);
+        searchFilter.addAction(C.Event.HW_SEARCH_DONE);
         searchFilter.addAction(C.Event.HW_SEARCH_FAILED);
         searchFilter.addAction(C.Event.ERROR_OCCURRED);
         Utils.registerAppReceiver(this, mSearchDone, searchFilter);
@@ -412,6 +529,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             final String action = intent.getAction();
+            if (C.Event.HW_SEARCH_PROGRESS.equals(action)) {
+                final int count = intent.getIntExtra(C.Key.COUNT, -1);
+                if (mSearchProgress != null && count >= 0) {
+                    mSearchProgress.text(getString(R.string.scan_stations_progress_count, count));
+                }
+                return;
+            }
+
             unregisterSearchReceiver();
 
             if (mSearchProgress != null) {
@@ -434,8 +559,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
             stations.clear();
 
-            for (final int kHz : frequencies) {
-                stations.add(new FavoriteStation(kHz, ""));
+            if (frequencies != null) {
+                for (final int kHz : frequencies) {
+                    stations.add(new FavoriteStation(kHz, ""));
+                }
             }
 
             mFavoriteController.save();
@@ -447,7 +574,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void setEnabledToggleButton(final boolean enabled) {
         mCtlToggle.setEnabled(enabled);
-        mCtlToggle.setAlpha(enabled ? 1f : .5f);
+        mCtlToggle.setAlpha(enabled ? 1f : .45f);
     }
 
     private boolean hasRecordingPermissions() {
@@ -497,7 +624,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return false;
         }
 
-        // Account for the optional SRT companion on Android 10.
         if (!RecordingStorage.requiresStoragePermission(this)) {
             return !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
         }
@@ -507,7 +633,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void showRecordingPermissionSettingsDialog() {
-        new androidx.appcompat.app.AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.record_permissions_required_title)
                 .setMessage(R.string.record_permissions_required)
                 .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
@@ -524,7 +650,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void showPlaybackPermissionSettingsDialog() {
-        new androidx.appcompat.app.AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.playback_permission_required_title)
                 .setMessage(R.string.playback_permission_required)
                 .setPositiveButton(R.string.record_permissions_open_settings, (DialogInterface dialog, int which) -> openAppSettings())
@@ -562,9 +688,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mSeek.setFavoriteFrequencies(frequencies);
     }
 
-    private final FrequencyBarView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyBarView.OnFrequencyChangedListener() {
+    private final FrequencyDialView.OnFrequencyChangedListener mOnFrequencyChanged = new FrequencyDialView.OnFrequencyChangedListener() {
+        @Override
+        public void onPreview(final int kHz) {
+            mFrequencyInfo.setFrequency(kHz);
+            mFavoritesView.setActiveFrequency(kHz);
+        }
+
         @Override
         public void onChanged(final int kHz) {
+            mFrequencyInfo.setFrequency(kHz);
+            mFavoritesView.setActiveFrequency(kHz);
+
             if (mRadioController.getState().getFrequency() == kHz) {
                 return;
             }
@@ -594,6 +729,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
 
+        if ((mode & RadioStateUpdater.SET_AF) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+            updateAfUi(state.getAf());
+        }
+
         if ((mode & RadioStateUpdater.SET_STATUS) > 0) {
             handleChangingState(state.getStatus());
             if ((mode & RadioStateUpdater.SET_INITIAL) == 0 || state.getStatus() != TunerStatus.ENABLED) {
@@ -603,12 +742,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if ((mode & RadioStateUpdater.SET_FREQUENCY) > 0) {
             mFrequencyInfo.hideStatus();
-
-            mFrequencyInfo.setFrequency(state.getFrequency());
-
-            mSeek.setFrequency(state.getFrequency());
-            mFavoritesView.setActiveFrequency(state.getFrequency());
-
+            if (!mSeek.isUserInteracting()) {
+                mFrequencyInfo.setFrequency(state.getFrequency());
+                mSeek.setFrequency(state.getFrequency());
+                mFavoritesView.setActiveFrequency(state.getFrequency());
+            }
             mFrequencyInfo.setRadioState(state);
         }
 
@@ -623,33 +761,76 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mFrequencyInfo.setRadioState(state);
         }
 
-        if ((mode & RadioStateUpdater.SET_STEREO) > 0) {
-            if (TunerDriverDetector.isExynos(this)) {
-                mViewStereoMode.setVisibility(View.GONE);
-            } else {
-                mViewStereoMode.setVisibility(View.VISIBLE);
-                mViewStereoMode.setText(state.isStereo()
-                        ? R.string.stereo_mode_label
-                        : R.string.mono_mode_label
-                );
-                mViewStereoMode.setContentDescription(getString(state.isStereo()
-                        ? R.string.stereo_mode_active
-                        : R.string.mono_mode_active
-                ));
-            }
+        if ((mode & RadioStateUpdater.SET_STEREO) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+            updateStereoUi(state.isStereo());
         }
 
         if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
             updateRecordingUi(state);
         }
+    }
 
-        if ((mode & RadioStateUpdater.SET_SPEAKER) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
-            final boolean isSpeaker = state.isForceSpeaker();
-
-            if (mSpeakerMenuItem != null) {
-                mSpeakerMenuItem.setChecked(isSpeaker);
-            }
+    private void updateStereoUi(final boolean isStereo) {
+        if (mViewStereoMode == null || mViewStereoModeCard == null) {
+            return;
         }
+        if (TunerDriverDetector.isExynos(this)) {
+            mViewStereoModeCard.setVisibility(View.GONE);
+            return;
+        }
+        mViewStereoModeCard.setVisibility(View.VISIBLE);
+        mViewStereoMode.setText(isStereo ? R.string.stereo_mode_label : R.string.mono_mode_label);
+        mViewStereoMode.setContentDescription(getString(
+                isStereo ? R.string.stereo_mode_active : R.string.mono_mode_active
+        ));
+        final int bgColor = MaterialColors.getColor(
+                mViewStereoModeCard,
+                isStereo ? com.google.android.material.R.attr.colorSecondaryContainer : com.google.android.material.R.attr.colorSurfaceContainerHigh,
+                ContextCompat.getColor(this, R.color.rfm_md_secondary_container)
+        );
+        final int strokeColor = MaterialColors.getColor(
+                mViewStereoModeCard,
+                isStereo ? com.google.android.material.R.attr.colorSecondary : com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(this, R.color.rfm_md_secondary)
+        );
+        final int fgColor = MaterialColors.getColor(
+                mViewStereoMode,
+                isStereo ? com.google.android.material.R.attr.colorOnSecondaryContainer : com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(this, R.color.rfm_md_on_secondary_container)
+        );
+        mViewStereoModeCard.setCardBackgroundColor(bgColor);
+        mViewStereoModeCard.setStrokeColor(strokeColor);
+        mViewStereoMode.setTextColor(fgColor);
+    }
+
+    private void updateAfUi(final int[] af) {
+        if (mAfBadge == null || mAfBadgeCard == null) {
+            return;
+        }
+        final int count = af != null ? af.length : 0;
+        final boolean hasAf = count > 0;
+        mAfBadge.setText(hasAf
+                ? String.format(Locale.US, getString(R.string.rds_af_count), count)
+                : getString(R.string.rds_af_label)
+        );
+        final int bgColor = MaterialColors.getColor(
+                mAfBadgeCard,
+                hasAf ? com.google.android.material.R.attr.colorPrimaryContainer : com.google.android.material.R.attr.colorSurfaceContainerHigh,
+                ContextCompat.getColor(this, hasAf ? R.color.rfm_md_primary_container : R.color.rfm_md_secondary_container)
+        );
+        final int strokeColor = MaterialColors.getColor(
+                mAfBadgeCard,
+                hasAf ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(this, hasAf ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
+        );
+        final int fgColor = MaterialColors.getColor(
+                mAfBadge,
+                hasAf ? com.google.android.material.R.attr.colorOnPrimaryContainer : com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(this, hasAf ? R.color.rfm_md_on_primary_container : R.color.text_secondary)
+        );
+        mAfBadgeCard.setCardBackgroundColor(bgColor);
+        mAfBadgeCard.setStrokeColor(strokeColor);
+        mAfBadge.setTextColor(fgColor);
     }
 
     private void handleChangingState(final TunerStatus status) {
@@ -658,6 +839,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 setEnabledUi(false);
                 mFrequencyInfo.clearMetadata();
                 mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
+                updateAfUi(null);
+                updateStereoUi(false);
                 setPlayingMainPlayButton(false);
                 setEnabledToggleButton(true);
                 break;
@@ -732,7 +915,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void setPlayingMainPlayButton(final boolean isPlay) {
-        mCtlToggle.setImageResource(isPlay ? R.drawable.ic_stop : R.drawable.ic_play);
+        final int targetBg = MaterialColors.getColor(
+                mCtlToggle,
+                isPlay ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorSurfaceContainerHighest,
+                ContextCompat.getColor(this, isPlay ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
+        );
+        final int targetFg = MaterialColors.getColor(
+                mCtlToggle,
+                isPlay ? com.google.android.material.R.attr.colorOnPrimary : androidx.appcompat.R.attr.colorPrimary,
+                ContextCompat.getColor(this, isPlay ? R.color.rfm_md_on_primary : R.color.rfm_md_primary)
+        );
+
+        if (mLastPowerPlaying == null || mLastPowerPlaying == isPlay || !mCtlToggle.isLaidOut()) {
+            mLastPowerPlaying = isPlay;
+            mCtlToggle.setBackgroundTintList(ColorStateList.valueOf(targetBg));
+            mCtlToggle.setIconTint(ColorStateList.valueOf(targetFg));
+            return;
+        }
+
+        mLastPowerPlaying = isPlay;
+        if (mPowerColorAnimator != null) {
+            mPowerColorAnimator.cancel();
+        }
+        final ColorStateList currentBgTint = mCtlToggle.getBackgroundTintList();
+        final ColorStateList currentFgTint = mCtlToggle.getIconTint();
+        final int startBg = currentBgTint != null ? currentBgTint.getDefaultColor() : targetBg;
+        final int startFg = currentFgTint != null ? currentFgTint.getDefaultColor() : targetFg;
+        final ArgbEvaluator evaluator = new ArgbEvaluator();
+
+        mPowerColorAnimator = ValueAnimator.ofFloat(0f, 1f);
+        mPowerColorAnimator.setDuration(220L);
+        mPowerColorAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        mPowerColorAnimator.addUpdateListener(animation -> {
+            final float fraction = (float) animation.getAnimatedValue();
+            mCtlToggle.setBackgroundTintList(ColorStateList.valueOf((int) evaluator.evaluate(fraction, startBg, targetBg)));
+            mCtlToggle.setIconTint(ColorStateList.valueOf((int) evaluator.evaluate(fraction, startFg, targetFg)));
+        });
+        mPowerColorAnimator.start();
     }
 
     /**
@@ -741,60 +960,206 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void setEnabledUi(final boolean state) {
         final @IdRes int[] ids = {
-                R.id.ctl_go_down,
-                R.id.ctl_go_up,
-                R.id.ctl_seek_down,
-                R.id.ctl_seek_up,
                 R.id.frequency_mhz,
                 R.id.frequency_ps,
                 R.id.frequency_pi,
                 R.id.frequency_rt,
                 R.id.frequency_pty,
                 R.id.frequency_seek,
-                R.id.stereo_mono,
+                R.id.stereo_mono_card,
+                R.id.af_badge_card,
                 R.id.signal_strength,
+                R.id.btn_record,
                 R.id.favorite_list
         };
 
+        final float targetAlpha = state ? 1f : .45f;
         for (final int id : ids) {
             final View v = findViewById(id);
-            v.setAlpha(state ? 1f : .5f);
-            v.setEnabled(state);
+            if (v != null) {
+                v.setEnabled(state);
+                v.animate().cancel();
+                if (v.isLaidOut()) {
+                    v.animate().alpha(targetAlpha).setDuration(200L).start();
+                } else {
+                    v.setAlpha(targetAlpha);
+                }
+            }
         }
 
-        updateMenuState();
+        setTransportButtonsVisible(state);
     }
 
-    private void updateMenuState() {
-        if (mRecordMenuItem == null || mSpeakerMenuItem == null) {
+    private void setTransportButtonsVisible(final boolean visible) {
+        final View deck = findViewById(R.id.transport_deck);
+        final View seekDown = findViewById(R.id.ctl_seek_down);
+        final View goDown = findViewById(R.id.ctl_go_down);
+        final View goUp = findViewById(R.id.ctl_go_up);
+        final View seekUp = findViewById(R.id.ctl_seek_up);
+        if (deck == null || seekDown == null || goDown == null || goUp == null || seekUp == null) {
             return;
         }
 
-        final boolean state = TunerStatus.ENABLED.equals(mLastState.getStatus());
+        final FastOutSlowInInterpolator interpolator = new FastOutSlowInInterpolator();
+        mCtlToggle.bringToFront();
 
-        mRecordMenuItem.setEnabled(state);
-        mSpeakerMenuItem.setEnabled(state);
-        mSpeakerMenuItem.setChecked(mLastState.isForceSpeaker());
+        final View[] buttons = { goDown, seekDown, goUp, seekUp };
+        final float toggleCenterX = mCtlToggle.getLeft() + mCtlToggle.getWidth() * 0.5f;
+
+        if (visible) {
+            if (seekDown.getVisibility() == View.VISIBLE && seekDown.getAlpha() == 1f) {
+                return;
+            }
+            final long[] delays = { 0L, 45L, 0L, 45L };
+
+            for (final View btn : buttons) {
+                btn.animate().cancel();
+                btn.setClickable(true);
+                btn.setEnabled(true);
+                btn.setVisibility(View.VISIBLE);
+                if (deck.isLaidOut()) {
+                    btn.setAlpha(0f);
+                } else {
+                    btn.setAlpha(1f);
+                    btn.setScaleX(1f);
+                    btn.setScaleY(1f);
+                    btn.setTranslationX(0f);
+                }
+            }
+
+            if (deck.isLaidOut()) {
+                deck.post(() -> {
+                    final float center = mCtlToggle.getLeft() + mCtlToggle.getWidth() * 0.5f;
+                    mCtlToggle.bringToFront();
+                    for (int i = 0; i < buttons.length; i++) {
+                        final View btn = buttons[i];
+                        final float startX = center - (btn.getLeft() + btn.getWidth() * 0.5f);
+                        btn.setAlpha(0f);
+                        btn.setScaleX(0.68f);
+                        btn.setScaleY(0.68f);
+                        btn.setTranslationX(startX);
+                        btn.animate()
+                                .translationX(0f)
+                                .alpha(1f)
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setStartDelay(delays[i])
+                                .setDuration(280L)
+                                .setInterpolator(interpolator)
+                                .withEndAction(null)
+                                .start();
+                    }
+                });
+            }
+        } else {
+            if (seekDown.getVisibility() == View.GONE) {
+                return;
+            }
+            final float density = getResources().getDisplayMetrics().density;
+            final float[] fallbackOffsets = { 56f * density, 112f * density, -56f * density, -112f * density };
+
+            for (int i = 0; i < buttons.length; i++) {
+                final View btn = buttons[i];
+                btn.animate().cancel();
+                btn.setClickable(false);
+                if (deck.isLaidOut() && btn.getVisibility() == View.VISIBLE) {
+                    final float endX = btn.getWidth() > 0
+                            ? toggleCenterX - (btn.getLeft() + btn.getWidth() * 0.5f)
+                            : fallbackOffsets[i];
+                    btn.animate()
+                            .translationX(endX)
+                            .scaleX(0.55f)
+                            .scaleY(0.55f)
+                            .alpha(0.15f)
+                            .setStartDelay(0L)
+                            .setDuration(260L)
+                            .setInterpolator(interpolator)
+                            .withEndAction(() -> {
+                                btn.setEnabled(false);
+                                btn.setClickable(true);
+                                btn.setVisibility(View.GONE);
+                                btn.setTranslationX(0f);
+                                btn.setScaleX(1f);
+                                btn.setScaleY(1f);
+                                btn.setAlpha(1f);
+                            })
+                            .start();
+                } else {
+                    btn.setEnabled(false);
+                    btn.setClickable(true);
+                    btn.setVisibility(View.GONE);
+                }
+            }
+        }
     }
 
     private void updateRecordingUi(final RadioState state) {
-        if (
-                mRecordDurationMenuItem == null ||
-                mRecordMenuItem == null
-        ) {
+        if (mBtnRecord == null || mRecordDuration == null) {
             return;
         }
 
         final boolean isRecording = state.isRecording();
-        mRecordDurationMenuItem.setVisible(isRecording);
-        mRecordMenuItem.setIcon(isRecording
-                ? R.drawable.ic_led_on
-                : R.drawable.ic_led_off
+        final int bgColor = MaterialColors.getColor(
+                mBtnRecord,
+                isRecording ? com.google.android.material.R.attr.colorErrorContainer : com.google.android.material.R.attr.colorSurfaceContainerHigh,
+                ContextCompat.getColor(this, isRecording ? R.color.rfm_md_error_container : R.color.rfm_md_secondary_container)
         );
+        final int strokeColor = MaterialColors.getColor(
+                mBtnRecord,
+                isRecording ? androidx.appcompat.R.attr.colorError : com.google.android.material.R.attr.colorOutlineVariant,
+                ContextCompat.getColor(this, isRecording ? R.color.rfm_record : R.color.rfm_md_secondary_container)
+        );
+        final int fgColor = MaterialColors.getColor(
+                mRecordDuration,
+                isRecording ? com.google.android.material.R.attr.colorOnErrorContainer : com.google.android.material.R.attr.colorOnSurface,
+                ContextCompat.getColor(this, isRecording ? R.color.rfm_md_on_error_container : R.color.text_primary)
+        );
+        mBtnRecord.setCardBackgroundColor(bgColor);
+        mBtnRecord.setStrokeColor(strokeColor);
+        mRecordDuration.setTextColor(fgColor);
 
-        if (isRecording && mRecordDuration != null) {
-            mRecordDuration.setText(getTimeStringBySeconds(state.getRecordingDuration()));
+        if (isRecording) {
+            final long durationSec = Math.max(0L, state.getRecordingDuration());
+            mRecordDuration.setText(getTimeStringBySeconds(durationSec));
+            startRecordPulseAnimation();
+            if (!mRecordTickerRunning) {
+                mRecordTickerRunning = true;
+                mUiHandler.post(mRecordTicker);
+            }
+        } else {
+            mUiHandler.removeCallbacks(mRecordTicker);
+            mRecordTickerRunning = false;
+            stopRecordPulseAnimation();
+            mRecordDuration.setText(R.string.record_badge_idle);
         }
     }
 
+    private void startRecordPulseAnimation() {
+        if (mRecordDot == null || (mRecordPulseAnimator != null && mRecordPulseAnimator.isRunning())) {
+            return;
+        }
+        mRecordPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                mRecordDot,
+                PropertyValuesHolder.ofFloat(View.ALPHA, 0.28f, 1.0f),
+                PropertyValuesHolder.ofFloat(View.SCALE_X, 0.85f, 1.18f),
+                PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.85f, 1.18f)
+        );
+        mRecordPulseAnimator.setDuration(700L);
+        mRecordPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        mRecordPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        mRecordPulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        mRecordPulseAnimator.start();
+    }
+
+    private void stopRecordPulseAnimation() {
+        if (mRecordPulseAnimator != null) {
+            mRecordPulseAnimator.cancel();
+            mRecordPulseAnimator = null;
+        }
+        if (mRecordDot != null) {
+            mRecordDot.setAlpha(0.3f);
+            mRecordDot.setScaleX(1f);
+            mRecordDot.setScaleY(1f);
+        }
+    }
 }

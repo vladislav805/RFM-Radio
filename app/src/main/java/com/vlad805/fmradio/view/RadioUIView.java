@@ -1,12 +1,25 @@
 package com.vlad805.fmradio.view;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
-import android.graphics.Typeface;
-import android.util.AttributeSet;
-import android.view.LayoutInflater;
-import android.widget.LinearLayout;
+import android.graphics.Color;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
+
 import androidx.annotation.StringRes;
+import androidx.core.content.ContextCompat;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
+import androidx.transition.ChangeBounds;
+import androidx.transition.Fade;
+import androidx.transition.TransitionManager;
+import androidx.transition.TransitionSet;
+
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.MaterialColors;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
@@ -14,96 +27,380 @@ import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.preferences.BandUtils;
+
 import net.grandcentrix.tray.AppPreferences;
 
 /**
- * vlad805 (c) 2019
+ * UI binder/controller for the tuner frequency, RDS metadata, and RT+ overlay.
  */
-public class RadioUIView extends LinearLayout {
-	private TextViewWithReflection mFrequencyView;
-	private TextView mRdsPs;
-	private TextView mRdsRt;
-	private TextView mRdsPty;
-	private TextView mRdsPi;
+public final class RadioUIView {
+	private final Context mContext;
+	private final TextView mFrequencyView;
+	private final TextView mRdsPs;
+	private final TextView mRdsRt;
+	private final TextView mRdsPty;
+	private final TextView mRdsPtyLabel;
+	private final TextView mRdsPi;
+
+	private final ViewGroup mRtCard;
+	private final View mRtPlusOverlay;
+	private final TextView mRtPlusArtist;
+	private final TextView mRtPlusTitle;
+	private final TextView mRtPlusAlbum;
+
+	private final MaterialCardView mBtnToggleRtPlus;
+
+	private boolean mShowRtPlusMode = false;
 	private boolean mStatusShown;
 	private String mLastPtyText = "";
-    private final AppPreferences mPreferences;
+	private String mLastDisplayedPty = "";
+	private String mLastPtyLabel = "";
+	private String mLastPsText = "";
+	private String mLastPiText = "";
+	private String mLastRtText = "";
+	private boolean mShowingEmptyRt = true;
+	private ValueAnimator mRtAppendAnimator;
+	private final AppPreferences mPreferences;
 
-	public RadioUIView(final Context context) {
-		super(context);
+	public RadioUIView(final View root) {
+		mContext = root.getContext();
+		mPreferences = new AppPreferences(mContext);
 
-		mPreferences = new AppPreferences(getContext());
+		mFrequencyView = root.findViewById(R.id.frequency_mhz);
+		mRdsPs = root.findViewById(R.id.frequency_ps);
+		mRdsRt = root.findViewById(R.id.frequency_rt);
+		mRdsPty = root.findViewById(R.id.frequency_pty);
+		mRdsPtyLabel = root.findViewById(R.id.frequency_pty_label);
+		mRdsPi = root.findViewById(R.id.frequency_pi);
 
-		init();
+		mRtCard = root.findViewById(R.id.rt_card);
+		mRtPlusOverlay = root.findViewById(R.id.rt_plus_overlay);
+		mRtPlusArtist = root.findViewById(R.id.rt_plus_artist_value);
+		mRtPlusTitle = root.findViewById(R.id.rt_plus_title_value);
+		mRtPlusAlbum = root.findViewById(R.id.rt_plus_album_value);
+
+		mBtnToggleRtPlus = root.findViewById(R.id.btn_toggle_rt_plus);
+		mBtnToggleRtPlus.setOnClickListener(v -> setRtPlusMode(!mShowRtPlusMode));
+
+		final View closeButton = root.findViewById(R.id.btn_close_rt_plus);
+		if (closeButton != null) {
+			closeButton.setOnClickListener(v -> setRtPlusMode(false));
+		}
+
+		updateRtModeUi();
+		clearMetadata();
 	}
 
-	public RadioUIView(final Context context, final AttributeSet attrs) {
-		super(context, attrs);
-
-		mPreferences = new AppPreferences(getContext());
-
-		init();
+	private Context getContext() {
+		return mContext;
 	}
 
-	private void init() {
-		LayoutInflater.from(getContext()).inflate(R.layout.frequency_info, this, true);
+	public final void setRtPlusMode(final boolean showRtPlus) {
+		if (mShowRtPlusMode == showRtPlus) {
+			return;
+		}
+		mShowRtPlusMode = showRtPlus;
+		updateRtModeUi();
+	}
 
-		mFrequencyView = findViewById(R.id.frequency_mhz);
-		mRdsPs = findViewById(R.id.frequency_ps);
-		mRdsRt = findViewById(R.id.frequency_rt);
-		mRdsPty = findViewById(R.id.frequency_pty);
-		mRdsPi = findViewById(R.id.frequency_pi);
-
-		final Typeface font = Typeface.createFromAsset(getContext().getAssets(), "fonts/digital-number.ttf");
-		mFrequencyView.setTypeface(font);
+	private void updateRtModeUi() {
+		if (mRtPlusOverlay == null) {
+			return;
+		}
+		final FastOutSlowInInterpolator interpolator = new FastOutSlowInInterpolator();
+		if (mShowRtPlusMode) {
+			mRtPlusOverlay.animate().cancel();
+			mRtPlusOverlay.setVisibility(View.VISIBLE);
+			if (mRtPlusOverlay.isLaidOut()) {
+				mRtPlusOverlay.setPivotX(mRtPlusOverlay.getWidth() * 0.9f);
+				mRtPlusOverlay.setPivotY(0f);
+				mRtPlusOverlay.setScaleX(0.82f);
+				mRtPlusOverlay.setScaleY(0.35f);
+				mRtPlusOverlay.setAlpha(0f);
+				mRtPlusOverlay.animate()
+						.scaleX(1f)
+						.scaleY(1f)
+						.alpha(1f)
+						.setDuration(240L)
+						.setInterpolator(interpolator)
+						.withEndAction(null)
+						.start();
+			} else {
+				mRtPlusOverlay.post(() -> {
+					mRtPlusOverlay.setPivotX(mRtPlusOverlay.getWidth() * 0.9f);
+					mRtPlusOverlay.setPivotY(0f);
+					mRtPlusOverlay.setScaleX(0.82f);
+					mRtPlusOverlay.setScaleY(0.35f);
+					mRtPlusOverlay.setAlpha(0f);
+					mRtPlusOverlay.animate()
+							.scaleX(1f)
+							.scaleY(1f)
+							.alpha(1f)
+							.setDuration(240L)
+							.setInterpolator(interpolator)
+							.withEndAction(null)
+							.start();
+				});
+			}
+		} else {
+			mRtPlusOverlay.animate().cancel();
+			if (mRtPlusOverlay.getVisibility() == View.VISIBLE && mRtPlusOverlay.isLaidOut()) {
+				mRtPlusOverlay.setPivotX(mRtPlusOverlay.getWidth() * 0.9f);
+				mRtPlusOverlay.setPivotY(0f);
+				mRtPlusOverlay.animate()
+						.scaleX(0.82f)
+						.scaleY(0.35f)
+						.alpha(0f)
+						.setDuration(190L)
+						.setInterpolator(interpolator)
+						.withEndAction(() -> {
+							mRtPlusOverlay.setVisibility(View.GONE);
+							mRtPlusOverlay.setScaleX(1f);
+							mRtPlusOverlay.setScaleY(1f);
+							mRtPlusOverlay.setAlpha(1f);
+						})
+						.start();
+			} else {
+				mRtPlusOverlay.setVisibility(View.GONE);
+			}
+		}
 	}
 
 	/**
-	 * Calls when frequency has changed externally
+	 * Called when frequency has changed externally
 	 * @param kHz Frequency in kHz
 	 */
-	public final void setFrequency(int kHz) {
+	public final void setFrequency(final int kHz) {
 		final int spacing = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
-
-		mFrequencyView.setText(Utils.getMHz(kHz, spacing == BandUtils.SPACING_50kHz ? 2 : 1));
+		final boolean is50Khz = spacing == BandUtils.SPACING_50kHz;
+		mFrequencyView.setTextSize(is50Khz ? 36f : 44f);
+		mFrequencyView.setText(Utils.getMHz(kHz, is50Khz ? 2 : 1).trim());
 	}
 
 	public final void setRadioState(final RadioState state) {
-		mRdsPs.setText(state.getPs());
+		final String placeholder = getContext().getString(R.string.rds_placeholder);
 
-		final String rtText = state.getRt() != null ? state.getRt() : "";
-		final RtPlusInfo rtPlus = state.getRtPlus();
-		final String rtPlusText = rtPlus != null ? rtPlus.getFormattedText() : "";
+		final String ps = state.getPs() != null ? state.getPs().trim() : "";
+		final String nextPs = ps.isEmpty() ? placeholder : ps;
+		if (!nextPs.equals(mLastPsText)) {
+			final boolean isContinuation = !mLastPsText.isEmpty()
+					&& !mLastPsText.equals(placeholder)
+					&& nextPs.startsWith(mLastPsText);
+			mLastPsText = nextPs;
+			if (isContinuation) {
+				mRdsPs.setText(nextPs);
+			} else {
+				setTextSmooth(mRdsPs, nextPs);
+			}
+		}
 
-		final String displayText = !rtPlusText.isEmpty() ? rtPlusText : rtText;
-		mRdsRt.setText(displayText);
+		final String rtText = state.getRt() != null ? state.getRt().trim() : "";
+		if (rtText.isEmpty()) {
+			mLastRtText = "";
+			final int mutedColor = MaterialColors.getColor(
+					mRdsRt,
+					com.google.android.material.R.attr.colorOnSurfaceVariant,
+					ContextCompat.getColor(getContext(), R.color.text_secondary)
+			);
+			mRdsRt.setTextColor(mutedColor);
+			if (!mShowingEmptyRt) {
+				mShowingEmptyRt = true;
+				cancelRtAppendAnimator();
+				setTextSmooth(mRdsRt, getContext().getString(R.string.rds_rt_empty));
+			}
+		} else {
+			mShowingEmptyRt = false;
+			final int primaryTextColor = MaterialColors.getColor(
+					mRdsRt,
+					com.google.android.material.R.attr.colorOnSurface,
+					ContextCompat.getColor(getContext(), R.color.text_primary)
+			);
+			mRdsRt.setTextColor(primaryTextColor);
+			if (!rtText.equals(mLastRtText)) {
+				final String prevRt = mLastRtText;
+				mLastRtText = rtText;
+				if (!prevRt.isEmpty() && rtText.startsWith(prevRt)) {
+					animateAppendedRt(rtText, prevRt.length(), primaryTextColor);
+				} else {
+					cancelRtAppendAnimator();
+					setTextSmooth(mRdsRt, rtText);
+				}
+			}
+		}
+
+		final RtPlusInfo rtPlus = state.getRtPlus() != null ? state.getRtPlus() : RtPlusInfo.EMPTY;
+		final String artist = rtPlus.getArtist().trim();
+		final String title = rtPlus.getTitle().trim();
+		final String album = rtPlus.getAlbum().trim();
+
+		if (mRtPlusArtist != null) {
+			mRtPlusArtist.setText(artist.isEmpty() ? placeholder : artist);
+		}
+		if (mRtPlusTitle != null) {
+			mRtPlusTitle.setText(title.isEmpty() ? placeholder : title);
+		}
+		if (mRtPlusAlbum != null) {
+			mRtPlusAlbum.setText(album.isEmpty() ? placeholder : album);
+		}
+
+		final boolean hasRtPlus = !rtPlus.isEmpty();
+		if (mBtnToggleRtPlus != null) {
+			final int nextVisibility = hasRtPlus ? View.VISIBLE : View.GONE;
+			if (mBtnToggleRtPlus.getVisibility() != nextVisibility) {
+				if (mRtCard != null && mRtCard.isLaidOut()) {
+					final TransitionSet transition = new TransitionSet()
+							.addTransition(new ChangeBounds())
+							.addTransition(new Fade())
+							.setDuration(180L)
+							.setInterpolator(new FastOutSlowInInterpolator());
+					TransitionManager.beginDelayedTransition(mRtCard, transition);
+				}
+				mBtnToggleRtPlus.setVisibility(nextVisibility);
+			}
+		}
+		if (!hasRtPlus && mShowRtPlusMode) {
+			setRtPlusMode(false);
+		}
 
 		final int region = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
-		mLastPtyText = UtilsLocalization.getProgramType(state.getPty(), region);
+		final String ptyName = UtilsLocalization.getProgramType(state.getPty(), region);
+		mLastPtyText = (ptyName == null || ptyName.trim().isEmpty()) ? placeholder : ptyName;
 
 		if (!mStatusShown) {
-			mRdsPty.setText(mLastPtyText);
+			updatePtyDisplay(getContext().getString(R.string.rds_pty_prefix), mLastPtyText);
 		}
-		final String pi = state.getPi() != null ? state.getPi() : "";
-		final String country = state.getCountry() != null ? state.getCountry() : "";
-		mRdsPi.setText(country.isEmpty() || pi.isEmpty() ? pi : country + ", " + pi);
+
+		final String pi = state.getPi() != null ? state.getPi().trim() : "";
+		final String country = state.getCountry() != null ? state.getCountry().trim() : "";
+		final String nextPi = pi.isEmpty() ? placeholder : (country.isEmpty() ? pi : country + " · " + pi);
+		if (!nextPi.equals(mLastPiText)) {
+			mLastPiText = nextPi;
+			setTextSmooth(mRdsPi, nextPi);
+		}
 	}
 
 	public final void showStatus(@StringRes final int stringRes) {
 		mStatusShown = true;
-		mRdsPty.setText(stringRes);
+		updatePtyDisplay("SYS", getContext().getString(stringRes));
 	}
 
 	public final void hideStatus() {
 		mStatusShown = false;
-		mRdsPty.setText(mLastPtyText);
+		final String placeholder = getContext().getString(R.string.rds_placeholder);
+		updatePtyDisplay(
+				getContext().getString(R.string.rds_pty_prefix),
+				mLastPtyText.isEmpty() ? placeholder : mLastPtyText
+		);
+	}
+
+	private void updatePtyDisplay(final String label, final String value) {
+		if (!label.equals(mLastPtyLabel)) {
+			mLastPtyLabel = label;
+			setTextSmooth(mRdsPtyLabel, label);
+		}
+		if (!value.equals(mLastDisplayedPty)) {
+			mLastDisplayedPty = value;
+			setTextSmooth(mRdsPty, value);
+		}
+	}
+
+	private void animateAppendedRt(final String fullText, final int oldLen, final int textColor) {
+		cancelRtAppendAnimator();
+		if (!mRdsRt.isLaidOut() || oldLen >= fullText.length()) {
+			mRdsRt.setText(fullText);
+			return;
+		}
+		mRdsRt.animate().cancel();
+		mRdsRt.setAlpha(1f);
+
+		final int targetAlpha = Color.alpha(textColor);
+		final int rgb = textColor & 0x00FFFFFF;
+		mRtAppendAnimator = ValueAnimator.ofInt(30, targetAlpha);
+		mRtAppendAnimator.setDuration(220L);
+		mRtAppendAnimator.addUpdateListener(animation -> {
+			final int alpha = (int) animation.getAnimatedValue();
+			final SpannableStringBuilder ssb = new SpannableStringBuilder(fullText);
+			ssb.setSpan(
+					new ForegroundColorSpan((alpha << 24) | rgb),
+					oldLen,
+					fullText.length(),
+					Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+			);
+			mRdsRt.setText(ssb);
+		});
+		mRtAppendAnimator.start();
+	}
+
+	private void cancelRtAppendAnimator() {
+		if (mRtAppendAnimator != null) {
+			mRtAppendAnimator.cancel();
+			mRtAppendAnimator = null;
+		}
+	}
+
+	public void release() {
+		cancelRtAppendAnimator();
+	}
+
+	private void setTextSmooth(final TextView view, final String text) {
+		view.setText(text);
+		if (!view.isLaidOut()) {
+			return;
+		}
+		view.animate().cancel();
+		view.setAlpha(0.35f);
+		view.animate()
+				.alpha(1f)
+				.setDuration(160L)
+				.start();
 	}
 
 	public final void clearMetadata() {
-		mRdsPs.setText("");
-		mRdsPi.setText("");
-		mRdsRt.setText("");
-		mRdsPty.setText("");
-		mLastPtyText = "";
+		final String placeholder = getContext().getString(R.string.rds_placeholder);
+		cancelRtAppendAnimator();
+		if (!placeholder.equals(mLastPsText) && !mLastPsText.isEmpty()) {
+			setTextSmooth(mRdsPs, placeholder);
+		} else {
+			mRdsPs.setText(placeholder);
+		}
+		mLastPsText = placeholder;
+
+		if (!placeholder.equals(mLastPiText) && !mLastPiText.isEmpty()) {
+			setTextSmooth(mRdsPi, placeholder);
+		} else {
+			mRdsPi.setText(placeholder);
+		}
+		mLastPiText = placeholder;
+
+		mLastRtText = "";
+		final int mutedColor = MaterialColors.getColor(
+				mRdsRt,
+				com.google.android.material.R.attr.colorOnSurfaceVariant,
+				ContextCompat.getColor(getContext(), R.color.text_secondary)
+		);
+		mRdsRt.setTextColor(mutedColor);
+		if (!mShowingEmptyRt) {
+			mShowingEmptyRt = true;
+			setTextSmooth(mRdsRt, getContext().getString(R.string.rds_rt_empty));
+		} else {
+			mRdsRt.setText(R.string.rds_rt_empty);
+		}
+		if (mRtPlusArtist != null) {
+			mRtPlusArtist.setText(placeholder);
+		}
+		if (mRtPlusTitle != null) {
+			mRtPlusTitle.setText(placeholder);
+		}
+		if (mRtPlusAlbum != null) {
+			mRtPlusAlbum.setText(placeholder);
+		}
+		if (mBtnToggleRtPlus != null) {
+			mBtnToggleRtPlus.setVisibility(View.GONE);
+		}
+		setRtPlusMode(false);
+		mLastPtyText = placeholder;
+		if (!mStatusShown) {
+			updatePtyDisplay(getContext().getString(R.string.rds_pty_prefix), placeholder);
+		}
 	}
 }

@@ -1,24 +1,26 @@
 package com.vlad805.fmradio.helper;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import androidx.annotation.StringRes;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputLayout;
 import com.vlad805.fmradio.R;
 
 /**
  * vlad805 (c) 2019
  */
-public class EditTextDialog extends AlertDialog.Builder {
+public class EditTextDialog extends MaterialAlertDialogBuilder {
 
 	public interface OnEditCompleted {
 		void onReady(String title);
 	}
 
-	private EditText mEditText;
+	private final TextInputLayout mInputLayout;
+	private final EditText mEditText;
 
 	public EditTextDialog(Context context, String defaultValue, OnEditCompleted listener) {
 		super(context);
@@ -31,13 +33,11 @@ public class EditTextDialog extends AlertDialog.Builder {
 
 		final View textEntryView = factory.inflate(R.layout.layout_dialog_edit_text, null);
 
+		mInputLayout = textEntryView.findViewById(R.id.dialog_edit_text_layout);
 		mEditText = textEntryView.findViewById(R.id.dialog_edit_text_text);
 
-		/*et.setFilters(new InputFilter[] {new InputFilter.LengthFilter(C.PRESET_NAME_MAX_LENGTH)});
-		et.setText(defaultValue);
-		et.setSelection(defaultValue.length(), defaultValue.length());*/
-
 		mEditText.setText(defaultValue);
+		mEditText.setSelection(defaultValue.length());
 
 		setView(textEntryView);
 
@@ -61,12 +61,20 @@ public class EditTextDialog extends AlertDialog.Builder {
 	}
 
 	public final EditTextDialog setHint(String hint) {
-		mEditText.setHint(hint);
+		if (mInputLayout != null) {
+			mInputLayout.setHint(hint);
+		} else {
+			mEditText.setHint(hint);
+		}
 		return this;
 	}
 
 	public final EditTextDialog setHint(@StringRes int hint) {
-		mEditText.setHint(hint);
+		if (mInputLayout != null) {
+			mInputLayout.setHint(hint);
+		} else {
+			mEditText.setHint(hint);
+		}
 		return this;
 	}
 

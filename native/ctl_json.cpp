@@ -126,6 +126,15 @@ std::string build_response_json(uint64_t id, const response_t &response) {
             ",\"data\":" + json_escape(response.data) + "}";
 }
 
+bool build_search_progress_json(int count, std::string *json) {
+    if (json == nullptr || count < 0) {
+        return false;
+    }
+
+    *json = "{\"type\":\"search_progress\",\"count\":" + std::to_string(count) + "}";
+    return true;
+}
+
 bool build_search_done_json(const int *frequencies_khz, int count, std::string *json) {
     if (json == nullptr || count < 0 || (count > 0 && frequencies_khz == nullptr)) {
         return false;

@@ -1,32 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		xmlns:app="http://schemas.android.com/apk/res-auto">
-	<item
-			android:id="@+id/menu_favorite_add"
-			android:title="@string/menu_favorite_list_create"
-			android:icon="@drawable/ic_favorite_list_add"
-			app:showAsAction="always"/>
-	<item
-			android:id="@+id/menu_favorite_import"
-			android:title="@string/menu_favorite_list_import" />
-	<item
-			android:id="@+id/menu_favorite_export_all"
-			android:title="@string/menu_favorite_list_export_all" />
-	<item
-			android:id="@+id/menu_favorite_export_selected"
-			android:title="@string/menu_favorite_list_export_selected"
-			android:visible="false" />
-	<item
-			android:id="@+id/menu_favorite_remove_selected"
-			android:title="@string/menu_favorite_list_remove_selected"
-			android:visible="false" />
-	<item
-			android:id="@+id/menu_favorite_rename"
-			android:title="@string/menu_favorite_list_rename"
-			android:icon="@drawable/ic_settings" />
-	<item
-			android:id="@+id/menu_favorite_remove"
-			android:title="@string/menu_favorite_list_remove"
-			android:icon="@drawable/ic_favorite_list_remove" />
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/menu_favorite_import"
+        android:icon="@drawable/ic_import"
+        android:title="@string/menu_favorite_list_import"
+        app:iconTint="?android:attr/textColorPrimary"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/menu_favorite_export_all"
+        android:icon="@drawable/ic_export"
+        android:title="@string/menu_favorite_list_export_all"
+        app:iconTint="?android:attr/textColorPrimary"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/menu_favorite_export_selected"
+        android:icon="@drawable/ic_export"
+        android:title="@string/menu_favorite_list_export_selected"
+        android:visible="false"
+        app:iconTint="?android:attr/textColorPrimary"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menu_favorite_remove_selected"
+        android:icon="@drawable/ic_delete"
+        android:title="@string/menu_favorite_list_remove_selected"
+        android:visible="false"
+        app:iconTint="?attr/colorError"
+        app:showAsAction="always" />
 </menu>

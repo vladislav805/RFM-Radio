@@ -19,7 +19,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
 | `service/recording/` | 12 files: `PcmFormat`, WAV/MP3 recording, SRT subtitles, storage |
 | `fragments/` | `PreferencesFragment` — settings built in code, no `res/xml` |
-| `view/` | `RadioUIView`, `FrequencyBarView`, `FavoritesView`, `SignalStrength`, adapters |
+| `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum, `BandUtils` |
 
 `service/streaming/` is an empty leftover. `app/src/main/cpp/` is the LAME
@@ -64,8 +64,9 @@ Key flows:
 ## Controller Hierarchy
 
 - `NativeTunerController` (`final`) — the only tuner controller. Owns binary install
-  (asset → `/data/data/<pkg>/files/fmbin-<arch>`, chmod 0755, version in
-  Tray; debug builds always reinstall) and `sendCommand` via the session.
+  (asset → `/data/data/<pkg>/files/fmbin-<arch>`, chmod 0755, version and APK
+  `lastUpdateTime` in Tray; debug builds and mismatched APK update times reinstall)
+  and `sendCommand` via the session.
   `launch()`: root probe, `killall fmbin-*`, 5 s ready handshake, `init` with
   10 s timeout. `enable()` sends one atomic `enable` command formatted by
   `TunerCommandFormat` from preferences (frequency clamped to `BandUtils` band
@@ -86,8 +87,9 @@ timeout scheduler, and stop escalation (`shutdown` → stdin close → TERM →
 KILL by handshake PID). Native stderr is drained to logcat tag `RFM-QCOM`;
 stdout is protocol JSON only. `NativeEventParser` validates `state` patches
 (frequency > 0, rmssi in [-128, 127], country `[A-Z]{2}`, pty ≥ 0, AF ≥ 0,
-PS/RT trimmed, newlines → spaces) and dispatches `search_done`; `enabled` is
-parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
+PS/RT trimmed, newlines → spaces) and dispatches `search_progress`
+(`HW_SEARCH_PROGRESS`) and `search_done`; `enabled` is parsed, `disabled` is
+deliberately ignored (Java lifecycle is authoritative).
 
 ## Audio
 
@@ -156,8 +158,7 @@ parsed, `disabled` is deliberately ignored (Java lifecycle is authoritative).
   FMNotificationManager, TunerCommandFormat, TunerDriverDetector,
   AudioSelection, AudioLifecycle, QualcommRoutedAudio, PcmFormat,
   PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
-- Dead code: `service/streaming/` (empty), `enums/MuteState`,
-  `view/IntEditTextPreference`, `C.RecordFormat.AAC_128` (selecting it
+- Dead code: `service/streaming/` (empty), `C.RecordFormat.AAC_128` (selecting it
   returns a null recorder — unreachable from UI),
   `C.Event.UPDATE_AF` (never sent).
 - `RecordService.record()` on IOException silently goes IDLE, leaving the

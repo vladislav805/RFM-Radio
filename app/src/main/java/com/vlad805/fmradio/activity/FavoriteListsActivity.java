@@ -2,34 +2,48 @@ package com.vlad805.fmradio.activity;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.CheckBox;
-import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.widget.ImageViewCompat;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
-import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.Toast;
 
-import java.io.FileNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -47,18 +61,23 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	private static final int MENU_LIST_RENAME = 1;
 	private static final int MENU_LIST_REMOVE = 2;
 	private static final int MENU_LIST_EXPORT = 3;
-	private Menu mMenu;
 	private String mCurrentNameList;
 
 	private FavoriteController mController;
-	private List<FavoriteListItem> mFavoriteListItems = new ArrayList<>();
+	private final List<FavoriteListItem> mFavoriteListItems = new ArrayList<>();
 	private RecyclerView mRecyclerView;
+	private ExtendedFloatingActionButton mFab;
 	private FavoriteListsAdapter mListsAdapter;
 	private final Set<String> mSelectedLists = new LinkedHashSet<>();
 	private boolean mSelectionMode;
+	private boolean mHasAnimatedEntrance;
 	private String mPendingExportListName;
 
 	private Toast mToast;
+
+	private interface NameConfirmCallback {
+		void onConfirm(String name);
+	}
 
 	private static final class FavoriteListItem {
 		final String name;
@@ -84,11 +103,24 @@ public class FavoriteListsActivity extends AppCompatActivity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		DynamicColors.applyToActivityIfAvailable(this);
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_favorite_lists);
 
 		mToast = Toast.create(this);
 		mController = new FavoriteController(this);
+
+		getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				if (mSelectionMode) {
+					exitSelectionMode();
+				} else {
+					setEnabled(false);
+					getOnBackPressedDispatcher().onBackPressed();
+				}
+			}
+		});
 
 		initUI();
 	}
@@ -136,8 +168,24 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	private void initUI() {
 		final Toolbar toolbar = findViewById(R.id.favorite_lists_toolbar);
 		mRecyclerView = findViewById(R.id.favorite_lists_content);
+		mFab = findViewById(R.id.favorite_lists_fab);
 		mListsAdapter = new FavoriteListsAdapter();
 		mRecyclerView.setAdapter(mListsAdapter);
+
+		mFab.setOnClickListener(v -> addDialog());
+		mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+			@Override
+			public void onScrolled(@NonNull final RecyclerView recyclerView, final int dx, final int dy) {
+				if (mSelectionMode) {
+					return;
+				}
+				if (dy > 6) {
+					mFab.shrink();
+				} else if (dy < -6) {
+					mFab.extend();
+				}
+			}
+		});
 
 		setSupportActionBar(toolbar);
 
@@ -148,6 +196,30 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		}
 
 		reloadLists();
+		animateCardsEntrance();
+	}
+
+	private void animateCardsEntrance() {
+		if (mHasAnimatedEntrance) {
+			return;
+		}
+		mHasAnimatedEntrance = true;
+		mRecyclerView.post(() -> {
+			final float offset = 14f * getResources().getDisplayMetrics().density;
+			final int count = mRecyclerView.getChildCount();
+			for (int i = 0; i < count; i++) {
+				final View child = mRecyclerView.getChildAt(i);
+				child.setAlpha(0f);
+				child.setTranslationY(offset);
+				child.animate()
+						.alpha(1f)
+						.translationY(0f)
+						.setStartDelay(Math.min(i * 28L, 200L))
+						.setDuration(220L)
+						.setInterpolator(new FastOutSlowInInterpolator())
+						.start();
+			}
+		});
 	}
 
 	/**
@@ -224,6 +296,14 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			mListsAdapter.notifyDataSetChanged();
 		}
 
+		if (mFab != null) {
+			if (mSelectionMode) {
+				mFab.hide();
+			} else {
+				mFab.show();
+			}
+		}
+
 		invalidateOptionsMenu();
 
 		final ActionBar actionBar = getSupportActionBar();
@@ -241,21 +321,13 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	@Override
 	public boolean onCreateOptionsMenu(final Menu menu) {
 		super.onCreateOptionsMenu(menu);
-		mMenu = menu;
 		getMenuInflater().inflate(R.menu.favorite, menu);
-		menu.findItem(R.id.menu_favorite_add).setVisible(true);
-		menu.findItem(R.id.menu_favorite_remove).setVisible(false);
-		menu.findItem(R.id.menu_favorite_rename).setVisible(false);
-		menu.findItem(R.id.menu_favorite_import).setVisible(true);
-		menu.findItem(R.id.menu_favorite_export_selected).setVisible(false);
-		menu.findItem(R.id.menu_favorite_remove_selected).setVisible(false);
 		return true;
 	}
 
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		final boolean hasSelection = !mSelectedLists.isEmpty();
-		menu.findItem(R.id.menu_favorite_add).setVisible(!mSelectionMode);
 		menu.findItem(R.id.menu_favorite_import).setVisible(!mSelectionMode);
 		menu.findItem(R.id.menu_favorite_export_all).setVisible(!mSelectionMode);
 		menu.findItem(R.id.menu_favorite_export_selected).setVisible(mSelectionMode && hasSelection);
@@ -266,11 +338,9 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	@SuppressLint("NonConstantResourceId")
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-        int itemId = item.getItemId();
+		final int itemId = item.getItemId();
 
-		if (itemId == R.id.menu_favorite_add) {
-			addDialog();
-		} else if (itemId == R.id.menu_favorite_import) {
+		if (itemId == R.id.menu_favorite_import) {
 			openImportFavoritePicker();
 		} else if (itemId == R.id.menu_favorite_export_all) {
 			openExportAllFavoritesPicker();
@@ -284,48 +354,22 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			} else {
 				finish();
 			}
+			return true;
 		}
 
 		return super.onOptionsItemSelected(item);
 	}
 
 	private void addDialog() {
-		final EditTextDialog dialog = new EditTextDialog(this, "", title -> {
+		showListNameDialog(R.string.popup_favorite_list_create, "", null, title -> {
 			try {
 				mController.addList(title);
-				mToast.text("Created list '" + title + "'");
+				mToast.text("Created list '" + title + "'").show();
 				reloadLists();
 			} catch (Error e) {
 				mToast.text(e.getMessage()).show();
 			}
 		});
-		final EditText et = dialog.getView();
-		dialog.setTitle(R.string.popup_favorite_list_create).setOnKeyListener(new TextWatcher() {
-			@Override
-			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-			@Override
-			public void onTextChanged(CharSequence s, int start, int before, int count) {
-				String value = et.getText().toString();
-
-				if (mController.isAlreadyExists(value)) {
-					et.setError(getString(R.string.favorite_list_create_error_already_exists));
-					return;
-				}
-
-				if (mController.isInvalidName(value)) {
-					et.setError(getString(R.string.favorite_list_create_error_invalid_name));
-					return;
-				}
-
-				et.setError(null);
-			}
-
-			@Override
-			public void afterTextChanged(Editable s) {}
-		});
-
-		dialog.open();
 	}
 
 	private void renameDialog(final String listName) {
@@ -335,7 +379,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			return;
 		}
 
-		final EditTextDialog dialog = new EditTextDialog(this, mCurrentNameList, title -> {
+		showListNameDialog(R.string.popup_favorite_list_rename, mCurrentNameList, mCurrentNameList, title -> {
 			try {
 				if (mCurrentNameList.equals(title)) {
 					return;
@@ -355,33 +399,68 @@ public class FavoriteListsActivity extends AppCompatActivity {
 				mToast.text(e.getMessage()).show();
 			}
 		});
-		final EditText et = dialog.getView();
-		dialog.setTitle(R.string.popup_favorite_list_rename).setOnKeyListener(new TextWatcher() {
-			@Override
-			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+	}
 
-			@Override
-			public void onTextChanged(CharSequence s, int start, int before, int count) {
-				final String value = et.getText().toString();
+	private void showListNameDialog(
+			final @StringRes int titleRes,
+			final String initialValue,
+			final String currentName,
+			final NameConfirmCallback callback
+	) {
+		final View content = LayoutInflater.from(this).inflate(R.layout.dialog_favorite_list_name, null);
+		final TextInputLayout inputLayout = content.findViewById(R.id.favorite_list_name_layout);
+		final TextInputEditText editText = content.findViewById(R.id.favorite_list_name_edit);
 
-				if (!value.equals(mCurrentNameList) && mController.isAlreadyExists(value)) {
-					et.setError(getString(R.string.favorite_list_create_error_already_exists));
-					return;
+		editText.setText(initialValue);
+		editText.setSelection(initialValue.length());
+
+		final AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+				.setTitle(titleRes)
+				.setView(content)
+				.setNegativeButton(android.R.string.cancel, null)
+				.setPositiveButton(android.R.string.ok, (dlg, which) -> {
+					final String value = editText.getText() != null ? editText.getText().toString().trim() : "";
+					callback.onConfirm(value);
+				})
+				.create();
+
+		dialog.setOnShowListener(dlg -> {
+			final View positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+			positive.setEnabled(validateListName(inputLayout, initialValue, currentName));
+			editText.addTextChangedListener(new TextWatcher() {
+				@Override
+				public void beforeTextChanged(final CharSequence s, final int start, final int count, final int after) {}
+
+				@Override
+				public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {
+					positive.setEnabled(validateListName(inputLayout, s.toString(), currentName));
 				}
 
-				if (mController.isInvalidName(value)) {
-					et.setError(getString(R.string.favorite_list_create_error_invalid_name));
-					return;
-				}
-
-				et.setError(null);
-			}
-
-			@Override
-			public void afterTextChanged(Editable s) {}
+				@Override
+				public void afterTextChanged(final Editable s) {}
+			});
 		});
 
-		dialog.open();
+		dialog.show();
+	}
+
+	private boolean validateListName(
+			final TextInputLayout inputLayout,
+			final String rawValue,
+			final String currentName
+	) {
+		final String value = rawValue.trim();
+		final boolean isRenameSame = currentName != null && currentName.equals(value);
+		if (!isRenameSame && mController.isAlreadyExists(value)) {
+			inputLayout.setError(getString(R.string.favorite_list_create_error_already_exists));
+			return false;
+		}
+		if (mController.isInvalidName(value)) {
+			inputLayout.setError(getString(R.string.favorite_list_create_error_invalid_name));
+			return false;
+		}
+		inputLayout.setError(null);
+		return true;
 	}
 
 	private void openImportFavoritePicker() {
@@ -599,19 +678,17 @@ public class FavoriteListsActivity extends AppCompatActivity {
 	private void removeDialog(final String listName) {
 		mCurrentNameList = listName;
 
-		final AlertDialog.Builder dialog = new AlertDialog.Builder(this)
+		new MaterialAlertDialogBuilder(this)
 				.setTitle(R.string.favorite_list_remove_title)
 				.setMessage(getString(R.string.favorite_list_remove_message, mCurrentNameList))
-				.setCancelable(false)
-				.setPositiveButton(android.R.string.yes, (dlg, buttonId) -> {
+				.setPositiveButton(android.R.string.ok, (dlg, buttonId) -> {
 					mController.removeList(mCurrentNameList);
 					mController.reload();
 					reloadLists();
 					reloadContent();
 				})
-				.setNegativeButton(android.R.string.no, (dlg, buttonId) -> {})
-				.setIcon(android.R.drawable.ic_dialog_alert);
-		dialog.create().show();
+				.setNegativeButton(android.R.string.cancel, null)
+				.show();
 	}
 
 	private void removeSelectedDialog() {
@@ -620,11 +697,10 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			return;
 		}
 
-		new AlertDialog.Builder(this)
+		new MaterialAlertDialogBuilder(this)
 				.setTitle(R.string.favorite_list_remove_title)
 				.setMessage(getString(R.string.favorite_lists_remove_selected_confirm, selectedCount))
-				.setCancelable(false)
-				.setPositiveButton(android.R.string.yes, (dlg, buttonId) -> {
+				.setPositiveButton(android.R.string.ok, (dlg, buttonId) -> {
 					int removed = 0;
 					for (final String name : new ArrayList<>(mSelectedLists)) {
 						if (FavoriteController.DEFAULT_NAME.equals(name)) {
@@ -642,20 +718,24 @@ public class FavoriteListsActivity extends AppCompatActivity {
 						Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 					}
 				})
-				.setNegativeButton(android.R.string.no, null)
-				.setIcon(android.R.drawable.ic_dialog_alert)
+				.setNegativeButton(android.R.string.cancel, null)
 				.show();
 	}
 
 	private class FavoriteListsAdapter extends RecyclerView.Adapter<FavoriteListsAdapter.ViewHolder> {
+		private final int mStrokeNormalPx = Math.round(1f * getResources().getDisplayMetrics().density);
+		private final int mStrokeActivePx = Math.round(1.5f * getResources().getDisplayMetrics().density);
+		private final int mStrokeSelectedPx = Math.round(2f * getResources().getDisplayMetrics().density);
+
+		@NonNull
 		@Override
-		public ViewHolder onCreateViewHolder(final android.view.ViewGroup parent, final int viewType) {
+		public ViewHolder onCreateViewHolder(@NonNull final android.view.ViewGroup parent, final int viewType) {
 			final View view = getLayoutInflater().inflate(R.layout.favorite_list_manager_item, parent, false);
 			return new ViewHolder(view);
 		}
 
 		@Override
-		public void onBindViewHolder(final ViewHolder holder, final int position) {
+		public void onBindViewHolder(@NonNull final ViewHolder holder, final int position) {
 			holder.bind(mFavoriteListItems.get(position));
 		}
 
@@ -665,15 +745,21 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		}
 
 		class ViewHolder extends RecyclerView.ViewHolder {
+			private final MaterialCardView card;
+			private final ImageView icon;
 			private final TextView name;
 			private final TextView count;
-			private final CheckBox check;
+			private final View activeBadge;
+			private final MaterialCheckBox check;
 			private final View menuButton;
 
 			ViewHolder(final View itemView) {
 				super(itemView);
+				card = itemView.findViewById(R.id.favorite_list_item_card);
+				icon = itemView.findViewById(R.id.favorite_list_item_icon);
 				name = itemView.findViewById(R.id.favorite_list_item_name);
 				count = itemView.findViewById(R.id.favorite_list_item_count);
+				activeBadge = itemView.findViewById(R.id.favorite_list_item_active_badge);
 				check = itemView.findViewById(R.id.favorite_list_item_check);
 				menuButton = itemView.findViewById(R.id.favorite_list_item_menu);
 			}
@@ -681,20 +767,56 @@ public class FavoriteListsActivity extends AppCompatActivity {
 			void bind(final FavoriteListItem item) {
 				name.setText(item.name);
 				count.setText(getString(R.string.favorite_lists_stations_count, item.stationsCount));
-				final boolean selected = mSelectedLists.contains(item.name);
-				itemView.setAlpha(selected ? 1f : (item.current ? 1f : 0.85f));
+
+				final boolean selected = mSelectionMode && mSelectedLists.contains(item.name);
+				final boolean activeHighlight = item.current && !mSelectionMode;
+
+				final int bgColor;
+				final int strokeColor;
+				final int strokeWidth;
+				final int titleColor;
+				final int iconTint;
+
+				if (selected) {
+					bgColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorPrimaryContainer);
+					strokeColor = MaterialColors.getColor(card, androidx.appcompat.R.attr.colorPrimary);
+					strokeWidth = mStrokeSelectedPx;
+					titleColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorOnPrimaryContainer);
+					iconTint = strokeColor;
+				} else if (activeHighlight) {
+					bgColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorSecondaryContainer);
+					strokeColor = MaterialColors.getColor(card, androidx.appcompat.R.attr.colorPrimary);
+					strokeWidth = mStrokeActivePx;
+					titleColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorOnSecondaryContainer);
+					iconTint = strokeColor;
+				} else {
+					bgColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorSurfaceContainerLow);
+					strokeColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorOutlineVariant);
+					strokeWidth = mStrokeNormalPx;
+					titleColor = MaterialColors.getColor(card, com.google.android.material.R.attr.colorOnSurface);
+					iconTint = MaterialColors.getColor(card, com.google.android.material.R.attr.colorOnSurfaceVariant);
+				}
+
+				card.setCardBackgroundColor(bgColor);
+				card.setStrokeColor(strokeColor);
+				card.setStrokeWidth(strokeWidth);
+				name.setTextColor(titleColor);
+				icon.setImageResource(item.current ? R.drawable.ic_done : R.drawable.ic_rfm_lists);
+				ImageViewCompat.setImageTintList(icon, ColorStateList.valueOf(iconTint));
+
+				activeBadge.setVisibility(item.current ? View.VISIBLE : View.GONE);
 				check.setVisibility(mSelectionMode ? View.VISIBLE : View.GONE);
 				check.setChecked(selected);
 				menuButton.setVisibility(mSelectionMode ? View.GONE : View.VISIBLE);
 
-				itemView.setOnClickListener(v -> setCurrentList(item.name));
-				itemView.setOnLongClickListener(v -> {
+				card.setOnClickListener(v -> setCurrentList(item.name));
+				card.setOnLongClickListener(v -> {
 					enterSelectionMode(item.name);
 					return true;
 				});
 
 				menuButton.setOnClickListener(v -> {
-					final android.widget.PopupMenu popupMenu = new android.widget.PopupMenu(FavoriteListsActivity.this, v);
+					final PopupMenu popupMenu = new PopupMenu(FavoriteListsActivity.this, v);
 					popupMenu.getMenu().add(0, MENU_LIST_RENAME, 1, R.string.popup_station_rename);
 					if (!FavoriteController.DEFAULT_NAME.equals(item.name)) {
 						popupMenu.getMenu().add(0, MENU_LIST_REMOVE, 2, R.string.popup_station_remove);

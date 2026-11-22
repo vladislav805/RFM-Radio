@@ -1,63 +1,661 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		xmlns:app="http://schemas.android.com/apk/res-auto"
-		xmlns:tools="http://schemas.android.com/tools"
-		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		android:background="@color/main_background"
-		tools:context=".activity.MainActivity">
-	<androidx.appcompat.widget.Toolbar
-			android:layout_width="match_parent"
-			android:layout_height="?attr/actionBarSize"
-			android:minHeight="?attr/actionBarSize"
-			android:background="?attr/colorPrimary"
-			android:elevation="4dp"
-			android:theme="?attr/actionBarTheme"
-			android:id="@+id/main_toolbar"
-			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintEnd_toEndOf="parent"/>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingTop="4dp"
+    android:paddingBottom="10dp"
+    tools:context=".activity.MainActivity">
 
-	<com.vlad805.fmradio.view.RadioUIView
-		android:id="@+id/frequency_info"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="8dp"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@id/main_toolbar" />
+    <!-- 1. TOP MATERIAL 3 APP BAR -->
+    <LinearLayout
+        android:id="@+id/top_status_bar"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-	<com.vlad805.fmradio.view.FrequencyBarView
-		android:id="@+id/frequency_seek"
-		android:layout_width="@dimen/seek_frequency_width"
-		android:layout_height="0dp"
-		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/main_toolbar" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="@string/app_name"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="22sp" />
 
-	<com.vlad805.fmradio.view.FavoritesView
-		android:id="@+id/favorite_list"
-		android:layout_width="0dp"
-		android:layout_height="0dp"
-		android:layout_marginTop="16dp"
-		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toStartOf="@+id/frequency_seek"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/frequency_info"
-		tools:listitem="@layout/favorite_station_item" />
+        <!-- Record toggle + live timer Material pill -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btn_record"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:clickable="true"
+            android:contentDescription="@string/menu_record"
+            android:focusable="true"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="17dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
 
-	<com.google.android.material.floatingactionbutton.FloatingActionButton
-		android:id="@+id/favorite_button"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginEnd="16dp"
-		android:layout_marginBottom="16dp"
-		android:contentDescription="@string/open_favorites_lists"
-		app:backgroundTint="@color/primary_blue"
-		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:srcCompat="@drawable/ic_favorite_lists"
-		app:tint="@android:color/white" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/record_dot"
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:alpha="0.3"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_rfm_rec_dot" />
+
+                <TextView
+                    android:id="@+id/record_duration_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="monospace"
+                    android:text="@string/record_badge_idle"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- AF indicator Material pill (clickable to show AF frequencies dialog) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/af_badge_card"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="17dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/af_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:minWidth="44dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="@string/rds_af_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Settings / overflow trigger Material IconButton (full 48dp touch target) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_settings_menu"
+            style="@style/RfmIconButtonStandard"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="2dp"
+            android:contentDescription="@string/menu_settings"
+            app:icon="@drawable/ic_settings"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="24dp"
+            app:iconTint="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/top_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:alpha="0.5"
+        android:background="?attr/colorOutlineVariant"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_status_bar" />
+
+    <!-- 2. SYMMETRIC 3-COLUMN TUNER HEADER (SIGNAL+STEREO / PS | FREQUENCY | PI / PTY) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/tuner_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minHeight="132dp"
+        android:paddingStart="16dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_divider">
+
+        <!-- CENTER: LARGE FREQUENCY + MHz -->
+        <TextView
+            android:id="@+id/frequency_mhz"
+            android:layout_width="134dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:fontFeatureSettings="tnum"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.03"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="44sp"
+            app:layout_constraintBottom_toTopOf="@+id/frequency_unit"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed"
+            tools:text="102.8" />
+
+        <TextView
+            android:id="@+id/frequency_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="@string/mhz_unit"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="@+id/frequency_mhz"
+            app:layout_constraintStart_toStartOf="@+id/frequency_mhz"
+            app:layout_constraintTop_toBottomOf="@+id/frequency_mhz" />
+
+        <!-- TOP LEFT: SIGNAL + STEREO/MONO -->
+        <com.vlad805.fmradio.view.SignalStrengthView
+            android:id="@+id/signal_strength"
+            android:layout_width="28dp"
+            android:layout_height="20dp"
+            android:contentDescription="@string/signal_strength_indicator"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/stereo_mono_card"
+            android:layout_width="wrap_content"
+            android:layout_height="22dp"
+            android:layout_marginStart="8dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="11dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="@+id/signal_strength"
+            app:layout_constraintStart_toEndOf="@+id/signal_strength"
+            app:layout_constraintTop_toTopOf="@+id/signal_strength"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/stereo_mono"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/mono_mode_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="11sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- BOTTOM LEFT: PS -->
+        <TextView
+            android:id="@+id/frequency_ps"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
+            android:gravity="start|bottom"
+            android:maxLines="2"
+            android:minLines="2"
+            android:text="@string/rds_placeholder"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@+id/frequency_ps_label"
+            app:layout_constraintEnd_toStartOf="@+id/frequency_mhz"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/signal_strength"
+            app:layout_constraintVertical_bias="1"
+            tools:text="RADIO ROCK" />
+
+        <TextView
+            android:id="@+id/frequency_ps_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="monospace"
+            android:text="PS"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:ignore="HardcodedText" />
+
+        <!-- TOP RIGHT: PI -->
+        <TextView
+            android:id="@+id/frequency_pi"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
+            android:gravity="end"
+            android:maxLines="1"
+            android:text="@string/rds_placeholder"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/frequency_mhz"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="7201" />
+
+        <TextView
+            android:id="@+id/frequency_pi_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:text="@string/rds_pi_prefix"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="11sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/frequency_pi" />
+
+        <!-- BOTTOM RIGHT: PTY / SYS -->
+        <TextView
+            android:id="@+id/frequency_pty"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="14dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="end|bottom"
+            android:maxLines="2"
+            android:minLines="2"
+            android:text="@string/rds_placeholder"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="13sp"
+            app:layout_constraintBottom_toTopOf="@+id/frequency_pty_label"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/frequency_mhz"
+            app:layout_constraintTop_toBottomOf="@+id/frequency_pi_label"
+            app:layout_constraintVertical_bias="1"
+            tools:text="Popular Music (Pop)" />
+
+        <TextView
+            android:id="@+id/frequency_pty_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="sans-serif"
+            android:text="@string/rds_pty_prefix"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 3. COMPACT BORDERLESS RT / RT+ TRIGGER ROW (FIXED 2 LINES) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/rt_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tuner_header">
+
+        <!-- Raw RadioText (Fixed 2 lines height) -->
+        <TextView
+            android:id="@+id/frequency_rt"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="start|top"
+            android:lineSpacingExtra="2dp"
+            android:lines="2"
+            android:maxLines="2"
+            android:minLines="2"
+            android:text="@string/rds_rt_empty"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btn_toggle_rt_plus"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Appears only when station broadcasts RT+ tags -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btn_toggle_rt_plus"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_marginStart="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/frequency_rt"
+            app:layout_constraintTop_toTopOf="parent"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/btn_toggle_rt_plus_text"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/rds_rt_plus_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="11sp" />
+        </com.google.android.material.card.MaterialCardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 4. EDGE-TO-EDGE DRUM FREQUENCY DIAL -->
+    <com.vlad805.fmradio.view.FrequencyDialView
+        android:id="@+id/frequency_seek"
+        android:layout_width="0dp"
+        android:layout_height="68dp"
+        android:layout_marginTop="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/rt_card" />
+
+    <!-- 5. ONE-HANDED MATERIAL 3 TRANSPORT DECK (SEEK / STEP / POWER) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/transport_deck"
+        android:layout_width="0dp"
+        android:layout_height="70dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="14dp"
+        android:clipChildren="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/frequency_seek">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_seek_down"
+            style="@style/RfmIconButtonTonal"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="@string/seek_down"
+            android:visibility="gone"
+            app:icon="@drawable/ic_rfm_seek_prev"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ctl_go_down"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_go_down"
+            style="@style/RfmIconButtonTonal"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_marginEnd="10dp"
+            android:contentDescription="@string/jump_down"
+            android:visibility="gone"
+            app:icon="@drawable/ic_rfm_step_prev"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
+            app:layout_constraintStart_toEndOf="@+id/ctl_seek_down"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_toggle"
+            style="@style/Widget.Material3.Button.IconButton.Filled"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:contentDescription="@string/power_toggle_description"
+            android:elevation="4dp"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="22dp"
+            app:icon="@drawable/ic_rfm_power"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="24dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_go_up"
+            style="@style/RfmIconButtonTonal"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="10dp"
+            android:contentDescription="@string/jump_up"
+            android:visibility="gone"
+            app:icon="@drawable/ic_rfm_step_next"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ctl_seek_up"
+            app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ctl_seek_up"
+            style="@style/RfmIconButtonTonal"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/seek_up"
+            android:visibility="gone"
+            app:icon="@drawable/ic_rfm_seek_next"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/ctl_go_up"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 6. FAVORITES STATION CONSOLE (FILLS REMAINING HEIGHT, NO SCREEN SCROLL) -->
+    <com.vlad805.fmradio.view.FavoritesView
+        android:id="@+id/favorite_list"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="14dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/transport_deck" />
+
+    <!-- 7. EXPANDING RT+ OVERLAY CARD (ANCHORED TO @id/rt_card IN XML, DRAWN OVER DIAL & CONTROLS) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/rt_plus_overlay"
+        style="@style/Widget.Material3.CardView.Elevated"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="14dp"
+        android:elevation="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/rt_card"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp"
+        tools:visibility="gone">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="14dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="12dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_close_rt_plus"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="?attr/colorSecondaryContainer"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:strokeColor="?attr/colorSecondary"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/rds_rt_plus_label"
+                    android:textColor="?attr/colorOnSecondaryContainer"
+                    android:textSize="11sp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/rt_plus_artist_label"
+                android:layout_width="64dp"
+                android:layout_height="24dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:text="@string/rds_rt_plus_artist"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="10sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/rt_plus_artist_value"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="8dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@+id/btn_close_rt_plus"
+                app:layout_constraintStart_toEndOf="@+id/rt_plus_artist_label"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/rt_plus_title_label"
+                android:layout_width="64dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:text="@string/rds_rt_plus_title"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorSecondary"
+                android:textSize="10sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_label" />
+
+            <TextView
+                android:id="@+id/rt_plus_title_value"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/rt_plus_title_label"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_value" />
+
+            <TextView
+                android:id="@+id/rt_plus_album_label"
+                android:layout_width="64dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:text="@string/rds_rt_plus_album"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorTertiary"
+                android:textSize="10sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_label" />
+
+            <TextView
+                android:id="@+id/rt_plus_album_value"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/rt_plus_album_label"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_value" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

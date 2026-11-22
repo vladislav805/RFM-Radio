@@ -9,6 +9,7 @@ import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.color.DynamicColors;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
@@ -17,6 +18,7 @@ import com.vlad805.fmradio.fragments.PreferencesFragment;
 public class SettingsActivity extends AppCompatActivity {
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
+		DynamicColors.applyToActivityIfAvailable(this);
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.settings_activity);
 		setSupportActionBar(findViewById(R.id.settings_toolbar));

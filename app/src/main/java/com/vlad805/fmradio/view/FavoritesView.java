@@ -6,13 +6,15 @@ import android.content.res.ColorStateList;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.ArrayAdapter;
-import android.widget.ImageButton;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
@@ -22,7 +24,7 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import java.io.FileNotFoundException;
 import java.util.List;
 
-public class FavoritesView extends ConstraintLayout {
+public class FavoritesView extends FrameLayout {
 	public interface OnFavoritesChangedListener {
 		void onFavoritesChanged();
 	}
@@ -32,8 +34,8 @@ public class FavoritesView extends ConstraintLayout {
 	}
 
 	private FavoritesRecyclerView mRecyclerView;
-	private ImageButton mEditToggle;
-	private TextView mListSelector;
+	private MaterialButton mEditToggle;
+	private MaterialButton mListSelector;
 	private TextView mEmptyHint;
 
 	private FavoriteController mFavoriteController;
@@ -108,12 +110,20 @@ public class FavoritesView extends ConstraintLayout {
 	private void setEditMode(final boolean editMode) {
 		mEditMode = editMode;
 		mRecyclerView.setEditMode(editMode);
-		mEditToggle.setImageResource(editMode ? R.drawable.ic_done : R.drawable.ic_preset_order_toggle);
+		mEditToggle.setIconResource(editMode ? R.drawable.ic_done : R.drawable.ic_preset_order_toggle);
 		mEditToggle.setContentDescription(getContext().getString(editMode ? R.string.favorites_done : R.string.favorites_edit));
-		mEditToggle.setBackgroundTintList(editMode
-				? ColorStateList.valueOf(ContextCompat.getColor(getContext(), R.color.primary_blue))
-				: null
+		final int bgColor = MaterialColors.getColor(
+				this,
+				editMode ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorSecondaryContainer,
+				ContextCompat.getColor(getContext(), editMode ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
 		);
+		final int fgColor = MaterialColors.getColor(
+				this,
+				editMode ? com.google.android.material.R.attr.colorOnPrimary : com.google.android.material.R.attr.colorOnSecondaryContainer,
+				ContextCompat.getColor(getContext(), editMode ? R.color.rfm_md_on_primary : R.color.rfm_md_on_secondary_container)
+		);
+		mEditToggle.setBackgroundTintList(ColorStateList.valueOf(bgColor));
+		mEditToggle.setIconTint(ColorStateList.valueOf(fgColor));
 	}
 
 	private void updateListSelector() {
@@ -135,7 +145,8 @@ public class FavoritesView extends ConstraintLayout {
 				listNames
 		);
 
-		final AlertDialog dialog = new AlertDialog.Builder(getContext())
+		final AlertDialog dialog = new MaterialAlertDialogBuilder(getContext())
+				.setTitle(R.string.favorites_select_list)
 				.setAdapter(adapter, (d, which) -> {
 					switchFavoriteList(listNames.get(which));
 					d.dismiss();

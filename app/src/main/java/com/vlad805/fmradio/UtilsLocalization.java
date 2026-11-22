@@ -6,7 +6,7 @@ public class UtilsLocalization {
     private static final String[] RDS_PROGRAM_TYPES = new String[] {
             "", // 0
             "News", // 1
-            "Current affairs", // 2
+            "Affairs", // 2
             "Information", // 3
             "Sport", // 4
             "Education", // 5
@@ -14,25 +14,25 @@ public class UtilsLocalization {
             "Culture", // 7
             "Science", // 8
             "Varied", // 9
-            "Popular Music (Pop)", // 10
-            "Rock Music", // 11
-            "Easy Listening", // 12
-            "Light Classical", // 13
-            "Serious Classical", // 14
+            "Pop", // 10
+            "Rock", // 11
+            "Easy", // 12
+            "Light Classic", // 13
+            "Classical", // 14
             "Other Music", // 15
             "Weather", // 16
             "Finance", // 17
-            "Children's Programmes", // 18
-            "Social Affairs", // 19
+            "Children", // 18
+            "Social", // 19
             "Religion", // 20
             "Phone-in", // 21
             "Travel", // 22
             "Leisure", // 23
-            "Jazz Music", // 24
-            "Country Music", // 25
-            "National Music", // 26
-            "Oldies Music", // 27
-            "Folk Music", // 28
+            "Jazz", // 24
+            "Country", // 25
+            "National", // 26
+            "Oldies", // 27
+            "Folk", // 28
             "Documentary", // 29
             "Alarm Test", // 30
             "Alarm", // 31
@@ -55,21 +55,21 @@ public class UtilsLocalization {
             "Nostalgia", // 13
             "Jazz", // 14
             "Classical", // 15
-            "Rhythm and Blues", // 16
-            "Soft Rhythm and Blues", // 17
-            "Foreign Language", // 18
-            "Religious Music", // 19
-            "Religious Talk", // 20
+            "R&B", // 16
+            "Soft R&B", // 17
+            "Foreign", // 18
+            "Relig. Music", // 19
+            "Relig. Talk", // 20
             "Personality", // 21
             "Public", // 22
             "College", // 23
             "Spanish Talk", // 24
-            "Spanish Music", // 25
+            "Latin", // 25
             "Hip Hop", // 26
             "Unassigned", // 27
             "Unassigned", // 28
             "Weather", // 29
-            "Emergency Test", // 30
+            "Emerg. Test", // 30
             "Emergency", // 31
     };
 

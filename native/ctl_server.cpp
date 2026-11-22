@@ -234,6 +234,14 @@ bool send_native_event(const char *type) {
     return send_json_message(json);
 }
 
+bool send_search_progress(int count) {
+    std::string json;
+    if (!build_search_progress_json(count, &json)) {
+        return false;
+    }
+    return send_json_message(json);
+}
+
 bool send_search_done(const int *frequencies_khz, int count) {
     std::string json;
     if (!build_search_done_json(frequencies_khz, count, &json)) {

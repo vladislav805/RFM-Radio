@@ -30,6 +30,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
     public static final int SET_RMSSI = 1 << 10;
     public static final int SET_RT_PLUS = 1 << 11;
     public static final int SET_SINR = 1 << 12;
+    public static final int SET_AF = 1 << 13;
     public static final int SET_INITIAL = 1 << 31;
 
     public interface TunerStateListener {
@@ -118,7 +119,7 @@ public class RadioStateUpdater extends BroadcastReceiver {
             case C.Event.DISABLED: {
                 mState.setStatus(TunerStatus.IDLE);
                 mState.clear();
-                mode = SET_STATUS | SET_RMSSI | SET_SINR | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS;
+                mode = SET_STATUS | SET_RMSSI | SET_SINR | SET_PS | SET_RT | SET_PTY | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS | SET_AF;
                 break;
             }
 
@@ -127,7 +128,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 if (frequency != mState.getFrequency()) {
                     mState.setRmssi(RadioState.RMSSI_UNKNOWN);
                     mState.setSinr(RadioState.SINR_UNKNOWN);
-                    mode = SET_FREQUENCY | SET_RMSSI | SET_SINR;
+                    mState.setAf(null);
+                    mode = SET_FREQUENCY | SET_RMSSI | SET_SINR | SET_AF;
                 } else {
                     mode = SET_FREQUENCY;
                 }
@@ -171,7 +173,8 @@ public class RadioStateUpdater extends BroadcastReceiver {
                     if (frequency != mState.getFrequency()) {
                         mState.setRmssi(RadioState.RMSSI_UNKNOWN);
                         mState.setSinr(RadioState.SINR_UNKNOWN);
-                        mode |= SET_RMSSI | SET_SINR;
+                        mState.setAf(null);
+                        mode |= SET_RMSSI | SET_SINR | SET_AF;
                     }
                     mState.setFrequency(frequency);
                     mode |= SET_FREQUENCY;
@@ -195,6 +198,10 @@ public class RadioStateUpdater extends BroadcastReceiver {
                 if (intent.hasExtra(C.Key.COUNTRY)) {
                     mState.setCountry(intent.getStringExtra(C.Key.COUNTRY));
                     mode |= SET_COUNTRY;
+                }
+                if (intent.hasExtra(C.Key.FREQUENCIES)) {
+                    mState.setAf(intent.getIntArrayExtra(C.Key.FREQUENCIES));
+                    mode |= SET_AF;
                 }
                 if (intent.hasExtra(C.Key.STEREO_MODE)) {
                     mState.setStereo(intent.getBooleanExtra(C.Key.STEREO_MODE, false));

@@ -1,18 +1,16 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 	<string name="app_name">RFM Radio</string>
-	<string name="nil" translatable="false">null</string>
 	<string name="main_activity_label" translatable="false">RFM Radio</string>
 	<string name="toggle_play_pause">Play</string>
 	<string name="jump_up">Jump up</string>
 	<string name="seek_up">Seek up</string>
 	<string name="jump_down">Jump down</string>
 	<string name="seek_down">Seek down</string>
-	<string name="status_tuner_stopped">Tuner stopped</string>
-	<string name="status_searching_station">Searching for station…</string>
-	<string name="status_installing">Installing FM backend…</string>
-	<string name="status_launching">Launching FM backend…</string>
+	<string name="status_tuner_stopped">Stopped</string>
+	<string name="status_searching_station">Seeking…</string>
+	<string name="status_installing">Installing…</string>
+	<string name="status_launching">Launching…</string>
 	<string name="favorites_empty_hint">No favorites yet. Tap + to add the current frequency.</string>
-	<string name="open_favorites_lists">Open favorites lists</string>
 	<string name="favorites_edit">Edit</string>
 	<string name="favorites_done">Done</string>
 	<string name="signal_strength_indicator">Signal strength</string>
@@ -34,8 +32,6 @@
 	<string name="popup_station_remove">Remove</string>
 	<string name="about_author">Vladislav Veluga © 2020–2026</string>
 	<string name="menu_favorite_list_create">Create list</string>
-	<string name="menu_favorite_list_remove">Remove this list</string>
-	<string name="menu_favorite_list_rename">Rename this list</string>
 	<string name="menu_favorite_list_import">Import list</string>
 	<string name="menu_favorite_list_export">Export list</string>
 	<string name="menu_favorite_list_export_all">Export all lists</string>
@@ -148,7 +144,9 @@
 	<string name="scan_stations_confirm_message">The current favorites list will be cleared and replaced with the stations found.</string>
 	<string name="scan_stations_confirm_continue">Remove and scan</string>
 	<string name="scan_stations_confirm_discard">Discard</string>
+	<string name="scan_stations_title">Scanning stations</string>
 	<string name="scan_stations_progress">Please, wait… I trying to find stations.</string>
+	<string name="scan_stations_progress_count">Found stations: %d</string>
     <string name="pref_tuner_rds_auto_af">Automatic jump by AF</string>
 	<string name="pref_tuner_rds_auto_afenabled">When the signal deteriorates and there are alternative frequencies of
 		the radio station, the tuner will automatically switch to the frequency with the best quality.
@@ -165,4 +163,24 @@
     <string name="record_subtitles_failed">Audio saved, but RDS subtitles could not be saved.</string>
     <string name="pref_recording_save_srt">Save RDS as subtitles</string>
     <string name="pref_recording_save_srt_summary">Save frequency, PS, RT and PI in a .srt file alongside the audio recording. Applies to new recordings.</string>
+    <string name="mhz_unit" translatable="false">MHz</string>
+    <string name="rds_placeholder" translatable="false">—</string>
+    <string name="rds_rt_empty">No RadioText broadcast</string>
+    <string name="rds_rt_plus_label" translatable="false">RT+</string>
+    <string name="rds_rt_plus_title">Title</string>
+    <string name="rds_rt_plus_artist">Artist</string>
+    <string name="rds_rt_plus_album">Album</string>
+    <string name="rds_pi_prefix" translatable="false">PI</string>
+    <string name="rds_pty_prefix" translatable="false">PTY</string>
+    <string name="rds_af_label" translatable="false">AF</string>
+    <string name="rds_af_count" translatable="false">AF · %d</string>
+    <string name="rds_af_dialog_title">Alternative frequencies (AF)</string>
+    <string name="rds_af_dialog_empty">No alternative frequencies broadcasted by this station.</string>
+    <string name="favorites_select_list">Select favorites list</string>
+    <string name="favorites_manage_lists">Manage favorite lists</string>
+    <string name="record_badge_idle" translatable="false">REC</string>
+    <string name="power_toggle_description">Power on/off</string>
+    <string name="about_version_copied">Version copied</string>
+    <string name="favorite_list_active_badge">Active</string>
+    <string name="favorite_list_name_hint">List name</string>
 </resources>
