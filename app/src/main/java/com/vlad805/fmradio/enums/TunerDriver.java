@@ -32,6 +32,16 @@ public enum TunerDriver {
         mJapanStandardUpperKhz = japanStandardUpperKhz;
     }
 
+    /**
+     * Returns true when this enum represents a concrete detected backend whose
+     * capability flags are known. Callers should guard UI feature disabling and
+     * band narrowing with this check so an unresolved cold-start {@link #NONE}
+     * state does not prematurely hide or disable Qualcomm features.
+     */
+    public boolean hasKnownCapabilities() {
+        return this != NONE;
+    }
+
     public boolean supportsSoftMute() {
         return mSupportsSoftMute;
     }

@@ -35,7 +35,7 @@ public class BandUtils {
     }
 
     public static BandLimit getBandLimit(final int type, final TunerDriver driver) {
-        final boolean hasDriver = driver != null && driver != TunerDriver.NONE;
+        final boolean hasDriver = driver != null && driver.hasKnownCapabilities();
         if (hasDriver && !driver.supportsJapanWide() && (type == BAND_JAPAN_STANDARD || type == BAND_JAPAN_WIDE)) {
             return japanStandardLimitFor(driver);
         }

@@ -293,7 +293,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mCtlToggle = findViewById(R.id.ctl_toggle);
         mViewStereoModeCard = findViewById(R.id.stereo_mono_card);
         mViewStereoMode = findViewById(R.id.stereo_mono);
-        if (!TunerDriverDetector.getTunerDriver(this).supportsStereoDetection() && mViewStereoModeCard != null) {
+        final TunerDriver driver = TunerDriverDetector.getTunerDriver(this);
+        if (driver.hasKnownCapabilities() && !driver.supportsStereoDetection() && mViewStereoModeCard != null) {
             mViewStereoModeCard.setVisibility(View.GONE);
         }
         mAfBadgeCard = findViewById(R.id.af_badge_card);
@@ -769,7 +770,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (mViewStereoMode == null || mViewStereoModeCard == null) {
             return;
         }
-        if (!TunerDriverDetector.getTunerDriver(this).supportsStereoDetection()) {
+        final TunerDriver driver = TunerDriverDetector.getTunerDriver(this);
+        if (driver.hasKnownCapabilities() && !driver.supportsStereoDetection()) {
             mViewStereoModeCard.setVisibility(View.GONE);
             return;
         }

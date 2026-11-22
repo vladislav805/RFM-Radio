@@ -38,7 +38,7 @@
         <item>3</item>
     </string-array>
 
-    <string-array name="pref_tuner_notch_filter_entries">
+    <string-array name="pref_tuner_notch_filter_entries" translatable="false">
         <item>@string/pref_tuner_notch_filter_auto</item>
         <item>@string/pref_tuner_notch_filter_low</item>
         <item>@string/pref_tuner_notch_filter_high</item>
@@ -50,7 +50,7 @@
         <item>2</item>
     </string-array>
 
-    <string-array name="pref_recording_format_entries">
+    <string-array name="pref_recording_format_entries" translatable="false">
         <item>@string/pref_recording_format_wav</item>
         <item>@string/pref_recording_format_mp3_128</item>
         <item>@string/pref_recording_format_mp3_192</item>

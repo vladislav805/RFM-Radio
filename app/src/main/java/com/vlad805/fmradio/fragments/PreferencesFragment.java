@@ -63,6 +63,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final TunerDriver driver = TunerDriverDetector.getTunerDriver(context);
 
 		if (
+				driver.hasKnownCapabilities() &&
 				!driver.supportsJapanWide() &&
 				Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE
 		) {
@@ -189,6 +190,10 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	private void configureBackendCapabilities(final TunerDriver driver) {
+		if (!driver.hasKnownCapabilities()) {
+			return;
+		}
+
 		if (!driver.supportsJapanWide()) {
 			final ListPreference region = findPreference(C.PrefKey.TUNER_REGION);
 			if (region != null) {
@@ -218,7 +223,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	private void configureInteractivePreferences(final TunerDriver driver) {
-		if (driver.supportsAntenna()) {
+		if (!driver.hasKnownCapabilities() || driver.supportsAntenna()) {
 			final EditTextPreference antenna = findPreference(C.PrefKey.TUNER_ANTENNA);
 			if (antenna != null) {
 				antenna.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_NUMBER));
@@ -230,6 +235,13 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 					}
 					return true;
 				});
+			}
+		}
+
+		for (final String key : new String[]{C.PrefKey.RECORDING_DIRECTORY, C.PrefKey.RECORDING_FILENAME}) {
+			final EditTextPreference textPref = findPreference(key);
+			if (textPref != null) {
+				textPref.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_TEXT));
 			}
 		}
 

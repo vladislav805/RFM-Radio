@@ -12,6 +12,7 @@ public class TunerDriverCapabilitiesTest {
     @Test
     public void qualcommBackendsSupportFullFeatureSet() {
         for (final TunerDriver driver : new TunerDriver[]{TunerDriver.V4L2_QCOM, TunerDriver.HAL_HELIUM}) {
+            assertTrue(driver.hasKnownCapabilities());
             assertTrue(driver.supportsSoftMute());
             assertTrue(driver.supportsNotchFilter());
             assertTrue(driver.supportsAntenna());
@@ -25,6 +26,7 @@ public class TunerDriverCapabilitiesTest {
     @Test
     public void exynosBackendDisablesUnsupportedFeaturesAndUsesNarrowJapanBand() {
         final TunerDriver driver = TunerDriver.V4L2_EXYNOS;
+        assertTrue(driver.hasKnownCapabilities());
         assertFalse(driver.supportsSoftMute());
         assertFalse(driver.supportsNotchFilter());
         assertFalse(driver.supportsAntenna());
@@ -35,8 +37,9 @@ public class TunerDriverCapabilitiesTest {
     }
 
     @Test
-    public void noneBackendReportsNoHardwareCapabilities() {
+    public void noneBackendHasUnknownCapabilitiesSoUiDoesNotGateFeatures() {
         final TunerDriver driver = TunerDriver.NONE;
+        assertFalse(driver.hasKnownCapabilities());
         assertFalse(driver.supportsSoftMute());
         assertFalse(driver.supportsNotchFilter());
         assertFalse(driver.supportsAntenna());
@@ -44,6 +47,14 @@ public class TunerDriverCapabilitiesTest {
         assertFalse(driver.supportsJapanWide());
         assertFalse(driver.supportsStereoDetection());
         assertEquals(95000, driver.getJapanStandardUpperKhz());
+
+        // Guarded UI predicates must not treat unresolved NONE as unsupported.
+        assertFalse(driver.hasKnownCapabilities() && !driver.supportsSoftMute());
+        assertFalse(driver.hasKnownCapabilities() && !driver.supportsNotchFilter());
+        assertFalse(driver.hasKnownCapabilities() && !driver.supportsAntenna());
+        assertFalse(driver.hasKnownCapabilities() && !driver.supportsAutoAf());
+        assertFalse(driver.hasKnownCapabilities() && !driver.supportsJapanWide());
+        assertFalse(driver.hasKnownCapabilities() && !driver.supportsStereoDetection());
     }
 
     @Test
