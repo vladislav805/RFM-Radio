@@ -18,7 +18,8 @@ public class BandUtils {
     public static final int BAND_JAPAN_STANDARD = 2;
     public static final int BAND_JAPAN_WIDE = 3;
     public static final int BAND_US = 4;
-    public static final int BAND_MOD = 5;
+    public static final int BAND_MOD1 = 5;
+    public static final int BAND_MOD2 = 6;
     
     public static final int SPACING=10kHz = 1;
     public static final int SPACING_50kHz = 2;
@@ -28,7 +29,7 @@ public class BandUtils {
     private static final BandLimit LIMIT_EU = new BandLimit(87500, 108000);
     private static final BandLimit LIMIT_JP_STD = new BandLimit(76000, 95000);
     private static final BandLimit LIMIT_JP_WIDE = new BandLimit(76000, 108000);
-    private static final BandLimit LIMIT_JP_WIDE = new BandLimit(30000, 999000);
+    private static final BandLimit LIMIT_MOD = new BandLimit(30000, 999000);
 
     public static BandLimit getBandLimit(final int type) {
         switch (type) {
@@ -40,7 +41,8 @@ public class BandUtils {
                 return LIMIT_JP_WIDE;
             }
 
-            case BAND_MOD: {
+            case BAND_MOD1:
+            case BAND_MOD2: {
                 return LIMIT_MOD;
             }
 
