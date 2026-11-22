@@ -1,6 +1,7 @@
+#include <unistd.h>
+#include <poll.h>
 #include "fm_ctl.h"
 #include "fmcommon.h"
-#include "../ctl_server.h"
 #include "../rds_parser.h"
 #include "../rmssi.h"
 #include "../fm_v4l2_controls.h"
@@ -25,15 +26,14 @@ constexpr int kMaxTagCodes = 64;
 
 extern fm_current_storage fm_storage;
 
-bool g_rt_plus_tags_valid = false;
-RdsRtPlusTag g_rt_plus_tags[2];
+struct LegacyRtPlusTag {
+    int content_type = 0;
+    int start = 0;
+    int len = 0;
+};
 
-// RAW (pre-UTF-8-conversion) EBU Latin RT bytes of the latest RT event.
-// RT+ tag start/len indices refer to these raw characters, not to the UTF-8
-// text stored in fm_storage.rds.radio_text. Load-bearing for RT+ slicing
-// (issue #103).
-unsigned char g_rt_raw_text[65] = {};
-int g_rt_raw_text_len = 0;
+bool g_rt_plus_tags_valid = false;
+LegacyRtPlusTag g_rt_plus_tags[2];
 
 const char *rtp_content_type_name(int content_type) {
     switch (content_type) {
@@ -65,25 +65,19 @@ void log_rt_plus_slices() {
         return;
     }
 
-    const int rt_len = g_rt_raw_text_len;
-    for (const RdsRtPlusTag &tag : g_rt_plus_tags) {
+    const size_t rt_len = strlen(fm_storage.rds.radio_text);
+    for (const LegacyRtPlusTag &tag : g_rt_plus_tags) {
         if (tag.content_type == 0) {
             continue;
         }
 
-        // tag.start/tag.length are indices into the RAW EBU Latin RT buffer, not
-        // the UTF-8 text. Slice raw bytes and convert only the slice.
-        if (
-                tag.start >= 0 &&
-                tag.length > 0 &&
-                tag.start + tag.length <= rt_len
-        ) {
-            char text[65 * 3 + 1];
-            convert_ebu_latin_to_utf8(g_rt_raw_text + tag.start, tag.length, text, static_cast<int>(sizeof(text)));
+        if (tag.start >= 0 && tag.len > 0 && tag.start + tag.len <= static_cast<int>(rt_len)) {
+            char text[65];
+            snprintf(text, sizeof(text), "%.*s", tag.len, fm_storage.rds.radio_text + tag.start);
             legacy_log("rds", "rt+ slice %s=`%s`", rtp_content_type_name(tag.content_type), text);
         } else {
-            legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
-                    rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.length, rt_len);
+            legacy_log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%zu",
+                    rtp_content_type_name(tag.content_type), tag.content_type, tag.start, tag.len, rt_len);
         }
     }
 }
@@ -92,16 +86,6 @@ void clear_rt_plus_tags() {
     g_rt_plus_tags_valid = false;
     g_rt_plus_tags[0] = {};
     g_rt_plus_tags[1] = {};
-}
-
-void evaluate_legacy_rt_plus_slices(RdsRtPlusSlices *out) {
-    evaluate_rds_rt_plus_slices(
-            g_rt_plus_tags_valid,
-            g_rt_plus_tags,
-            g_rt_raw_text,
-            g_rt_raw_text_len,
-            out
-    );
 }
 
 /**
@@ -173,26 +157,22 @@ bool fm_receiver_set_band(radio_band_t band) {
     band_limit_freq limits = {};
     make_frequency_limit_by_band(band, &limits);
 
-    int ret;
-
     struct v4l2_tuner tuner = {};
     tuner.index = 0;
     tuner.type = V4L2_TUNER_RADIO;
-    tuner.signal = 0;
+    ioctl(fd_radio, VIDIOC_G_TUNER, &tuner);
+
     tuner.rangelow = khz_to_tunefreq(limits.lower_limit);
     tuner.rangehigh = khz_to_tunefreq(limits.upper_limit);
-    ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
+    tuner.audmode = (fm_storage.stereo_type == FM_RX_STEREO) ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
 
+    int ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
     if (ret < 0) {
         return FALSE;
     }
 
-    ret = set_v4l2_ctrl(kV4l2CtrlRegion, band);
-    if (ret == TRUE) {
-        fm_storage.band_type = band;
-    }
-
-    return ret == TRUE;
+    fm_storage.band_type = band;
+    return TRUE;
 }
 
 bool fm_receiver_set_rds_system(rds_system_t system) {
@@ -316,24 +296,6 @@ bool fm_receiver_get_rmssi(int *rmssi) {
     return TRUE;
 }
 
-bool fm_receiver_get_sinr(int *sinr) {
-    if (fd_radio < 0 || sinr == nullptr) {
-        return FALSE;
-    }
-
-    struct v4l2_control control = {};
-    control.id = kV4l2CtrlIrisSinr;
-
-    if (ioctl(fd_radio, VIDIOC_G_CTRL, &control) < 0) {
-        const int saved_errno = errno;
-        legacy_log("metric", "get sinr failed, errno=%d (%s)", saved_errno, strerror(saved_errno));
-        return FALSE;
-    }
-
-    *sinr = static_cast<int8_t>(static_cast<unsigned char>(control.value));
-    return TRUE;
-}
-
 bool fm_receiver_set_mute_mode(mute_t mode) {
     return set_v4l2_ctrl(V4L2_CID_AUDIO_MUTE, mode);
 }
@@ -389,16 +351,30 @@ bool fm_receiver_set_stereo_mode(stereo_t mode) {
     struct v4l2_tuner tuner = {};
     tuner.index = 0;
     tuner.type = V4L2_TUNER_RADIO;
-    tuner.audmode = mode;
+
+    if (ioctl(fd_radio, VIDIOC_G_TUNER, &tuner) < 0 || tuner.rangelow == 0) {
+        band_limit_freq limits = {};
+        make_frequency_limit_by_band(fm_storage.band_type, &limits);
+        if (limits.lower_limit > 0 && limits.upper_limit > 0) {
+            tuner.rangelow = khz_to_tunefreq(limits.lower_limit);
+            tuner.rangehigh = khz_to_tunefreq(limits.upper_limit);
+        } else {
+            tuner.rangelow = khz_to_tunefreq(kDefaultLowerFrequencyKhz);
+            tuner.rangehigh = khz_to_tunefreq(kDefaultUpperFrequencyKhz);
+        }
+    }
+
+    tuner.audmode = (mode == FM_RX_STEREO) ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
 
     int32 ret = ioctl(fd_radio, VIDIOC_S_TUNER, &tuner);
-
     if (ret < 0) {
         const int saved_errno = errno;
         legacy_log("audio", "set stereo failed, ret=%d errno=%d (%s)", ret, saved_errno, strerror(saved_errno));
+        return FALSE;
     }
 
-    return ret == 0;
+    fm_storage.stereo_type = mode;
+    return TRUE;
 }
 
 bool fm_receiver_search_station_seek(search_t mode, int8 search_dir, uint8 dwell_period) {
@@ -506,31 +482,86 @@ void fm_receiver_close() {
  * the interrupt data received
  * @return FALSE in failure, TRUE in success
  */
+/* rtc6226 read() fallback with stale event queue draining */
+static void rtc6226_drain_stale_events(int fd) {
+    if (fd < 0) return;
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN | POLLRDNORM;
+    uint8_t trash[128];
+    int total = 0;
+    while (poll(&pfd, 1, 0) > 0 && (pfd.revents & (POLLIN | POLLRDNORM))) {
+        ssize_t n = read(fd, trash, 1);
+        if (n <= 0) break;
+        total += n;
+    }
+    if (total > 0) {
+        legacy_log("v4l2", "drained %d stale bytes from driver queue", total);
+    }
+}
+
 int32 read_data_from_v4l2(uint8 *buf, uint32 buffer_size, int index) {
     if (fd_radio < 0 || buf == NULL || buffer_size == 0) {
         return -1;
     }
 
-    int err;
+    static int s_use_read_fallback = 0;
+    static int s_drained = 0;
 
-    struct v4l2_buffer v4l2_buf;
-    memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+    if (!s_use_read_fallback) {
+        struct v4l2_buffer v4l2_buf;
+        memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+        v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
+        v4l2_buf.index = index;
+        v4l2_buf.memory = V4L2_MEMORY_USERPTR;
+        v4l2_buf.m.userptr = (unsigned long) buf;
+        v4l2_buf.length = buffer_size;
 
-    v4l2_buf.index = index;
-    v4l2_buf.type = V4L2_BUF_TYPE_PRIVATE;
-    v4l2_buf.memory = V4L2_MEMORY_USERPTR;
-    v4l2_buf.m.userptr = (unsigned long) buf;
-    v4l2_buf.length = buffer_size;
+        int ret = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
+        if (ret >= 0) {
+            return (int32) v4l2_buf.bytesused;
+        }
 
-    err = ioctl(fd_radio, VIDIOC_DQBUF, &v4l2_buf);
-
-    if (err < 0) {
-        const int saved_errno = errno;
-        legacy_log("v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, err, saved_errno, strerror(saved_errno));
-        return -1;
+        if (errno == ENOTTY || errno == 25) {
+            legacy_log("v4l2", "VIDIOC_DQBUF returned ENOTTY, switching to rtc6226 read() fallback");
+            s_use_read_fallback = 1;
+        } else {
+            legacy_log("v4l2", "read buffer index=0x%x failed, ret=%d errno=%d (%s)", index, ret, errno, strerror(errno));
+            return -1;
+        }
     }
 
-    return (int32) v4l2_buf.bytesused;
+    if (!s_drained) {
+        s_drained = 1;
+        rtc6226_drain_stale_events(fd_radio);
+    }
+
+    const size_t count_param = (index > 0 && index < 10) ? (size_t) index : 1;
+
+    while (1) {
+        if (fd_radio < 0) {
+            return -1;
+        }
+        ssize_t n = read(fd_radio, buf, count_param);
+        if (n > 0) {
+            legacy_log("v4l2", "read: got %zd bytes (event=0x%02x) for buffer %zu", n, buf[0], count_param);
+            return (int32) n;
+        }
+        if (n == 0) {
+            usleep(20000);
+            continue;
+        }
+        const int saved_errno = errno;
+        if (saved_errno == EINTR) {
+            continue;
+        }
+        if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
+            usleep(20000);
+            continue;
+        }
+        legacy_log("v4l2", "read failed errno=%d (%s) count_param=%zu", saved_errno, strerror(saved_errno), count_param);
+        return -1;
+    }
 }
 
 /**
@@ -615,10 +646,6 @@ bool extract_radio_text(fm_rds_storage* storage) {
     }
 
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
-    // Keep the RAW EBU Latin bytes: RT+ tag indices refer to raw characters,
-    // and g_rt_raw_text is what log_rt_plus_slices() slices.
-    g_rt_raw_text_len = parsed.raw_text_len;
-    memcpy(g_rt_raw_text, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
     legacy_log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
     log_rt_plus_slices();
 
@@ -657,22 +684,24 @@ bool extract_rt_plus() {
     const int rt_ert_flag = buf[1];
     legacy_log("rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
 
+    // Legacy IRIS V4L2 already converts the raw RT+ RDS group into a compact
+    // buffer: [0]=length, [1]=RT/eRT flag, [2..]=triplets(content,start,len).
+    // Unlike the HAL callback payload, tag lengths are already decoded here.
     clear_rt_plus_tags();
-    RdsRtPlusPayload parsed;
-    if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kLegacy, &parsed)) {
-        g_rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
-        g_rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
-        g_rt_plus_tags_valid = parsed.tag_count > 0;
-        log_rt_plus_slices();
+    int tag_index = 0;
+    for (int offset = 2; offset + 2 < payload_len; offset += 3) {
+        const int content_type = buf[offset];
+        const int start = buf[offset + 1];
+        const int len = buf[offset + 2];
 
-        RdsRtPlusSlices slices;
-        evaluate_legacy_rt_plus_slices(&slices);
-        radio_state_patch_t patch = radio_state_patch_empty();
-        patch.rt_plus_title = slices.title;
-        patch.rt_plus_artist = slices.artist;
-        patch.rt_plus_album = slices.album;
-        send_radio_state_patch(&patch);
+        if (tag_index < 2) {
+            g_rt_plus_tags[tag_index] = {content_type, start, len};
+            tag_index++;
+        }
     }
+
+    g_rt_plus_tags_valid = tag_index > 0;
+    log_rt_plus_slices();
 
     return TRUE;
 }
