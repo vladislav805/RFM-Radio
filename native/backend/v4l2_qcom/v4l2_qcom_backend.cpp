@@ -1678,9 +1678,12 @@ fm_cmd_status_t V4l2QcomBackend::command_setup_rds(rds_system_t system) {
             group_proc = 0;
         }
 
+        // Set RT/PS/AF in both shifted (bits 3..5) and unshifted (bits 0..2)
+        // positions: newer radio-iris kernels (e.g. Redmi 4A 4.9) check bits 0..2
+        // while older drivers check bits 3..5.
         uint8_t rds_group_mask = static_cast<uint8_t>(group_proc);
         rds_group_mask &= kRdsGroupProcPreserveMask;
-        rds_group_mask |= kRdsGroupProcOptionsMask << kRdsGroupProcOptionsShift;
+        rds_group_mask |= (kRdsGroupProcOptionsMask << kRdsGroupProcOptionsShift) | kRdsGroupProcOptionsMask;
 
         log("rds", "set group options=0x%x", rds_group_mask);
         if (!set_v4l2_ctrl(kV4l2CtrlRdsGroupProc, rds_group_mask)) {
