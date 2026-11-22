@@ -4,16 +4,27 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.SparseArray;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.DrawableRes;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 import androidx.preference.*;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
 import com.vlad805.fmradio.*;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.enums.TunerDriver;
@@ -56,8 +67,97 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		makeInfoCategoryPreferences(context, screen);
 
 		setPreferenceScreen(screen);
+	}
 
+	@Override
+	public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
 
+		setDivider(null);
+		setDividerHeight(0);
+
+		final RecyclerView listView = getListView();
+		final int bottomPad = Math.round(16f * getResources().getDisplayMetrics().density);
+		listView.setPadding(listView.getPaddingLeft(), listView.getPaddingTop(), listView.getPaddingRight(), bottomPad);
+		listView.setClipToPadding(false);
+
+		listView.post(() -> {
+			final float offset = 14f * getResources().getDisplayMetrics().density;
+			final int count = listView.getChildCount();
+			for (int i = 0; i < count; i++) {
+				final View child = listView.getChildAt(i);
+				child.setAlpha(0f);
+				child.setTranslationY(offset);
+				child.animate()
+						.alpha(1f)
+						.translationY(0f)
+						.setStartDelay(Math.min(i * 22L, 200L))
+						.setDuration(220L)
+						.setInterpolator(new FastOutSlowInInterpolator())
+						.start();
+			}
+		});
+	}
+
+	@Override
+	public void onDisplayPreferenceDialog(@NonNull final Preference preference) {
+		if (preference instanceof ListPreference) {
+			final ListPreference listPref = (ListPreference) preference;
+			final CharSequence[] entries = listPref.getEntries();
+			final CharSequence[] entryValues = listPref.getEntryValues();
+			final int checkedIndex = listPref.findIndexOfValue(listPref.getValue());
+
+			new MaterialAlertDialogBuilder(requireContext())
+					.setTitle(listPref.getDialogTitle() != null ? listPref.getDialogTitle() : listPref.getTitle())
+					.setSingleChoiceItems(entries, checkedIndex, (dialog, which) -> {
+						if (which >= 0 && entryValues != null && which < entryValues.length) {
+							final String value = entryValues[which].toString();
+							if (listPref.callChangeListener(value)) {
+								listPref.setValue(value);
+							}
+						}
+						dialog.dismiss();
+					})
+					.setNegativeButton(android.R.string.cancel, null)
+					.show();
+			return;
+		}
+
+		if (preference instanceof EditTextPreference) {
+			final EditTextPreference editPref = (EditTextPreference) preference;
+			final View content = LayoutInflater.from(requireContext()).inflate(R.layout.pref_dialog_edittext, null);
+			final TextView messageView = content.findViewById(R.id.pref_dialog_message);
+			final TextInputEditText editText = content.findViewById(R.id.pref_dialog_edit);
+
+			if (editPref.getDialogMessage() != null) {
+				messageView.setText(editPref.getDialogMessage());
+				messageView.setVisibility(View.VISIBLE);
+			}
+
+			final int inputType = C.PrefKey.TUNER_ANTENNA.equals(editPref.getKey())
+					? InputType.TYPE_CLASS_NUMBER
+					: InputType.TYPE_CLASS_TEXT;
+			editText.setInputType(inputType);
+			if (editPref.getText() != null) {
+				editText.setText(editPref.getText());
+				editText.setSelection(editPref.getText().length());
+			}
+
+			new MaterialAlertDialogBuilder(requireContext())
+					.setTitle(editPref.getDialogTitle() != null ? editPref.getDialogTitle() : editPref.getTitle())
+					.setView(content)
+					.setNegativeButton(android.R.string.cancel, null)
+					.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+						final String value = editText.getText() != null ? editText.getText().toString() : "";
+						if (editPref.callChangeListener(value)) {
+							editPref.setText(value);
+						}
+					})
+					.show();
+			return;
+		}
+
+		super.onDisplayPreferenceDialog(preference);
 	}
 
 	private PreferenceCategory makeCategory(final Context context, final @StringRes int title, final String key) {
@@ -71,12 +171,22 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		pref.setKey(key);
 		pref.setTitle(title);
 
+		if (pref instanceof SwitchPreferenceCompat) {
+			pref.setWidgetLayoutResource(R.layout.pref_widget_material_switch);
+		}
+
 		if (pref instanceof DialogPreference) {
 			((DialogPreference) pref).setDialogTitle(title);
 		}
 
 		if (icon != 0) {
-			pref.setIcon(icon);
+			final Drawable raw = ContextCompat.getDrawable(pref.getContext(), icon);
+			if (raw != null) {
+				final Drawable wrapped = DrawableCompat.wrap(raw.mutate());
+				final int tint = MaterialColors.getColor(pref.getContext(), androidx.appcompat.R.attr.colorPrimary, 0);
+				DrawableCompat.setTint(wrapped, tint);
+				pref.setIcon(wrapped);
+			}
 		}
 	}
 
@@ -111,8 +221,8 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(spacing);
 
 
-		final SwitchPreference stereo = new SwitchPreference(context);
-		populatePreference(stereo, C.PrefKey.TUNER_STEREO, R.string.pref_tuner_stereo, 0);
+		final SwitchPreferenceCompat stereo = new SwitchPreferenceCompat(context);
+		populatePreference(stereo, C.PrefKey.TUNER_STEREO, R.string.pref_tuner_stereo, R.drawable.ic_stereo);
 		stereo.setDefaultValue(C.PrefDefaultValue.TUNER_STEREO);
 		stereo.setSummaryOn(R.string.pref_tuner_stereo_on);
 		stereo.setSummaryOff(R.string.pref_tuner_stereo_off);
@@ -122,8 +232,8 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		});
 		category.addPreference(stereo);
 
-		final SwitchPreference softMute = new SwitchPreference(context);
-		populatePreference(softMute, C.PrefKey.TUNER_SOFT_MUTE, R.string.pref_tuner_soft_mute, 0);
+		final SwitchPreferenceCompat softMute = new SwitchPreferenceCompat(context);
+		populatePreference(softMute, C.PrefKey.TUNER_SOFT_MUTE, R.string.pref_tuner_soft_mute, R.drawable.ic_soft_mute);
 		softMute.setDefaultValue(C.PrefDefaultValue.TUNER_SOFT_MUTE);
 		if (isExynos) {
 			softMute.setEnabled(false);
@@ -139,7 +249,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(softMute);
 
 		final ListPreference notchFilter = new ListPreference(context);
-		populatePreference(notchFilter, C.PrefKey.TUNER_NOTCH_FILTER, R.string.pref_tuner_notch_filter, 0);
+		populatePreference(notchFilter, C.PrefKey.TUNER_NOTCH_FILTER, R.string.pref_tuner_notch_filter, R.drawable.ic_notch_filter);
 		notchFilter.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_NOTCH_FILTER));
 		if (isExynos) {
 			notchFilter.setEnabled(false);
@@ -175,7 +285,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		}
 		category.addPreference(antenna);
 
-		final SwitchPreference power = new SwitchPreference(context);
+		final SwitchPreferenceCompat power = new SwitchPreferenceCompat(context);
 		populatePreference(power, C.PrefKey.TUNER_POWER_MODE, R.string.pref_tuner_power_mode, R.drawable.ic_power);
 		power.setDefaultValue(C.PrefDefaultValue.TUNER_POWER_MODE);
 		power.setSummaryOn(R.string.pref_tuner_power_mode_low);
@@ -198,7 +308,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		description.setEnabled(false);
 		category.addPreference(description);
 
-		final SwitchPreference autoAf = new SwitchPreference(context);
+		final SwitchPreferenceCompat autoAf = new SwitchPreferenceCompat(context);
 		populatePreference(autoAf, C.PrefKey.RDS_AUTO_AF, R.string.pref_tuner_rds_auto_af, R.drawable.ic_rds);
 		autoAf.setDefaultValue(C.PrefDefaultValue.RDS_AUTO_AF);
 		if (isExynos) {
@@ -261,7 +371,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(format);
 
 		final SwitchPreferenceCompat saveSrt = new SwitchPreferenceCompat(context);
-		populatePreference(saveSrt, C.PrefKey.RECORDING_SAVE_SRT, R.string.pref_recording_save_srt, R.drawable.ic_rds);
+		populatePreference(saveSrt, C.PrefKey.RECORDING_SAVE_SRT, R.string.pref_recording_save_srt, R.drawable.ic_subtitles);
 		saveSrt.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_SRT);
 		saveSrt.setSummary(R.string.pref_recording_save_srt_summary);
 		saveSrt.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -271,7 +381,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(saveSrt);
 
 		final SwitchPreferenceCompat savePast = new SwitchPreferenceCompat(context);
-		populatePreference(savePast, C.PrefKey.RECORDING_SAVE_PAST, R.string.pref_recording_save_past, R.drawable.ic_record_on);
+		populatePreference(savePast, C.PrefKey.RECORDING_SAVE_PAST, R.string.pref_recording_save_past, R.drawable.ic_pre_roll);
 		savePast.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_PAST);
 		savePast.setSummary(R.string.pref_recording_save_past_summary);
 		savePast.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -280,7 +390,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 				return true;
 			}
 
-			new AlertDialog.Builder(requireContext())
+			new MaterialAlertDialogBuilder(requireContext())
 					.setTitle(R.string.pref_recording_save_past_warning_title)
 					.setMessage(R.string.pref_recording_save_past_warning_message)
 					.setNegativeButton(android.R.string.cancel, null)
@@ -291,7 +401,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		category.addPreference(savePast);
 
 		final SwitchPreferenceCompat notify = new SwitchPreferenceCompat(context);
-		populatePreference(notify, C.PrefKey.RECORDING_SHOW_NOTIFY, R.string.pref_recording_show_notify, R.drawable.ic_info);
+		populatePreference(notify, C.PrefKey.RECORDING_SHOW_NOTIFY, R.string.pref_recording_show_notify, R.drawable.ic_notifications);
 		notify.setDefaultValue(C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
 		notify.setSummary(R.string.pref_recording_show_notify_summary);
 		notify.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -384,7 +494,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 
 		final Preference version = new Preference(context);
-		populatePreference(version, "pref_info_version", R.string.pref_info_version_title, 0);
+		populatePreference(version, "pref_info_version", R.string.pref_info_version_title, R.drawable.ic_update);
 		version.setSummary(String.format(Locale.ENGLISH, "v%s (build %d / %s)", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.BUILD_TYPE));
 		version.setOnPreferenceClickListener(this);
 		category.addPreference(version);
@@ -519,7 +629,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 					);
 				}
 
-				final AlertDialog.Builder ab = new AlertDialog.Builder(Objects.requireNonNull(ctx));
+				final MaterialAlertDialogBuilder ab = new MaterialAlertDialogBuilder(Objects.requireNonNull(ctx));
 				ab.setTitle(title).setMessage(content);
 
 				if (!isFresh) {
