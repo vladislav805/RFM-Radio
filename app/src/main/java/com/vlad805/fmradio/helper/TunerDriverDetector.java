@@ -47,13 +47,6 @@ public final class TunerDriverDetector {
         return getTunerDriver();
     }
 
-    /**
-     * Checks whether the active backend is Exynos S610.
-     */
-    public static boolean isExynos(final Context context) {
-        return getTunerDriver(context) == TunerDriver.V4L2_EXYNOS;
-    }
-
     public static boolean hasDevRadio0() {
         return new File("/dev/radio0").exists();
     }

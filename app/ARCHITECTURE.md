@@ -24,7 +24,7 @@ Communication model, end to end:
 ```text
 UI (MainActivity / views)
   -> RadioController.startService(Intent with C.Command.*)
-  -> FMService (":service" process, START_NOT_STICKY)
+  -> FMService (main process, START_NOT_STICKY)
   -> NativeTunerController
   -> Request -> NativeProcessSession -> su -> fmbin stdin
   -> fmbin stdout JSON -> NativeEventParser
@@ -40,14 +40,14 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 
 | Package | Files | Notes |
 | --- | --- | --- |
-| (root) | 4 | `C`, `Storage` (Tray wrapper), `Utils`, `UtilsLocalization` |
+| (root) | 4 | `C`, `Storage` (`SharedPreferences` wrapper), `Utils`, `UtilsLocalization` |
 | `activity/` | 6 | see UI section |
 | `controller/` | 5 | see Controller section |
-| `enums/` | 3 | `Direction`, `PowerMode`, `TunerDriver` |
-| `fragments/` | 1 | `PreferencesFragment` (programmatic settings) |
+| `enums/` | 3 | `Direction`, `PowerMode`, `TunerDriver` (with backend capability flags) |
+| `fragments/` | 1 | `PreferencesFragment` (declarative `res/xml/preferences.xml`) |
 | `helper/` | 7 + `helper/json/` 2 | `Audio`, `TunerDriverDetector`, `RecordSchemaHelper`, `JSONFile`, … |
 | `models/` | 2 | `FavoriteStation`, `FavoriteFile` |
-| `preferences/` | 2 | `BandUtils`, `Vars` |
+| `preferences/` | 1 | `BandUtils` |
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 2 | `FMService`, `FMNotificationManager` |
 | `service/audio/` | 9 | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
@@ -56,16 +56,18 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
 | `service/recording/` | 12 | see Recording section |
 | `service/streaming/` | 0 | empty leftover directory |
-| `view/` | 11 + `view/adapter/` 1 | see UI section |
+| `view/` | 10 + `view/adapter/` 1 | see UI section |
 
 `app/src/main/cpp/` builds `libmp3encoder.so` from the LAME 4.0 submodule
 (`lame_encoder_jni.c`); it is unrelated to the FM backend in `native/`.
 
 ## FMService
 
-`service/FMService.java`. Manifest: `android:process=":service"`,
+`service/FMService.java`. Manifest: runs in the main app process (single-process),
 `foregroundServiceType="mediaPlayback"`, not exported. Implements
-`FMEventCallback` and the Tray `OnTrayPreferenceChangeListener`.
+`FMEventCallback` and registers a strong-referenced
+`SharedPreferences.OnSharedPreferenceChangeListener` field (`mPreferenceChangeListener`)
+on `Storage.getInstance(this)`.
 
 - `onCreate`: creates `RadioState`, `RadioController`,
   `FavoriteController`, `FMNotificationManager` (`createChannels()` for
@@ -122,7 +124,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
   `mAudioService.getPcmFormat().sampleRateHz()` (48000 on routed capture,
   44100 on loopback). `AAC_128` is unhandled → null (unreachable from the UI).
 - `onDestroy` → `kill()`: `stopAudio`, `tuner kill`,
-  unregister both receivers and the Tray listener, `stopForeground(true)`.
+  unregister both receivers and the `SharedPreferences` listener, `stopForeground(true)`.
 - Notifications (`service/FMNotificationManager.java`): playback id 1027 (MediaStyle, seek/stop/record/seek actions; `FMService` calls `startForeground(1027, notification)`),
   recording progress id 1029, recorded-item (with delete intent into
   `RecordingDeleteActivity`) id 1030 under tag `"recording:<uri>"`. Title:
@@ -143,7 +145,10 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 - `controller/RadioStateUpdater.java` — registers `C.Event.*` receivers
   and folds broadcasts into `RadioState`, notifying a
   `TunerStateListener` with a change bitmask (`SET_*` flags, including `SET_RT_PLUS` and `SET_AF`).
-- `enums/TunerDriver.java` — `V4L2_QCOM` / `HAL_HELIUM` / `NONE`.
+- `enums/TunerDriver.java` — `V4L2_QCOM` / `V4L2_EXYNOS` / `HAL_HELIUM` / `NONE`,
+  carrying backend capability flags (`supportsSoftMute`, `supportsNotchFilter`,
+  `supportsAntenna`, `supportsAutoAf`, `supportsJapanWide`,
+  `supportsStereoDetection`, `getJapanStandardUpperKhz`).
 
 ## service/fm/ Contract
 
@@ -163,8 +168,9 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 `NativeTunerController.java` (`final`) — the only real driver:
 
 - Binary management: asset `fmbin-<arch>` (`Utils.determineArch()`) →
-  `/data/data/<appId>/files/`, `Os.chmod 0755`, installed version in Tray
-  key `bin_version_native` and APK `lastUpdateTime` in `bin_apk_update_time`.
+  `/data/data/<appId>/files/`, `Os.chmod 0755`, installed version in
+  `SharedPreferences` key `bin_version_native` and APK `lastUpdateTime` in
+  `bin_apk_update_time`.
   `isObsolete()` = `BuildConfig.DEBUG || version != VERSION_CODE ||
   apkUpdateTime != packageInfo.lastUpdateTime` — debug builds and updated
   APKs reinstall. `prepareBinary()` repairs a lost execute bit in place.
@@ -187,8 +193,8 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 - `applyPreference` maps preferences to `set_spacing`, `set_region`,
   `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna` (emitting
   `ERROR_INVALID_ANTENNA` on `ERR_UNV_ANT`), `power_mode`, `auto_af`.
-  `setupTunerByPreferences(changed)` reads Tray and applies; a spacing
-  change re-applies stereo afterwards (vendor quirk).
+  `setupTunerByPreferences(changed)` reads `SharedPreferences` via `Storage`
+  and applies; a spacing change re-applies stereo afterwards (vendor quirk).
 - `setFrequency`: HAL only — suppresses a repeated tune within
   `DUPLICATE_TUNE_WINDOW_MS` = 1500 ms.
 - `refreshAudioRoute()`: HAL only — `slimbus 0` then `slimbus 1` (2000 ms
@@ -354,8 +360,8 @@ RDS: RadioStateUpdater -> updateRds(RdsSnapshot)
 ## Favorites
 
 Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
-(`{"items":[{"frequency":…,"title":…}]}`); the active list name is the Tray
-key `favorites_list_current` (default `"default"`). No SQLite.
+(`{"items":[{"frequency":…,"title":…}]}`); the active list name is the
+`SharedPreferences` key `favorites_list_current` (default `"default"`). No SQLite.
 
 - Import: `FavoriteController.importList` (JSON) or
   `FavoriteListsActivity` (ZIP via `ZipInputStream`, multiple lists).
@@ -397,33 +403,44 @@ key `favorites_list_current` (default `"default"`). No SQLite.
 
 ## Settings
 
-`PreferencesFragment` builds everything in code (no `res/xml`).
-Categories: Tuner, RDS, Recording, App, Notifications, Info. Store: Tray.
+`PreferencesFragment` inflates declarative XML preferences from
+`res/xml/preferences.xml` (backed by `res/values/arrays.xml`) and applies icon
+tinting, `TunerDriver` capability gating (disabling unsupported options and
+filtering Exynos to narrow 76–90 MHz Japan band), antenna numeric validation,
+pre-roll warning/permission prompt, and version check clicks in Java.
+Categories: Tuner, RDS, Recording, App, Notifications, Info. Store: standard
+AndroidX `DefaultSharedPreferences` via `Storage.java` (retaining
+`applicationContext`). UI-bound numeric preferences (`ListPreference` /
+`EditTextPreference`) are persisted as decimal strings and safely parsed via
+`Storage.getPrefInt`/`putPrefInt`; internal non-UI keys use native types via
+`Storage.getInt`/`getLong`/`putInt`/`putLong`.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `tuner_region` | 1 | 1=EU, 2=JP std, 3=JP wide, 4=US |
-| `tuner_spacing` | 2 | 1=50, 2=100, 3=200 kHz |
+| `tuner_region` | `"1"` (1) | 1=EU, 2=JP std, 3=JP wide, 4=US |
+| `tuner_spacing` | `"2"` (2) | 1=50, 2=100, 3=200 kHz |
 | `tuner_stereo` | true | stereo mode |
 | `tuner_soft_mute` | true | weak-signal attenuation |
-| `tuner_antenna` | 0 | 0 headphones, 1 internal |
+| `tuner_notch_filter` | `"0"` (0) | 0=Auto, 1=Low, 2=High EMI notch filter |
+| `tuner_antenna` | `"0"` (0) | 0 headphones, 1 internal |
 | `tuner_power_mode` | false | false=normal, true=low |
 | `rds_auto_af` | false | automatic AF jump |
 | `recording_directory` | `$y-$m-$d` | directory template |
 | `recording_filename` | `FM-$h$i$s-$f` | filename template |
-| `recording_mode` | 0 | 0=WAV, 1=MP3 192, 2=MP3 128 |
+| `recording_mode` | `"0"` (0) | 0=WAV, 1=MP3 192, 2=MP3 128 |
 | `recording_save_srt` | false | SRT subtitles for recordings |
 | `recording_save_past` | false | 5 s pre-roll (confirm + mic permission) |
 | `recording_show_notify` | true | recording progress notification |
 | `app_auto_startup` | false | start audio on app launch |
 | `notification_show_ps` | true | PS in the notification title |
 | `notification_seek_by_favorites` | false | notification seek steps through favorites |
-| `frequency_last` | 87500 | Tray-only, restored on enable |
-| `bin_version_native` | — | Tray-only, installed fmbin version |
-| `bin_apk_update_time` | — | Tray-only, APK `lastUpdateTime` when fmbin was installed |
+| `frequency_last` | 87500 | internal native `int`, restored on enable |
+| `detected_backend` | `""` | internal `String`, persisted `TunerDriver` name |
+| `bin_version_native` | — | internal native `int`, installed fmbin version |
+| `bin_apk_update_time` | — | internal native `long`, APK `lastUpdateTime` when fmbin was installed |
 
-Tray changes reach `FMService` through the listener →
-`setupTunerByPreferences` + pre-roll toggle.
+`SharedPreferences` changes reach `FMService` through its strong-referenced
+`OnSharedPreferenceChangeListener` → `setupTunerByPreferences` + pre-roll toggle.
 
 ## Build
 
@@ -444,10 +461,13 @@ env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 `FMNotificationManagerTest` (playback title/body precedence, compact actions,
 recording tags/ids), `TunerCommandFormatTest` (atomic enable command,
 region/spacing mapping), `TunerDriverDetectorTest` (allowlist + handshake
-backend resolution), `AudioSelectionTest` (API/backend matrix),
-`AudioLifecycleTest` (start/stop ordering, idempotent teardown),
-`QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
-`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle), `PcmFormatTest`
+backend resolution), `TunerDriverCapabilitiesTest` (backend capability flags +
+`BandUtils` limits/spacing), `StorageTest` (string-backed UI preference parsing,
+native type round-trips, `ClassCastException` safety), `AudioSelectionTest`
+(API/backend matrix), `AudioLifecycleTest` (start/stop ordering, idempotent
+teardown), `QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
+`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle), `RoutingAudioServiceTest`,
+`SamsungS610AudioTest`, `PcmFormatTest`
 (stereo formats, mismatch rejection, routed V4L2 48 kHz),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,

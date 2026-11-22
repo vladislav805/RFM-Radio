@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="tuner"
+        app:title="@string/pref_header_tuner">
+
+        <ListPreference
+            app:defaultValue="1"
+            app:dialogTitle="@string/pref_tuner_region"
+            app:entries="@array/pref_tuner_region_entries"
+            app:entryValues="@array/pref_tuner_region_values"
+            app:icon="@drawable/ic_band"
+            app:key="tuner_region"
+            app:title="@string/pref_tuner_region"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="2"
+            app:dialogTitle="@string/pref_tuner_spacing"
+            app:entries="@array/pref_tuner_spacing_entries"
+            app:entryValues="@array/pref_tuner_spacing_values"
+            app:icon="@drawable/ic_step_freq"
+            app:key="tuner_spacing"
+            app:title="@string/pref_tuner_spacing"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:icon="@drawable/ic_stereo"
+            app:key="tuner_stereo"
+            app:summaryOff="@string/pref_tuner_stereo_off"
+            app:summaryOn="@string/pref_tuner_stereo_on"
+            app:title="@string/pref_tuner_stereo"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:icon="@drawable/ic_soft_mute"
+            app:key="tuner_soft_mute"
+            app:summaryOff="@string/pref_tuner_soft_mute_off"
+            app:summaryOn="@string/pref_tuner_soft_mute_on"
+            app:title="@string/pref_tuner_soft_mute"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+        <ListPreference
+            app:defaultValue="0"
+            app:dialogTitle="@string/pref_tuner_notch_filter"
+            app:entries="@array/pref_tuner_notch_filter_entries"
+            app:entryValues="@array/pref_tuner_notch_filter_values"
+            app:icon="@drawable/ic_notch_filter"
+            app:key="tuner_notch_filter"
+            app:title="@string/pref_tuner_notch_filter"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="0"
+            app:dialogMessage="@string/pref_tuner_antenna_message"
+            app:dialogTitle="@string/pref_tuner_antenna"
+            app:icon="@drawable/ic_antenna"
+            app:key="tuner_antenna"
+            app:title="@string/pref_tuner_antenna"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_power"
+            app:key="tuner_power_mode"
+            app:summaryOff="@string/pref_tuner_power_mode_normal"
+            app:summaryOn="@string/pref_tuner_power_mode_low"
+            app:title="@string/pref_tuner_power_mode"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="rds"
+        app:title="@string/pref_header_rds">
+
+        <Preference
+            app:enabled="false"
+            app:key="tuner_rds_description"
+            app:summary="@string/pref_tuner_rds_description" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_rds"
+            app:key="rds_auto_af"
+            app:summaryOff="@string/pref_tuner_rds_auto_af_disabled"
+            app:summaryOn="@string/pref_tuner_rds_auto_afenabled"
+            app:title="@string/pref_tuner_rds_auto_af"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="recording"
+        app:title="@string/pref_header_recording">
+
+        <EditTextPreference
+            app:defaultValue="@string/pref_recording_path_value"
+            app:dialogMessage="@string/pref_recording_path_name_description"
+            app:dialogTitle="@string/pref_recording_path_title"
+            app:icon="@drawable/ic_directory"
+            app:key="recording_directory"
+            app:title="@string/pref_recording_path_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="@string/pref_recording_name_value"
+            app:dialogMessage="@string/pref_recording_path_name_description"
+            app:dialogTitle="@string/pref_recording_name_title"
+            app:icon="@drawable/ic_file_music"
+            app:key="recording_filename"
+            app:title="@string/pref_recording_name_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="0"
+            app:dialogTitle="@string/pref_recording_format_title"
+            app:entries="@array/pref_recording_format_entries"
+            app:entryValues="@array/pref_recording_format_values"
+            app:icon="@drawable/ic_recording_format"
+            app:key="recording_mode"
+            app:title="@string/pref_recording_format_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_subtitles"
+            app:key="recording_save_srt"
+            app:summary="@string/pref_recording_save_srt_summary"
+            app:title="@string/pref_recording_save_srt"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_pre_roll"
+            app:key="recording_save_past"
+            app:summary="@string/pref_recording_save_past_summary"
+            app:title="@string/pref_recording_save_past"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:icon="@drawable/ic_notifications"
+            app:key="recording_show_notify"
+            app:summary="@string/pref_recording_show_notify_summary"
+            app:title="@string/pref_recording_show_notify"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="app"
+        app:title="@string/pref_header_app">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_autostart"
+            app:key="app_auto_startup"
+            app:summaryOff="@string/pref_auto_startup_disabled"
+            app:summaryOn="@string/pref_app_auto_startup_enabled"
+            app:title="@string/pref_app_auto_startup"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="notifications"
+        app:title="@string/pref_header_notifications">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:icon="@drawable/ic_ps_name"
+            app:key="notification_show_ps"
+            app:summaryOff="@string/pref_notification_show_ps_disabled"
+            app:summaryOn="@string/pref_notification_show_ps_enabled"
+            app:title="@string/pref_notification_show_ps"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_seek_arrows"
+            app:key="notification_seek_by_favorites"
+            app:summaryOff="@string/pref_notification_seek_by_favorites_disabled"
+            app:summaryOn="@string/pref_notification_seek_by_favorites_enabled"
+            app:title="@string/pref_notification_seek_by_favorites"
+            app:widgetLayout="@layout/pref_widget_material_switch" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="info"
+        app:title="@string/pref_header_info">
+
+        <Preference
+            app:icon="@drawable/ic_update"
+            app:key="pref_info_version"
+            app:title="@string/pref_info_version_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

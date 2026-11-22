@@ -27,20 +27,21 @@ public class BandUtils {
 
     private static final BandLimit LIMIT_EU = new BandLimit(87500, 108000);
     private static final BandLimit LIMIT_JP_STD = new BandLimit(76000, 95000);
-    private static final BandLimit LIMIT_JP_STD_EXYNOS = new BandLimit(76000, 90000);
+    private static final BandLimit LIMIT_JP_STD_NARROW = new BandLimit(76000, 90000);
     private static final BandLimit LIMIT_JP_WIDE = new BandLimit(76000, 108000);
 
     public static BandLimit getBandLimit(final int type) {
-        return getBandLimit(type, TunerDriver.NONE);
+        return getBandLimit(type, null);
     }
 
     public static BandLimit getBandLimit(final int type, final TunerDriver driver) {
-        if (driver == TunerDriver.V4L2_EXYNOS && (type == BAND_JAPAN_STANDARD || type == BAND_JAPAN_WIDE)) {
-            return LIMIT_JP_STD_EXYNOS;
+        final boolean hasDriver = driver != null && driver != TunerDriver.NONE;
+        if (hasDriver && !driver.supportsJapanWide() && (type == BAND_JAPAN_STANDARD || type == BAND_JAPAN_WIDE)) {
+            return japanStandardLimitFor(driver);
         }
         switch (type) {
             case BAND_JAPAN_STANDARD: {
-                return LIMIT_JP_STD;
+                return hasDriver ? japanStandardLimitFor(driver) : LIMIT_JP_STD;
             }
 
             case BAND_JAPAN_WIDE: {
@@ -53,6 +54,17 @@ public class BandUtils {
                 return LIMIT_EU;
             }
         }
+    }
+
+    private static BandLimit japanStandardLimitFor(final TunerDriver driver) {
+        final int upperKhz = driver.getJapanStandardUpperKhz();
+        if (upperKhz == LIMIT_JP_STD.upper) {
+            return LIMIT_JP_STD;
+        }
+        if (upperKhz == LIMIT_JP_STD_NARROW.upper) {
+            return LIMIT_JP_STD_NARROW;
+        }
+        return new BandLimit(LIMIT_JP_STD.lower, upperKhz);
     }
 
     public static int getSpacing(final int type) {

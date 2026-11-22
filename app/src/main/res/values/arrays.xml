@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="pref_tuner_region_entries" translatable="false">
+        <item>Europe (87.5-108.0 MHz, 50µs)</item>
+        <item>Japan Standard (76-95 MHz, 50µs)</item>
+        <item>Japan Wide (76-108 MHz, 50µs)</item>
+        <item>United States (87.5-108.0 MHz, 75µs)</item>
+    </string-array>
+
+    <string-array name="pref_tuner_region_values" translatable="false">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+
+    <string-array name="pref_tuner_region_entries_narrow_japan" translatable="false">
+        <item>Europe (87.5-108.0 MHz, 50µs)</item>
+        <item>Japan Standard (76-90 MHz, 50µs)</item>
+        <item>United States (87.5-108.0 MHz, 75µs)</item>
+    </string-array>
+
+    <string-array name="pref_tuner_region_values_narrow_japan" translatable="false">
+        <item>1</item>
+        <item>2</item>
+        <item>4</item>
+    </string-array>
+
+    <string-array name="pref_tuner_spacing_entries" translatable="false">
+        <item>50 kHz</item>
+        <item>100 kHz</item>
+        <item>200 kHz</item>
+    </string-array>
+
+    <string-array name="pref_tuner_spacing_values" translatable="false">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+
+    <string-array name="pref_tuner_notch_filter_entries">
+        <item>@string/pref_tuner_notch_filter_auto</item>
+        <item>@string/pref_tuner_notch_filter_low</item>
+        <item>@string/pref_tuner_notch_filter_high</item>
+    </string-array>
+
+    <string-array name="pref_tuner_notch_filter_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="pref_recording_format_entries">
+        <item>@string/pref_recording_format_wav</item>
+        <item>@string/pref_recording_format_mp3_128</item>
+        <item>@string/pref_recording_format_mp3_192</item>
+    </string-array>
+
+    <!-- Stable values match C.RecordFormat: WAV=0, MP3_128=2, MP3_192=1 -->
+    <string-array name="pref_recording_format_values" translatable="false">
+        <item>0</item>
+        <item>2</item>
+        <item>1</item>
+    </string-array>
+</resources>

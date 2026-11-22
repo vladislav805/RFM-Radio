@@ -8,38 +8,44 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
-import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.annotation.DrawableRes;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.StringRes;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
-import androidx.preference.*;
+import androidx.preference.EditTextPreference;
+import androidx.preference.ListPreference;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceGroup;
+import androidx.preference.SwitchPreferenceCompat;
+import androidx.preference.TwoStatePreference;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
-import com.vlad805.fmradio.*;
+import com.vlad805.fmradio.BuildConfig;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.preferences.BandUtils;
-import com.vlad805.fmradio.preferences.Vars;
+
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-import static com.vlad805.fmradio.Utils.*;
+import static com.vlad805.fmradio.Utils.fetch;
 
 /**
  * vlad805 (c) 2020
@@ -47,23 +53,29 @@ import static com.vlad805.fmradio.Utils.*;
 public class PreferencesFragment extends PreferenceFragmentCompat implements Preference.OnPreferenceClickListener {
 	/** Permission request used when enabling continuous FM capture. */
 	private static final int REQUEST_RECORD_AUDIO_FOR_PRE_ROLL = 1001;
+	private static final String KEY_INFO_VERSION = "pref_info_version";
 
 	private ProgressDialog mProgress;
 
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
 		final Context context = requireContext();
+		final TunerDriver driver = TunerDriverDetector.getTunerDriver(context);
 
-		final PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(context);
+		if (
+				!driver.supportsJapanWide() &&
+				Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE
+		) {
+			Storage.putPrefInt(context, C.PrefKey.TUNER_REGION, BandUtils.BAND_JAPAN_STANDARD);
+		}
 
-		makeTunerCategoryPreferences(context, screen);
-		makeRdsCategoryPreferences(context, screen);
-		makeRecordingCategoryPreferences(context, screen);
-		makeApplicationCategoryPreferences(context, screen);
-		makeNotificationsCategoryPreferences(context, screen);
-		makeInfoCategoryPreferences(context, screen);
+		setPreferencesFromResource(R.xml.preferences, rootKey);
 
-		setPreferenceScreen(screen);
+		final int iconTint = MaterialColors.getColor(context, androidx.appcompat.R.attr.colorPrimary, 0);
+		tintPreferenceIcons(getPreferenceScreen(), iconTint);
+
+		configureBackendCapabilities(driver);
+		configureInteractivePreferences(driver);
 	}
 
 	@Override
@@ -157,208 +169,118 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		super.onDisplayPreferenceDialog(preference);
 	}
 
-	private PreferenceCategory makeCategory(final Context context, final @StringRes int title, final String key) {
-		final PreferenceCategory category = new PreferenceCategory(context);
-		category.setKey(key);
-		category.setTitle(title);
-		return category;
-	}
-
-	private void populatePreference(final Preference pref, final String key, final @StringRes int title, final @DrawableRes int icon) {
-		pref.setKey(key);
-		pref.setTitle(title);
-
-		if (pref instanceof SwitchPreferenceCompat) {
-			pref.setWidgetLayoutResource(R.layout.pref_widget_material_switch);
+	private void tintPreferenceIcons(@Nullable final PreferenceGroup group, final int tint) {
+		if (group == null) {
+			return;
 		}
-
-		if (pref instanceof DialogPreference) {
-			((DialogPreference) pref).setDialogTitle(title);
-		}
-
-		if (icon != 0) {
-			final Drawable raw = ContextCompat.getDrawable(pref.getContext(), icon);
-			if (raw != null) {
-				final Drawable wrapped = DrawableCompat.wrap(raw.mutate());
-				final int tint = MaterialColors.getColor(pref.getContext(), androidx.appcompat.R.attr.colorPrimary, 0);
+		final int count = group.getPreferenceCount();
+		for (int i = 0; i < count; i++) {
+			final Preference pref = group.getPreference(i);
+			final Drawable icon = pref.getIcon();
+			if (icon != null) {
+				final Drawable wrapped = DrawableCompat.wrap(icon.mutate());
 				DrawableCompat.setTint(wrapped, tint);
 				pref.setIcon(wrapped);
 			}
-		}
-	}
-
-	private void makeTunerCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final boolean isExynos = TunerDriverDetector.isExynos(context);
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_tuner, "tuner");
-		screen.addPreference(category);
-
-		if (isExynos && Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE) {
-			Storage.putPrefInt(context, C.PrefKey.TUNER_REGION, BandUtils.BAND_JAPAN_STANDARD);
-		}
-
-		final ListPreference region = new ListPreference(context);
-		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
-		region.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_REGION));
-		setListProviderAndEntries(region, buildRegionEntries(isExynos));
-		category.addPreference(region);
-
-
-		final ListPreference spacing = new ListPreference(context);
-		populatePreference(spacing, C.PrefKey.TUNER_SPACING, R.string.pref_tuner_spacing, R.drawable.ic_step_freq);
-		spacing.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_SPACING));
-		setListProviderAndEntries(spacing, Vars.sTunerSpacing);
-		category.addPreference(spacing);
-
-
-		final SwitchPreferenceCompat stereo = new SwitchPreferenceCompat(context);
-		populatePreference(stereo, C.PrefKey.TUNER_STEREO, R.string.pref_tuner_stereo, R.drawable.ic_stereo);
-		stereo.setDefaultValue(C.PrefDefaultValue.TUNER_STEREO);
-		stereo.setSummaryOn(R.string.pref_tuner_stereo_on);
-		stereo.setSummaryOff(R.string.pref_tuner_stereo_off);
-		category.addPreference(stereo);
-
-		final SwitchPreferenceCompat softMute = new SwitchPreferenceCompat(context);
-		populatePreference(softMute, C.PrefKey.TUNER_SOFT_MUTE, R.string.pref_tuner_soft_mute, R.drawable.ic_soft_mute);
-		softMute.setDefaultValue(C.PrefDefaultValue.TUNER_SOFT_MUTE);
-		if (isExynos) {
-			softMute.setEnabled(false);
-			softMute.setSummary(R.string.pref_not_supported_by_device);
-		} else {
-			softMute.setSummaryOn(R.string.pref_tuner_soft_mute_on);
-			softMute.setSummaryOff(R.string.pref_tuner_soft_mute_off);
-		}
-		category.addPreference(softMute);
-
-		final ListPreference notchFilter = new ListPreference(context);
-		populatePreference(notchFilter, C.PrefKey.TUNER_NOTCH_FILTER, R.string.pref_tuner_notch_filter, R.drawable.ic_notch_filter);
-		notchFilter.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_NOTCH_FILTER));
-		if (isExynos) {
-			notchFilter.setEnabled(false);
-			notchFilter.setSummary(R.string.pref_not_supported_by_device);
-		} else {
-			notchFilter.setEntries(new CharSequence[]{
-					getString(R.string.pref_tuner_notch_filter_auto),
-					getString(R.string.pref_tuner_notch_filter_low),
-					getString(R.string.pref_tuner_notch_filter_high),
-			});
-			notchFilter.setEntryValues(new CharSequence[]{"0", "1", "2"});
-			notchFilter.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
-		}
-		category.addPreference(notchFilter);
-
-		final EditTextPreference antenna = new EditTextPreference(context);
-		populatePreference(antenna, C.PrefKey.TUNER_ANTENNA, R.string.pref_tuner_antenna, R.drawable.ic_antenna);
-		antenna.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_ANTENNA));
-		if (isExynos) {
-			antenna.setEnabled(false);
-			antenna.setSummary(R.string.pref_not_supported_by_device);
-		} else {
-			setEditTextMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
-			antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
-		}
-		category.addPreference(antenna);
-
-		final SwitchPreferenceCompat power = new SwitchPreferenceCompat(context);
-		populatePreference(power, C.PrefKey.TUNER_POWER_MODE, R.string.pref_tuner_power_mode, R.drawable.ic_power);
-		power.setDefaultValue(C.PrefDefaultValue.TUNER_POWER_MODE);
-		power.setSummaryOn(R.string.pref_tuner_power_mode_low);
-		power.setSummaryOff(R.string.pref_tuner_power_mode_normal);
-		category.addPreference(power);
-	}
-
-	private void makeRdsCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final boolean isExynos = TunerDriverDetector.isExynos(context);
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_rds, "rds");
-		screen.addPreference(category);
-
-		final Preference description = new Preference(context);
-		description.setKey("tuner_rds_description");
-		description.setSummary(R.string.pref_tuner_rds_description);
-		description.setEnabled(false);
-		category.addPreference(description);
-
-		final SwitchPreferenceCompat autoAf = new SwitchPreferenceCompat(context);
-		populatePreference(autoAf, C.PrefKey.RDS_AUTO_AF, R.string.pref_tuner_rds_auto_af, R.drawable.ic_rds);
-		autoAf.setDefaultValue(C.PrefDefaultValue.RDS_AUTO_AF);
-		if (isExynos) {
-			autoAf.setEnabled(false);
-			autoAf.setSummaryOn(R.string.pref_not_supported_by_device);
-			autoAf.setSummaryOff(R.string.pref_not_supported_by_device);
-		} else {
-			autoAf.setSummaryOn(R.string.pref_tuner_rds_auto_afenabled);
-			autoAf.setSummaryOff(R.string.pref_tuner_rds_auto_af_disabled);
-		}
-		category.addPreference(autoAf);
-	}
-
-	private void makeRecordingCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_recording, "recording");
-		screen.addPreference(category);
-
-		final EditTextPreference directory = new EditTextPreference(context);
-		populatePreference(directory, C.PrefKey.RECORDING_DIRECTORY, R.string.pref_recording_path_title, R.drawable.ic_directory);
-		directory.setDefaultValue(getString(R.string.pref_recording_path_value));
-		directory.setDialogMessage(R.string.pref_recording_path_name_description);
-		setEditTextMessageAndProvider(directory, InputType.TYPE_CLASS_TEXT);
-		category.addPreference(directory);
-
-		final EditTextPreference filename = new EditTextPreference(context);
-		populatePreference(filename, C.PrefKey.RECORDING_FILENAME, R.string.pref_recording_name_title, R.drawable.ic_file_music);
-		filename.setDefaultValue(getString(R.string.pref_recording_name_value));
-		filename.setDialogMessage(R.string.pref_recording_path_name_description);
-		setEditTextMessageAndProvider(filename, InputType.TYPE_CLASS_TEXT);
-		category.addPreference(filename);
-
-		final ListPreference format = new ListPreference(context);
-		populatePreference(format, C.PrefKey.RECORDING_FORMAT, R.string.pref_recording_format_title, R.drawable.ic_recording_format);
-		format.setDefaultValue(String.valueOf(C.PrefDefaultValue.RECORDING_FORMAT));
-		setListProviderAndEntries(
-				format,
-				new int[]{C.RecordFormat.WAV, C.RecordFormat.MP3_128, C.RecordFormat.MP3_192},
-				new String[]{
-						getString(R.string.pref_recording_format_wav),
-						getString(R.string.pref_recording_format_mp3_128),
-						getString(R.string.pref_recording_format_mp3_192)
-				}
-		);
-		category.addPreference(format);
-
-		final SwitchPreferenceCompat saveSrt = new SwitchPreferenceCompat(context);
-		populatePreference(saveSrt, C.PrefKey.RECORDING_SAVE_SRT, R.string.pref_recording_save_srt, R.drawable.ic_subtitles);
-		saveSrt.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_SRT);
-		saveSrt.setSummary(R.string.pref_recording_save_srt_summary);
-		category.addPreference(saveSrt);
-
-		final SwitchPreferenceCompat savePast = new SwitchPreferenceCompat(context);
-		populatePreference(savePast, C.PrefKey.RECORDING_SAVE_PAST, R.string.pref_recording_save_past, R.drawable.ic_pre_roll);
-		savePast.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_PAST);
-		savePast.setSummary(R.string.pref_recording_save_past_summary);
-		savePast.setOnPreferenceChangeListener((preference, newValue) -> {
-			if (!(boolean) newValue) {
-				return true;
+			if (pref instanceof PreferenceGroup) {
+				tintPreferenceIcons((PreferenceGroup) pref, tint);
 			}
+		}
+	}
 
-			new MaterialAlertDialogBuilder(requireContext())
-					.setTitle(R.string.pref_recording_save_past_warning_title)
-					.setMessage(R.string.pref_recording_save_past_warning_message)
-					.setNegativeButton(android.R.string.cancel, null)
-					.setPositiveButton(android.R.string.ok, (dialog, which) -> enablePreRoll(savePast))
-					.show();
-			return false;
-		});
-		category.addPreference(savePast);
+	private void configureBackendCapabilities(final TunerDriver driver) {
+		if (!driver.supportsJapanWide()) {
+			final ListPreference region = findPreference(C.PrefKey.TUNER_REGION);
+			if (region != null) {
+				region.setEntries(R.array.pref_tuner_region_entries_narrow_japan);
+				region.setEntryValues(R.array.pref_tuner_region_values_narrow_japan);
+				if (String.valueOf(BandUtils.BAND_JAPAN_WIDE).equals(region.getValue())) {
+					region.setValue(String.valueOf(BandUtils.BAND_JAPAN_STANDARD));
+				}
+			}
+		}
 
-		final SwitchPreferenceCompat notify = new SwitchPreferenceCompat(context);
-		populatePreference(notify, C.PrefKey.RECORDING_SHOW_NOTIFY, R.string.pref_recording_show_notify, R.drawable.ic_notifications);
-		notify.setDefaultValue(C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
-		notify.setSummary(R.string.pref_recording_show_notify_summary);
-		category.addPreference(notify);
+		if (!driver.supportsSoftMute()) {
+			disableUnsupportedPreference(findPreference(C.PrefKey.TUNER_SOFT_MUTE));
+		}
+
+		if (!driver.supportsNotchFilter()) {
+			disableUnsupportedPreference(findPreference(C.PrefKey.TUNER_NOTCH_FILTER));
+		}
+
+		if (!driver.supportsAntenna()) {
+			disableUnsupportedPreference(findPreference(C.PrefKey.TUNER_ANTENNA));
+		}
+
+		if (!driver.supportsAutoAf()) {
+			disableUnsupportedPreference(findPreference(C.PrefKey.RDS_AUTO_AF));
+		}
+	}
+
+	private void configureInteractivePreferences(final TunerDriver driver) {
+		if (driver.supportsAntenna()) {
+			final EditTextPreference antenna = findPreference(C.PrefKey.TUNER_ANTENNA);
+			if (antenna != null) {
+				antenna.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_NUMBER));
+				antenna.setOnPreferenceChangeListener((preference, newValue) -> {
+					final String raw = newValue instanceof String ? (String) newValue : null;
+					if (!Storage.isValidNonNegativeInt(raw)) {
+						Toast.makeText(requireContext(), R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
+						return false;
+					}
+					return true;
+				});
+			}
+		}
+
+		final SwitchPreferenceCompat savePast = findPreference(C.PrefKey.RECORDING_SAVE_PAST);
+		if (savePast != null) {
+			savePast.setOnPreferenceChangeListener((preference, newValue) -> {
+				if (!(boolean) newValue) {
+					return true;
+				}
+
+				new MaterialAlertDialogBuilder(requireContext())
+						.setTitle(R.string.pref_recording_save_past_warning_title)
+						.setMessage(R.string.pref_recording_save_past_warning_message)
+						.setNegativeButton(android.R.string.cancel, null)
+						.setPositiveButton(android.R.string.ok, (dialog, which) -> enablePreRoll(savePast))
+						.show();
+				return false;
+			});
+		}
+
+		final Preference version = findPreference(KEY_INFO_VERSION);
+		if (version != null) {
+			version.setSummary(String.format(
+					Locale.ENGLISH,
+					"v%s (build %d / %s)",
+					BuildConfig.VERSION_NAME,
+					BuildConfig.VERSION_CODE,
+					BuildConfig.BUILD_TYPE
+			));
+			version.setOnPreferenceClickListener(this);
+		}
+	}
+
+	private void disableUnsupportedPreference(@Nullable final Preference preference) {
+		if (preference == null) {
+			return;
+		}
+		preference.setEnabled(false);
+		if (preference instanceof TwoStatePreference) {
+			final TwoStatePreference twoState = (TwoStatePreference) preference;
+			twoState.setSummaryOn(R.string.pref_not_supported_by_device);
+			twoState.setSummaryOff(R.string.pref_not_supported_by_device);
+		} else {
+			preference.setSummaryProvider(null);
+			preference.setSummary(R.string.pref_not_supported_by_device);
+		}
 	}
 
 	/** Requests microphone access before enabling persistent pre-roll capture. */
 	private void enablePreRoll(final SwitchPreferenceCompat preference) {
-		if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
-				== PackageManager.PERMISSION_GRANTED) {
+		if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
 			setPreRollEnabled(preference);
 			return;
 		}
@@ -372,11 +294,18 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	@Override
-	public void onRequestPermissionsResult(final int requestCode, final String[] permissions, final int[] grantResults) {
+	public void onRequestPermissionsResult(
+			final int requestCode,
+			@NonNull final String[] permissions,
+			@NonNull final int[] grantResults
+	) {
 		if (requestCode == REQUEST_RECORD_AUDIO_FOR_PRE_ROLL) {
 			final SwitchPreferenceCompat preference = findPreference(C.PrefKey.RECORDING_SAVE_PAST);
-			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED
-					&& preference != null) {
+			if (
+					grantResults.length > 0 &&
+					grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+					preference != null
+			) {
 				setPreRollEnabled(preference);
 			} else {
 				Toast.makeText(requireContext(), R.string.record_permissions_required, Toast.LENGTH_LONG).show();
@@ -387,142 +316,13 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 	}
 
-	private void makeApplicationCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_app, "app");
-		screen.addPreference(category);
-
-		final SwitchPreferenceCompat autostart = new SwitchPreferenceCompat(context);
-		populatePreference(autostart, C.PrefKey.APP_AUTO_STARTUP, R.string.pref_app_auto_startup, R.drawable.ic_autostart);
-		autostart.setDefaultValue(C.PrefDefaultValue.APP_AUTO_STARTUP);
-		autostart.setSummaryOn(R.string.pref_app_auto_startup_enabled);
-		autostart.setSummaryOff(R.string.pref_auto_startup_disabled);
-		category.addPreference(autostart);
-	}
-
-	private void makeNotificationsCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_notifications, "notifications");
-		screen.addPreference(category);
-
-		final SwitchPreferenceCompat showPs = new SwitchPreferenceCompat(context);
-		populatePreference(showPs, C.PrefKey.NOTIFICATION_SHOW_RDS, R.string.pref_notification_show_ps, R.drawable.ic_ps_name);
-		showPs.setDefaultValue(C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
-		showPs.setSummaryOn(R.string.pref_notification_show_ps_enabled);
-		showPs.setSummaryOff(R.string.pref_notification_show_ps_disabled);
-		category.addPreference(showPs);
-
-
-		final SwitchPreferenceCompat seekByFav = new SwitchPreferenceCompat(context);
-		populatePreference(seekByFav, C.PrefKey.NOTIFICATION_SEEK_BY_FAVORITES, R.string.pref_notification_seek_by_favorites, R.drawable.ic_seek_arrows);
-		seekByFav.setDefaultValue(C.PrefDefaultValue.NOTIFICATION_SEEK_BY_FAVORITES);
-		seekByFav.setSummaryOn(R.string.pref_notification_seek_by_favorites_enabled);
-		seekByFav.setSummaryOff(R.string.pref_notification_seek_by_favorites_disabled);
-		category.addPreference(seekByFav);
-	}
-
-	private void makeInfoCategoryPreferences(final Context context, final PreferenceScreen screen) {
-		final PreferenceCategory category = makeCategory(context, R.string.pref_header_info, "info");
-		screen.addPreference(category);
-
-
-		final Preference version = new Preference(context);
-		populatePreference(version, "pref_info_version", R.string.pref_info_version_title, R.drawable.ic_update);
-		version.setSummary(String.format(Locale.ENGLISH, "v%s (build %d / %s)", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.BUILD_TYPE));
-		version.setOnPreferenceClickListener(this);
-		category.addPreference(version);
-
-	}
-
-	private void setEditTextMessageAndProvider(final EditTextPreference preference, final int type) {
-		preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) EditTextPreference::getText);
-		preference.setOnBindEditTextListener(editText -> editText.setInputType(type));
-	}
-
-	private SparseArray<String> buildRegionEntries(final boolean isExynos) {
-		if (!isExynos) {
-			return Vars.sTunerRegions;
-		}
-		final SparseArray<String> filtered = new SparseArray<>();
-		for (int i = 0; i < Vars.sTunerRegions.size(); ++i) {
-			final int key = Vars.sTunerRegions.keyAt(i);
-			if (key == BandUtils.BAND_JAPAN_WIDE) {
-				continue;
-			}
-			final String label = key == BandUtils.BAND_JAPAN_STANDARD
-					? "Japan Standard (76-90 MHz, 50µs)"
-					: Vars.sTunerRegions.valueAt(i);
-			filtered.put(key, label);
-		}
-		return filtered;
-	}
-
-	private void setListProviderAndEntries(final ListPreference lp, final SparseArray<String> entries) {
-		final List<String> keys = new ArrayList<>();
-		final List<String> values = new ArrayList<>();
-
-		for (int i = 0; i < entries.size(); ++i) {
-			final int k = entries.keyAt(i);
-
-			keys.add(String.valueOf(k));
-			values.add(entries.get(k));
-		}
-
-		lp.setSummaryProvider((Preference.SummaryProvider<ListPreference>) s -> {
-			int id = entries.indexOfKey(Utils.parseInt(s.getValue()));
-			if (id < 0) {
-				id = 0;
-			}
-			return entries.valueAt(id);
-		});
-		lp.setEntries(values.toArray(new String[0]));
-		lp.setEntryValues(keys.toArray(new String[0]));
-	}
-
-	/**
-	 * Configures ordered list entries whose persisted integer values need not match display order.
-	 *
-	 * @param preference List preference to configure
-	 * @param keys Stable integer values persisted for each entry
-	 * @param values User-visible entry labels in display order
-	 */
-	private void setListProviderAndEntries(
-			final ListPreference preference,
-			final int[] keys,
-			final String[] values
-	) {
-		final String[] entryValues = new String[keys.length];
-		for (int i = 0; i < keys.length; i++) {
-			entryValues[i] = String.valueOf(keys[i]);
-		}
-
-		preference.setSummaryProvider((Preference.SummaryProvider<ListPreference>) selected -> {
-			final String value = selected.getValue();
-			for (int i = 0; i < entryValues.length; i++) {
-				if (entryValues[i].equals(value)) {
-					return values[i];
-				}
-			}
-			return values[0];
-		});
-		preference.setEntries(values);
-		preference.setEntryValues(entryValues);
-	}
-
 	@Override
-	public boolean onPreferenceClick(final Preference preference) {
-		final Context context = requireContext();
-
-		switch (preference.getKey()) {
-			case "pref_info_version": {
-				checkVersion();
-				break;
-			}
-
+	public boolean onPreferenceClick(@NonNull final Preference preference) {
+		if (KEY_INFO_VERSION.equals(preference.getKey())) {
+			checkVersion();
+			return true;
 		}
 		return false;
-	}
-
-	private void warnApplyPreferenceOnlyAfterRestartApp() {
-		Toast.makeText(getContext(), R.string.pref_warning_applying_only_after_restart, Toast.LENGTH_LONG).show();
 	}
 
 	private void checkVersion() {
@@ -542,8 +342,8 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 				final boolean isFresh = latest.optInt("build") <= BuildConfig.VERSION_CODE;
 
-				String title;
-				String content;
+				final String title;
+				final String content;
 
 				if (isFresh) {
 					title = PreferencesFragment.this.getString(R.string.pref_version_check_fresh_title);

@@ -1,15 +1,16 @@
 # app/ — Java/Android Auto-Context
 
 Android application of RFM-Radio. Java root:
-`app/src/main/java/com/vlad805/fmradio/` (~73 files). `FMService` runs in a
-separate `:service` process; the app requires root and a Qualcomm tuner.
+`app/src/main/java/com/vlad805/fmradio/` (~72 files). `FMService` runs in the
+main app process (single-process mode); the app requires root and a supported
+FM tuner.
 Debug application id: `com.vlad805.fmradio.dev`.
 
 ## Package Map
 
 | Package | Role |
 | --- | --- |
-| (root) | `C.java` — all constants (commands, events, pref keys), `Storage` (Tray) |
+| (root) | `C.java` — all constants (commands, events, pref keys), `Storage` (`SharedPreferences` wrapper) |
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
 | `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |
@@ -18,9 +19,9 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
 | `service/recording/` | 12 files: `PcmFormat`, WAV/MP3 recording, SRT subtitles, storage |
-| `fragments/` | `PreferencesFragment` — settings built in code, no `res/xml` |
+| `fragments/` | `PreferencesFragment` — declarative `res/xml/preferences.xml` + backend capability gating |
 | `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
-| `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum, `BandUtils` |
+| `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum (with backend capability flags), `BandUtils` |
 
 `service/streaming/` is an empty leftover. `app/src/main/cpp/` is the LAME
 MP3 encoder (JNI `libmp3encoder.so`), unrelated to the FM backend.
@@ -59,13 +60,14 @@ Key flows:
 - Unexpected native exit → `NativeTunerController` exit handler →
   `context.stopService(FMService)`.
 - `onDestroy()` → `kill()`: stop audio and tuner; unregister
-  receivers and the Tray preference listener.
+  receivers and the `SharedPreferences.OnSharedPreferenceChangeListener`
+  (stored in a strong field).
 
 ## Controller Hierarchy
 
 - `NativeTunerController` (`final`) — the only tuner controller. Owns binary install
   (asset → `/data/data/<pkg>/files/fmbin-<arch>`, chmod 0755, version and APK
-  `lastUpdateTime` in Tray; debug builds and mismatched APK update times reinstall)
+  `lastUpdateTime` in `SharedPreferences`; debug builds and mismatched APK update times reinstall)
   and `sendCommand` via the session.
   `launch()`: root probe, `killall fmbin-*`, 5 s ready handshake, `init` with
   10 s timeout. `enable()` sends one atomic `enable` command formatted by
@@ -129,7 +131,7 @@ deliberately ignored (Java lifecycle is authoritative).
 ## Favorites
 
 - JSON files at `getExternalFilesDir()/favorites/<name>.json`; the current
-  list name lives in Tray. No SQLite.
+  list name lives in `SharedPreferences`. No SQLite.
 - `FavoriteController` (extends `JSONFile<FavoriteFile>`): rename/remove
   (never for `default`), import (JSON/ZIP, 1 MB limit, name sanitizing),
   export (single list or ZIP).
@@ -140,14 +142,22 @@ deliberately ignored (Java lifecycle is authoritative).
 - `MainActivity` gates startup: `su` present and tuner supported, else
   `StartupBlockedActivity`. UI↔service only via `RadioController` intents and
   app broadcasts wrapped by `RadioStateUpdater`.
-- Settings (`PreferencesFragment`, programmatic): `tuner_region` (1=EU, 2=JP,
-  3=JP wide, 4=US), `tuner_spacing` (1=50, 2=100, 3=200 kHz), `tuner_stereo`,
-  `tuner_soft_mute`, `tuner_antenna`, `tuner_power_mode`, `rds_auto_af`,
+- Settings (`PreferencesFragment` + `res/xml/preferences.xml` + `res/values/arrays.xml`):
+  `tuner_region` (1=EU, 2=JP, 3=JP wide, 4=US), `tuner_spacing` (1=50, 2=100,
+  3=200 kHz), `tuner_stereo`, `tuner_soft_mute`, `tuner_notch_filter`,
+  `tuner_antenna`, `tuner_power_mode`, `rds_auto_af`,
   `recording_directory`/`recording_filename` (templates `$f $y $m $d $h $i $s
   $r`), `recording_mode`, `recording_save_srt`, `recording_save_past`,
   `recording_show_notify`, `app_auto_startup`, `notification_show_ps`,
-  `notification_seek_by_favorites`. Preference store: Tray (`Storage.java`);
-  changes reach `FMService` via the Tray listener → `setupTunerByPreferences`.
+  `notification_seek_by_favorites`. Feature availability is driven by
+  `TunerDriver` capability flags (`supportsSoftMute`, `supportsNotchFilter`,
+  `supportsAntenna`, `supportsAutoAf`, `supportsJapanWide`,
+  `supportsStereoDetection`, `getJapanStandardUpperKhz`).
+- Preference store: standard AndroidX `DefaultSharedPreferences` via
+  `Storage.java` (UI-bound numeric keys stored as decimal strings and parsed
+  safely via `getPrefInt`/`putPrefInt`; internal keys stored in native types);
+  changes reach `FMService` via `OnSharedPreferenceChangeListener` →
+  `setupTunerByPreferences`.
 
 ## Build, Tests, Dead Code
 
@@ -156,7 +166,8 @@ deliberately ignored (Java lifecycle is authoritative).
   verifies the `fmbin-*` assets exist.
 - JVM tests (`make test-java`): RadioState, SignalStrength, Request,
   FMNotificationManager, TunerCommandFormat, TunerDriverDetector,
-  AudioSelection, AudioLifecycle, QualcommRoutedAudio, PcmFormat,
+  TunerDriverCapabilities, Storage, AudioSelection, AudioLifecycle,
+  QualcommRoutedAudio, RoutingAudioService, SamsungS610Audio, PcmFormat,
   PcmRecorderSession, RdsSubtitleWriter, RecordingStorage.
 - Dead code: `service/streaming/` (empty), `C.RecordFormat.AAC_128` (selecting it
   returns a null recorder — unreachable from UI),
