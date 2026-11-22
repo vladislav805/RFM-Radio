@@ -53,7 +53,7 @@ constexpr RegionProfile kMod2Profile = {
         .lower_frequency_khz = 30000,
         .upper_frequency_khz = 999000,
         .emphasis = kFmEmphasis75Microseconds,
-        .rds_standard = kFmRdsStandardRbds,
+        .rds_standard = kFmRdsStandardRds,
         .legacy_band = 5,
         .helium_region = 0,
 };
