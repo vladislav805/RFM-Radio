@@ -174,8 +174,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Activity handle, UI setup
      */
     private void initUserInterface() {
-        mFrequencyInfo = findViewById(R.id.frequency_info);
-        mFrequencyInfo.attachRtPlusOverlay(findViewById(R.id.rt_plus_overlay));
+        mFrequencyInfo = new RadioUIView(findViewById(R.id.main_root));
 
         mFavoritesView = findViewById(R.id.favorite_list);
         mFavoritesView.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
@@ -227,6 +226,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (mPowerColorAnimator != null) {
             mPowerColorAnimator.cancel();
             mPowerColorAnimator = null;
+        }
+        if (mFrequencyInfo != null) {
+            mFrequencyInfo.release();
         }
 
         if (mRadioController != null) {

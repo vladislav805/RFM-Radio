@@ -2,16 +2,12 @@ package com.vlad805.fmradio.view;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
-import android.util.AttributeSet;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.StringRes;
@@ -35,26 +31,24 @@ import com.vlad805.fmradio.preferences.BandUtils;
 import net.grandcentrix.tray.AppPreferences;
 
 /**
- * Material 3 tuner and RDS metadata display card.
- * Keeps fixed geometry for raw RadioText (3 lines) and uses a MaterialButtonToggleGroup
- * segmented button to switch between raw RT and structured RT+ (Artist, Title, Album).
+ * UI binder/controller for the tuner frequency, RDS metadata, and RT+ overlay.
  */
-public class RadioUIView extends LinearLayout {
-	private TextView mFrequencyView;
-	private TextView mRdsPs;
-	private TextView mRdsRt;
-	private TextView mRdsPty;
-	private TextView mRdsPtyLabel;
-	private TextView mRdsPi;
+public final class RadioUIView {
+	private final Context mContext;
+	private final TextView mFrequencyView;
+	private final TextView mRdsPs;
+	private final TextView mRdsRt;
+	private final TextView mRdsPty;
+	private final TextView mRdsPtyLabel;
+	private final TextView mRdsPi;
 
-	private ViewGroup mRtCard;
-	private View mRtPlusOverlay;
-	private TextView mRtPlusArtist;
-	private TextView mRtPlusTitle;
-	private TextView mRtPlusAlbum;
+	private final ViewGroup mRtCard;
+	private final View mRtPlusOverlay;
+	private final TextView mRtPlusArtist;
+	private final TextView mRtPlusTitle;
+	private final TextView mRtPlusAlbum;
 
-	private MaterialCardView mBtnToggleRtPlus;
-	private TextView mBtnToggleRtPlusText;
+	private final MaterialCardView mBtnToggleRtPlus;
 
 	private boolean mShowRtPlusMode = false;
 	private boolean mStatusShown;
@@ -68,51 +62,37 @@ public class RadioUIView extends LinearLayout {
 	private ValueAnimator mRtAppendAnimator;
 	private final AppPreferences mPreferences;
 
-	public RadioUIView(final Context context) {
-		super(context);
-		mPreferences = new AppPreferences(getContext());
-		init();
-	}
+	public RadioUIView(final View root) {
+		mContext = root.getContext();
+		mPreferences = new AppPreferences(mContext);
 
-	public RadioUIView(final Context context, final AttributeSet attrs) {
-		super(context, attrs);
-		mPreferences = new AppPreferences(getContext());
-		init();
-	}
+		mFrequencyView = root.findViewById(R.id.frequency_mhz);
+		mRdsPs = root.findViewById(R.id.frequency_ps);
+		mRdsRt = root.findViewById(R.id.frequency_rt);
+		mRdsPty = root.findViewById(R.id.frequency_pty);
+		mRdsPtyLabel = root.findViewById(R.id.frequency_pty_label);
+		mRdsPi = root.findViewById(R.id.frequency_pi);
 
-	private void init() {
-		LayoutInflater.from(getContext()).inflate(R.layout.frequency_info, this, true);
+		mRtCard = root.findViewById(R.id.rt_card);
+		mRtPlusOverlay = root.findViewById(R.id.rt_plus_overlay);
+		mRtPlusArtist = root.findViewById(R.id.rt_plus_artist_value);
+		mRtPlusTitle = root.findViewById(R.id.rt_plus_title_value);
+		mRtPlusAlbum = root.findViewById(R.id.rt_plus_album_value);
 
-		mFrequencyView = findViewById(R.id.frequency_mhz);
-		mRdsPs = findViewById(R.id.frequency_ps);
-		mRdsRt = findViewById(R.id.frequency_rt);
-		mRdsPty = findViewById(R.id.frequency_pty);
-		mRdsPtyLabel = findViewById(R.id.frequency_pty_label);
-		mRdsPi = findViewById(R.id.frequency_pi);
-
-		mRtCard = findViewById(R.id.rt_card);
-
-		mBtnToggleRtPlus = findViewById(R.id.btn_toggle_rt_plus);
-		mBtnToggleRtPlusText = findViewById(R.id.btn_toggle_rt_plus_text);
+		mBtnToggleRtPlus = root.findViewById(R.id.btn_toggle_rt_plus);
 		mBtnToggleRtPlus.setOnClickListener(v -> setRtPlusMode(!mShowRtPlusMode));
+
+		final View closeButton = root.findViewById(R.id.btn_close_rt_plus);
+		if (closeButton != null) {
+			closeButton.setOnClickListener(v -> setRtPlusMode(false));
+		}
 
 		updateRtModeUi();
 		clearMetadata();
 	}
 
-	public final void attachRtPlusOverlay(final View overlay) {
-		mRtPlusOverlay = overlay;
-		if (overlay == null) {
-			return;
-		}
-		mRtPlusArtist = overlay.findViewById(R.id.rt_plus_artist_value);
-		mRtPlusTitle = overlay.findViewById(R.id.rt_plus_title_value);
-		mRtPlusAlbum = overlay.findViewById(R.id.rt_plus_album_value);
-		final View closeButton = overlay.findViewById(R.id.btn_close_rt_plus);
-		if (closeButton != null) {
-			closeButton.setOnClickListener(v -> setRtPlusMode(false));
-		}
-		overlay.setVisibility(mShowRtPlusMode ? View.VISIBLE : View.GONE);
+	private Context getContext() {
+		return mContext;
 	}
 
 	public final void setRtPlusMode(final boolean showRtPlus) {
@@ -130,9 +110,6 @@ public class RadioUIView extends LinearLayout {
 		final FastOutSlowInInterpolator interpolator = new FastOutSlowInInterpolator();
 		if (mShowRtPlusMode) {
 			mRtPlusOverlay.animate().cancel();
-			if (mRtCard != null) {
-				mRtPlusOverlay.setTranslationY(Math.max(0f, mRtCard.getTop() - 4f * getResources().getDisplayMetrics().density));
-			}
 			mRtPlusOverlay.setVisibility(View.VISIBLE);
 			if (mRtPlusOverlay.isLaidOut()) {
 				mRtPlusOverlay.setPivotX(mRtPlusOverlay.getWidth() * 0.9f);
@@ -150,9 +127,6 @@ public class RadioUIView extends LinearLayout {
 						.start();
 			} else {
 				mRtPlusOverlay.post(() -> {
-					if (mRtCard != null) {
-						mRtPlusOverlay.setTranslationY(Math.max(0f, mRtCard.getTop() - 4f * getResources().getDisplayMetrics().density));
-					}
 					mRtPlusOverlay.setPivotX(mRtPlusOverlay.getWidth() * 0.9f);
 					mRtPlusOverlay.setPivotY(0f);
 					mRtPlusOverlay.setScaleX(0.82f);
@@ -224,7 +198,7 @@ public class RadioUIView extends LinearLayout {
 		if (rtText.isEmpty()) {
 			mLastRtText = "";
 			final int mutedColor = MaterialColors.getColor(
-					this,
+					mRdsRt,
 					com.google.android.material.R.attr.colorOnSurfaceVariant,
 					ContextCompat.getColor(getContext(), R.color.text_secondary)
 			);
@@ -237,7 +211,7 @@ public class RadioUIView extends LinearLayout {
 		} else {
 			mShowingEmptyRt = false;
 			final int primaryTextColor = MaterialColors.getColor(
-					this,
+					mRdsRt,
 					com.google.android.material.R.attr.colorOnSurface,
 					ContextCompat.getColor(getContext(), R.color.text_primary)
 			);
@@ -364,10 +338,8 @@ public class RadioUIView extends LinearLayout {
 		}
 	}
 
-	@Override
-	protected void onDetachedFromWindow() {
+	public void release() {
 		cancelRtAppendAnimator();
-		super.onDetachedFromWindow();
 	}
 
 	private void setTextSmooth(final TextView view, final String text) {
@@ -401,11 +373,12 @@ public class RadioUIView extends LinearLayout {
 		mLastPiText = placeholder;
 
 		mLastRtText = "";
-		mRdsRt.setTextColor(MaterialColors.getColor(
-				this,
+		final int mutedColor = MaterialColors.getColor(
+				mRdsRt,
 				com.google.android.material.R.attr.colorOnSurfaceVariant,
 				ContextCompat.getColor(getContext(), R.color.text_secondary)
-		));
+		);
+		mRdsRt.setTextColor(mutedColor);
 		if (!mShowingEmptyRt) {
 			mShowingEmptyRt = true;
 			setTextSmooth(mRdsRt, getContext().getString(R.string.rds_rt_empty));
