@@ -43,7 +43,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 | (root) | 4 | `C`, `Storage` (Tray wrapper), `Utils`, `UtilsLocalization` |
 | `activity/` | 6 | see UI section |
 | `controller/` | 5 | see Controller section |
-| `enums/` | 4 | `Direction`, `MuteState` (dead), `PowerMode`, `TunerDriver` |
+| `enums/` | 3 | `Direction`, `PowerMode`, `TunerDriver` |
 | `fragments/` | 1 | `PreferencesFragment` (programmatic settings) |
 | `helper/` | 7 + `helper/json/` 2 | `Audio`, `TunerDriverDetector`, `RecordSchemaHelper`, `JSONFile`, … |
 | `models/` | 2 | `FavoriteStation`, `FavoriteFile` |
@@ -164,9 +164,10 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 
 - Binary management: asset `fmbin-<arch>` (`Utils.determineArch()`) →
   `/data/data/<appId>/files/`, `Os.chmod 0755`, installed version in Tray
-  key `bin_version_native`. `isObsolete()` = `BuildConfig.DEBUG || version <
-  VERSION_CODE` — debug builds always reinstall. `prepareBinary()` repairs a
-  lost execute bit in place.
+  key `bin_version_native` and APK `lastUpdateTime` in `bin_apk_update_time`.
+  `isObsolete()` = `BuildConfig.DEBUG || version != VERSION_CODE ||
+  apkUpdateTime != packageInfo.lastUpdateTime` — debug builds and updated
+  APKs reinstall. `prepareBinary()` repairs a lost execute bit in place.
 - `sendCommand(Request)` under `mSessionLock`; no session → immediate
   `IOException("Native process is not running")`.
 - `startNativeProcess(timeoutMs)` — creates `NativeProcessSession`, forwards
@@ -228,8 +229,8 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 (frequency ≤ 0 → drop; rmssi outside [-128, 127] → drop; country must match
 `[A-Z]{2}`; pty < 0 → drop; AF with negatives → drop; PS/RT trimmed with
 newlines → spaces); `enabled` → `ENABLED` event; `disabled` → deliberately
-ignored (Java owns the disable lifecycle); `search_done` → `onSearchDone`;
-anything else → warning.
+ignored (Java owns the disable lifecycle); `search_progress` →
+`onSearchProgress`; `search_done` → `onSearchDone`; anything else → warning.
 
 ## service/audio/
 
@@ -375,8 +376,9 @@ key `favorites_list_current` (default `"default"`). No SQLite.
   trip. Runtime permissions: recording (`RECORD_AUDIO`, storage when
   needed) with a "don't ask again → open settings" flow; playback
   `RECORD_AUDIO` only for legacy + API < 26. Menu: about, settings, scan,
-  record, speaker. `HW_SEARCH` shows a confirm dialog, then progress and a
-  `HW_SEARCH_DONE` receiver. `onDestroy`: if `tuner_power_mode` is enabled,
+  record, speaker. `HW_SEARCH` shows a confirm dialog, then a titled progress
+  dialog updated via `HW_SEARCH_PROGRESS` and completed by a `HW_SEARCH_DONE`
+  receiver. `onDestroy`: if `tuner_power_mode` is enabled,
   `setPowerMode(LOW)` while the service keeps running.
 - `FavoriteListsActivity` (~719 lines) — list manager: RecyclerView with
   selection mode, rename/remove, export (single/selected ZIP/all), import
@@ -418,6 +420,7 @@ Categories: Tuner, RDS, Recording, App, Notifications, Info. Store: Tray.
 | `notification_seek_by_favorites` | false | notification seek steps through favorites |
 | `frequency_last` | 87500 | Tray-only, restored on enable |
 | `bin_version_native` | — | Tray-only, installed fmbin version |
+| `bin_apk_update_time` | — | Tray-only, APK `lastUpdateTime` when fmbin was installed |
 
 Tray changes reach `FMService` through the listener →
 `setupTunerByPreferences` + pre-roll toggle.
@@ -454,24 +457,22 @@ No instrumented tests.
 ## Dead Code and Traps Inventory
 
 1. `service/streaming/` — empty directory.
-2. `enums/MuteState` — unreferenced.
-3. `view/IntEditTextPreference` — unreferenced (settings are programmatic).
-4. `C.RecordFormat.AAC_128` (=3) — `getPreferredRecorder()` returns null
+2. `C.RecordFormat.AAC_128` (=3) — `getPreferredRecorder()` returns null
    for it; unreachable from the UI but an NPE trap if set manually.
-5. `C.Event.HW_SEEK_COMPLETE` — unused legacy event; the native driver
+3. `C.Event.HW_SEEK_COMPLETE` — unused legacy event; the native driver
    completes seeks via state patches.
-6. `C.Event.UPDATE_AF` — declared, never sent (AF arrives in state patches).
-7. `FavoriteStation` JSON default 108100 kHz.
-8. `AudioService.mAudioSource = 1998` — an unofficial FM source constant;
+4. `C.Event.UPDATE_AF` — declared, never sent (AF arrives in state patches).
+5. `FavoriteStation` JSON default 108100 kHz.
+6. `AudioService.mAudioSource = 1998` — an unofficial FM source constant;
    device-dependent.
-9. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
+7. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
    and `AudioManager.setParameters("fm_…")` — vendor-dependent by design.
-10. `RecordService.record()` swallows `IOException` → silent IDLE.
-11. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
-    audio thread.
-12. Debug builds always reinstall `fmbin` (`isObsolete()` includes
+8. `RecordService.record()` swallows `IOException` → silent IDLE.
+9. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
+   audio thread.
+10. Debug builds always reinstall `fmbin` (`isObsolete()` includes
     `BuildConfig.DEBUG`) — frequent binary copies are expected during
     debugging.
-13. `Utils.runAsRoot` has a 15-second shell timeout.
-14. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
+11. `Utils.runAsRoot` has a 15-second shell timeout.
+12. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
     unused (see `NativeTunerController`).

@@ -95,8 +95,9 @@ commands go through `atoi` — invalid text silently becomes zero.
 Events: partial `state` patches (frequency, stereo, rmssi, sinr, ps, rt, pi,
 country, pty, af, rt_plus — only changed fields, deduplicated in `ctl_server`),
 `seek_done` (single hardware seek completion, emitted even when landing on the
-same frequency), `search_done` (sorted kHz array, at most 64 stations), and
-`disabled`. No `enabled` event is sent; Java treats the `enable` response as completion.
+same frequency), `search_progress` (`{"type":"search_progress","count":N}`
+emitted as unique stations are found during `searchhw`), `search_done` (sorted
+kHz array, at most 64 stations), and `disabled`. No `enabled` event is sent; Java treats the `enable` response as completion.
 PS/RT text is UTF-8: `rds_parser.cpp` converts raw EBU Latin G0
 (EN 50067:1998 Annex E) bytes to UTF-8 before they reach JSON; raw
 pre-conversion bytes are kept in `RdsTextPayload::raw_text` because RT+ tag

@@ -12,7 +12,7 @@ Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 ## Features
 
 - Live FM playback using supported hardware backend.
-- RDS metadata: PS, RT, PTY.
+- RDS metadata: PS, RT, RT+, PTY.
 - Recording to `.wav` and `.mp3`, with a matching `.srt` file containing frequency, PI, PS and RT.
 - Favorites (presets) with custom names.
 - Multiple favorite lists.

@@ -367,6 +367,12 @@ cached frequency):
 {"type":"seek_done"}
 ```
 
+Search progress (emitted during `searchhw` when the unique station count increases):
+
+```json
+{"type":"search_progress","count":3}
+```
+
 Search completion:
 
 ```json
