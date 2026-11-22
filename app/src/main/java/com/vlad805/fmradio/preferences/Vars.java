@@ -15,8 +15,11 @@ public class Vars {
         sTunerRegions.put(BandUtils.BAND_US, "United States (87.5-108.0 MHz, 75µs)");
         sTunerRegions.put(BandUtils.BAND_JAPAN_STANDARD, "Japan Standard (76-95 MHz, 50µs)");
         sTunerRegions.put(BandUtils.BAND_JAPAN_WIDE, "Japan Wide (76-108 MHz, 50µs)");
-
+        sTunerRegions.put(BandUtils.BAND_MOD1, "Mod1 (30-999 MHz, 50µs)");
+        sTunerRegions.put(BandUtils.BAND_MOD2, "Mod2 (30-999 MHz, 75µs)");
+        
         sTunerSpacing = new SparseArray<>();
+        sTunerSpacing.put(BandUtils.SPACING_10kHz, "10 kHz");
         sTunerSpacing.put(BandUtils.SPACING_50kHz, "50 kHz");
         sTunerSpacing.put(BandUtils.SPACING_100kHz, "100 kHz");
         sTunerSpacing.put(BandUtils.SPACING_200kHz, "200 kHz");
