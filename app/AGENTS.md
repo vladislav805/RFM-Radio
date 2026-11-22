@@ -10,7 +10,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 
 | Package | Role |
 | --- | --- |
-| (root) | `C.java` — all constants (commands, events, pref keys), `Storage` (`SharedPreferences` wrapper) |
+| (root) | `C.java` — IPC/event/extra/format constants; `Storage` — typed `SharedPreferences` wrapper, `Storage.Key`, defaults |
 | `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioController` (UI→service intents), `FavoriteController`, `RadioState`, `RadioStateUpdater`, `TunerStatus` |
 | `service/` | `FMService` — the orchestrator; `FMNotificationManager` — notification channels and playback/recording presentation |

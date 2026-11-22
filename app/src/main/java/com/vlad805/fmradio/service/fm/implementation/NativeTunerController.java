@@ -260,32 +260,32 @@ public final class NativeTunerController {
 
     public void applyPreference(final String key, final String value) {
         switch (key) {
-            case C.PrefKey.TUNER_REGION:
+            case Storage.Key.TUNER_REGION:
                 sendCommand(new Request("set_region " + TunerCommandFormat.regionName(Utils.parseInt(value))));
                 break;
-            case C.PrefKey.TUNER_SPACING:
+            case Storage.Key.TUNER_SPACING:
                 sendCommand(new Request("set_spacing " + TunerCommandFormat.spacingKhz(Utils.parseInt(value))));
                 break;
-            case C.PrefKey.TUNER_STEREO:
+            case Storage.Key.TUNER_STEREO:
                 sendCommand(new Request("set_stereo " + value));
                 break;
-            case C.PrefKey.TUNER_SOFT_MUTE:
+            case Storage.Key.TUNER_SOFT_MUTE:
                 sendCommand(new Request("set_soft_mute " + value));
                 break;
-            case C.PrefKey.TUNER_NOTCH_FILTER:
+            case Storage.Key.TUNER_NOTCH_FILTER:
                 sendCommand(new Request("set_notch_filter " + value));
                 break;
-            case C.PrefKey.TUNER_ANTENNA:
+            case Storage.Key.TUNER_ANTENNA:
                 sendCommand(new Request("set_antenna " + value).onResponse(str -> {
                     if (str.startsWith("ERR_UNV_ANT")) {
                         fireEvent(C.Event.ERROR_INVALID_ANTENNA);
                     }
                 }));
                 break;
-            case C.PrefKey.TUNER_POWER_MODE:
+            case Storage.Key.TUNER_POWER_MODE:
                 sendCommand(new Request("power_mode " + value));
                 break;
-            case C.PrefKey.RDS_AUTO_AF:
+            case Storage.Key.RDS_AUTO_AF:
                 sendCommand(new Request("auto_af " + value));
                 break;
         }
@@ -296,14 +296,14 @@ public final class NativeTunerController {
             return false;
         }
         switch (key) {
-            case C.PrefKey.TUNER_REGION:
-            case C.PrefKey.TUNER_SPACING:
-            case C.PrefKey.TUNER_STEREO:
-            case C.PrefKey.TUNER_SOFT_MUTE:
-            case C.PrefKey.TUNER_NOTCH_FILTER:
-            case C.PrefKey.TUNER_ANTENNA:
-            case C.PrefKey.TUNER_POWER_MODE:
-            case C.PrefKey.RDS_AUTO_AF:
+            case Storage.Key.TUNER_REGION:
+            case Storage.Key.TUNER_SPACING:
+            case Storage.Key.TUNER_STEREO:
+            case Storage.Key.TUNER_SOFT_MUTE:
+            case Storage.Key.TUNER_NOTCH_FILTER:
+            case Storage.Key.TUNER_ANTENNA:
+            case Storage.Key.TUNER_POWER_MODE:
+            case Storage.Key.RDS_AUTO_AF:
                 return true;
             default:
                 return false;
@@ -314,36 +314,36 @@ public final class NativeTunerController {
         for (final String key : changed) {
             String value = null;
             switch (key) {
-                case C.PrefKey.TUNER_REGION: {
+                case Storage.Key.TUNER_REGION: {
                     value = String.valueOf(mStorage.getRegion());
                     break;
                 }
-                case C.PrefKey.TUNER_STEREO: {
+                case Storage.Key.TUNER_STEREO: {
                     value = mStorage.isStereoEnabled() ? "1" : "0";
                     break;
                 }
-                case C.PrefKey.TUNER_SOFT_MUTE: {
+                case Storage.Key.TUNER_SOFT_MUTE: {
                     value = mStorage.isSoftMuteEnabled() ? "1" : "0";
                     break;
                 }
-                case C.PrefKey.TUNER_NOTCH_FILTER: {
+                case Storage.Key.TUNER_NOTCH_FILTER: {
                     value = String.valueOf(mStorage.getNotchFilter());
                     break;
                 }
-                case C.PrefKey.TUNER_SPACING: {
+                case Storage.Key.TUNER_SPACING: {
                     applyPreference(key, String.valueOf(mStorage.getSpacing()));
-                    applyPreference(C.PrefKey.TUNER_STEREO, mStorage.isStereoEnabled() ? "1" : "0");
+                    applyPreference(Storage.Key.TUNER_STEREO, mStorage.isStereoEnabled() ? "1" : "0");
                     break;
                 }
-                case C.PrefKey.TUNER_ANTENNA: {
+                case Storage.Key.TUNER_ANTENNA: {
                     value = String.valueOf(mStorage.getAntenna());
                     break;
                 }
-                case C.PrefKey.TUNER_POWER_MODE: {
+                case Storage.Key.TUNER_POWER_MODE: {
                     value = mStorage.isLowPowerMode() ? "low" : "normal";
                     break;
                 }
-                case C.PrefKey.RDS_AUTO_AF: {
+                case Storage.Key.RDS_AUTO_AF: {
                     value = mStorage.isAutoAfEnabled() ? "1" : "0";
                     break;
                 }
@@ -448,8 +448,8 @@ public final class NativeTunerController {
                 callback.onError(new Error("Failed to enable tuner: " + result));
                 return;
             }
-            if (notchFilter != C.PrefDefaultValue.TUNER_NOTCH_FILTER) {
-                applyPreference(C.PrefKey.TUNER_NOTCH_FILTER, String.valueOf(notchFilter));
+            if (notchFilter != Storage.DEFAULT_NOTCH_FILTER) {
+                applyPreference(Storage.Key.TUNER_NOTCH_FILTER, String.valueOf(notchFilter));
             }
             callback.onResult(null);
         }).onError(error -> callback.onError(new Error("Failed to enable tuner", error))));

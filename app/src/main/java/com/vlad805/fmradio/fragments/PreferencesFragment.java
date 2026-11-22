@@ -31,7 +31,6 @@ import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.vlad805.fmradio.BuildConfig;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
@@ -145,7 +144,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 				messageView.setVisibility(View.VISIBLE);
 			}
 
-			final int inputType = C.PrefKey.TUNER_ANTENNA.equals(editPref.getKey())
+			final int inputType = Storage.Key.TUNER_ANTENNA.equals(editPref.getKey())
 					? InputType.TYPE_CLASS_NUMBER
 					: InputType.TYPE_CLASS_TEXT;
 			editText.setInputType(inputType);
@@ -196,7 +195,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		}
 
 		if (!driver.supportsJapanWide()) {
-			final ListPreference region = findPreference(C.PrefKey.TUNER_REGION);
+			final ListPreference region = findPreference(Storage.Key.TUNER_REGION);
 			if (region != null) {
 				region.setEntries(R.array.pref_tuner_region_entries_narrow_japan);
 				region.setEntryValues(R.array.pref_tuner_region_values_narrow_japan);
@@ -207,25 +206,25 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		}
 
 		if (!driver.supportsSoftMute()) {
-			disableUnsupportedPreference(findPreference(C.PrefKey.TUNER_SOFT_MUTE));
+			disableUnsupportedPreference(findPreference(Storage.Key.TUNER_SOFT_MUTE));
 		}
 
 		if (!driver.supportsNotchFilter()) {
-			disableUnsupportedPreference(findPreference(C.PrefKey.TUNER_NOTCH_FILTER));
+			disableUnsupportedPreference(findPreference(Storage.Key.TUNER_NOTCH_FILTER));
 		}
 
 		if (!driver.supportsAntenna()) {
-			disableUnsupportedPreference(findPreference(C.PrefKey.TUNER_ANTENNA));
+			disableUnsupportedPreference(findPreference(Storage.Key.TUNER_ANTENNA));
 		}
 
 		if (!driver.supportsAutoAf()) {
-			disableUnsupportedPreference(findPreference(C.PrefKey.RDS_AUTO_AF));
+			disableUnsupportedPreference(findPreference(Storage.Key.RDS_AUTO_AF));
 		}
 	}
 
 	private void configureInteractivePreferences(final TunerDriver driver) {
 		if (!driver.hasKnownCapabilities() || driver.supportsAntenna()) {
-			final EditTextPreference antenna = findPreference(C.PrefKey.TUNER_ANTENNA);
+			final EditTextPreference antenna = findPreference(Storage.Key.TUNER_ANTENNA);
 			if (antenna != null) {
 				antenna.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_NUMBER));
 				antenna.setOnPreferenceChangeListener((preference, newValue) -> {
@@ -239,14 +238,14 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			}
 		}
 
-		for (final String key : new String[]{C.PrefKey.RECORDING_DIRECTORY, C.PrefKey.RECORDING_FILENAME}) {
+		for (final String key : new String[]{Storage.Key.RECORDING_DIRECTORY, Storage.Key.RECORDING_FILENAME}) {
 			final EditTextPreference textPref = findPreference(key);
 			if (textPref != null) {
 				textPref.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_TEXT));
 			}
 		}
 
-		final SwitchPreferenceCompat savePast = findPreference(C.PrefKey.RECORDING_SAVE_PAST);
+		final SwitchPreferenceCompat savePast = findPreference(Storage.Key.RECORDING_SAVE_PAST);
 		if (savePast != null) {
 			savePast.setOnPreferenceChangeListener((preference, newValue) -> {
 				if (!(boolean) newValue) {
@@ -313,7 +312,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			@NonNull final int[] grantResults
 	) {
 		if (requestCode == REQUEST_RECORD_AUDIO_FOR_PRE_ROLL) {
-			final SwitchPreferenceCompat preference = findPreference(C.PrefKey.RECORDING_SAVE_PAST);
+			final SwitchPreferenceCompat preference = findPreference(Storage.Key.RECORDING_SAVE_PAST);
 			if (
 					grantResults.length > 0 &&
 					grantResults[0] == PackageManager.PERMISSION_GRANTED &&

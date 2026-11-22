@@ -2,7 +2,6 @@ package com.vlad805.fmradio.controller;
 
 import android.content.Context;
 import android.os.Environment;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
@@ -34,7 +33,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	private final Storage mStorage;
 
 	private static final String KEY_JSON_ITEMS = "items";
-	public static final String DEFAULT_NAME = C.PrefDefaultValue.FAVORITES_LIST_CURRENT;
+	public static final String DEFAULT_NAME = Storage.DEFAULT_FAVORITES_LIST;
 	public static final int MAX_IMPORT_BYTES = 1024 * 1024;
 
 	private static final String JSON_EXT = ".json";

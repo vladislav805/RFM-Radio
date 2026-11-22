@@ -1,7 +1,7 @@
 package com.vlad805.fmradio;
 
 /**
- * Common constants: names of events and commands, keys of preferences, default values, etc
+ * Common constants: names of events and commands, intent extras, recording formats, etc.
  *
  * vlad805 (c) 2019
  */
@@ -103,62 +103,6 @@ final public class C {
 		public static final String FREQUENCIES = "frequencies";
 		public static final String STATE = "state";
 		public static final String IS_SPEAKER = "is_speaker";
-    }
-
-	public static final class PrefKey {
-		public static final String LAST_FREQUENCY = "frequency_last";
-
-		public static final String TUNER_REGION = "tuner_region";
-		public static final String TUNER_SPACING = "tuner_spacing";
-		public static final String TUNER_POWER_MODE = "tuner_power_mode";
-		public static final String TUNER_ANTENNA = "tuner_antenna";
-		public static final String TUNER_STEREO = "tuner_stereo";
-		public static final String TUNER_SOFT_MUTE = "tuner_soft_mute";
-		public static final String TUNER_NOTCH_FILTER = "tuner_notch_filter";
-		public static final String DETECTED_BACKEND = "detected_backend";
-
-		public static final String APP_AUTO_STARTUP = "app_auto_startup";
-
-		public static final String RDS_AUTO_AF = "rds_auto_af";
-
-		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
-		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
-
-		public static final String RECORDING_DIRECTORY = "recording_directory";
-		public static final String RECORDING_FILENAME = "recording_filename";
-		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
-        public static final String RECORDING_SAVE_SRT = "recording_save_srt";
-		public static final String RECORDING_FORMAT = "recording_mode";
-		/** Enables retaining recent PCM before the Record command. */
-		public static final String RECORDING_SAVE_PAST = "recording_save_past";
-
-		public static final String BINARY_VERSION_NATIVE = "bin_version_native";
-		public static final String BINARY_APK_UPDATE_TIME = "bin_apk_update_time";
-		public static final String FAVORITES_LIST_CURRENT = "favorites_list_current";
-    }
-
-	public static final class PrefDefaultValue {
-		public static final int LAST_FREQUENCY = 87500;
-		public static final boolean NOTIFICATION_SHOW_RDS = true;
-		public static final boolean NOTIFICATION_SEEK_BY_FAVORITES = false;
-		public static final boolean APP_AUTO_STARTUP = false;
-		public static final int TUNER_REGION = 1;
-		public static final int TUNER_SPACING = 2;
-		public static final int TUNER_ANTENNA = 0;
-		public static final boolean TUNER_STEREO = true;
-		public static final boolean TUNER_SOFT_MUTE = true;
-		public static final int TUNER_NOTCH_FILTER = 0;
-		public static final boolean TUNER_POWER_MODE = false;
-
-		public static final String RECORDING_DIRECTORY = "$y-$m-$d";
-		public static final String RECORDING_FILENAME = "FM-$h$i$s-$f";
-		public static final boolean RECORDING_SHOW_NOTIFY = true;
-        public static final boolean RECORDING_SAVE_SRT = false;
-		public static final int RECORDING_FORMAT = 0;
-		/** Pre-roll capture is opt-in because it keeps audio capture active. */
-		public static final boolean RECORDING_SAVE_PAST = false;
-        public static final boolean RDS_AUTO_AF = false;
-		public static final String FAVORITES_LIST_CURRENT = "default";
     }
 
 	/** Stable values persisted by the recording format preference. */

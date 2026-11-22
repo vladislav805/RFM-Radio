@@ -34,7 +34,8 @@ UI (MainActivity / views)
 ```
 
 There is no binder/AIDL and no shared memory; both directions are
-fire-and-forget. `C.java` holds every action/extra/preference constant.
+fire-and-forget. `C.java` holds IPC action/extra/format constants; preference
+keys (`Storage.Key.*` + internal keys) and defaults live in `Storage.java`.
 
 ## Package Inventory
 
@@ -68,7 +69,7 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 `FMEventCallback` and registers a strong-referenced
 `SharedPreferences.OnSharedPreferenceChangeListener` field (`mPreferenceChangeListener`)
 via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
-`RECORDING_SAVE_PAST` and keys accepted by `NativeTunerController.isTunerPreferenceKey`.
+`Storage.Key.RECORDING_SAVE_PAST` and keys accepted by `NativeTunerController.isTunerPreferenceKey`.
 
 - `onCreate`: creates `RadioState`, `RadioController`,
   `FavoriteController`, `FMNotificationManager` (`createChannels()` for
@@ -463,8 +464,8 @@ env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 recording tags/ids), `TunerCommandFormatTest` (atomic enable command,
 region/spacing mapping), `TunerDriverDetectorTest` (allowlist + handshake
 backend resolution), `TunerDriverCapabilitiesTest` (backend capability flags +
-`BandUtils` limits/spacing), `StorageTest` (string-backed UI preference parsing,
-native type round-trips, `ClassCastException` safety), `AudioSelectionTest`
+`BandUtils` limits/spacing), `StorageTest` (string-backed UI preference parsing, native type round-trips,
+`ClassCastException` safety, and `preferences.xml` ↔ `Storage` key/default parity), `AudioSelectionTest`
 (API/backend matrix), `AudioLifecycleTest` (start/stop ordering, idempotent
 teardown), `QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
 `FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle), `RoutingAudioServiceTest`,

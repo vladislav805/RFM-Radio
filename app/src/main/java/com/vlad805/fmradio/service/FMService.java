@@ -188,7 +188,7 @@ public class FMService extends Service implements FMEventCallback {
                     break;
                 }
 
-                final int frequency = intent.getIntExtra(C.Key.FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+                final int frequency = intent.getIntExtra(C.Key.FREQUENCY, Storage.DEFAULT_LAST_FREQUENCY);
                 mTunerDriver.setFrequency(frequency);
                 break;
             }
@@ -513,7 +513,7 @@ public class FMService extends Service implements FMEventCallback {
             return;
         }
 
-        if (C.PrefKey.RECORDING_SAVE_PAST.equals(key)) {
+        if (Storage.Key.RECORDING_SAVE_PAST.equals(key)) {
             if (mAudioService != null) {
                 mAudioService.setPreRollEnabled(mStorage.isRecordingPreRollEnabled());
             }
