@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RadioController mRadioController;
     private FavoriteController mFavoriteController;
     private ProgressDialog mSearchProgress;
+    private Storage mStorage;
 
     private MaterialButton mCtlToggle;
     private MaterialCardView mViewStereoModeCard;
@@ -155,6 +156,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mToast = Toast.create(this);
 
+        mStorage = Storage.get(this);
         mRadioController = new RadioController(this);
         mFavoriteController = new FavoriteController(this);
         mRadioController.requestForCurrentState(this);
@@ -177,7 +179,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mSeek = findViewById(R.id.frequency_seek);
 
-        final int kHz = Storage.get(this).getLastFrequency();
+        final int kHz = mStorage.getLastFrequency();
         mFrequencyInfo.setFrequency(kHz);
         mSeek.setFrequency(kHz);
         mFavoritesView.setActiveFrequency(kHz);
@@ -191,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Initialize connection and service
      */
     private void initLogic() {
-        final boolean needStartup = Storage.get(this).isAutoStartupEnabled();
+        final boolean needStartup = mStorage.isAutoStartupEnabled();
 
         if (needStartup) {
             if (ensurePlaybackPermissionForLegacyAudio()) {
@@ -230,7 +232,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mRadioController.unregisterForUpdates();
         }
 
-        if (mRadioController != null && Storage.get(this).isLowPowerMode()) {
+        if (mRadioController != null && mStorage.isLowPowerMode()) {
             mRadioController.setPowerMode(PowerMode.LOW);
         }
     }
@@ -448,7 +450,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int[] sortedAf = Arrays.copyOf(rawAf, rawAf.length);
         Arrays.sort(sortedAf);
 
-        final int spacingPref = Storage.get(this).getSpacing();
+        final int spacingPref = mStorage.getSpacing();
         final int precision = spacingPref == BandUtils.SPACING_50kHz ? 2 : 1;
 
         final String[] labels = new String[sortedAf.length];
@@ -661,8 +663,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void reloadPreferences() {
-        final int regionPref = Storage.get(this).getRegion();
-        final int spacingPref = Storage.get(this).getSpacing();
+        final int regionPref = mStorage.getRegion();
+        final int spacingPref = mStorage.getSpacing();
 
         final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref, TunerDriverDetector.getTunerDriver(this));
         final int spacing = BandUtils.getSpacing(spacingPref);

@@ -33,6 +33,7 @@ import com.vlad805.fmradio.preferences.BandUtils;
  */
 public final class RadioUIView {
 	private final Context mContext;
+	private final Storage mStorage;
 	private final TextView mFrequencyView;
 	private final TextView mRdsPs;
 	private final TextView mRdsRt;
@@ -61,6 +62,7 @@ public final class RadioUIView {
 
 	public RadioUIView(final View root) {
 		mContext = root.getContext();
+		mStorage = Storage.get(mContext);
 
 		mFrequencyView = root.findViewById(R.id.frequency_mhz);
 		mRdsPs = root.findViewById(R.id.frequency_ps);
@@ -167,7 +169,7 @@ public final class RadioUIView {
 	 * @param kHz Frequency in kHz
 	 */
 	public final void setFrequency(final int kHz) {
-		final int spacing = Storage.get(mContext).getSpacing();
+		final int spacing = mStorage.getSpacing();
 		final boolean is50Khz = spacing == BandUtils.SPACING_50kHz;
 		mFrequencyView.setTextSize(is50Khz ? 36f : 44f);
 		mFrequencyView.setText(Utils.getMHz(kHz, is50Khz ? 2 : 1).trim());
@@ -258,7 +260,7 @@ public final class RadioUIView {
 			setRtPlusMode(false);
 		}
 
-		final int region = Storage.get(mContext).getRegion();
+		final int region = mStorage.getRegion();
 		final String ptyName = UtilsLocalization.getProgramType(state.getPty(), region);
 		mLastPtyText = (ptyName == null || ptyName.trim().isEmpty()) ? placeholder : ptyName;
 

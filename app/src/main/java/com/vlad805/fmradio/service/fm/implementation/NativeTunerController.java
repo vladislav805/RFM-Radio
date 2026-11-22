@@ -49,6 +49,7 @@ public final class NativeTunerController {
     }
 
     private final Context mContext;
+    private final Storage mStorage;
     private final Object mSessionLock = new Object();
     private FMEventCallback mEventCallback;
     private NativeProcessSession mNativeSession;
@@ -59,6 +60,7 @@ public final class NativeTunerController {
 
     public NativeTunerController(final Context context, final TunerDriver detectedDriver) {
         mContext = context;
+        mStorage = Storage.get(context);
         mDriverKind = detectedDriver;
     }
 
@@ -113,9 +115,8 @@ public final class NativeTunerController {
     }
 
     public boolean isObsolete() {
-        final Storage storage = Storage.get(mContext);
-        final int binaryVersion = storage.getNativeBinaryVersion();
-        final long installedApkUpdateTime = storage.getBinaryApkUpdateTime();
+        final int binaryVersion = mStorage.getNativeBinaryVersion();
+        final long installedApkUpdateTime = mStorage.getBinaryApkUpdateTime();
         final long currentApkUpdateTime = getApkLastUpdateTime();
 
         return (
@@ -310,41 +311,40 @@ public final class NativeTunerController {
     }
 
     public void setupTunerByPreferences(final String[] changed) {
-        final Storage storage = Storage.get(mContext);
         for (final String key : changed) {
             String value = null;
             switch (key) {
                 case C.PrefKey.TUNER_REGION: {
-                    value = String.valueOf(storage.getRegion());
+                    value = String.valueOf(mStorage.getRegion());
                     break;
                 }
                 case C.PrefKey.TUNER_STEREO: {
-                    value = storage.isStereoEnabled() ? "1" : "0";
+                    value = mStorage.isStereoEnabled() ? "1" : "0";
                     break;
                 }
                 case C.PrefKey.TUNER_SOFT_MUTE: {
-                    value = storage.isSoftMuteEnabled() ? "1" : "0";
+                    value = mStorage.isSoftMuteEnabled() ? "1" : "0";
                     break;
                 }
                 case C.PrefKey.TUNER_NOTCH_FILTER: {
-                    value = String.valueOf(storage.getNotchFilter());
+                    value = String.valueOf(mStorage.getNotchFilter());
                     break;
                 }
                 case C.PrefKey.TUNER_SPACING: {
-                    applyPreference(key, String.valueOf(storage.getSpacing()));
-                    applyPreference(C.PrefKey.TUNER_STEREO, storage.isStereoEnabled() ? "1" : "0");
+                    applyPreference(key, String.valueOf(mStorage.getSpacing()));
+                    applyPreference(C.PrefKey.TUNER_STEREO, mStorage.isStereoEnabled() ? "1" : "0");
                     break;
                 }
                 case C.PrefKey.TUNER_ANTENNA: {
-                    value = String.valueOf(storage.getAntenna());
+                    value = String.valueOf(mStorage.getAntenna());
                     break;
                 }
                 case C.PrefKey.TUNER_POWER_MODE: {
-                    value = storage.isLowPowerMode() ? "low" : "normal";
+                    value = mStorage.isLowPowerMode() ? "low" : "normal";
                     break;
                 }
                 case C.PrefKey.RDS_AUTO_AF: {
-                    value = storage.isAutoAfEnabled() ? "1" : "0";
+                    value = mStorage.isAutoAfEnabled() ? "1" : "0";
                     break;
                 }
             }
@@ -388,7 +388,7 @@ public final class NativeTunerController {
             }
 
             mDriverKind = resolvedDriver;
-            Storage.get(mContext).setDetectedBackend(resolvedDriver.name());
+            mStorage.setDetectedBackend(resolvedDriver.name());
 
             if (mDriverKind == TunerDriver.NONE) {
                 failLaunch(callback, "Native tuner reported unsupported backend 'none'", null);
@@ -425,15 +425,14 @@ public final class NativeTunerController {
     }
 
     private void enableImpl(final Callback<Void> callback) {
-        final Storage storage = Storage.get(mContext);
-        final int region = storage.getRegion();
+        final int region = mStorage.getRegion();
         final int frequency = getStartupFrequency(region);
-        final int spacing = storage.getSpacing();
-        final boolean stereo = storage.isStereoEnabled();
-        final int antenna = storage.getAntenna();
-        final boolean autoAf = storage.isAutoAfEnabled();
-        final boolean softMute = storage.isSoftMuteEnabled();
-        final int notchFilter = storage.getNotchFilter();
+        final int spacing = mStorage.getSpacing();
+        final boolean stereo = mStorage.isStereoEnabled();
+        final int antenna = mStorage.getAntenna();
+        final boolean autoAf = mStorage.isAutoAfEnabled();
+        final boolean softMute = mStorage.isSoftMuteEnabled();
+        final int notchFilter = mStorage.getNotchFilter();
 
         final String command = TunerCommandFormat.enable(
                 frequency,
@@ -617,9 +616,8 @@ public final class NativeTunerController {
             return;
         }
 
-        final Storage storage = Storage.get(mContext);
-        storage.setNativeBinaryVersion(BuildConfig.VERSION_CODE);
-        storage.setBinaryApkUpdateTime(getApkLastUpdateTime());
+        mStorage.setNativeBinaryVersion(BuildConfig.VERSION_CODE);
+        mStorage.setBinaryApkUpdateTime(getApkLastUpdateTime());
         callback.onResult(null);
     }
 
@@ -690,7 +688,7 @@ public final class NativeTunerController {
     }
 
     private int getStartupFrequency(final int region) {
-        final int savedFrequency = Storage.get(mContext).getLastFrequency();
+        final int savedFrequency = mStorage.getLastFrequency();
         final BandUtils.BandLimit band = BandUtils.getBandLimit(region, TunerDriverDetector.getTunerDriver(mContext));
 
         return Math.max(band.lower, Math.min(savedFrequency, band.upper));

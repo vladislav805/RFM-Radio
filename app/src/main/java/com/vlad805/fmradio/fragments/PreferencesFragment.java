@@ -60,14 +60,15 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
 		final Context context = requireContext();
+		final Storage storage = Storage.get(context);
 		final TunerDriver driver = TunerDriverDetector.getTunerDriver(context);
 
 		if (
 				driver.hasKnownCapabilities() &&
 				!driver.supportsJapanWide() &&
-				Storage.get(context).getRegion() == BandUtils.BAND_JAPAN_WIDE
+				storage.getRegion() == BandUtils.BAND_JAPAN_WIDE
 		) {
-			Storage.get(context).setRegion(BandUtils.BAND_JAPAN_STANDARD);
+			storage.setRegion(BandUtils.BAND_JAPAN_STANDARD);
 		}
 
 		setPreferencesFromResource(R.xml.preferences, rootKey);
