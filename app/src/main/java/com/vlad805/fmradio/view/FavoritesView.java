@@ -59,7 +59,6 @@ public class FavoritesView extends FrameLayout {
 		mEditToggle = findViewById(R.id.favorite_edit_toggle);
 		mListSelector = findViewById(R.id.favorite_list_selector);
 		mEmptyHint = findViewById(R.id.favorite_empty_hint);
-		final MaterialButton addButton = findViewById(R.id.favorite_add_button);
 
 		mFavoriteController = new FavoriteController(context);
 		mRecyclerView.setFavoriteController(mFavoriteController);
@@ -70,9 +69,6 @@ public class FavoritesView extends FrameLayout {
 			}
 		});
 
-		if (addButton != null) {
-			addButton.setOnClickListener(v -> mRecyclerView.promptAddCurrentStation());
-		}
 		mEditToggle.setOnClickListener(v -> toggleEditMode());
 		mListSelector.setOnClickListener(v -> showFavoriteListsDialog());
 

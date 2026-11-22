@@ -59,22 +59,6 @@
                 android:layout_width="6dp"
                 android:layout_height="1dp" />
 
-            <!-- Add current frequency to favorites -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/favorite_add_button"
-                style="@style/RfmIconButtonTonal"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:contentDescription="@string/favorites_add_current"
-                app:icon="@drawable/ic_rfm_add"
-                app:iconGravity="textStart"
-                app:iconPadding="0dp"
-                app:iconSize="20dp" />
-
-            <Space
-                android:layout_width="6dp"
-                android:layout_height="1dp" />
-
             <!-- Edit / Reorder mode toggle -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/favorite_edit_toggle"

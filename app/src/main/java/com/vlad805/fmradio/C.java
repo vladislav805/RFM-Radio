@@ -131,6 +131,7 @@ final public class C {
 		public static final String RECORDING_SAVE_PAST = "recording_save_past";
 
 		public static final String BINARY_VERSION_NATIVE = "bin_version_native";
+		public static final String BINARY_APK_UPDATE_TIME = "bin_apk_update_time";
     }
 
 	public static final class PrefDefaultValue {

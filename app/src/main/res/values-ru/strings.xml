@@ -165,7 +165,6 @@
     <string name="rds_rt_plus_album">Альбом</string>
     <string name="rds_af_dialog_title">Альтернативные частоты (AF)</string>
     <string name="rds_af_dialog_empty">Станция не передаёт список альтернативных частот.</string>
-    <string name="favorites_add_current">Добавить текущую частоту</string>
     <string name="favorites_select_list">Выбрать список избранного</string>
     <string name="favorites_manage_lists">Управление списками избранного</string>
     <string name="power_toggle_description">Включить / выключить радио</string>

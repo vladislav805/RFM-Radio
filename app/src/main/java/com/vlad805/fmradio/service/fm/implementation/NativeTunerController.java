@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.fm.implementation;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.system.ErrnoException;
 import android.system.Os;
@@ -113,7 +114,14 @@ public final class NativeTunerController {
 
     public boolean isObsolete() {
         final int binaryVersion = Storage.getInstance(mContext).getInt(getBinaryVersionKey(), 0);
-        return BuildConfig.DEBUG || binaryVersion < BuildConfig.VERSION_CODE;
+        final long installedApkUpdateTime = Storage.getInstance(mContext).getLong(C.PrefKey.BINARY_APK_UPDATE_TIME, 0L);
+        final long currentApkUpdateTime = getApkLastUpdateTime();
+
+        return (
+                BuildConfig.DEBUG ||
+                binaryVersion != BuildConfig.VERSION_CODE ||
+                (currentApkUpdateTime > 0L && installedApkUpdateTime != currentApkUpdateTime)
+        );
     }
 
     public void install() {
@@ -594,7 +602,18 @@ public final class NativeTunerController {
         }
 
         Storage.getInstance(mContext).put(getBinaryVersionKey(), BuildConfig.VERSION_CODE);
+        Storage.getInstance(mContext).put(C.PrefKey.BINARY_APK_UPDATE_TIME, getApkLastUpdateTime());
         callback.onResult(null);
+    }
+
+    private long getApkLastUpdateTime() {
+        try {
+            return mContext.getPackageManager()
+                    .getPackageInfo(mContext.getPackageName(), 0)
+                    .lastUpdateTime;
+        } catch (final PackageManager.NameNotFoundException e) {
+            return 0L;
+        }
     }
 
     private boolean ensureNativeBinaryExecutable(final File binary) {

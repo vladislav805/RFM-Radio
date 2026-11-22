@@ -174,7 +174,6 @@
     <string name="rds_af_count" translatable="false">AF · %d</string>
     <string name="rds_af_dialog_title">Alternative frequencies (AF)</string>
     <string name="rds_af_dialog_empty">No alternative frequencies broadcasted by this station.</string>
-    <string name="favorites_add_current">Add current frequency</string>
     <string name="favorites_select_list">Select favorites list</string>
     <string name="favorites_manage_lists">Manage favorite lists</string>
     <string name="record_badge_idle" translatable="false">REC</string>
