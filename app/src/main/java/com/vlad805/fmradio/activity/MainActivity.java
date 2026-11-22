@@ -63,8 +63,6 @@ import com.vlad805.fmradio.view.FrequencyDialView;
 import com.vlad805.fmradio.view.RadioUIView;
 import com.vlad805.fmradio.view.SignalStrengthView;
 
-import net.grandcentrix.tray.AppPreferences;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -84,8 +82,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RadioController mRadioController;
     private FavoriteController mFavoriteController;
     private ProgressDialog mSearchProgress;
-
-    private AppPreferences mPreferences;
 
     private MaterialButton mCtlToggle;
     private MaterialCardView mViewStereoModeCard;
@@ -159,7 +155,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mToast = Toast.create(this);
 
-        mPreferences = new AppPreferences(this);
         mRadioController = new RadioController(this);
         mFavoriteController = new FavoriteController(this);
         mRadioController.requestForCurrentState(this);
@@ -182,7 +177,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mSeek = findViewById(R.id.frequency_seek);
 
-        final int kHz = Storage.getInstance(this).getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+        final int kHz = Storage.getInt(this, C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
         mFrequencyInfo.setFrequency(kHz);
         mSeek.setFrequency(kHz);
         mFavoritesView.setActiveFrequency(kHz);
@@ -452,7 +447,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final int[] sortedAf = Arrays.copyOf(rawAf, rawAf.length);
         Arrays.sort(sortedAf);
 
-        final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+        final int spacingPref = Storage.getPrefInt(this, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
         final int precision = spacingPref == BandUtils.SPACING_50kHz ? 2 : 1;
 
         final String[] labels = new String[sortedAf.length];
@@ -665,8 +660,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void reloadPreferences() {
-        final int regionPref = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
-        final int spacingPref = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+        final int regionPref = Storage.getPrefInt(this, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+        final int spacingPref = Storage.getPrefInt(this, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
 
         final BandUtils.BandLimit bandLimit = BandUtils.getBandLimit(regionPref, TunerDriverDetector.getTunerDriver(this));
         final int spacing = BandUtils.getSpacing(spacingPref);

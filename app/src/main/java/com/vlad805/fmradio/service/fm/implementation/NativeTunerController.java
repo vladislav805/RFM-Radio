@@ -113,8 +113,8 @@ public final class NativeTunerController {
     }
 
     public boolean isObsolete() {
-        final int binaryVersion = Storage.getInstance(mContext).getInt(getBinaryVersionKey(), 0);
-        final long installedApkUpdateTime = Storage.getInstance(mContext).getLong(C.PrefKey.BINARY_APK_UPDATE_TIME, 0L);
+        final int binaryVersion = Storage.getInt(mContext, getBinaryVersionKey(), 0);
+        final long installedApkUpdateTime = Storage.getLong(mContext, C.PrefKey.BINARY_APK_UPDATE_TIME, 0L);
         final long currentApkUpdateTime = getApkLastUpdateTime();
 
         return (
@@ -376,7 +376,7 @@ public final class NativeTunerController {
             }
 
             mDriverKind = resolvedDriver;
-            Storage.getInstance(mContext).put(C.PrefKey.DETECTED_BACKEND, resolvedDriver.name());
+            Storage.putString(mContext, C.PrefKey.DETECTED_BACKEND, resolvedDriver.name());
 
             if (mDriverKind == TunerDriver.NONE) {
                 failLaunch(callback, "Native tuner reported unsupported backend 'none'", null);
@@ -608,8 +608,8 @@ public final class NativeTunerController {
             return;
         }
 
-        Storage.getInstance(mContext).put(getBinaryVersionKey(), BuildConfig.VERSION_CODE);
-        Storage.getInstance(mContext).put(C.PrefKey.BINARY_APK_UPDATE_TIME, getApkLastUpdateTime());
+        Storage.putInt(mContext, getBinaryVersionKey(), BuildConfig.VERSION_CODE);
+        Storage.putLong(mContext, C.PrefKey.BINARY_APK_UPDATE_TIME, getApkLastUpdateTime());
         callback.onResult(null);
     }
 
@@ -680,7 +680,8 @@ public final class NativeTunerController {
     }
 
     private int getStartupFrequency(final int region) {
-        final int savedFrequency = Storage.getInstance(mContext).getInt(
+        final int savedFrequency = Storage.getInt(
+                mContext,
                 C.PrefKey.LAST_FREQUENCY,
                 C.PrefDefaultValue.LAST_FREQUENCY
         );

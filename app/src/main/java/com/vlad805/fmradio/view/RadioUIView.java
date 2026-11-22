@@ -22,13 +22,12 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.preferences.BandUtils;
-
-import net.grandcentrix.tray.AppPreferences;
 
 /**
  * UI binder/controller for the tuner frequency, RDS metadata, and RT+ overlay.
@@ -60,11 +59,9 @@ public final class RadioUIView {
 	private String mLastRtText = "";
 	private boolean mShowingEmptyRt = true;
 	private ValueAnimator mRtAppendAnimator;
-	private final AppPreferences mPreferences;
 
 	public RadioUIView(final View root) {
 		mContext = root.getContext();
-		mPreferences = new AppPreferences(mContext);
 
 		mFrequencyView = root.findViewById(R.id.frequency_mhz);
 		mRdsPs = root.findViewById(R.id.frequency_ps);
@@ -171,7 +168,7 @@ public final class RadioUIView {
 	 * @param kHz Frequency in kHz
 	 */
 	public final void setFrequency(final int kHz) {
-		final int spacing = mPreferences.getInt(C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+		final int spacing = Storage.getPrefInt(mContext, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
 		final boolean is50Khz = spacing == BandUtils.SPACING_50kHz;
 		mFrequencyView.setTextSize(is50Khz ? 36f : 44f);
 		mFrequencyView.setText(Utils.getMHz(kHz, is50Khz ? 2 : 1).trim());
@@ -262,7 +259,7 @@ public final class RadioUIView {
 			setRtPlusMode(false);
 		}
 
-		final int region = mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+		final int region = Storage.getPrefInt(mContext, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
 		final String ptyName = UtilsLocalization.getProgramType(state.getPty(), region);
 		mLastPtyText = (ptyName == null || ptyName.trim().isEmpty()) ? placeholder : ptyName;
 

@@ -32,7 +32,6 @@ import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.preferences.Vars;
-import net.grandcentrix.tray.AppPreferences;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -50,12 +49,10 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	private static final int REQUEST_RECORD_AUDIO_FOR_PRE_ROLL = 1001;
 
 	private ProgressDialog mProgress;
-	private AppPreferences mPreferences;
 
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
 		final Context context = requireContext();
-		mPreferences = new AppPreferences(context);
 
 		final PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(context);
 
@@ -195,18 +192,14 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		final PreferenceCategory category = makeCategory(context, R.string.pref_header_tuner, "tuner");
 		screen.addPreference(category);
 
-		if (isExynos && mPreferences.getInt(C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE) {
-			mPreferences.put(C.PrefKey.TUNER_REGION, BandUtils.BAND_JAPAN_STANDARD);
+		if (isExynos && Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE) {
+			Storage.putPrefInt(context, C.PrefKey.TUNER_REGION, BandUtils.BAND_JAPAN_STANDARD);
 		}
 
 		final ListPreference region = new ListPreference(context);
 		populatePreference(region, C.PrefKey.TUNER_REGION, R.string.pref_tuner_region, R.drawable.ic_band);
 		region.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_REGION));
 		setListProviderAndEntries(region, buildRegionEntries(isExynos));
-		region.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_REGION, Utils.parseInt((String) newValue));
-			return true;
-		});
 		category.addPreference(region);
 
 
@@ -214,10 +207,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		populatePreference(spacing, C.PrefKey.TUNER_SPACING, R.string.pref_tuner_spacing, R.drawable.ic_step_freq);
 		spacing.setDefaultValue(String.valueOf(C.PrefDefaultValue.TUNER_SPACING));
 		setListProviderAndEntries(spacing, Vars.sTunerSpacing);
-		spacing.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_SPACING, Utils.parseInt((String) newValue));
-			return true;
-		});
 		category.addPreference(spacing);
 
 
@@ -226,10 +215,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		stereo.setDefaultValue(C.PrefDefaultValue.TUNER_STEREO);
 		stereo.setSummaryOn(R.string.pref_tuner_stereo_on);
 		stereo.setSummaryOff(R.string.pref_tuner_stereo_off);
-		stereo.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_STEREO, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(stereo);
 
 		final SwitchPreferenceCompat softMute = new SwitchPreferenceCompat(context);
@@ -241,10 +226,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		} else {
 			softMute.setSummaryOn(R.string.pref_tuner_soft_mute_on);
 			softMute.setSummaryOff(R.string.pref_tuner_soft_mute_off);
-			softMute.setOnPreferenceChangeListener((preference, newValue) -> {
-				mPreferences.put(C.PrefKey.TUNER_SOFT_MUTE, (boolean) newValue);
-				return true;
-			});
 		}
 		category.addPreference(softMute);
 
@@ -262,10 +243,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			});
 			notchFilter.setEntryValues(new CharSequence[]{"0", "1", "2"});
 			notchFilter.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
-			notchFilter.setOnPreferenceChangeListener((preference, newValue) -> {
-				mPreferences.put(C.PrefKey.TUNER_NOTCH_FILTER, Utils.parseInt((String) newValue));
-				return true;
-			});
 		}
 		category.addPreference(notchFilter);
 
@@ -278,10 +255,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		} else {
 			setEditTextMessageAndProvider(antenna, InputType.TYPE_CLASS_NUMBER);
 			antenna.setDialogMessage(R.string.pref_tuner_antenna_message);
-			antenna.setOnPreferenceChangeListener((preference, newValue) -> {
-				mPreferences.put(C.PrefKey.TUNER_ANTENNA, Utils.parseInt((String) newValue));
-				return true;
-			});
 		}
 		category.addPreference(antenna);
 
@@ -290,10 +263,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		power.setDefaultValue(C.PrefDefaultValue.TUNER_POWER_MODE);
 		power.setSummaryOn(R.string.pref_tuner_power_mode_low);
 		power.setSummaryOff(R.string.pref_tuner_power_mode_normal);
-		power.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.TUNER_POWER_MODE, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(power);
 	}
 
@@ -318,10 +287,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		} else {
 			autoAf.setSummaryOn(R.string.pref_tuner_rds_auto_afenabled);
 			autoAf.setSummaryOff(R.string.pref_tuner_rds_auto_af_disabled);
-			autoAf.setOnPreferenceChangeListener((preference, newValue) -> {
-				mPreferences.put(C.PrefKey.RDS_AUTO_AF, (boolean) newValue);
-				return true;
-			});
 		}
 		category.addPreference(autoAf);
 	}
@@ -335,10 +300,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		directory.setDefaultValue(getString(R.string.pref_recording_path_value));
 		directory.setDialogMessage(R.string.pref_recording_path_name_description);
 		setEditTextMessageAndProvider(directory, InputType.TYPE_CLASS_TEXT);
-		directory.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.RECORDING_DIRECTORY, (String) newValue);
-			return true;
-		});
 		category.addPreference(directory);
 
 		final EditTextPreference filename = new EditTextPreference(context);
@@ -346,10 +307,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		filename.setDefaultValue(getString(R.string.pref_recording_name_value));
 		filename.setDialogMessage(R.string.pref_recording_path_name_description);
 		setEditTextMessageAndProvider(filename, InputType.TYPE_CLASS_TEXT);
-		filename.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.RECORDING_FILENAME, (String) newValue);
-			return true;
-		});
 		category.addPreference(filename);
 
 		final ListPreference format = new ListPreference(context);
@@ -364,20 +321,12 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 						getString(R.string.pref_recording_format_mp3_192)
 				}
 		);
-		format.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.RECORDING_FORMAT, Utils.parseInt((String) newValue));
-			return true;
-		});
 		category.addPreference(format);
 
 		final SwitchPreferenceCompat saveSrt = new SwitchPreferenceCompat(context);
 		populatePreference(saveSrt, C.PrefKey.RECORDING_SAVE_SRT, R.string.pref_recording_save_srt, R.drawable.ic_subtitles);
 		saveSrt.setDefaultValue(C.PrefDefaultValue.RECORDING_SAVE_SRT);
 		saveSrt.setSummary(R.string.pref_recording_save_srt_summary);
-		saveSrt.setOnPreferenceChangeListener((preference, newValue) -> {
-			mPreferences.put(C.PrefKey.RECORDING_SAVE_SRT, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(saveSrt);
 
 		final SwitchPreferenceCompat savePast = new SwitchPreferenceCompat(context);
@@ -386,7 +335,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		savePast.setSummary(R.string.pref_recording_save_past_summary);
 		savePast.setOnPreferenceChangeListener((preference, newValue) -> {
 			if (!(boolean) newValue) {
-				mPreferences.put(C.PrefKey.RECORDING_SAVE_PAST, false);
 				return true;
 			}
 
@@ -404,10 +352,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		populatePreference(notify, C.PrefKey.RECORDING_SHOW_NOTIFY, R.string.pref_recording_show_notify, R.drawable.ic_notifications);
 		notify.setDefaultValue(C.PrefDefaultValue.RECORDING_SHOW_NOTIFY);
 		notify.setSummary(R.string.pref_recording_show_notify_summary);
-		notify.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.RECORDING_SHOW_NOTIFY, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(notify);
 	}
 
@@ -424,7 +368,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 	/** Persists the enabled preference and synchronizes the visible switch. */
 	private void setPreRollEnabled(final SwitchPreferenceCompat preference) {
-		mPreferences.put(C.PrefKey.RECORDING_SAVE_PAST, true);
 		preference.setChecked(true);
 	}
 
@@ -453,10 +396,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		autostart.setDefaultValue(C.PrefDefaultValue.APP_AUTO_STARTUP);
 		autostart.setSummaryOn(R.string.pref_app_auto_startup_enabled);
 		autostart.setSummaryOff(R.string.pref_auto_startup_disabled);
-		autostart.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.APP_AUTO_STARTUP, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(autostart);
 	}
 
@@ -469,10 +408,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		showPs.setDefaultValue(C.PrefDefaultValue.NOTIFICATION_SHOW_RDS);
 		showPs.setSummaryOn(R.string.pref_notification_show_ps_enabled);
 		showPs.setSummaryOff(R.string.pref_notification_show_ps_disabled);
-		showPs.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.NOTIFICATION_SHOW_RDS, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(showPs);
 
 
@@ -481,10 +416,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		seekByFav.setDefaultValue(C.PrefDefaultValue.NOTIFICATION_SEEK_BY_FAVORITES);
 		seekByFav.setSummaryOn(R.string.pref_notification_seek_by_favorites_enabled);
 		seekByFav.setSummaryOff(R.string.pref_notification_seek_by_favorites_disabled);
-		seekByFav.setOnPreferenceChangeListener((preference, newValue) -> {
-			Storage.getInstance(context).put(C.PrefKey.NOTIFICATION_SEEK_BY_FAVORITES, (boolean) newValue);
-			return true;
-		});
 		category.addPreference(seekByFav);
 	}
 

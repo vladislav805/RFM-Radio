@@ -5,6 +5,7 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.os.IBinder;
 import android.util.Log;
@@ -36,14 +37,11 @@ import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.recording.RecordService;
-import net.grandcentrix.tray.AppPreferences;
-import net.grandcentrix.tray.core.OnTrayPreferenceChangeListener;
-import net.grandcentrix.tray.core.TrayItem;
 
 import java.util.*;
 
 @SuppressWarnings({"deprecation", "unused"})
-public class FMService extends Service implements FMEventCallback, OnTrayPreferenceChangeListener {
+public class FMService extends Service implements FMEventCallback {
     private static final String TAG = "FMS";
     public static final int NOTIFICATION_ID = FMNotificationManager.NOTIFICATION_ID;
     public static final int NOTIFICATION_RECORD_ID = FMNotificationManager.NOTIFICATION_RECORD_ID;
@@ -63,7 +61,8 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     private BroadcastReceiver mEventReaction;
     private BroadcastReceiver mTunerStateUpdater;
 
-    private AppPreferences mStorage;
+    private SharedPreferences mStorage;
+    private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceChangeListener = this::onPreferenceChanged;
     private boolean mRecordingNow = false;
     private boolean mDestroyed = false;
 
@@ -84,7 +83,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
         // Preferences
         mStorage = Storage.getInstance(this);
-        mStorage.registerOnTrayPreferenceChangeListener(this);
+        mStorage.registerOnSharedPreferenceChangeListener(mPreferenceChangeListener);
 
         // Services
         mTunerDriverKind = TunerDriverDetector.getTunerDriver();
@@ -322,7 +321,10 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
             mTunerStateUpdater = null;
         }
 
-        mStorage.unregisterOnTrayPreferenceChangeListener(this);
+        if (mStorage != null) {
+            mStorage.unregisterOnSharedPreferenceChangeListener(mPreferenceChangeListener);
+            mStorage = null;
+        }
 
         stopForeground(true);
     }
@@ -434,7 +436,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
      */
     private RecordService getPreferredRecorder() {
         final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
-        final int kHz = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, 0);
+        final int kHz = Storage.getInt(this, C.PrefKey.LAST_FREQUENCY, 0);
 
         final int sampleRate = mAudioService.getPcmFormat().sampleRateHz();
 
@@ -481,7 +483,7 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
     private void navigateThroughFavorite(final int direction) {
         final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
-        final int currentFrequency = mStorage.getInt(C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+        final int currentFrequency = Storage.getInt(this, C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
         int currentPosition = -1;
 
         for (int i = 0; i < stations.size(); i++) {
@@ -512,25 +514,22 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
         }
     }
 
-    @Override
-    public void onTrayPreferenceChanged(final Collection<TrayItem> changed) {
-        final String[] keys = new String[changed.size()];
+    private void onPreferenceChanged(final SharedPreferences prefs, final String key) {
+        if (key == null) {
+            return;
+        }
 
-        int i = 0;
-        for (final TrayItem item : changed) {
-            keys[i++] = item.key();
-            if (mAudioService != null && C.PrefKey.RECORDING_SAVE_PAST.equals(item.key())) {
-                final boolean enabled = Storage.getPrefBoolean(
-                        this,
-                        C.PrefKey.RECORDING_SAVE_PAST,
-                        C.PrefDefaultValue.RECORDING_SAVE_PAST
-                );
-                mAudioService.setPreRollEnabled(enabled);
-            }
+        if (mAudioService != null && C.PrefKey.RECORDING_SAVE_PAST.equals(key)) {
+            final boolean enabled = Storage.getPrefBoolean(
+                    this,
+                    C.PrefKey.RECORDING_SAVE_PAST,
+                    C.PrefDefaultValue.RECORDING_SAVE_PAST
+            );
+            mAudioService.setPreRollEnabled(enabled);
         }
 
         if (mTunerDriver != null) {
-            mTunerDriver.setupTunerByPreferences(keys);
+            mTunerDriver.setupTunerByPreferences(new String[]{key});
         }
     }
 
@@ -592,14 +591,14 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
 
                 case C.Event.FREQUENCY_SET: {
                     final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-                    mStorage.put(C.PrefKey.LAST_FREQUENCY, frequency);
+                    Storage.putInt(FMService.this, C.PrefKey.LAST_FREQUENCY, frequency);
                     updateNotification();
                     break;
                 }
 
                 case C.Event.STATE_CHANGED: {
                     if (intent.hasExtra(C.Key.FREQUENCY)) {
-                        mStorage.put(C.PrefKey.LAST_FREQUENCY, intent.getIntExtra(C.Key.FREQUENCY, -1));
+                        Storage.putInt(FMService.this, C.PrefKey.LAST_FREQUENCY, intent.getIntExtra(C.Key.FREQUENCY, -1));
                     }
                     if (intent.hasExtra(C.Key.FREQUENCY) || intent.hasExtra(C.Key.PS) || intent.hasExtra(C.Key.RT)) {
                         updateNotification();
