@@ -187,6 +187,10 @@ public class QualcommNative extends AbstractQualcommNativeController {
                 return "jp_wide";
             case 4:
                 return "us";
+            case 5:
+                return "mod1";
+            case 6:
+                return "mod2";
             case 1:
             default:
                 return "eu";
@@ -199,6 +203,8 @@ public class QualcommNative extends AbstractQualcommNativeController {
                 return 50;
             case 3:
                 return 200;
+            case 4:
+                return 10;
             case 2:
             default:
                 return 100;
