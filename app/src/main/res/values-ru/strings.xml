@@ -172,4 +172,5 @@
     <string name="favorites_select_list">Выбрать список избранного</string>
     <string name="favorites_manage_lists">Управление списками избранного</string>
     <string name="power_toggle_description">Включить / выключить радио</string>
+    <string name="about_version_copied">Версия скопирована</string>
 </resources>

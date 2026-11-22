@@ -184,4 +184,5 @@
     <string name="favorites_manage_lists">Manage favorite lists</string>
     <string name="record_badge_idle" translatable="false">REC</string>
     <string name="power_toggle_description">Power on/off</string>
+    <string name="about_version_copied">Version copied</string>
 </resources>
