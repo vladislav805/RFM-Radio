@@ -6,8 +6,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
-import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.RecordSchemaHelper;
 import com.vlad805.fmradio.service.fm.RecordError;
@@ -26,11 +24,7 @@ public final class RecordingStorage {
         return (
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || (
                         Build.VERSION.SDK_INT == Build.VERSION_CODES.Q &&
-                        Storage.getPrefBoolean(
-                                context,
-                                C.PrefKey.RECORDING_SAVE_SRT,
-                                C.PrefDefaultValue.RECORDING_SAVE_SRT
-                        )
+                        Storage.get(context).isRecordingSaveSrt()
                 )
         );
     }
@@ -41,20 +35,13 @@ public final class RecordingStorage {
             final String extension,
             final String mimeType
     ) throws RecordError {
+        final Storage storage = Storage.get(context);
         final String relativeDirectory = sanitizeRelativeDirectory(RecordSchemaHelper.prepareString(
-                Storage.getPrefString(
-                        context,
-                        C.PrefKey.RECORDING_DIRECTORY,
-                        context.getString(R.string.pref_recording_path_value)
-                ),
+                storage.getRecordingDirectory(),
                 kHz
         ));
         final String displayName = sanitizeFilename(RecordSchemaHelper.prepareString(
-                Storage.getPrefString(
-                        context,
-                        C.PrefKey.RECORDING_FILENAME,
-                        context.getString(R.string.pref_recording_name_value)
-                ),
+                storage.getRecordingFilename(),
                 kHz
         )) + "." + extension;
 

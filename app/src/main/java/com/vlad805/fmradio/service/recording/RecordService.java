@@ -109,8 +109,7 @@ public abstract class RecordService implements IFMRecorder {
         mInitialDurationMillis = Math.max(0, initialDurationMillis);
         mRecordedPcmSamples = 0;
         // Keep the setting stable for the entire recording, even if preferences change.
-        mSubtitlesRequested = Storage.getPrefBoolean(mContext,
-                C.PrefKey.RECORDING_SAVE_SRT, C.PrefDefaultValue.RECORDING_SAVE_SRT);
+        mSubtitlesRequested = Storage.get(mContext).isRecordingSaveSrt();
         createFile();
         mState = State.RECORDING;
         updateState(C.Event.RECORD_STARTED);

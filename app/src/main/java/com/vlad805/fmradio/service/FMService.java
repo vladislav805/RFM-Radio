@@ -61,7 +61,7 @@ public class FMService extends Service implements FMEventCallback {
     private BroadcastReceiver mEventReaction;
     private BroadcastReceiver mTunerStateUpdater;
 
-    private SharedPreferences mStorage;
+    private Storage mStorage;
     private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceChangeListener = this::onPreferenceChanged;
     private boolean mRecordingNow = false;
     private boolean mDestroyed = false;
@@ -82,8 +82,8 @@ public class FMService extends Service implements FMEventCallback {
         mNotifications.createChannels();
 
         // Preferences
-        mStorage = Storage.getInstance(this);
-        mStorage.registerOnSharedPreferenceChangeListener(mPreferenceChangeListener);
+        mStorage = Storage.get(this);
+        mStorage.registerOnChangeListener(mPreferenceChangeListener);
 
         // Services
         mTunerDriverKind = TunerDriverDetector.getTunerDriver();
@@ -250,7 +250,7 @@ public class FMService extends Service implements FMEventCallback {
             // If disabled, works as HW_SEEK.
             case C.Command.NOTIFICATION_SEEK: {
                 final int direction = intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1);
-                final boolean byFavorite = Storage.getPrefBoolean(this, C.PrefKey.NOTIFICATION_SEEK_BY_FAVORITES, C.PrefDefaultValue.NOTIFICATION_SEEK_BY_FAVORITES);
+                final boolean byFavorite = Storage.get(this).isNotificationSeekByFavorites();
 
                 if (!byFavorite) {
                     startService(intent.setAction(C.Command.HW_SEEK));
@@ -322,7 +322,7 @@ public class FMService extends Service implements FMEventCallback {
         }
 
         if (mStorage != null) {
-            mStorage.unregisterOnSharedPreferenceChangeListener(mPreferenceChangeListener);
+            mStorage.unregisterOnChangeListener(mPreferenceChangeListener);
             mStorage = null;
         }
 
@@ -403,12 +403,7 @@ public class FMService extends Service implements FMEventCallback {
         mAudioService = audioService;
 
         if (audioService != null) {
-            final boolean preRollEnabled = Storage.getPrefBoolean(
-                    this,
-                    C.PrefKey.RECORDING_SAVE_PAST,
-                    C.PrefDefaultValue.RECORDING_SAVE_PAST
-            );
-            audioService.setPreRollEnabled(preRollEnabled);
+            audioService.setPreRollEnabled(Storage.get(this).isRecordingPreRollEnabled());
 
             if (audioService instanceof IAudioRecordable) {
                 ((IAudioRecordable) audioService).updateRds(createRdsSnapshot(mState));
@@ -435,8 +430,9 @@ public class FMService extends Service implements FMEventCallback {
      * @return Recorder
      */
     private RecordService getPreferredRecorder() {
-        final int mode = Storage.getPrefInt(this, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT);
-        final int kHz = Storage.getInt(this, C.PrefKey.LAST_FREQUENCY, 0);
+        final Storage storage = Storage.get(this);
+        final int mode = storage.getRecordingFormat();
+        final int kHz = storage.getLastFrequency();
 
         final int sampleRate = mAudioService.getPcmFormat().sampleRateHz();
 
@@ -483,7 +479,7 @@ public class FMService extends Service implements FMEventCallback {
 
     private void navigateThroughFavorite(final int direction) {
         final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
-        final int currentFrequency = Storage.getInt(this, C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY);
+        final int currentFrequency = Storage.get(this).getLastFrequency();
         int currentPosition = -1;
 
         for (int i = 0; i < stations.size(); i++) {
@@ -519,16 +515,14 @@ public class FMService extends Service implements FMEventCallback {
             return;
         }
 
-        if (mAudioService != null && C.PrefKey.RECORDING_SAVE_PAST.equals(key)) {
-            final boolean enabled = Storage.getPrefBoolean(
-                    this,
-                    C.PrefKey.RECORDING_SAVE_PAST,
-                    C.PrefDefaultValue.RECORDING_SAVE_PAST
-            );
-            mAudioService.setPreRollEnabled(enabled);
+        if (C.PrefKey.RECORDING_SAVE_PAST.equals(key)) {
+            if (mAudioService != null) {
+                mAudioService.setPreRollEnabled(Storage.get(this).isRecordingPreRollEnabled());
+            }
+            return;
         }
 
-        if (mTunerDriver != null) {
+        if (mTunerDriver != null && NativeTunerController.isTunerPreferenceKey(key)) {
             mTunerDriver.setupTunerByPreferences(new String[]{key});
         }
     }
@@ -591,14 +585,14 @@ public class FMService extends Service implements FMEventCallback {
 
                 case C.Event.FREQUENCY_SET: {
                     final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-                    Storage.putInt(FMService.this, C.PrefKey.LAST_FREQUENCY, frequency);
+                    Storage.get(FMService.this).setLastFrequency(frequency);
                     updateNotification();
                     break;
                 }
 
                 case C.Event.STATE_CHANGED: {
                     if (intent.hasExtra(C.Key.FREQUENCY)) {
-                        Storage.putInt(FMService.this, C.PrefKey.LAST_FREQUENCY, intent.getIntExtra(C.Key.FREQUENCY, -1));
+                        Storage.get(FMService.this).setLastFrequency(intent.getIntExtra(C.Key.FREQUENCY, -1));
                     }
                     if (intent.hasExtra(C.Key.FREQUENCY) || intent.hasExtra(C.Key.PS) || intent.hasExtra(C.Key.RT)) {
                         updateNotification();
@@ -642,11 +636,7 @@ public class FMService extends Service implements FMEventCallback {
                     mNotifications.cancelRecordingProgress();
 
                     if (intent.getExtras() != null) {
-                        final boolean showSavedNotification = Storage.getPrefBoolean(
-                                FMService.this,
-                                C.PrefKey.RECORDING_SHOW_NOTIFY,
-                                C.PrefDefaultValue.RECORDING_SHOW_NOTIFY
-                        );
+                        final boolean showSavedNotification = Storage.get(FMService.this).isRecordingShowNotify();
                         mNotifications.showRecordingResult(intent.getExtras(), showSavedNotification);
                     }
                     break;
@@ -668,11 +658,7 @@ public class FMService extends Service implements FMEventCallback {
      */
     private void updateNotification() {
         final int frequency = mState.getFrequency();
-        final boolean showRds = Storage.getPrefBoolean(
-                this,
-                C.PrefKey.NOTIFICATION_SHOW_RDS,
-                C.PrefDefaultValue.NOTIFICATION_SHOW_RDS
-        );
+        final boolean showRds = Storage.get(this).isNotificationShowRds();
         final Notification notification = mNotifications.buildPlayback(
                 frequency,
                 mState.getPs(),

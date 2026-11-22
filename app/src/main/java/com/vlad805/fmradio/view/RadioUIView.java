@@ -20,7 +20,6 @@ import androidx.transition.TransitionSet;
 
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
@@ -168,7 +167,7 @@ public final class RadioUIView {
 	 * @param kHz Frequency in kHz
 	 */
 	public final void setFrequency(final int kHz) {
-		final int spacing = Storage.getPrefInt(mContext, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING);
+		final int spacing = Storage.get(mContext).getSpacing();
 		final boolean is50Khz = spacing == BandUtils.SPACING_50kHz;
 		mFrequencyView.setTextSize(is50Khz ? 36f : 44f);
 		mFrequencyView.setText(Utils.getMHz(kHz, is50Khz ? 2 : 1).trim());
@@ -259,7 +258,7 @@ public final class RadioUIView {
 			setRtPlusMode(false);
 		}
 
-		final int region = Storage.getPrefInt(mContext, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION);
+		final int region = Storage.get(mContext).getRegion();
 		final String ptyName = UtilsLocalization.getProgramType(state.getPty(), region);
 		mLastPtyText = (ptyName == null || ptyName.trim().isEmpty()) ? placeholder : ptyName;
 

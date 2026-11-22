@@ -38,11 +38,7 @@ public abstract class AudioService implements IAudioRecordable {
 	public AudioService(final Context context) {
 		this(
 				(AudioManager) context.getSystemService(Context.AUDIO_SERVICE),
-				Storage.getPrefBoolean(
-						context,
-						C.PrefKey.RECORDING_SAVE_PAST,
-						C.PrefDefaultValue.RECORDING_SAVE_PAST
-				)
+				Storage.get(context).isRecordingPreRollEnabled()
 		);
 	}
 

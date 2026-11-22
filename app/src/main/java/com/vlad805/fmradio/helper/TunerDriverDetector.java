@@ -2,7 +2,6 @@ package com.vlad805.fmradio.helper;
 
 import android.content.Context;
 
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.enums.TunerDriver;
 
@@ -33,7 +32,7 @@ public final class TunerDriverDetector {
      */
     public static TunerDriver getTunerDriver(final Context context) {
         if (context != null) {
-            final String stored = Storage.getPrefString(context, C.PrefKey.DETECTED_BACKEND, "");
+            final String stored = Storage.get(context).getDetectedBackend();
             if (!stored.isEmpty()) {
                 try {
                     final TunerDriver persisted = TunerDriver.valueOf(stored);

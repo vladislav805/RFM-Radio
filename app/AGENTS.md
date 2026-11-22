@@ -150,14 +150,15 @@ deliberately ignored (Java lifecycle is authoritative).
   $r`), `recording_mode`, `recording_save_srt`, `recording_save_past`,
   `recording_show_notify`, `app_auto_startup`, `notification_show_ps`,
   `notification_seek_by_favorites`. Feature availability is driven by
-  `TunerDriver` capability flags (`supportsSoftMute`, `supportsNotchFilter`,
-  `supportsAntenna`, `supportsAutoAf`, `supportsJapanWide`,
-  `supportsStereoDetection`, `getJapanStandardUpperKhz`).
-- Preference store: standard AndroidX `DefaultSharedPreferences` via
-  `Storage.java` (UI-bound numeric keys stored as decimal strings and parsed
-  safely via `getPrefInt`/`putPrefInt`; internal keys stored in native types);
-  changes reach `FMService` via `OnSharedPreferenceChangeListener` →
-  `setupTunerByPreferences`.
+  `TunerDriver` capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
+  `supportsNotchFilter`, `supportsAntenna`, `supportsAutoAf`,
+  `supportsJapanWide`, `supportsStereoDetection`, `getJapanStandardUpperKhz`);
+  unresolved `NONE` does not disable UI controls.
+- Preference store: standard AndroidX `DefaultSharedPreferences` wrapped by
+  typed getters/setters on `Storage.get(context)` (low-level string/int
+  storage details are encapsulated inside `Storage.java`); changes reach
+  `FMService` via `OnSharedPreferenceChangeListener` (filtered by
+  `NativeTunerController.isTunerPreferenceKey`) → `setupTunerByPreferences`.
 
 ## Build, Tests, Dead Code
 

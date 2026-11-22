@@ -65,9 +65,9 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		if (
 				driver.hasKnownCapabilities() &&
 				!driver.supportsJapanWide() &&
-				Storage.getPrefInt(context, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION) == BandUtils.BAND_JAPAN_WIDE
+				Storage.get(context).getRegion() == BandUtils.BAND_JAPAN_WIDE
 		) {
-			Storage.putPrefInt(context, C.PrefKey.TUNER_REGION, BandUtils.BAND_JAPAN_STANDARD);
+			Storage.get(context).setRegion(BandUtils.BAND_JAPAN_STANDARD);
 		}
 
 		setPreferencesFromResource(R.xml.preferences, rootKey);

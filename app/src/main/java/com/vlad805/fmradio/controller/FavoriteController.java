@@ -1,8 +1,8 @@
 package com.vlad805.fmradio.controller;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Environment;
+import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
@@ -31,18 +31,17 @@ import java.util.zip.ZipOutputStream;
  */
 public class FavoriteController extends JSONFile<FavoriteFile> {
 	private List<FavoriteStation> mList;
-	private final SharedPreferences mStorage;
+	private final Storage mStorage;
 
-	private static final String KEY_CURRENT_LIST = "favorites_list_current";
 	private static final String KEY_JSON_ITEMS = "items";
-	public static final String DEFAULT_NAME = "default";
+	public static final String DEFAULT_NAME = C.PrefDefaultValue.FAVORITES_LIST_CURRENT;
 	public static final int MAX_IMPORT_BYTES = 1024 * 1024;
 
 	private static final String JSON_EXT = ".json";
 
 	public FavoriteController(final Context context) {
 		super(context);
-		this.mStorage = Storage.getInstance(context);
+		this.mStorage = Storage.get(context);
 		migrateLegacyFavorites();
 	}
 
@@ -91,7 +90,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 * @return filename without extension
 	 */
 	public String getCurrentFavoriteList() {
-		return Storage.getPrefString(mStorage, KEY_CURRENT_LIST, DEFAULT_NAME);
+		return mStorage.getCurrentFavoriteList();
 	}
 
 	/**
@@ -106,7 +105,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			throw new FileNotFoundException("setCurrentFavoriteList: not found list with name '" + name + "'; full path = " + file.getAbsolutePath());
 		}
 
-		Storage.putString(mStorage, KEY_CURRENT_LIST, name);
+		mStorage.setCurrentFavoriteList(name);
 		reload();
 	}
 
@@ -194,7 +193,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		}
 
 		if (oldName.equals(getCurrentFavoriteList())) {
-			Storage.putString(mStorage, KEY_CURRENT_LIST, newName);
+			mStorage.setCurrentFavoriteList(newName);
 			reload();
 		}
 

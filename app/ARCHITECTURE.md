@@ -67,7 +67,8 @@ fire-and-forget. `C.java` holds every action/extra/preference constant.
 `foregroundServiceType="mediaPlayback"`, not exported. Implements
 `FMEventCallback` and registers a strong-referenced
 `SharedPreferences.OnSharedPreferenceChangeListener` field (`mPreferenceChangeListener`)
-on `Storage.getInstance(this)`.
+via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
+`RECORDING_SAVE_PAST` and keys accepted by `NativeTunerController.isTunerPreferenceKey`.
 
 - `onCreate`: creates `RadioState`, `RadioController`,
   `FavoriteController`, `FMNotificationManager` (`createChannels()` for
@@ -146,9 +147,9 @@ on `Storage.getInstance(this)`.
   and folds broadcasts into `RadioState`, notifying a
   `TunerStateListener` with a change bitmask (`SET_*` flags, including `SET_RT_PLUS` and `SET_AF`).
 - `enums/TunerDriver.java` — `V4L2_QCOM` / `V4L2_EXYNOS` / `HAL_HELIUM` / `NONE`,
-  carrying backend capability flags (`supportsSoftMute`, `supportsNotchFilter`,
-  `supportsAntenna`, `supportsAutoAf`, `supportsJapanWide`,
-  `supportsStereoDetection`, `getJapanStandardUpperKhz`).
+  carrying backend capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
+  `supportsNotchFilter`, `supportsAntenna`, `supportsAutoAf`,
+  `supportsJapanWide`, `supportsStereoDetection`, `getJapanStandardUpperKhz`).
 
 ## service/fm/ Contract
 
@@ -409,11 +410,11 @@ tinting, `TunerDriver` capability gating (disabling unsupported options and
 filtering Exynos to narrow 76–90 MHz Japan band), antenna numeric validation,
 pre-roll warning/permission prompt, and version check clicks in Java.
 Categories: Tuner, RDS, Recording, App, Notifications, Info. Store: standard
-AndroidX `DefaultSharedPreferences` via `Storage.java` (retaining
-`applicationContext`). UI-bound numeric preferences (`ListPreference` /
-`EditTextPreference`) are persisted as decimal strings and safely parsed via
-`Storage.getPrefInt`/`putPrefInt`; internal non-UI keys use native types via
-`Storage.getInt`/`getLong`/`putInt`/`putLong`.
+AndroidX `DefaultSharedPreferences` wrapped by typed getters/setters on
+`Storage.get(context)` (retaining `applicationContext`). Low-level storage
+details (decimal strings for UI-bound `ListPreference`/`EditTextPreference`
+numeric keys vs native primitives for internal non-UI keys) are encapsulated
+inside `Storage.java`.
 
 | Key | Default | Meaning |
 | --- | --- | --- |

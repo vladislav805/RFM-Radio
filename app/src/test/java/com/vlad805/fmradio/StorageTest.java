@@ -4,6 +4,8 @@ import android.content.SharedPreferences;
 
 import androidx.annotation.Nullable;
 
+import com.vlad805.fmradio.service.fm.implementation.NativeTunerController;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,10 +21,12 @@ import static org.junit.Assert.assertTrue;
 
 public class StorageTest {
     private InMemorySharedPreferences prefs;
+    private Storage storage;
 
     @Before
     public void setUp() {
         prefs = new InMemorySharedPreferences();
+        storage = new Storage(prefs);
     }
 
     @Test
@@ -51,102 +55,160 @@ public class StorageTest {
     }
 
     @Test
-    public void uiBoundNumericPreferencesUseDefaultsAndStringStorage() {
-        assertEquals(
-                C.PrefDefaultValue.TUNER_REGION,
-                Storage.getPrefInt(prefs, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION)
-        );
-        assertEquals(
-                C.PrefDefaultValue.TUNER_SPACING,
-                Storage.getPrefInt(prefs, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING)
-        );
-        assertEquals(
-                C.PrefDefaultValue.TUNER_NOTCH_FILTER,
-                Storage.getPrefInt(prefs, C.PrefKey.TUNER_NOTCH_FILTER, C.PrefDefaultValue.TUNER_NOTCH_FILTER)
-        );
-        assertEquals(
-                C.PrefDefaultValue.TUNER_ANTENNA,
-                Storage.getPrefInt(prefs, C.PrefKey.TUNER_ANTENNA, C.PrefDefaultValue.TUNER_ANTENNA)
-        );
-        assertEquals(
-                C.PrefDefaultValue.RECORDING_FORMAT,
-                Storage.getPrefInt(prefs, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT)
-        );
+    public void typedGettersReturnExpectedDefaults() {
+        assertEquals(C.PrefDefaultValue.TUNER_REGION, storage.getRegion());
+        assertEquals(C.PrefDefaultValue.TUNER_SPACING, storage.getSpacing());
+        assertEquals(C.PrefDefaultValue.TUNER_STEREO, storage.isStereoEnabled());
+        assertEquals(C.PrefDefaultValue.TUNER_SOFT_MUTE, storage.isSoftMuteEnabled());
+        assertEquals(C.PrefDefaultValue.TUNER_NOTCH_FILTER, storage.getNotchFilter());
+        assertEquals(C.PrefDefaultValue.TUNER_ANTENNA, storage.getAntenna());
+        assertEquals(C.PrefDefaultValue.TUNER_POWER_MODE, storage.isLowPowerMode());
+        assertEquals(C.PrefDefaultValue.RDS_AUTO_AF, storage.isAutoAfEnabled());
 
+        assertEquals(C.PrefDefaultValue.RECORDING_DIRECTORY, storage.getRecordingDirectory());
+        assertEquals(C.PrefDefaultValue.RECORDING_FILENAME, storage.getRecordingFilename());
+        assertEquals(C.PrefDefaultValue.RECORDING_FORMAT, storage.getRecordingFormat());
+        assertEquals(C.PrefDefaultValue.RECORDING_SAVE_SRT, storage.isRecordingSaveSrt());
+        assertEquals(C.PrefDefaultValue.RECORDING_SAVE_PAST, storage.isRecordingPreRollEnabled());
+        assertEquals(C.PrefDefaultValue.RECORDING_SHOW_NOTIFY, storage.isRecordingShowNotify());
+
+        assertEquals(C.PrefDefaultValue.APP_AUTO_STARTUP, storage.isAutoStartupEnabled());
+        assertEquals(C.PrefDefaultValue.NOTIFICATION_SHOW_RDS, storage.isNotificationShowRds());
+        assertEquals(C.PrefDefaultValue.NOTIFICATION_SEEK_BY_FAVORITES, storage.isNotificationSeekByFavorites());
+
+        assertEquals(C.PrefDefaultValue.LAST_FREQUENCY, storage.getLastFrequency());
+        assertEquals("", storage.getDetectedBackend());
+        assertEquals(C.PrefDefaultValue.FAVORITES_LIST_CURRENT, storage.getCurrentFavoriteList());
+        assertEquals(0, storage.getNativeBinaryVersion());
+        assertEquals(0L, storage.getBinaryApkUpdateTime());
+    }
+
+    @Test
+    public void uiBoundPreferencesReadStringAndBooleanValuesSafely() {
         // AndroidX ListPreference / EditTextPreference persist numeric options as Strings.
         prefs.edit()
                 .putString(C.PrefKey.TUNER_REGION, "4")
                 .putString(C.PrefKey.TUNER_SPACING, "1")
+                .putBoolean(C.PrefKey.TUNER_STEREO, false)
+                .putBoolean(C.PrefKey.TUNER_SOFT_MUTE, false)
                 .putString(C.PrefKey.TUNER_NOTCH_FILTER, "2")
                 .putString(C.PrefKey.TUNER_ANTENNA, " 1 ")
+                .putBoolean(C.PrefKey.TUNER_POWER_MODE, true)
+                .putBoolean(C.PrefKey.RDS_AUTO_AF, true)
+                .putString(C.PrefKey.RECORDING_DIRECTORY, "custom/$y")
+                .putString(C.PrefKey.RECORDING_FILENAME, "rec-$f")
                 .putString(C.PrefKey.RECORDING_FORMAT, String.valueOf(C.RecordFormat.MP3_128))
+                .putBoolean(C.PrefKey.RECORDING_SAVE_SRT, true)
+                .putBoolean(C.PrefKey.RECORDING_SAVE_PAST, true)
+                .putBoolean(C.PrefKey.RECORDING_SHOW_NOTIFY, false)
+                .putBoolean(C.PrefKey.APP_AUTO_STARTUP, true)
+                .putBoolean(C.PrefKey.NOTIFICATION_SHOW_RDS, false)
+                .putBoolean(C.PrefKey.NOTIFICATION_SEEK_BY_FAVORITES, true)
                 .apply();
 
-        assertEquals(4, Storage.getPrefInt(prefs, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION));
-        assertEquals(1, Storage.getPrefInt(prefs, C.PrefKey.TUNER_SPACING, C.PrefDefaultValue.TUNER_SPACING));
-        assertEquals(2, Storage.getPrefInt(prefs, C.PrefKey.TUNER_NOTCH_FILTER, C.PrefDefaultValue.TUNER_NOTCH_FILTER));
-        assertEquals(1, Storage.getPrefInt(prefs, C.PrefKey.TUNER_ANTENNA, C.PrefDefaultValue.TUNER_ANTENNA));
-        assertEquals(
-                C.RecordFormat.MP3_128,
-                Storage.getPrefInt(prefs, C.PrefKey.RECORDING_FORMAT, C.PrefDefaultValue.RECORDING_FORMAT)
-        );
+        assertEquals(4, storage.getRegion());
+        assertEquals(1, storage.getSpacing());
+        assertFalse(storage.isStereoEnabled());
+        assertFalse(storage.isSoftMuteEnabled());
+        assertEquals(2, storage.getNotchFilter());
+        assertEquals(1, storage.getAntenna());
+        assertTrue(storage.isLowPowerMode());
+        assertTrue(storage.isAutoAfEnabled());
 
-        // putPrefInt must persist as String so AndroidX ListPreference never throws ClassCastException.
-        Storage.putPrefInt(prefs, C.PrefKey.TUNER_REGION, 2);
+        assertEquals("custom/$y", storage.getRecordingDirectory());
+        assertEquals("rec-$f", storage.getRecordingFilename());
+        assertEquals(C.RecordFormat.MP3_128, storage.getRecordingFormat());
+        assertTrue(storage.isRecordingSaveSrt());
+        assertTrue(storage.isRecordingPreRollEnabled());
+        assertFalse(storage.isRecordingShowNotify());
+
+        assertTrue(storage.isAutoStartupEnabled());
+        assertFalse(storage.isNotificationShowRds());
+        assertTrue(storage.isNotificationSeekByFavorites());
+
+        // setRegion must persist as String so AndroidX ListPreference never throws ClassCastException.
+        storage.setRegion(2);
         assertEquals("2", prefs.getString(C.PrefKey.TUNER_REGION, null));
-        assertEquals(2, Storage.getPrefInt(prefs, C.PrefKey.TUNER_REGION, C.PrefDefaultValue.TUNER_REGION));
+        assertEquals(2, storage.getRegion());
     }
 
     @Test
-    public void getPrefIntRecoversSafelyFromMalformedOrMismatchedTypes() {
+    public void uiBoundGettersRecoverSafelyFromMalformedOrMismatchedTypes() {
         prefs.edit().putString(C.PrefKey.TUNER_ANTENNA, "").apply();
-        assertEquals(0, Storage.getPrefInt(prefs, C.PrefKey.TUNER_ANTENNA, 0));
+        assertEquals(C.PrefDefaultValue.TUNER_ANTENNA, storage.getAntenna());
 
         prefs.edit().putString(C.PrefKey.TUNER_ANTENNA, "bad").apply();
-        assertEquals(0, Storage.getPrefInt(prefs, C.PrefKey.TUNER_ANTENNA, 0));
+        assertEquals(C.PrefDefaultValue.TUNER_ANTENNA, storage.getAntenna());
 
         prefs.edit().putInt(C.PrefKey.TUNER_REGION, 3).apply();
-        assertEquals(3, Storage.getPrefInt(prefs, C.PrefKey.TUNER_REGION, 1));
+        assertEquals(3, storage.getRegion());
 
         prefs.edit().putBoolean(C.PrefKey.TUNER_SPACING, true).apply();
-        assertEquals(2, Storage.getPrefInt(prefs, C.PrefKey.TUNER_SPACING, 2));
+        assertEquals(C.PrefDefaultValue.TUNER_SPACING, storage.getSpacing());
+
+        // Storing a String "true" under a boolean key whose default is false must fall back to false.
+        prefs.edit().putString(C.PrefKey.RDS_AUTO_AF, "true").apply();
+        assertFalse(storage.isAutoAfEnabled());
     }
 
     @Test
     public void internalNativeTypesRoundTripAndGuardTypeMismatches() {
-        assertEquals(
-                C.PrefDefaultValue.LAST_FREQUENCY,
-                Storage.getInt(prefs, C.PrefKey.LAST_FREQUENCY, C.PrefDefaultValue.LAST_FREQUENCY)
-        );
-        Storage.putInt(prefs, C.PrefKey.LAST_FREQUENCY, 101500);
+        storage.setLastFrequency(101500);
         assertEquals(101500, prefs.getInt(C.PrefKey.LAST_FREQUENCY, 0));
-        assertEquals(101500, Storage.getInt(prefs, C.PrefKey.LAST_FREQUENCY, 0));
+        assertEquals(101500, storage.getLastFrequency());
 
-        Storage.putLong(prefs, C.PrefKey.BINARY_APK_UPDATE_TIME, 1730000000000L);
+        storage.setNativeBinaryVersion(900);
+        assertEquals(900, prefs.getInt(C.PrefKey.BINARY_VERSION_NATIVE, 0));
+        assertEquals(900, storage.getNativeBinaryVersion());
+
+        storage.setBinaryApkUpdateTime(1730000000000L);
         assertEquals(1730000000000L, prefs.getLong(C.PrefKey.BINARY_APK_UPDATE_TIME, 0L));
-        assertEquals(1730000000000L, Storage.getLong(prefs, C.PrefKey.BINARY_APK_UPDATE_TIME, 0L));
+        assertEquals(1730000000000L, storage.getBinaryApkUpdateTime());
 
-        Storage.putString(prefs, C.PrefKey.DETECTED_BACKEND, "V4L2_EXYNOS");
-        assertEquals("V4L2_EXYNOS", Storage.getPrefString(prefs, C.PrefKey.DETECTED_BACKEND, ""));
+        storage.setDetectedBackend("V4L2_EXYNOS");
+        assertEquals("V4L2_EXYNOS", storage.getDetectedBackend());
 
-        Storage.putBoolean(prefs, C.PrefKey.RECORDING_SAVE_PAST, true);
-        assertTrue(Storage.getPrefBoolean(prefs, C.PrefKey.RECORDING_SAVE_PAST, false));
+        storage.setCurrentFavoriteList("rock");
+        assertEquals("rock", storage.getCurrentFavoriteList());
 
         // Mismatched types do not throw ClassCastException.
         prefs.edit().putString(C.PrefKey.LAST_FREQUENCY, "99800").apply();
-        assertEquals(99800, Storage.getInt(prefs, C.PrefKey.LAST_FREQUENCY, 87500));
+        assertEquals(99800, storage.getLastFrequency());
 
         prefs.edit().putBoolean(C.PrefKey.LAST_FREQUENCY, false).apply();
-        assertEquals(87500, Storage.getInt(prefs, C.PrefKey.LAST_FREQUENCY, 87500));
+        assertEquals(C.PrefDefaultValue.LAST_FREQUENCY, storage.getLastFrequency());
 
         prefs.edit().putString(C.PrefKey.BINARY_APK_UPDATE_TIME, "bad").apply();
-        assertEquals(42L, Storage.getLong(prefs, C.PrefKey.BINARY_APK_UPDATE_TIME, 42L));
+        assertEquals(0L, storage.getBinaryApkUpdateTime());
 
         prefs.edit().putInt(C.PrefKey.DETECTED_BACKEND, 123).apply();
-        assertEquals("fallback", Storage.getPrefString(prefs, C.PrefKey.DETECTED_BACKEND, "fallback"));
+        assertEquals("", storage.getDetectedBackend());
 
-        prefs.edit().putString(C.PrefKey.TUNER_STEREO, "true").apply();
-        assertTrue(Storage.getPrefBoolean(prefs, C.PrefKey.TUNER_STEREO, true));
+        prefs.edit().putInt(C.PrefKey.FAVORITES_LIST_CURRENT, 456).apply();
+        assertEquals(C.PrefDefaultValue.FAVORITES_LIST_CURRENT, storage.getCurrentFavoriteList());
+    }
+
+    @Test
+    public void identifiesTunerPreferenceKeysForServiceListenerFiltering() {
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_REGION));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_SPACING));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_STEREO));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_SOFT_MUTE));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_NOTCH_FILTER));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_ANTENNA));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.TUNER_POWER_MODE));
+        assertTrue(NativeTunerController.isTunerPreferenceKey(C.PrefKey.RDS_AUTO_AF));
+
+        // Internal and non-tuner keys must not trigger setupTunerByPreferences.
+        assertFalse(NativeTunerController.isTunerPreferenceKey(null));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.LAST_FREQUENCY));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.DETECTED_BACKEND));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.BINARY_VERSION_NATIVE));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.BINARY_APK_UPDATE_TIME));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.FAVORITES_LIST_CURRENT));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.RECORDING_SAVE_PAST));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.RECORDING_FORMAT));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(C.PrefKey.NOTIFICATION_SHOW_RDS));
     }
 
     /** Minimal SharedPreferences fake mirroring Android's ClassCastException semantics. */

@@ -134,6 +134,7 @@ final public class C {
 
 		public static final String BINARY_VERSION_NATIVE = "bin_version_native";
 		public static final String BINARY_APK_UPDATE_TIME = "bin_apk_update_time";
+		public static final String FAVORITES_LIST_CURRENT = "favorites_list_current";
     }
 
 	public static final class PrefDefaultValue {
@@ -149,12 +150,15 @@ final public class C {
 		public static final int TUNER_NOTCH_FILTER = 0;
 		public static final boolean TUNER_POWER_MODE = false;
 
+		public static final String RECORDING_DIRECTORY = "$y-$m-$d";
+		public static final String RECORDING_FILENAME = "FM-$h$i$s-$f";
 		public static final boolean RECORDING_SHOW_NOTIFY = true;
         public static final boolean RECORDING_SAVE_SRT = false;
 		public static final int RECORDING_FORMAT = 0;
 		/** Pre-roll capture is opt-in because it keeps audio capture active. */
 		public static final boolean RECORDING_SAVE_PAST = false;
         public static final boolean RDS_AUTO_AF = false;
+		public static final String FAVORITES_LIST_CURRENT = "default";
     }
 
 	/** Stable values persisted by the recording format preference. */
