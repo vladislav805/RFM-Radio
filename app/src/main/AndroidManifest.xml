@@ -49,7 +49,6 @@
 				android:exported="false"
 				android:foregroundServiceType="mediaPlayback"
 				android:label="RFM Main Service"
-				android:process=":service"
 				/>
 
 		<receiver android:name=".receivers.CallReceiver" android:enabled="true">

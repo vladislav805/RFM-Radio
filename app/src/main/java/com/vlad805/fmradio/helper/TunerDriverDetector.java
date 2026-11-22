@@ -26,9 +26,10 @@ public final class TunerDriverDetector {
     }
 
     /**
-     * Resolves the active TunerDriver, falling back to the cross-process backend
-     * token persisted by NativeTunerController when sysfs cannot be read
-     * directly from the unprivileged UI process.
+     * Resolves the active TunerDriver, preferring the persisted backend token
+     * reported by NativeTunerController when sysfs cannot be read directly
+     * from the unprivileged app process (for example under SELinux or before
+     * fmbin launches).
      */
     public static TunerDriver getTunerDriver(final Context context) {
         if (context != null) {
