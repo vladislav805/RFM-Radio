@@ -10,6 +10,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
@@ -46,6 +48,7 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
 
         final Intent intent = getIntent();
@@ -63,7 +66,7 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
             return;
         }
 
-        final AlertDialog dialog = new AlertDialog.Builder(this)
+        final AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.record_delete_title)
                 .setMessage(getString(R.string.record_delete_confirm, displayName))
                 .setPositiveButton(R.string.record_delete_action, (ignored, button) -> {
@@ -89,7 +92,6 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
                     finish();
                 })
                 .setNegativeButton(android.R.string.cancel, (ignored, button) -> finish())
-                .setIcon(android.R.drawable.ic_dialog_alert)
                 .setOnCancelListener(ignored -> finish())
                 .create();
 

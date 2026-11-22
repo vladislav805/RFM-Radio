@@ -189,7 +189,7 @@ public class Utils {
 	}
 
 	public static void alert(final Context context, final @StringRes int title, final @StringRes int content, final @StringRes int ok) {
-		new AlertDialog.Builder(context)
+		new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
 				.setTitle(title)
 				.setMessage(content)
 				.setCancelable(false)
