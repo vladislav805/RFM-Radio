@@ -193,201 +193,77 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 2. EDGE-TO-EDGE DRUM FREQUENCY DIAL -->
+    <!-- 2. COMPACT BORDERLESS RT / RT+ TRIGGER ROW (FIXED 2 LINES) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/rt_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tuner_header">
+
+        <!-- Raw RadioText (Fixed 2 lines height) -->
+        <TextView
+            android:id="@+id/frequency_rt"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="start|top"
+            android:lineSpacingExtra="2dp"
+            android:lines="2"
+            android:maxLines="2"
+            android:minLines="2"
+            android:text="@string/rds_rt_empty"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btn_toggle_rt_plus"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Appears only when station broadcasts RT+ tags -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btn_toggle_rt_plus"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_marginStart="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/frequency_rt"
+            app:layout_constraintTop_toTopOf="parent"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/btn_toggle_rt_plus_text"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/rds_rt_plus_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="11sp" />
+        </com.google.android.material.card.MaterialCardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 3. EDGE-TO-EDGE DRUM FREQUENCY DIAL -->
     <com.vlad805.fmradio.view.FrequencyDialView
         android:id="@+id/frequency_seek"
         android:layout_width="0dp"
         android:layout_height="68dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tuner_header" />
-
-    <!-- 3. RT / RT+ MATERIAL 3 CARD (FIXED HEIGHT, NEVER JUMPS) -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/rt_card"
-        style="@style/Widget.Material3.CardView.Elevated"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
         android:layout_marginTop="14dp"
-        android:layout_marginEnd="14dp"
-        app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/frequency_seek"
-        app:strokeColor="?attr/colorOutlineVariant"
-        app:strokeWidth="1dp">
-
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingStart="12dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="10dp">
-
-            <TextView
-                android:id="@+id/rt_card_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="RadioText"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="11sp"
-                app:layout_constraintBottom_toBottomOf="@+id/rt_mode_toggle_container"
-                app:layout_constraintEnd_toStartOf="@+id/rt_mode_toggle_container"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/rt_mode_toggle_container"
-                tools:ignore="HardcodedText" />
-
-            <com.google.android.material.button.MaterialButtonToggleGroup
-                android:id="@+id/rt_mode_toggle_container"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                app:checkedButton="@id/btn_mode_rt"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:selectionRequired="true"
-                app:singleSelection="true">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_mode_rt"
-                    style="@style/RfmSegmentedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:text="@string/rds_rt_label" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_mode_rt_plus"
-                    style="@style/RfmSegmentedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:text="@string/rds_rt_plus_label" />
-            </com.google.android.material.button.MaterialButtonToggleGroup>
-
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/rt_mode_toggle_container">
-
-                <!-- Mode A: Raw RadioText (Fixed 3 lines height) -->
-                <TextView
-                    android:id="@+id/frequency_rt"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:gravity="start|top"
-                    android:lineSpacingExtra="2dp"
-                    android:lines="3"
-                    android:maxLines="3"
-                    android:minLines="3"
-                    android:text="@string/rds_rt_empty"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp" />
-
-                <!-- Mode B: Structured RT+ (Artist / Title / Album) -->
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/rt_plus_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:visibility="gone"
-                    tools:visibility="visible">
-
-                    <TextView
-                        android:id="@+id/rt_plus_artist_label"
-                        android:layout_width="64dp"
-                        android:layout_height="22dp"
-                        android:fontFamily="sans-serif-medium"
-                        android:gravity="center_vertical"
-                        android:text="@string/rds_rt_plus_artist"
-                        android:textAllCaps="true"
-                        android:textColor="?attr/colorPrimary"
-                        android:textSize="10sp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
-
-                    <TextView
-                        android:id="@+id/rt_plus_artist_value"
-                        android:layout_width="0dp"
-                        android:layout_height="22dp"
-                        android:ellipsize="end"
-                        android:gravity="center_vertical"
-                        android:maxLines="1"
-                        android:text="@string/rds_placeholder"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@+id/rt_plus_artist_label"
-                        app:layout_constraintTop_toTopOf="parent" />
-
-                    <TextView
-                        android:id="@+id/rt_plus_title_label"
-                        android:layout_width="64dp"
-                        android:layout_height="22dp"
-                        android:layout_marginTop="2dp"
-                        android:fontFamily="sans-serif-medium"
-                        android:gravity="center_vertical"
-                        android:text="@string/rds_rt_plus_title"
-                        android:textAllCaps="true"
-                        android:textColor="?attr/colorSecondary"
-                        android:textSize="10sp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_label" />
-
-                    <TextView
-                        android:id="@+id/rt_plus_title_value"
-                        android:layout_width="0dp"
-                        android:layout_height="22dp"
-                        android:layout_marginTop="2dp"
-                        android:ellipsize="end"
-                        android:gravity="center_vertical"
-                        android:maxLines="1"
-                        android:text="@string/rds_placeholder"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="14sp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@+id/rt_plus_title_label"
-                        app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_value" />
-
-                    <TextView
-                        android:id="@+id/rt_plus_album_label"
-                        android:layout_width="64dp"
-                        android:layout_height="22dp"
-                        android:layout_marginTop="2dp"
-                        android:fontFamily="sans-serif-medium"
-                        android:gravity="center_vertical"
-                        android:text="@string/rds_rt_plus_album"
-                        android:textAllCaps="true"
-                        android:textColor="?attr/colorTertiary"
-                        android:textSize="10sp"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_label" />
-
-                    <TextView
-                        android:id="@+id/rt_plus_album_value"
-                        android:layout_width="0dp"
-                        android:layout_height="22dp"
-                        android:layout_marginTop="2dp"
-                        android:ellipsize="end"
-                        android:gravity="center_vertical"
-                        android:maxLines="1"
-                        android:text="@string/rds_placeholder"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="13sp"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@+id/rt_plus_album_label"
-                        app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_value" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-            </FrameLayout>
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </com.google.android.material.card.MaterialCardView>
+        app:layout_constraintTop_toBottomOf="@+id/rt_card" />
 </androidx.constraintlayout.widget.ConstraintLayout>

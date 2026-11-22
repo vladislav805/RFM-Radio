@@ -1,6 +1,10 @@
 package com.vlad805.fmradio.activity;
 
 import android.Manifest;
+import android.animation.ArgbEvaluator;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -18,6 +22,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
@@ -26,6 +31,7 @@ import androidx.annotation.IdRes;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -110,26 +116,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private final Handler mUiHandler = new Handler(Looper.getMainLooper());
     private boolean mRecordTickerRunning = false;
-    private boolean mRecordDotDimmed = false;
+    private ObjectAnimator mRecordPulseAnimator;
+    private ValueAnimator mPowerColorAnimator;
+    private Boolean mLastPowerPlaying;
 
     private final Runnable mRecordTicker = new Runnable() {
         @Override
         public void run() {
             if (mLastState == null || !mLastState.isRecording()) {
                 mRecordTickerRunning = false;
-                if (mRecordDot != null) {
-                    mRecordDot.setAlpha(0.3f);
-                }
                 return;
             }
 
             final long durationSec = Math.max(0L, mLastState.getRecordingDuration());
             if (mRecordDuration != null) {
                 mRecordDuration.setText(getTimeStringBySeconds(durationSec));
-            }
-            if (mRecordDot != null) {
-                mRecordDotDimmed = !mRecordDotDimmed;
-                mRecordDot.setAlpha(mRecordDotDimmed ? 0.3f : 1.0f);
             }
             mUiHandler.postDelayed(this, 500L);
         }
@@ -174,6 +175,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void initUserInterface() {
         mFrequencyInfo = findViewById(R.id.frequency_info);
+        mFrequencyInfo.attachRtPlusOverlay(findViewById(R.id.rt_plus_overlay));
 
         mFavoritesView = findViewById(R.id.favorite_list);
         mFavoritesView.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
@@ -221,6 +223,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mUiHandler.removeCallbacks(mRecordTicker);
         mRecordTickerRunning = false;
+        stopRecordPulseAnimation();
+        if (mPowerColorAnimator != null) {
+            mPowerColorAnimator.cancel();
+            mPowerColorAnimator = null;
+        }
 
         if (mRadioController != null) {
             mRadioController.unregisterForUpdates();
@@ -896,18 +903,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void setPlayingMainPlayButton(final boolean isPlay) {
-        final int bgColor = MaterialColors.getColor(
+        final int targetBg = MaterialColors.getColor(
                 mCtlToggle,
                 isPlay ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorSurfaceContainerHighest,
                 ContextCompat.getColor(this, isPlay ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
         );
-        final int fgColor = MaterialColors.getColor(
+        final int targetFg = MaterialColors.getColor(
                 mCtlToggle,
                 isPlay ? com.google.android.material.R.attr.colorOnPrimary : androidx.appcompat.R.attr.colorPrimary,
                 ContextCompat.getColor(this, isPlay ? R.color.rfm_md_on_primary : R.color.rfm_md_primary)
         );
-        mCtlToggle.setBackgroundTintList(ColorStateList.valueOf(bgColor));
-        mCtlToggle.setIconTint(ColorStateList.valueOf(fgColor));
+
+        if (mLastPowerPlaying == null || mLastPowerPlaying == isPlay || !mCtlToggle.isLaidOut()) {
+            mLastPowerPlaying = isPlay;
+            mCtlToggle.setBackgroundTintList(ColorStateList.valueOf(targetBg));
+            mCtlToggle.setIconTint(ColorStateList.valueOf(targetFg));
+            return;
+        }
+
+        mLastPowerPlaying = isPlay;
+        if (mPowerColorAnimator != null) {
+            mPowerColorAnimator.cancel();
+        }
+        final ColorStateList currentBgTint = mCtlToggle.getBackgroundTintList();
+        final ColorStateList currentFgTint = mCtlToggle.getIconTint();
+        final int startBg = currentBgTint != null ? currentBgTint.getDefaultColor() : targetBg;
+        final int startFg = currentFgTint != null ? currentFgTint.getDefaultColor() : targetFg;
+        final ArgbEvaluator evaluator = new ArgbEvaluator();
+
+        mPowerColorAnimator = ValueAnimator.ofFloat(0f, 1f);
+        mPowerColorAnimator.setDuration(220L);
+        mPowerColorAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        mPowerColorAnimator.addUpdateListener(animation -> {
+            final float fraction = (float) animation.getAnimatedValue();
+            mCtlToggle.setBackgroundTintList(ColorStateList.valueOf((int) evaluator.evaluate(fraction, startBg, targetBg)));
+            mCtlToggle.setIconTint(ColorStateList.valueOf((int) evaluator.evaluate(fraction, startFg, targetFg)));
+        });
+        mPowerColorAnimator.start();
     }
 
     /**
@@ -916,10 +948,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void setEnabledUi(final boolean state) {
         final @IdRes int[] ids = {
-                R.id.ctl_go_down,
-                R.id.ctl_go_up,
-                R.id.ctl_seek_down,
-                R.id.ctl_seek_up,
                 R.id.frequency_mhz,
                 R.id.frequency_ps,
                 R.id.frequency_pi,
@@ -933,11 +961,122 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.favorite_list
         };
 
+        final float targetAlpha = state ? 1f : .45f;
         for (final int id : ids) {
             final View v = findViewById(id);
             if (v != null) {
-                v.setAlpha(state ? 1f : .45f);
                 v.setEnabled(state);
+                v.animate().cancel();
+                if (v.isLaidOut()) {
+                    v.animate().alpha(targetAlpha).setDuration(200L).start();
+                } else {
+                    v.setAlpha(targetAlpha);
+                }
+            }
+        }
+
+        setTransportButtonsVisible(state);
+    }
+
+    private void setTransportButtonsVisible(final boolean visible) {
+        final View deck = findViewById(R.id.transport_deck);
+        final View seekDown = findViewById(R.id.ctl_seek_down);
+        final View goDown = findViewById(R.id.ctl_go_down);
+        final View goUp = findViewById(R.id.ctl_go_up);
+        final View seekUp = findViewById(R.id.ctl_seek_up);
+        if (deck == null || seekDown == null || goDown == null || goUp == null || seekUp == null) {
+            return;
+        }
+
+        final FastOutSlowInInterpolator interpolator = new FastOutSlowInInterpolator();
+        mCtlToggle.bringToFront();
+
+        final View[] buttons = { goDown, seekDown, goUp, seekUp };
+        final float toggleCenterX = mCtlToggle.getLeft() + mCtlToggle.getWidth() * 0.5f;
+
+        if (visible) {
+            if (seekDown.getVisibility() == View.VISIBLE && seekDown.getAlpha() == 1f) {
+                return;
+            }
+            final long[] delays = { 0L, 45L, 0L, 45L };
+
+            for (final View btn : buttons) {
+                btn.animate().cancel();
+                btn.setClickable(true);
+                btn.setEnabled(true);
+                btn.setVisibility(View.VISIBLE);
+                if (deck.isLaidOut()) {
+                    btn.setAlpha(0f);
+                } else {
+                    btn.setAlpha(1f);
+                    btn.setScaleX(1f);
+                    btn.setScaleY(1f);
+                    btn.setTranslationX(0f);
+                }
+            }
+
+            if (deck.isLaidOut()) {
+                deck.post(() -> {
+                    final float center = mCtlToggle.getLeft() + mCtlToggle.getWidth() * 0.5f;
+                    mCtlToggle.bringToFront();
+                    for (int i = 0; i < buttons.length; i++) {
+                        final View btn = buttons[i];
+                        final float startX = center - (btn.getLeft() + btn.getWidth() * 0.5f);
+                        btn.setAlpha(0f);
+                        btn.setScaleX(0.68f);
+                        btn.setScaleY(0.68f);
+                        btn.setTranslationX(startX);
+                        btn.animate()
+                                .translationX(0f)
+                                .alpha(1f)
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setStartDelay(delays[i])
+                                .setDuration(280L)
+                                .setInterpolator(interpolator)
+                                .withEndAction(null)
+                                .start();
+                    }
+                });
+            }
+        } else {
+            if (seekDown.getVisibility() == View.GONE) {
+                return;
+            }
+            final float density = getResources().getDisplayMetrics().density;
+            final float[] fallbackOffsets = { 56f * density, 112f * density, -56f * density, -112f * density };
+
+            for (int i = 0; i < buttons.length; i++) {
+                final View btn = buttons[i];
+                btn.animate().cancel();
+                btn.setClickable(false);
+                if (deck.isLaidOut() && btn.getVisibility() == View.VISIBLE) {
+                    final float endX = btn.getWidth() > 0
+                            ? toggleCenterX - (btn.getLeft() + btn.getWidth() * 0.5f)
+                            : fallbackOffsets[i];
+                    btn.animate()
+                            .translationX(endX)
+                            .scaleX(0.55f)
+                            .scaleY(0.55f)
+                            .alpha(0.15f)
+                            .setStartDelay(0L)
+                            .setDuration(260L)
+                            .setInterpolator(interpolator)
+                            .withEndAction(() -> {
+                                btn.setEnabled(false);
+                                btn.setClickable(true);
+                                btn.setVisibility(View.GONE);
+                                btn.setTranslationX(0f);
+                                btn.setScaleX(1f);
+                                btn.setScaleY(1f);
+                                btn.setAlpha(1f);
+                            })
+                            .start();
+                } else {
+                    btn.setEnabled(false);
+                    btn.setClickable(true);
+                    btn.setVisibility(View.GONE);
+                }
             }
         }
     }
@@ -970,6 +1109,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (isRecording) {
             final long durationSec = Math.max(0L, state.getRecordingDuration());
             mRecordDuration.setText(getTimeStringBySeconds(durationSec));
+            startRecordPulseAnimation();
             if (!mRecordTickerRunning) {
                 mRecordTickerRunning = true;
                 mUiHandler.post(mRecordTicker);
@@ -977,10 +1117,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             mUiHandler.removeCallbacks(mRecordTicker);
             mRecordTickerRunning = false;
+            stopRecordPulseAnimation();
             mRecordDuration.setText(R.string.record_badge_idle);
-            if (mRecordDot != null) {
-                mRecordDot.setAlpha(0.3f);
-            }
+        }
+    }
+
+    private void startRecordPulseAnimation() {
+        if (mRecordDot == null || (mRecordPulseAnimator != null && mRecordPulseAnimator.isRunning())) {
+            return;
+        }
+        mRecordPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                mRecordDot,
+                PropertyValuesHolder.ofFloat(View.ALPHA, 0.28f, 1.0f),
+                PropertyValuesHolder.ofFloat(View.SCALE_X, 0.85f, 1.18f),
+                PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.85f, 1.18f)
+        );
+        mRecordPulseAnimator.setDuration(700L);
+        mRecordPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        mRecordPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        mRecordPulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        mRecordPulseAnimator.start();
+    }
+
+    private void stopRecordPulseAnimation() {
+        if (mRecordPulseAnimator != null) {
+            mRecordPulseAnimator.cancel();
+            mRecordPulseAnimator = null;
+        }
+        if (mRecordDot != null) {
+            mRecordDot.setAlpha(0.3f);
+            mRecordDot.setScaleX(1f);
+            mRecordDot.setScaleY(1f);
         }
     }
 }

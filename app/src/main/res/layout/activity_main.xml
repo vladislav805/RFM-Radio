@@ -141,15 +141,14 @@
         app:layout_constraintTop_toBottomOf="@id/top_divider" />
 
     <!-- 3. ONE-HANDED MATERIAL 3 TRANSPORT DECK (SEEK / STEP / POWER) -->
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/transport_deck"
         android:layout_width="0dp"
         android:layout_height="70dp"
         android:layout_marginStart="14dp"
         android:layout_marginTop="14dp"
         android:layout_marginEnd="14dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:clipChildren="false"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/frequency_info">
@@ -159,32 +158,36 @@
             style="@style/RfmIconButtonTonal"
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
             android:contentDescription="@string/seek_down"
+            android:visibility="gone"
             app:icon="@drawable/ic_rfm_seek_prev"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconSize="22dp" />
-
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp" />
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ctl_go_down"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/ctl_go_down"
             style="@style/RfmIconButtonTonal"
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_weight="1"
+            android:layout_marginEnd="10dp"
             android:contentDescription="@string/jump_down"
+            android:visibility="gone"
             app:icon="@drawable/ic_rfm_step_prev"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconSize="22dp" />
-
-        <Space
-            android:layout_width="10dp"
-            android:layout_height="1dp" />
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
+            app:layout_constraintStart_toEndOf="@+id/ctl_seek_down"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/ctl_toggle"
@@ -192,6 +195,7 @@
             android:layout_width="70dp"
             android:layout_height="70dp"
             android:contentDescription="@string/power_toggle_description"
+            android:elevation="4dp"
             android:insetLeft="0dp"
             android:insetTop="0dp"
             android:insetRight="0dp"
@@ -200,40 +204,48 @@
             app:icon="@drawable/ic_rfm_power"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconSize="24dp" />
-
-        <Space
-            android:layout_width="10dp"
-            android:layout_height="1dp" />
+            app:iconSize="24dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/ctl_go_up"
             style="@style/RfmIconButtonTonal"
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_weight="1"
+            android:layout_marginStart="10dp"
             android:contentDescription="@string/jump_up"
+            android:visibility="gone"
             app:icon="@drawable/ic_rfm_step_next"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconSize="22dp" />
-
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp" />
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ctl_seek_up"
+            app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/ctl_seek_up"
             style="@style/RfmIconButtonTonal"
             android:layout_width="0dp"
             android:layout_height="50dp"
-            android:layout_weight="1"
+            android:layout_marginStart="8dp"
             android:contentDescription="@string/seek_up"
+            android:visibility="gone"
             app:icon="@drawable/ic_rfm_seek_next"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconSize="22dp" />
-    </LinearLayout>
+            app:iconSize="22dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/ctl_go_up"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- 4. FAVORITES STATION CONSOLE (FILLS REMAINING HEIGHT, NO SCREEN SCROLL) -->
     <com.vlad805.fmradio.view.FavoritesView
@@ -247,5 +259,150 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/transport_deck" />
+
+    <!-- 5. EXPANDING RT+ OVERLAY CARD (DRAWN OVER DIAL & CONTROLS WITHOUT SHIFTING LAYOUT) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/rt_plus_overlay"
+        style="@style/Widget.Material3.CardView.Elevated"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:elevation="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/frequency_info"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp"
+        tools:visibility="gone">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="14dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="12dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_close_rt_plus"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="?attr/colorSecondaryContainer"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:strokeColor="?attr/colorSecondary"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/rds_rt_plus_label"
+                    android:textColor="?attr/colorOnSecondaryContainer"
+                    android:textSize="11sp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/rt_plus_artist_label"
+                android:layout_width="64dp"
+                android:layout_height="24dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:text="@string/rds_rt_plus_artist"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="10sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/rt_plus_artist_value"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="8dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@+id/btn_close_rt_plus"
+                app:layout_constraintStart_toEndOf="@+id/rt_plus_artist_label"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/rt_plus_title_label"
+                android:layout_width="64dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:text="@string/rds_rt_plus_title"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorSecondary"
+                android:textSize="10sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_label" />
+
+            <TextView
+                android:id="@+id/rt_plus_title_value"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/rt_plus_title_label"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_value" />
+
+            <TextView
+                android:id="@+id/rt_plus_album_label"
+                android:layout_width="64dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:text="@string/rds_rt_plus_album"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorTertiary"
+                android:textSize="10sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_label" />
+
+            <TextView
+                android:id="@+id/rt_plus_album_value"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/rds_placeholder"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/rt_plus_album_label"
+                app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_value" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

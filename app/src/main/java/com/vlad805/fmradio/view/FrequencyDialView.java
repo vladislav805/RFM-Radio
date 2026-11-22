@@ -1,5 +1,6 @@
 package com.vlad805.fmradio.view;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
@@ -15,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.OverScroller;
 
 import androidx.annotation.Nullable;
@@ -81,6 +83,8 @@ public final class FrequencyDialView extends View {
     private float mLastTouchX;
     private boolean mIsDragging;
     private boolean mIsFlinging;
+    private boolean mHasInitialFrequency;
+    private ValueAnimator mFrequencyAnimator;
 
     private LinearGradient mLeftFadeGradient;
     private LinearGradient mRightFadeGradient;
@@ -147,8 +151,39 @@ public final class FrequencyDialView extends View {
         }
         mCurrentKhz = clamped;
         mLastCommittedKhz = clamped;
-        mVisualKhz = clamped;
-        invalidate();
+
+        if (!mHasInitialFrequency || !isLaidOut() || Math.abs(mVisualKhz - clamped) < 1f) {
+            mHasInitialFrequency = true;
+            cancelFrequencyAnimator();
+            mVisualKhz = clamped;
+            invalidate();
+            return;
+        }
+
+        cancelFrequencyAnimator();
+        final float deltaKhz = Math.abs(clamped - mVisualKhz);
+        final long durationMs = Math.min(320L, Math.max(160L, Math.round(140f + deltaKhz * 0.04f)));
+        mFrequencyAnimator = ValueAnimator.ofFloat(mVisualKhz, (float) clamped);
+        mFrequencyAnimator.setDuration(durationMs);
+        mFrequencyAnimator.setInterpolator(new DecelerateInterpolator(1.6f));
+        mFrequencyAnimator.addUpdateListener(animation -> {
+            mVisualKhz = (float) animation.getAnimatedValue();
+            postInvalidateOnAnimation();
+        });
+        mFrequencyAnimator.start();
+    }
+
+    private void cancelFrequencyAnimator() {
+        if (mFrequencyAnimator != null) {
+            mFrequencyAnimator.cancel();
+            mFrequencyAnimator = null;
+        }
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        cancelFrequencyAnimator();
+        super.onDetachedFromWindow();
     }
 
     public boolean isUserInteracting() {
@@ -406,6 +441,7 @@ public final class FrequencyDialView extends View {
 
         switch (action) {
             case MotionEvent.ACTION_DOWN: {
+                cancelFrequencyAnimator();
                 if (!mScroller.isFinished()) {
                     mScroller.abortAnimation();
                 }
