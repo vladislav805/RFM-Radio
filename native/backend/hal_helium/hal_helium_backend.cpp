@@ -1186,11 +1186,15 @@ void HalHeliumBackend::on_scan_next() {
 
     ScanResult result;
     bool complete = false;
+    int progress_count = 0;
 
     {
         std::lock_guard<std::mutex> lock(state_lock_);
         if (state_.scan.active) {
-            if (state_.scan.stations.add(freq) == ScanAddResult::kFull) {
+            const ScanAddResult add_result = state_.scan.stations.add(freq);
+            if (add_result == ScanAddResult::kAdded) {
+                progress_count = state_.scan.stations.count();
+            } else if (add_result == ScanAddResult::kFull) {
                 log("search", "scan result full, dropping frequency_khz=%d", freq);
             }
             if (state_.scan.last_frequency_khz > 0 && freq < state_.scan.last_frequency_khz) {
@@ -1207,6 +1211,9 @@ void HalHeliumBackend::on_scan_next() {
     }
 
     if (!complete) {
+        if (progress_count > 0) {
+            send_search_progress(progress_count);
+        }
         return;
     }
 

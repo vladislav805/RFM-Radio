@@ -470,6 +470,11 @@ public class FMService extends Service implements FMEventCallback, OnTrayPrefere
     }
 
     @Override
+    public void onSearchProgress(final int count) {
+        Utils.sendAppBroadcast(this, new Intent(C.Event.HW_SEARCH_PROGRESS).putExtra(C.Key.COUNT, count));
+    }
+
+    @Override
     public void onSearchDone(final int[] stations) {
         Utils.sendAppBroadcast(this, new Intent(C.Event.HW_SEARCH_DONE).putExtra(C.Key.STATION_LIST, stations));
     }

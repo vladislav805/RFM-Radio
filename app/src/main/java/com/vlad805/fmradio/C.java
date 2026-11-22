@@ -29,6 +29,7 @@ final public class C {
 		public static final String UPDATE_AF = BASE + "UPDATE_AF";
 		public static final String UPDATE_STEREO = BASE + "UPDATE_STEREO";
 		public static final String STATE_CHANGED = BASE + "STATE_CHANGED";
+		public static final String HW_SEARCH_PROGRESS = BASE + "HW_SEARCH_PROGRESS";
 		public static final String HW_SEARCH_DONE = BASE + "HW_SEARCH_DONE";
 		public static final String HW_SEARCH_FAILED = BASE + "HW_SEARCH_FAILED";
 		public static final String JUMP_COMPLETE = BASE + "JUMP_COMPLETE";
@@ -89,6 +90,7 @@ final public class C {
 		public static final String POWER_MODE = "power_mode";
 
 		public static final String STATION_LIST = "station_list";
+		public static final String COUNT = "count";
 		public static final String SIZE = "size";
 		public static final String DURATION = "duration";
 		public static final String PATH = "filename";

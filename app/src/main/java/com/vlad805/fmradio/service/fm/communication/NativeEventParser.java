@@ -41,6 +41,14 @@ public final class NativeEventParser {
                 break;
             }
 
+            case "search_progress": {
+                final int count = json.optInt("count", -1);
+                if (count >= 0) {
+                    callback.onSearchProgress(count);
+                }
+                break;
+            }
+
             case "search_done": {
                 final int[] stations = parseIntArray(json.optJSONArray("stations"));
                 if (stations != null) {

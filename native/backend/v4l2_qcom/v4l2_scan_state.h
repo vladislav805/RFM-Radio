@@ -22,6 +22,7 @@ public:
     void cancel_failed();
     bool on_tune(int frequency_khz);
     int on_scan_next(int fallback_frequency_khz);
+    int station_count() const { return stations_.count(); }
     V4l2ScanTerminal on_seek_complete(ScanResult *result);
     bool busy() const;
     void reset();

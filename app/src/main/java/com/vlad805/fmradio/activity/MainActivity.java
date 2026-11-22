@@ -506,7 +506,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 })
                 .show();
 
-        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_DONE);
+        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_PROGRESS);
+        searchFilter.addAction(C.Event.HW_SEARCH_DONE);
         searchFilter.addAction(C.Event.HW_SEARCH_FAILED);
         searchFilter.addAction(C.Event.ERROR_OCCURRED);
         Utils.registerAppReceiver(this, mSearchDone, searchFilter);
@@ -527,6 +528,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             final String action = intent.getAction();
+            if (C.Event.HW_SEARCH_PROGRESS.equals(action)) {
+                final int count = intent.getIntExtra(C.Key.COUNT, -1);
+                if (mSearchProgress != null && count >= 0) {
+                    mSearchProgress.text(getString(R.string.scan_stations_progress_count, count));
+                }
+                return;
+            }
+
             unregisterSearchReceiver();
 
             if (mSearchProgress != null) {

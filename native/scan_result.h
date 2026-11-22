@@ -19,6 +19,7 @@ class ScanResultCollector {
 public:
     ScanAddResult add(int frequency_khz);
     void copy_sorted(ScanResult *result) const;
+    int count() const { return count_; }
     void reset();
 
 private:

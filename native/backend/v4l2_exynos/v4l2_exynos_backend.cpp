@@ -760,7 +760,9 @@ void V4l2ExynosBackend::search_worker() {
                         break;
                     }
 
-                    collector.add(static_cast<int>(found_khz));
+                    if (collector.add(static_cast<int>(found_khz)) == ScanAddResult::kAdded) {
+                        send_search_progress(collector.count());
+                    }
                     prev_khz = found_khz;
 
                     if (found_khz >= upper_khz) {

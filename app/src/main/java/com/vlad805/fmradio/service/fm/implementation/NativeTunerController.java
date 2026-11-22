@@ -499,6 +499,13 @@ public final class NativeTunerController {
                     }
 
                     @Override
+                    public void onSearchProgress(final int count) {
+                        if (mEventCallback != null) {
+                            mEventCallback.onSearchProgress(count);
+                        }
+                    }
+
+                    @Override
                     public void onSearchDone(final int[] stations) {
                         if (mEventCallback != null) {
                             mEventCallback.onSearchDone(stations);
