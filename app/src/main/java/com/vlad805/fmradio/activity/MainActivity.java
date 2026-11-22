@@ -498,7 +498,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mRadioController.hwSearch();
 
         mSearchProgress = ProgressDialog.create(this)
-                .text(R.string.scan_stations_progress)
+                .title(R.string.scan_stations_title)
+                .text(getString(R.string.scan_stations_progress_count, 0))
                 .negativeButton(android.R.string.cancel, (dialog, buttonId) -> {
                     mRadioController.cancelHwSearch();
                     unregisterSearchReceiver();

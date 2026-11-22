@@ -139,7 +139,9 @@
 	<string name="scan_stations_confirm_message">Bieżąca lista ulubionych zostanie wyczyszczona i zastąpiona znalezionymi stacjami.</string>
 	<string name="scan_stations_confirm_continue">Usuń i zeskanuj</string>
 	<string name="scan_stations_confirm_discard">Odrzuć</string>
+	<string name="scan_stations_title">Wyszukiwanie stacji</string>
 	<string name="scan_stations_progress">Proszę, poczekaj… próbuję znaleźć stacje.</string>
+	<string name="scan_stations_progress_count">Znaleziono stacji: %d</string>
     <string name="pref_tuner_rds_auto_af">Automatyczne przeskakiwanie przez AF</string>
 	<string name="pref_tuner_rds_auto_afenabled">Gdy sygnał ulega pogorszeniu i występują alternatywne częstotliwości
 		stacji radiowej, tuner automatycznie przełączy się na częstotliwość o najlepszej jakości.

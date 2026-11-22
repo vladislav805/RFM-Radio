@@ -31,6 +31,11 @@ public class ProgressDialog {
 		builder.setView(root);
 	}
 
+	public ProgressDialog title(@StringRes int id) {
+		builder.setTitle(id);
+		return this;
+	}
+
 	public ProgressDialog text(@StringRes int id) {
 		text.setText(id);
 		return this;
