@@ -352,6 +352,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_RECORD_PERMISSIONS);
             }
         } else if (itemId == R.id.menu_speaker) {
+            item.setChecked(!item.isChecked());
             startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
         }
 
@@ -565,13 +566,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onStateUpdated(final RadioState state, final int mode) {
         mLastState = state;
 
-        if ((mode & (RadioStateUpdater.SET_RMSSI | RadioStateUpdater.SET_SINR)) > 0) {
-            final boolean available = (
-                    state.getRmssi() != RadioState.RMSSI_UNKNOWN ||
-                    state.getSinr() != RadioState.SINR_UNKNOWN
-            );
+        if ((mode & RadioStateUpdater.SET_RMSSI) > 0) {
+            final boolean available = state.getRmssi() != RadioState.RMSSI_UNKNOWN;
             if (available) {
-                mSignalStrength.setMetrics(state.getRmssi(), state.getSinr());
+                mSignalStrength.setRmssi(state.getRmssi());
             } else {
                 mSignalStrength.clear();
             }
