@@ -16,6 +16,8 @@ constexpr uint64_t kMetricSettleMs = 750;
 
 channel_space_t map_spacing_to_vendor(int spacing_khz) {
     switch (spacing_khz) {
+        case 10:
+            return FM_RX_SPACE_10KHZ;
         case 50:
             return FM_RX_SPACE_50KHZ;
         case 200:
