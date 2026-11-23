@@ -15,47 +15,49 @@ The app is a controller over a native root process (`fmbin`, see
 `native/ARCHITECTURE.md`). Android-side responsibilities:
 
 1. Detect the tuner driver and construct the controller (`FMService`).
-2. Own the native process lifecycle and translate intents into commands.
+2. Own the native process lifecycle and coordinate commands via Local Binder.
 3. Route FM audio (device-dependent) and expose recording.
 4. Render state (frequency, RDS, signal) and manage favorites.
 
 Communication model, end to end:
 
 ```text
-UI (MainActivity / views)
-  -> RadioController.startService(Intent with C.Command.*)
-  -> FMService (main process, START_NOT_STICKY)
+UI (MainActivity / SettingsActivity)
+  -> RadioClient (bindService BIND_AUTO_CREATE + pending command queue)
+  -> FMService.LocalBinder -> RadioServiceController (in-process main thread)
   -> NativeTunerController
   -> Request -> NativeProcessSession -> su -> fmbin stdin
   -> fmbin stdout JSON -> NativeEventParser
-  -> FMEventCallback (implemented by FMService)
-  -> Utils.sendAppBroadcast (C.Event.*, package-scoped)
-  -> RadioStateUpdater (UI side) -> RadioState -> views
+  -> FMEventCallback (marshaled to main looper in FMService)
+  -> RadioState reducers (single RadioState instance in FMService)
+  -> StateListener (persistent state + SET_INITIAL snapshot) / EventListener (one-shot events)
 ```
 
-There is no binder/AIDL and no shared memory; both directions are
-fire-and-forget. `C.java` holds IPC action/extra/format constants; preference
-keys (`Storage.Key.*` + internal keys) and defaults live in `Storage.java`.
+External OS entry points (`FMNotificationManager` `PendingIntent`s and
+`CallReceiver`) still deliver `Intent` actions (`FMService.ACTION_*`) to
+`FMService.onStartCommand(...)`. `C.java` holds only `C.RecordFormat` and
+`C.Config`; preference keys (`Storage.Key.*` + internal keys) and defaults
+live in `Storage.java`.
 
 ## Package Inventory
 
 | Package | Files | Notes |
 | --- | --- | --- |
-| (root) | 4 | `C`, `Storage` (`SharedPreferences` wrapper), `Utils`, `UtilsLocalization` |
+| (root) | 4 | `C` (`RecordFormat`, `Config`), `Storage` (`SharedPreferences` wrapper), `Utils`, `UtilsLocalization` |
 | `activity/` | 6 | see UI section |
-| `controller/` | 5 | see Controller section |
+| `controller/` | 7 | `RadioServiceController`, `RadioClient`, `StateListener`, `EventListener`, `FavoriteController`, `RadioState`, `TunerStatus` |
 | `enums/` | 3 | `Direction`, `PowerMode`, `TunerDriver` (with backend capability flags) |
 | `fragments/` | 1 | `PreferencesFragment` (declarative `res/xml/preferences.xml`) |
 | `helper/` | 7 + `helper/json/` 2 | `Audio`, `TunerDriverDetector`, `RecordSchemaHelper`, `JSONFile`, … |
-| `models/` | 2 | `FavoriteStation`, `FavoriteFile` |
+| `models/` | 3 | `FavoriteStation`, `FavoriteFile`, `RtPlusInfo` |
 | `preferences/` | 1 | `BandUtils` |
 | `receivers/` | 1 | `CallReceiver` |
 | `service/` | 2 | `FMService`, `FMNotificationManager` |
 | `service/audio/` | 9 | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService`, `RoutingAudioService`, `LightAudioService` |
-| `service/fm/` | 4 | `FMEventCallback`, `RadioStatePatch`, `Request`, `RecordError` |
-| `service/fm/communication/` | 3 | see Communication section |
+| `service/fm/` | 3 | `FMEventCallback`, `RadioStatePatch`, `RecordError` |
+| `service/fm/communication/` | 3 | `NativeProcessSession`, `NativeEventParser`, `Request` |
 | `service/fm/implementation/` | 2 | `NativeTunerController`, `TunerCommandFormat` |
-| `service/recording/` | 12 | see Recording section |
+| `service/recording/` | 14 | see Recording section |
 | `service/streaming/` | 0 | empty leftover directory |
 | `view/` | 10 + `view/adapter/` 1 | see UI section |
 
@@ -66,87 +68,122 @@ keys (`Storage.Key.*` + internal keys) and defaults live in `Storage.java`.
 
 `service/FMService.java`. Manifest: runs in the main app process (single-process),
 `foregroundServiceType="mediaPlayback"`, not exported. Implements
-`FMEventCallback` and registers a strong-referenced
-`SharedPreferences.OnSharedPreferenceChangeListener` field (`mPreferenceChangeListener`)
-via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
-`Storage.Key.RECORDING_SAVE_PAST` and keys accepted by `NativeTunerController.isTunerPreferenceKey`.
+`RadioServiceController` (exposed via `FMService.LocalBinder`) and
+`FMEventCallback`, and registers strong-referenced listeners on
+`Storage.get(this)` and `FavoriteController.get(this)`.
 
-- `onCreate`: creates `RadioState`, `RadioController`,
-  `FavoriteController`, `FMNotificationManager` (`createChannels()` for
-  `playback_channel_v3`, `record_channel`, `recording_channel_v2`), `Storage`,
-  the provisional `NativeTunerController` (or `null` on `NONE`), and two receivers:
-  `EventReaction` (inner class, reacts to `C.Event.*`) and `RadioStateUpdater`
-  (keeps `mState`; its update callback also pushes `RdsSnapshot` into
-  `IAudioRecordable.updateRds` for subtitles when audio is attached). Audio is
-  not instantiated in `onCreate`.
-- `onStartCommand`: null intent/action → `stopSelf()`; returns
-  `START_NOT_STICKY` (a process-death restart without a command stops the
-  service instead of recreating a disconnected one — pairs with the native
-  EOF-driven fail-closed shutdown).
-- Handled commands (`C.Command.*`): `INSTALL`, `LAUNCH`, `ENABLE`,
-  `DISABLE`, `SET_FREQUENCY`, `JUMP`, `HW_SEEK`, `POWER_MODE`, `HW_SEARCH`,
-  `HW_SEARCH_CANCEL`, `RECORD_START`, `RECORD_STOP`, `NOTIFICATION_SEEK`,
-  `KILL`, `REQUEST_CURRENT_STATE`, `SPEAKER_STATE`.
-- `ENABLE` calls `mAudioLifecycle.beforeEnable()` (starts audio before tuner
-  enable on `HAL_HELIUM`) and then `mTunerDriver.enable()`.
-- `DISABLE` calls `mAudioLifecycle.beforeDisable()` (stops audio before tuner
-  disable on `HAL_HELIUM`), then `mTunerDriver.disable()` and `stopSelf()`.
-- `SPEAKER_STATE` toggles `AudioOutput` (`HEADPHONES`/`SPEAKER`) via
-  `mAudioService.getOutput()` / `mAudioService.setOutput(nextOutput)` and
-  broadcasts `CHANGE_SPEAKER_MODE`. Route-specific state lookup and side
-  effects (`FOR_MEDIA` on V4L2, Helium-only Slimbus refresh) stay in the
-  selected audio path/policy.
-- `NOTIFICATION_SEEK` uses `navigateThroughFavorite(direction)` with
-  wrap-around when `notification_seek_by_favorites` is enabled, otherwise
-  redirects to `HW_SEEK`.
-- `REQUEST_CURRENT_STATE` ("ui_started") answers with a `CURRENT_STATE`
-  broadcast carrying the `RadioState` parcel.
-- Event chain: `INSTALLED` → launch; `LAUNCHED` → resolve driver kind,
-  `attachAudioService()` (once per session via `AudioSelection.resolve` +
-  `AudioLifecycle`, applying current pre-roll pref and RDS snapshot), then
-  enable; `ENABLED` → `mAudioLifecycle.onEnabled()` (starts audio on V4L2,
-  no-op on already-started Helium) and update notification; `DISABLED` →
-  `mAudioLifecycle.stop()` (idempotent terminal stop); `LAUNCH_FAILED` /
-  `ROOT_ACCESS_DENIED` → `stopSelf()`. Late `LAUNCHED`/`ENABLED` after
-  teardown are ignored. `FREQUENCY_SET`/`STATE_CHANGED` →
-  persist `frequency_last`, update notification; `UPDATE_PS`/`UPDATE_RT` →
-  notification; `FAVORITE_LIST_CHANGED` → reload favorites; `RECORD_*` →
-  recording state, notifications, "subtitles failed" warning path.
+- **Thread safety**: all `FMEventCallback`, `RecordingListener`, and
+  `OnFavoritesChangeListener` callbacks marshal onto `Looper.getMainLooper()`
+  via `runOnMainThread(...)`. `mState`, `mAudioLifecycle`, `mNotifications`,
+  `mStateListeners`, and `mEventListeners` are accessed exclusively on the main
+  thread.
+- `FMService.isTunerActive()`: `volatile boolean` updated on the main thread
+  strictly reflecting `mState.getStatus() != TunerStatus.IDLE`. `CallReceiver`
+  checks this before sending `ACTION_STOP` so calls never start an idle service.
+- `onCreate`: initializes `Storage`, the sole `RadioState` instance (seeded
+  with `mStorage.getLastFrequency()`), `FavoriteController.get(this)` +
+  `mFavoritesListener`, `FMNotificationManager` (`createChannels()` for
+  `playback_channel_v3`, `record_channel`, `recording_channel_v2`),
+  `mPreferenceChangeListener`, and the provisional `NativeTunerController` (or
+  `null` on `NONE`). Audio is not instantiated in `onCreate`.
+- `onBind`: returns `LocalBinder`, giving bound UI clients direct access to
+  `RadioServiceController`.
+- `onStartCommand`: returns `START_NOT_STICKY`. Handles only external actions:
+  - `ACTION_START` — promotion to `Started` service triggered inside `enable()`.
+  - `ACTION_STOP` — delegates to `disable()`.
+  - `ACTION_RECORD_START` / `ACTION_RECORD_STOP` — delegates to
+    `startRecord()` / `stopRecord()`.
+  - `ACTION_NOTIFICATION_SEEK` (`EXTRA_SEEK_DIRECTION`) — calls
+    `navigateThroughFavorite(direction)` when `notification_seek_by_favorites`
+    is enabled, otherwise `hwSeek(...)`.
+- `enable()`: idempotent (no-op if status is already `INSTALLING`, `INSTALLED`,
+  `LAUNCHING`, `LAUNCHED`, `ENABLING`, or `ENABLED`). Promotes the service via
+  `startService(ACTION_START)` and drives `prepareBinary()` → `INSTALLED` →
+  `launch()` → `LAUNCHED` → `attachAudioService()` + `beforeEnable()` +
+  `enable()` → `ENABLED` → `onEnabled()` + `startForeground()`.
+- `stopPlaybackSession(boolean gracefulTunerDisable)`: separated from
+  `onDestroy()` so `disable()` works cleanly even while `MainActivity` remains
+  bound (`BIND_AUTO_CREATE`). Stops active recording, cancels recording
+  progress notification, stops audio and clears `mAudioService`/`mAudioLifecycle`,
+  calls `mTunerDriver.disable()` (which sends `disable` then stops/kills `fmbin`)
+  or `mTunerDriver.kill()` so no root `fmbin` lingers in `IDLE`, resets `mState`
+  to `TunerStatus.IDLE` (clearing RDS/signal/speaker/recording while preserving
+  last frequency), and calls `stopForeground(true)` + `stopSelf()`. Keeps
+  `Storage` and `FavoriteController` listeners registered while bound.
+- `onDestroy()`: tears down any active playback session, ensures
+  `mTunerDriver.kill()`, unregisters `Storage` and `FavoriteController`
+  listeners, clears listener sets, and resets `sTunerActive = false`.
+- `onInternalStateChanged(int mode)`: centralized side effects on every
+  `mState` mutation — updates `sTunerActive`, persists `frequency_last` on
+  `SET_FREQUENCY`, pushes `RdsSnapshot` to `IAudioRecordable.updateRds(...)`
+  on frequency/RDS changes, refreshes the foreground playback notification
+  when `ENABLED` (avoiding redundant `startForeground()` calls on periodic
+  recording progress ticks), and notifies all `StateListener`s.
+- `addStateListener(StateListener)`: adds listener and immediately invokes
+  `onStateUpdated(mState, RadioState.INITIAL_SNAPSHOT_MASK)`.
+- `toggleSpeaker()`: switches `AudioOutput` (`HEADPHONES`/`SPEAKER`) via
+  `mAudioService.getOutput()` / `setOutput(...)` and applies
+  `mState.applyForceSpeaker(...)`.
+- `onPreferenceChanged`: updates pre-roll on `RECORDING_SAVE_PAST`, refreshes
+  playback notification on `NOTIFICATION_SHOW_RDS`, and forwards tuner
+  preference changes (`NativeTunerController.isTunerPreferenceKey`) to
+  `setupTunerByPreferences` only when `mState.getStatus() == TunerStatus.ENABLED`.
 - Backend resolution: `TunerDriverDetector.getTunerDriver()` gates launching
   `fmbin` (`/sys/class/video4linux/radio0/name` allowlist `iris`/`tavarua` or
-  `/dev/radio0` fallback → `V4L2_QCOM`; `fm_helium.so` → `HAL_HELIUM`; else
-  `NONE`). On ready handshake, `TunerDriverDetector.resolveNativeBackend()`
-  overrides the guess when a recognized backend is reported; explicit `"none"`
-  fails launch without creating hardware audio.
+  `/dev/radio0` fallback → `V4L2_QCOM`; `s610` → `V4L2_EXYNOS`;
+  `fm_helium.so` → `HAL_HELIUM`; else `NONE`). On ready handshake,
+  `TunerDriverDetector.resolveNativeBackend()` overrides the guess when a
+  recognized backend is reported; explicit `"none"` fails launch without
+  creating hardware audio.
 - Audio selection (`AudioSelection` + `AudioLifecycle`): API ≥ 26 →
-  `QUALCOMM_ROUTED` (`RoutingAudioService`), API 23–25 → `PCM_LOOPBACK`
-  (`LightAudioService`), `NONE` → no hardware audio.
+  `QUALCOMM_ROUTED` / `SAMSUNG_ROUTED` (`RoutingAudioService`), API 23–25 →
+  `PCM_LOOPBACK` (`LightAudioService`), `NONE` → no hardware audio.
 - `getPreferredRecorder()`: `recording_mode` → WAV (`RecordRawService`) /
-  MP3 192 or 128 (`RecordLameService`); sample rate comes from
-  `mAudioService.getPcmFormat().sampleRateHz()` (48000 on routed capture,
-  44100 on loopback). `AAC_128` is unhandled → null (unreachable from the UI).
-- `onDestroy` → `kill()`: `stopAudio`, `tuner kill`,
-  unregister both receivers and the `SharedPreferences` listener, `stopForeground(true)`.
-- Notifications (`service/FMNotificationManager.java`): playback id 1027 (MediaStyle, seek/stop/record/seek actions; `FMService` calls `startForeground(1027, notification)`),
-  recording progress id 1029, recorded-item (with delete intent into
-  `RecordingDeleteActivity`) id 1030 under tag `"recording:<uri>"`. Title:
-  frequency | PS (if `notification_show_ps`) or favorite name; text: RT.
+  MP3 192 or 128 (`RecordLameService`), injecting `mRecordingListener`; sample
+  rate comes from `mAudioService.getPcmFormat().sampleRateHz()` (48000 on
+  routed capture, 44100 on loopback).
+- Notifications (`service/FMNotificationManager.java`): playback id 1027
+  (MediaStyle, seek/stop/record/seek actions using `FMService.ACTION_*`;
+  `FMService` calls `startForeground(1027, notification)`), recording progress
+  id 1029, recorded-item (built from `RecordingResult`, with delete intent into
+  `RecordingDeleteActivity`) id 1030 under tag `"recording:<uri|path>"`. Title:
+  frequency | PS (if `notification_show_ps`) or favorite name (via
+  `FavoriteController.getFavoriteTitle(frequency)`); text: RT.
 
 ## Controller Layer
 
-- `controller/RadioController.java` — UI facade; every method sends a
-  `startService` intent with a `C.Command.*` action. Also the only consumer
-  of `C.Event.CURRENT_STATE` (`requestForCurrentState` round trip).
-- `controller/FavoriteController.java` (~450 lines, extends
-  `JSONFile<FavoriteFile>`) — favorites CRUD, rename/remove (blocked for
-  `default`), `importList` (JSON validation, 1 MB `MAX_IMPORT_BYTES`, name
-  sanitizing, `_N` uniquification), `exportList`/`exportAllLists` (ZIP),
-  `migrateLegacyFavorites()` from `/sdcard/RFM/favorites`.
-- `controller/RadioState.java` — Parcelable UI state (frequency, RDS
-  fields including RT+ and AF array, rmssi, sinr, stereo). `clear()` resets RDS/rmssi/sinr/stereo.
-- `controller/RadioStateUpdater.java` — registers `C.Event.*` receivers
-  and folds broadcasts into `RadioState`, notifying a
-  `TunerStateListener` with a change bitmask (`SET_*` flags, including `SET_RT_PLUS` and `SET_AF`).
+- `controller/RadioServiceController.java` — interface exposed by
+  `FMService.LocalBinder`: `getState()`, `enable()`, `disable()`,
+  `setFrequency()`, `jump()`, `hwSeek()`, `hwSearch()`, `cancelHwSearch()`,
+  `setPowerMode()`, `toggleSpeaker()`, `startRecord()`, `stopRecord()`,
+  `addStateListener()`/`removeStateListener()`,
+  `addEventListener()`/`removeEventListener()`.
+- `controller/RadioClient.java` — Activity-scoped `ServiceConnection` wrapper
+  (`connect()`/`disconnect()`). Binds with `BIND_AUTO_CREATE`, holds a
+  `mFallbackState` seeded with saved frequency prior to connection, queues
+  commands issued before `onServiceConnected()` in FIFO `mPendingCommands`
+  (cleared on `disconnect()`), and unregisters listeners on `disconnect()`.
+  Does not call `startService()` (`FMService.enable()` owns `Started` promotion).
+- `controller/StateListener.java` — persistent state observer
+  (`onStateUpdated(RadioState, int changeMask)`).
+- `controller/EventListener.java` — one-shot transient event observer with
+  default no-op methods (`onSearchProgress`, `onSearchDone`, `onSearchFailed`,
+  `onInvalidAntennaError`, `onRecordingFinished`, `onRecordingFailed`,
+  `onTunerError`).
+- `controller/RadioState.java` — plain in-process state model (no `Parcelable`)
+  holding `SET_*` change-mask constants, `INITIAL_SNAPSHOT_MASK`, and pure
+  reducers (`applyStatus`, `applyFrequency`, `applyPatch` with partial RT+
+  merge and signal/AF reset on frequency change, `applyRecordingStarted`,
+  `applyRecordingProgress`, `applyRecordingStopped`, `applyForceSpeaker`).
+- `controller/FavoriteController.java` (extends `JSONFile<FavoriteFile>`) —
+  thread-safe in-process singleton (`FavoriteController.get(Context)`,
+  package-private constructors for JVM tests), `OnFavoritesChangeListener`
+  (`CopyOnWriteArraySet`), cached `getFavoriteTitle(int kHz)`,
+  `replaceCurrentListStations(List<FavoriteStation>)`, favorites CRUD,
+  rename/remove (blocked for `default`), `importList` (JSON validation, 1 MB
+  `MAX_IMPORT_BYTES`, name sanitizing, `_N` uniquification),
+  `exportList`/`exportAllLists` (ZIP), `migrateLegacyFavorites()` from
+  `/sdcard/RFM/favorites`.
 - `enums/TunerDriver.java` — `V4L2_QCOM` / `V4L2_EXYNOS` / `HAL_HELIUM` / `NONE`,
   carrying backend capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
   `supportsNotchFilter`, `supportsAntenna`, `supportsAutoAf`,
@@ -154,15 +191,13 @@ via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
 
 ## service/fm/ Contract
 
-- `FMEventCallback` — `onEvent(String)`, `onStatePatch(RadioStatePatch)`,
-  `onSearchDone(int[])`; implemented by `FMService`.
-- `Request.java` — command object: `command` + `timeout` (default 1000 ms),
-  fluent `onResponse`/`onError`, `fire`/`fireError`. Per-command timeouts
-  used by the controllers: `init` 10000, `enable`/`disable` 5000, `seekhw`
-  4000, `jump` 1500, `searchhw` 60000, `slimbus` 2000 ms.
+- `FMEventCallback` — typed callbacks (`onStatusChanged`, `onFrequencyChanged`,
+  `onStatePatch`, `onSearchProgress`, `onSearchDone`, `onSearchFailed`,
+  `onInvalidAntennaError`, `onError`, `onUnexpectedExit`); implemented by
+  `FMService`.
 - `RadioStatePatch.java` — nullable fields (frequency, ps, rt, pi, country,
-  pty, af, stereo, rmssi); `isEmpty()`; `toIntent(action)` fills `C.Key.*`
-  extras (AF → `FREQUENCIES`, stereo → `STEREO_MODE`).
+  pty, af, stereo, rmssi, sinr, and individual RT+ title/artist/album fields
+  supporting both full `RtPlusInfo` and partial updates); `isEmpty()`.
 - `RecordError.java` — simple `Throwable` subtype for recording errors.
 
 ## service/fm/implementation/
@@ -180,11 +215,12 @@ via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
   `IOException("Native process is not running")`.
 - `startNativeProcess(timeoutMs)` — creates `NativeProcessSession`, forwards
   events to `mEventCallback`, and wires `handleUnexpectedNativeExit` as the
-  lifecycle listener (error event + `DISABLED`, then `context.stopService(FMService)`).
+  lifecycle listener (calls `mEventCallback.onUnexpectedExit(exitCode)`).
 - `launch()`: background thread `"NativeTunerLaunch"` —
   `Utils.runAsRoot("true")` (root probe; denial → `RootAccessDeniedError` →
-  `ROOT_ACCESS_DENIED`), `killall fmbin-*`, 150 ms sleep,
-  `startNativeProcess(5000)` (ready handshake), then `Request("init", 10000)`.
+  `TunerStatus.ROOT_ACCESS_DENIED`), stops any lingering previous session,
+  `killall fmbin-*`, 150 ms sleep, `startNativeProcess(5000)` (ready
+  handshake), then `Request("init", 10000)`.
 - Success test: `response.startsWith("ok")` — the JSON `ok` field is
   ignored throughout the Java bridge.
 - `enable()`: one atomic
@@ -192,9 +228,11 @@ via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
   formatted by `TunerCommandFormat` from preferences (saved frequency clamped
   to `BandUtils` band limits), followed by a non-default `set_notch_filter`
   when configured.
+- `disable()`: sends `disable` (5 s timeout) and then detaches and stops the
+  `NativeProcessSession` on `"NativeTunerStop"` so no root `fmbin` lingers.
 - `applyPreference` maps preferences to `set_spacing`, `set_region`,
   `set_stereo`, `set_soft_mute`, `set_notch_filter`, `set_antenna` (emitting
-  `ERROR_INVALID_ANTENNA` on `ERR_UNV_ANT`), `power_mode`, `auto_af`.
+  `onInvalidAntennaError()` on `ERR_UNV_ANT`), `power_mode`, `auto_af`.
   `setupTunerByPreferences(changed)` reads `SharedPreferences` via `Storage`
   and applies; a spacing change re-applies stereo afterwards (vendor quirk).
 - `setFrequency`: HAL only — suppresses a repeated tune within
@@ -202,7 +240,7 @@ via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
 - `refreshAudioRoute()`: HAL only — `slimbus 0` then `slimbus 1` (2000 ms
   timeouts each); restarts the audio transport when the output device
   changes. No-op on legacy.
-- `kill()` → background graceful stop → `DISABLED`, `KILLED` events.
+- `kill()` → detaches session and runs background graceful stop escalation.
 
 `TunerCommandFormat.java` — package-private command formatter:
 - `regionName`: 1→eu, 2→jp, 3→jp_wide, 4→us (default `eu`).
@@ -217,8 +255,7 @@ via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
   (shell-quoted), waits on a `CountDownLatch` for
   `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (`backend` overrides
   local sysfs fallback detection in `NativeTunerController`/`FMService` when present).
-  Protocol mismatch or pid ≤ 0 →
-  launch failure.
+  Protocol mismatch or pid ≤ 0 → launch failure.
 - Threads: `NativeStdout` (parses lines; non-JSON → warn+skip),
   `NativeStderr` (→ logcat `RFM-QCOM`), `NativeProcessWaiter` (exit
   monitor, 50 ms liveness poll).
@@ -233,12 +270,19 @@ via `Storage.get(this).registerOnChangeListener(...)`, forwarding only
 - Unexpected exit (after handshake, not a planned stop) fails all pending
   and queued requests and notifies the lifecycle listener.
 
-`NativeEventParser.java` (~150 lines): `state` → validated `RadioStatePatch`
-(frequency ≤ 0 → drop; rmssi outside [-128, 127] → drop; country must match
-`[A-Z]{2}`; pty < 0 → drop; AF with negatives → drop; PS/RT trimmed with
-newlines → spaces); `enabled` → `ENABLED` event; `disabled` → deliberately
-ignored (Java owns the disable lifecycle); `search_progress` →
-`onSearchProgress`; `search_done` → `onSearchDone`; anything else → warning.
+`NativeEventParser.java`: `state` → validated `RadioStatePatch`
+(frequency ≤ 0 → drop; rmssi/sinr outside [-128, 127] → drop, `null` →
+`RMSSI_UNKNOWN`/`SINR_UNKNOWN`; country must match `[A-Z]{2}`; pty < 0 → drop;
+AF with negatives → drop; PS/RT/RT+ trimmed with newlines → spaces);
+`enabled`, `disabled`, and `seek_done` → deliberately ignored (Java command
+completion owns enable/disable lifecycle and seek frequency arrives via `state`
+patches); `search_progress` → `onSearchProgress`; `search_done` →
+`onSearchDone`; `search_failed` → `onSearchFailed`; anything else → warning.
+
+`Request.java` — command object: `command` + `timeout` (default 1000 ms),
+fluent `onResponse`/`onError`, `fire`/`fireError`. Per-command timeouts
+used by `NativeTunerController`: `init` 10000, `enable`/`disable` 5000,
+`seekhw` 4000, `jump` 1500, `searchhw` 60000, `slimbus` 2000 ms.
 
 ## service/audio/
 
@@ -265,12 +309,11 @@ ignored (Java owns the disable lifecycle); `search_progress` →
 - `SamsungS610Audio.java` — Samsung Exynos S610 `RoutedAudioPolicy`:
   `g_fmradio_mute`, `g_fmradio_enable`, `AudioSystem.setForceUse(FOR_FM=8)`
   speaker routing (direct call with root `set_force_use` fallback in `fmbin`
-  when `MODIFY_AUDIO_ROUTING` is denied), and
-  scaled 0..15 hardware volume updates via `HardwareVolumeController`
-  (`NativeTunerController.setVolume` with completion callback). Distinguishes
-  requested vs confirmed applied volume (`getAppliedVolume()`) using strict
-  generation matching so failed/stale updates roll back deduplication without
-  corrupting capture gain.
+  when `MODIFY_AUDIO_ROUTING` is denied), and scaled 0..15 hardware volume
+  updates via `HardwareVolumeController` (`NativeTunerController.setVolume`
+  with completion callback). Distinguishes requested vs confirmed applied
+  volume (`getAppliedVolume()`) using strict generation matching so
+  failed/stale updates roll back deduplication without corrupting capture gain.
 - `RoutingAudioService.java` (API ≥ 26) — owns audio focus, hidden
   `VOLUME_CHANGED_ACTION` listener, and FM capture (`AudioRecord` 48000 Hz
   stereo PCM16 with `setPreferredDevice(TYPE_FM_TUNER)` found by
@@ -279,7 +322,7 @@ ignored (Java owns the disable lifecycle); `search_progress` →
   `compensateExynosVolume` guarded by `ExynosGainCompensationTracker` across
   `recordBufferShorts` drain transitions); `Fm2RecordPcm` thread feeds
   `PcmRecorderSession`. Delegates output routing and speaker side effects to
-  its `RoutedAudioPolicy`.
+  its `RoutedAudioPolicy`. Does not run a duplicate recording progress timer.
 - `LightAudioService.java` (API < 26, legacy) — `AudioRecord` (source
   1998, 44100) → `AudioTrack` (`STREAM_MUSIC`) loop on a thread; the same
   `PcmRecorderSession.append()` sits on the capture path; same pre-roll;
@@ -295,9 +338,11 @@ Data flow:
 AudioService capture thread
   -> PcmRecorderSession (ring buffer + rdsHistory)
   -> FmPcmWriter thread (bounded queue, backpressure)
-  -> IFMRecorder.record(short[], int)         (PCM)
+  -> IFMRecorder.record(short[], int)          (PCM)
   -> RecordService.onReceivedData              (encode + write)
-RDS: RadioStateUpdater -> updateRds(RdsSnapshot)
+  -> RecordingListener (marshaled to main looper in FMService)
+     -> RadioState.applyRecording* + FMNotificationManager + EventListener
+RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   -> PcmRecorderSession.updateRds (PCM position)
   -> RecordService.recordRds -> RdsSubtitleWriter
 ```
@@ -310,6 +355,12 @@ RDS: RadioStateUpdater -> updateRds(RdsSnapshot)
 - `IFMRecorder` — `startRecord(initialDurationMillis)`, `record(short[],
   int)`, `recordRds(positionMillis, RdsSnapshot)` (default no-op),
   `stopRecord()`.
+- `RecordingListener.java` — typed recording lifecycle callbacks
+  (`onRecordingStarted`, `onRecordingProgress`, `onRecordingCompleted`,
+  `onRecordingFailed`).
+- `RecordingResult.java` — immutable value object carrying size, duration,
+  display path/name, audio URI/path, `subtitlesRequested`, subtitle URI/path,
+  and `hasSubtitleFailure()`.
 - `PcmRecorderSession.java` (~300 lines) — PCM ring buffer sized
   `sampleRate × channels × preRollSeconds` (pre-roll =
   `C.Config.RECORDING_PRE_ROLL_SECONDS` = 5 s, opt-in via
@@ -319,15 +370,15 @@ RDS: RadioStateUpdater -> updateRds(RdsSnapshot)
   to the recording start, then streams PCM through the `FmPcmWriter`
   thread (`ArrayBlockingQueue` of 256 chunks, FINISH marker). `stop()`
   drains the queue before `stopRecord()`. `clearHistory()` only when idle.
-- `RecordService.java` (~420 lines, abstract) — state machine
+- `RecordService.java` (abstract) — state machine
   IDLE/RECORDING/FINISHING/DONE. `startRecord` creates the file via
-  `RecordingStorage.create()` and reads `recording_save_srt` once per
-  recording; `record()` buffers (`7200 + len*2*1.75` bytes) → encode →
-  write, throttled `RECORD_TIME_UPDATE` (≥ 750 ms); `stopRecord()` flushes
-  the encoder, closes streams, `RecordingTarget.commit()`/`abort()`,
-  publishes subtitles, and broadcasts the final `RECORD_ENDED` with SIZE,
-  DURATION, PATH, DISPLAY_NAME, RECORDING_URI|RECORDING_FILE_PATH,
-  SUBTITLE_URI|SUBTITLE_FILE_PATH, SUBTITLES_REQUESTED. Duration =
+  `RecordingStorage.create()`, reads `recording_save_srt` once per recording,
+  and invokes `RecordingListener.onRecordingStarted(...)`; `record()` buffers
+  (`7200 + len*2*1.75` bytes) → encode → write, throttled
+  `onRecordingProgress(...)` (≥ 750 ms); `stopRecord()` flushes the encoder,
+  closes streams, `RecordingTarget.commit()`/`abort()`, publishes subtitles,
+  and notifies `onRecordingCompleted(RecordingResult)` or
+  `onRecordingFailed(IOException)`. Duration =
   max(initialDuration, acceptedPcmSamples/sampleRate/2). On `IOException`
   in `record()` it silently returns to IDLE, leaving the file unfinished.
 - `RecordRawService.java` — WAV: writes a 44-byte header at start, patches
@@ -365,41 +416,56 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
 (`{"items":[{"frequency":…,"title":…}]}`); the active list name is the
 `SharedPreferences` key `favorites_list_current` (default `"default"`). No SQLite.
 
+- In-process singleton: `FavoriteController.get(context)` maintains a
+  `CopyOnWriteArraySet<OnFavoritesChangeListener>` and an in-memory frequency →
+  title map rebuilt on `reload()` and `save()`.
+- `MainActivity`, `FavoritesView`, `FavoriteListsActivity`, and `FMService`
+  share the singleton; all mutations (`save`, `setCurrentFavoriteList`,
+  `addList`, `renameList`, `removeList`, `importList`,
+  `replaceCurrentListStations`) automatically notify listeners.
 - Import: `FavoriteController.importList` (JSON) or
   `FavoriteListsActivity` (ZIP via `ZipInputStream`, multiple lists).
 - Export: single list, selected lists, or all lists as ZIP.
-- A completed hardware search (`HW_SEARCH_DONE`) replaces the current
-  list's content (MainActivity `mSearchDone`).
+- A completed hardware search (`EventListener.onSearchDone`) replaces the
+  current list via `FavoriteController.replaceCurrentListStations(...)`.
 - `FavoriteStation(JSONObject)` defaults the frequency to **108100** —
   outside the EU band; malformed JSON silently produces it.
 
 ## UI
 
-- `MainActivity` (~774 lines) — startup gates: `Utils
-  .isRootEnvironmentAvailable()` (checks for `su` only) and
-  `TunerDriverDetector.isDeviceSupported()`; failure →
-  `StartupBlockedActivity` (two reasons: root required / unsupported
-  device). Owns `RadioController` + `FavoriteController`;
-  `registerForUpdates(this)`; `requestForCurrentState` broadcast round
-  trip. Runtime permissions: recording (`RECORD_AUDIO`, storage when
-  needed) with a "don't ask again → open settings" flow; playback
-  `RECORD_AUDIO` only for legacy + API < 26. Menu: about, settings, scan,
-  record, speaker. `HW_SEARCH` shows a confirm dialog, then a titled progress
-  dialog updated via `HW_SEARCH_PROGRESS` and completed by a `HW_SEARCH_DONE`
-  receiver. `onDestroy`: if `tuner_power_mode` is enabled,
-  `setPowerMode(LOW)` while the service keeps running.
-- `FavoriteListsActivity` (~719 lines) — list manager: RecyclerView with
-  selection mode, rename/remove, export (single/selected ZIP/all), import
-  (JSON or ZIP via SAF `ACTION_*_DOCUMENT`).
-- `SettingsActivity` — hosts `PreferencesFragment`; listens for
-  `ERROR_INVALID_ANTENNA` → toast.
-- `RecordingDeleteActivity` — dialog activity (noHistory,
-  excludeFromRecents); deletes audio + subtitles via
-  `RecordingStorage.deletePublished`, cancels the notification.
-- Views: `RadioUIView` (Material 3 card with frequency, PS/RT/PTY/PI, `MaterialButtonToggleGroup` RT ↔ RT+ mode switcher for structured Artist/Title/Album display, statuses),
-  `FrequencyDialView` (custom Canvas drum-style horizontal frequency dial themed via Material 3 `MaterialColors` with fling physics, haptic ticks, and favorite markers; band/spacing from `BandUtils`),
-  `FavoritesView`/`FavoritesRecyclerView`/
-  `FavoritePanelAdapter` (Material 3 card-based 2-column preset grid with tonal list selector, add-station button, lists manager shortcut, and drag & drop via `SimpleItemTouchHelperCallback`),
+- `MainActivity` — startup gates: `Utils.isRootEnvironmentAvailable()` (checks
+  for `su` only) and `TunerDriverDetector.isDeviceSupported()`; failure →
+  `StartupBlockedActivity` (two reasons: root required / unsupported device).
+  Uses `RadioClient` (bound in `onStart()`, unbound in `onStop()`) and
+  `FavoriteController.get(this)`. On `SET_INITIAL` snapshot: applies
+  `PowerMode.NORMAL` if `ENABLED` and evaluates `app_auto_startup` once when
+  `IDLE` (preventing re-trigger on recreation). In `onStop()`: if
+  `isLowPowerMode()` and `ENABLED`, applies `PowerMode.LOW` before
+  `disconnect()`; if `HW_SEARCH` is active while finishing or changing
+  configurations, cancels search and dismisses `mSearchProgress` (and
+  `onDestroy()` also dismisses `mSearchProgress` to avoid `WindowLeaked`).
+  Runtime permissions: recording (`RECORD_AUDIO`, storage when needed) with a
+  "don't ask again → open settings" flow; playback `RECORD_AUDIO` only for
+  legacy + API < 26. Menu: settings, scan, speaker (`toggleSpeaker()`), about.
+- `FavoriteListsActivity` — list manager using `FavoriteController.get(this)`:
+  RecyclerView with selection mode, rename/remove, export (single/selected
+  ZIP/all), import (JSON or ZIP via SAF `ACTION_*_DOCUMENT`).
+- `SettingsActivity` — hosts `PreferencesFragment`; binds `RadioClient` in
+  `onStart()`/`onStop()` to observe `EventListener.onInvalidAntennaError()` →
+  toast.
+- `RecordingDeleteActivity` — dialog activity (noHistory, excludeFromRecents)
+  with self-contained `EXTRA_*` keys (including `EXTRA_SUBTITLE_*`); deletes
+  audio + subtitles via `RecordingStorage.deletePublished`, cancels the
+  notification.
+- Views: `RadioUIView` (Material 3 card with frequency, PS/RT/PTY/PI,
+  `MaterialButtonToggleGroup` RT ↔ RT+ mode switcher for structured
+  Artist/Title/Album display, statuses), `FrequencyDialView` (custom Canvas
+  drum-style horizontal frequency dial themed via Material 3 `MaterialColors`
+  with fling physics, haptic ticks, and favorite markers; band/spacing from
+  `BandUtils`), `FavoritesView`/`FavoritesRecyclerView`/`FavoritePanelAdapter`
+  (Material 3 card-based 2-column preset grid observing `FavoriteController`
+  on attach/detach and delegating station selection and add-current-station
+  requests via `OnStationActionListener` to `MainActivity`),
   `SignalStrength.levelForRmssi` (thresholds −105/−91/−81/−71/−61 → five
   bars).
 
@@ -442,7 +508,8 @@ inside `Storage.java`.
 | `bin_apk_update_time` | — | internal native `long`, APK `lastUpdateTime` when fmbin was installed |
 
 `SharedPreferences` changes reach `FMService` through its strong-referenced
-`OnSharedPreferenceChangeListener` → `setupTunerByPreferences` + pre-roll toggle.
+`OnSharedPreferenceChangeListener` → `setupTunerByPreferences` (when `ENABLED`),
+notification refresh (`notification_show_ps`), and pre-roll toggle.
 
 ## Build
 
@@ -458,18 +525,26 @@ env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 
 ## JVM Unit Tests
 
-`app/src/test/java/…` (JUnit4): `RadioStateTest` (clear semantics),
+`app/src/test/java/…` (JUnit4): `RadioStateTest` (clear semantics + pure
+reducers `applyStatus`, `applyFrequency`, `applyPatch`, recording/speaker
+masks), `RadioClientTest` (pending command FIFO queue, disconnect cleanup,
+immediate `SET_INITIAL` snapshot), `FavoriteControllerTest` (listener
+notifications, cached `getFavoriteTitle`, `replaceCurrentListStations`, list
+switch/rename/remove), `NativeEventParserTest` (typed `FMEventCallback`
+dispatch, validation, partial RT+, duplicate lifecycle suppression),
 `SignalStrengthTest` (RMSSI thresholds → bars), `RequestTest` (dispatch),
 `FMNotificationManagerTest` (playback title/body precedence, compact actions,
-recording tags/ids), `TunerCommandFormatTest` (atomic enable command,
-region/spacing mapping), `TunerDriverDetectorTest` (allowlist + handshake
-backend resolution), `TunerDriverCapabilitiesTest` (backend capability flags +
-`BandUtils` limits/spacing), `StorageTest` (string-backed UI preference parsing, native type round-trips,
-`ClassCastException` safety, and `preferences.xml` ↔ `Storage` key/default parity), `AudioSelectionTest`
-(API/backend matrix), `AudioLifecycleTest` (start/stop ordering, idempotent
-teardown), `QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
-`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle), `RoutingAudioServiceTest`,
-`SamsungS610AudioTest`, `PcmFormatTest`
+`RecordingResult` tags/subtitle warnings, channel ids),
+`TunerCommandFormatTest` (atomic enable command, region/spacing mapping),
+`TunerDriverDetectorTest` (allowlist + handshake backend resolution),
+`TunerDriverCapabilitiesTest` (backend capability flags + `BandUtils`
+limits/spacing), `StorageTest` (string-backed UI preference parsing, native
+type round-trips, `ClassCastException` safety, and `preferences.xml` ↔
+`Storage` key/default parity), `AudioSelectionTest` (API/backend matrix),
+`AudioLifecycleTest` (start/stop ordering, idempotent teardown),
+`QualcommRoutedAudioTest` (parameter order, `fm_status` reset, V4L2
+`FOR_MEDIA` vs Helium Slimbus, loopback speaker toggle),
+`RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`
 (stereo formats, mismatch rejection, routed V4L2 48 kHz),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
 ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
@@ -479,22 +554,17 @@ No instrumented tests.
 ## Dead Code and Traps Inventory
 
 1. `service/streaming/` — empty directory.
-2. `C.RecordFormat.AAC_128` (=3) — `getPreferredRecorder()` returns null
-   for it; unreachable from the UI but an NPE trap if set manually.
-3. `C.Event.HW_SEEK_COMPLETE` — unused legacy event; the native driver
-   completes seeks via state patches.
-4. `C.Event.UPDATE_AF` — declared, never sent (AF arrives in state patches).
-5. `FavoriteStation` JSON default 108100 kHz.
-6. `AudioService.mAudioSource = 1998` — an unofficial FM source constant;
+2. `FavoriteStation` JSON default 108100 kHz.
+3. `AudioService.mAudioSource = 1998` — an unofficial FM source constant;
    device-dependent.
-7. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
+4. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
    and `AudioManager.setParameters("fm_…")` — vendor-dependent by design.
-8. `RecordService.record()` swallows `IOException` → silent IDLE.
-9. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
+5. `RecordService.record()` swallows `IOException` → silent IDLE.
+6. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
    audio thread.
-10. Debug builds always reinstall `fmbin` (`isObsolete()` includes
-    `BuildConfig.DEBUG`) — frequent binary copies are expected during
-    debugging.
-11. `Utils.runAsRoot` has a 15-second shell timeout.
-12. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
-    unused (see `NativeTunerController`).
+7. Debug builds always reinstall `fmbin` (`isObsolete()` includes
+   `BuildConfig.DEBUG`) — frequent binary copies are expected during
+   debugging.
+8. `Utils.runAsRoot` has a 15-second shell timeout.
+9. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
+   unused (see `NativeTunerController`).

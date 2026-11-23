@@ -1,9 +1,7 @@
 package com.vlad805.fmradio;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -12,8 +10,6 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
-import androidx.appcompat.app.AlertDialog;
-import androidx.core.content.ContextCompat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -196,15 +192,6 @@ public class Utils {
 				.setPositiveButton(ok, (dialog, which) -> dialog.cancel())
 				.create()
 				.show();
-	}
-
-	public static void sendAppBroadcast(final Context context, final Intent intent) {
-		intent.setPackage(BuildConfig.APPLICATION_ID);
-		context.sendBroadcast(intent);
-	}
-
-	public static void registerAppReceiver(final Context context, final BroadcastReceiver receiver, final IntentFilter filter) {
-		ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
 	}
 
 	public interface FetchCallback {

@@ -1,8 +1,5 @@
 package com.vlad805.fmradio.controller;
 
-import android.os.Parcel;
-import android.os.Parcelable;
-
 import androidx.annotation.NonNull;
 
 import com.vlad805.fmradio.models.RtPlusInfo;
@@ -11,11 +8,11 @@ import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import java.util.Arrays;
 
 /**
- * A class that stores the current state of the radio tuner, audio service and other
- * parameters.
+ * Single in-process state model for the radio tuner, audio routing, and recording status.
+ * Owned and mutated exclusively on the main thread by {@link com.vlad805.fmradio.service.FMService}.
  * vlad805 (c) 2021
  */
-public final class RadioState implements Parcelable {
+public final class RadioState {
     public static final int SET_STATUS = 1;
     public static final int SET_FREQUENCY = 1 << 1;
     public static final int SET_PS = 1 << 2;
@@ -343,62 +340,6 @@ public final class RadioState implements Parcelable {
     void setForceSpeaker(boolean forceSpeaker) {
         this.forceSpeaker = forceSpeaker;
     }
-
-    RadioState(final Parcel in) {
-        status = (TunerStatus) in.readValue(TunerStatus.class.getClassLoader());
-        frequency = in.readInt();
-        pi = in.readString();
-        country = in.readString();
-        pty = in.readInt();
-        ps = in.readString();
-        rt = in.readString();
-        stereo = in.readInt() > 0;
-        rmssi = in.readInt();
-        sinr = in.readInt();
-        recording = in.readInt() > 0;
-        recordingStarted = in.readLong();
-        forceSpeaker = in.readInt() > 0;
-        final RtPlusInfo parsedRtPlus = in.readTypedObject(RtPlusInfo.CREATOR);
-        rtPlus = parsedRtPlus != null ? parsedRtPlus : RtPlusInfo.EMPTY;
-        final int[] parsedAf = in.createIntArray();
-        af = parsedAf != null && parsedAf.length > 0 ? parsedAf : EMPTY_AF;
-    }
-
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    @Override
-    public void writeToParcel(final Parcel dest, int flags) {
-        dest.writeValue(status);
-        dest.writeInt(frequency);
-        dest.writeString(pi);
-        dest.writeString(country);
-        dest.writeInt(pty);
-        dest.writeString(ps);
-        dest.writeString(rt);
-        dest.writeInt(stereo ? 1 : 0);
-        dest.writeInt(rmssi);
-        dest.writeInt(sinr);
-        dest.writeInt(recording ? 1 : 0);
-        dest.writeLong(recordingStarted);
-        dest.writeInt(forceSpeaker ? 1 : 0);
-        dest.writeTypedObject(rtPlus, flags);
-        dest.writeIntArray(af);
-    }
-
-    public static final Parcelable.Creator<RadioState> CREATOR = new Parcelable.Creator<RadioState>() {
-        @Override
-        public RadioState createFromParcel(Parcel in) {
-            return new RadioState(in);
-        }
-
-        @Override
-        public RadioState[] newArray(int size) {
-            return new RadioState[size];
-        }
-    };
 
     @Override
     public String toString() {

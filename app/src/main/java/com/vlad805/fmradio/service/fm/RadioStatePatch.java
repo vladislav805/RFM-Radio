@@ -1,10 +1,7 @@
 package com.vlad805.fmradio.service.fm;
 
-import android.content.Intent;
-
 import androidx.annotation.Nullable;
 
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.models.RtPlusInfo;
 
 public final class RadioStatePatch {
@@ -164,61 +161,5 @@ public final class RadioStatePatch {
                 sinr == null &&
                 !hasRtPlus()
         );
-    }
-
-    public Intent toIntent(final String action) {
-        final Intent intent = new Intent(action);
-
-        if (frequency != null) {
-            intent.putExtra(C.Key.FREQUENCY, frequency);
-        }
-
-        if (ps != null) {
-            intent.putExtra(C.Key.PS, ps);
-        }
-
-        if (rt != null) {
-            intent.putExtra(C.Key.RT, rt);
-        }
-
-        if (pi != null) {
-            intent.putExtra(C.Key.PI, pi);
-        }
-
-        if (country != null) {
-            intent.putExtra(C.Key.COUNTRY, country);
-        }
-
-        if (pty != null) {
-            intent.putExtra(C.Key.PTY, pty);
-        }
-
-        if (af != null) {
-            intent.putExtra(C.Key.FREQUENCIES, af);
-        }
-
-        if (stereo != null) {
-            intent.putExtra(C.Key.STEREO_MODE, stereo);
-        }
-
-        if (rmssi != null) {
-            intent.putExtra(C.Key.RMSSI, rmssi);
-        }
-
-        if (sinr != null) {
-            intent.putExtra(C.Key.SINR, sinr);
-        }
-
-        if (rtPlusTitle != null) {
-            intent.putExtra(C.Key.RT_PLUS_TITLE, rtPlusTitle);
-        }
-        if (rtPlusArtist != null) {
-            intent.putExtra(C.Key.RT_PLUS_ARTIST, rtPlusArtist);
-        }
-        if (rtPlusAlbum != null) {
-            intent.putExtra(C.Key.RT_PLUS_ALBUM, rtPlusAlbum);
-        }
-
-        return intent;
     }
 }
