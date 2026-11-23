@@ -2,6 +2,8 @@ package com.vlad805.fmradio.controller;
 
 import android.content.Context;
 import android.os.Environment;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.helper.json.JSONFile;
 import com.vlad805.fmradio.models.FavoriteFile;
@@ -20,8 +22,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -29,7 +36,15 @@ import java.util.zip.ZipOutputStream;
  * vlad805 (c) 2020
  */
 public class FavoriteController extends JSONFile<FavoriteFile> {
+	public interface OnFavoritesChangeListener {
+		void onFavoritesChanged(@NonNull String currentListName, @NonNull List<FavoriteStation> stations);
+	}
+
+	private static volatile FavoriteController sInstance;
+
 	private List<FavoriteStation> mList;
+	private Map<Integer, String> mTitleByFrequency = Collections.emptyMap();
+	private final Set<OnFavoritesChangeListener> mListeners = new CopyOnWriteArraySet<>();
 	private final Storage mStorage;
 
 	private static final String KEY_JSON_ITEMS = "items";
@@ -38,10 +53,72 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 
 	private static final String JSON_EXT = ".json";
 
-	public FavoriteController(final Context context) {
+	@NonNull
+	public static FavoriteController get(@NonNull final Context context) {
+		FavoriteController instance = sInstance;
+		if (instance == null) {
+			synchronized (FavoriteController.class) {
+				instance = sInstance;
+				if (instance == null) {
+					final Context appContext = context.getApplicationContext();
+					instance = new FavoriteController(appContext, Storage.get(appContext));
+					sInstance = instance;
+				}
+			}
+		}
+		return instance;
+	}
+
+	FavoriteController(@NonNull final Context context, @NonNull final Storage storage) {
 		super(context);
-		this.mStorage = Storage.get(context);
+		mStorage = storage;
 		migrateLegacyFavorites();
+	}
+
+	FavoriteController(@NonNull final File baseDir, @NonNull final Storage storage) {
+		super(baseDir);
+		mStorage = storage;
+	}
+
+	public void addOnChangeListener(@NonNull final OnFavoritesChangeListener listener) {
+		mListeners.add(listener);
+	}
+
+	public void removeOnChangeListener(@NonNull final OnFavoritesChangeListener listener) {
+		mListeners.remove(listener);
+	}
+
+	private void notifyListeners() {
+		final String currentList = getCurrentFavoriteList();
+		final List<FavoriteStation> snapshot = Collections.unmodifiableList(
+				new ArrayList<>(getStationsInCurrentList())
+		);
+		for (final OnFavoritesChangeListener listener : mListeners) {
+			listener.onFavoritesChanged(currentList, snapshot);
+		}
+	}
+
+	private void rebuildTitleCache() {
+		final Map<Integer, String> cache = new HashMap<>();
+		if (mList != null) {
+			for (final FavoriteStation station : mList) {
+				cache.put(station.getFrequency(), station.getTitle());
+			}
+		}
+		mTitleByFrequency = cache;
+	}
+
+	@Nullable
+	public String getFavoriteTitle(final int frequencyKhz) {
+		if (mList == null) {
+			reload();
+		}
+		return mTitleByFrequency.get(frequencyKhz);
+	}
+
+	public void replaceCurrentListStations(@NonNull final List<FavoriteStation> stations) {
+		mList = new ArrayList<>(stations);
+		save();
 	}
 
 	/**
@@ -106,6 +183,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 
 		mStorage.setCurrentFavoriteList(name);
 		reload();
+		notifyListeners();
 	}
 
 	/**+
@@ -161,6 +239,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			e.printStackTrace();
 		}
 
+		notifyListeners();
 		return true;
 	}
 
@@ -196,6 +275,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			reload();
 		}
 
+		notifyListeners();
 		return true;
 	}
 
@@ -211,6 +291,7 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 			stream.write(importedJson.getBytes());
 		}
 
+		notifyListeners();
 		return finalName;
 	}
 
@@ -272,15 +353,22 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 		}
 
 		final File file = new File(getFavoritesDirectory(), name + JSON_EXT);
-		if (getCurrentFavoriteList().equals(name)) {
+		final boolean wasCurrent = getCurrentFavoriteList().equals(name);
+		if (wasCurrent) {
 			try {
 				setCurrentFavoriteList(DEFAULT_NAME);
 			} catch (FileNotFoundException e) {
-				e.printStackTrace();
+				mStorage.setCurrentFavoriteList(DEFAULT_NAME);
+				reload();
+				notifyListeners();
 			}
 		}
 
-		return file.delete();
+		final boolean deleted = file.delete();
+		if (deleted && !wasCurrent) {
+			notifyListeners();
+		}
+		return deleted;
 	}
 
 	/**
@@ -288,13 +376,19 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	 */
 	public void reload() {
 		mList = read().getItems();
+		rebuildTitleCache();
 	}
 
 	/**
 	 * Save local list to file (current list)
 	 */
 	public void save() {
+		if (mList == null) {
+			mList = new ArrayList<>();
+		}
 		write(new FavoriteFile(mList));
+		rebuildTitleCache();
+		notifyListeners();
 	}
 
 	/**
@@ -336,9 +430,11 @@ public class FavoriteController extends JSONFile<FavoriteFile> {
 	public void write(final FavoriteFile data) {
 		try {
 			final List<JSONObject> list = new ArrayList<>();
-
-			for (final FavoriteStation station : mList) {
-				list.add(station.toJson());
+			final List<FavoriteStation> items = data != null && data.getItems() != null ? data.getItems() : mList;
+			if (items != null) {
+				for (final FavoriteStation station : items) {
+					list.add(station.toJson());
+				}
 			}
 
 			final String str = new JSONObject().put(KEY_JSON_ITEMS, new JSONArray(list)).toString();

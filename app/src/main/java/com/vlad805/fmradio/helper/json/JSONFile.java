@@ -2,6 +2,7 @@ package com.vlad805.fmradio.helper.json;
 
 import android.content.Context;
 import android.util.Log;
+import androidx.annotation.NonNull;
 
 import java.io.*;
 
@@ -10,9 +11,16 @@ import java.io.*;
  */
 public abstract class JSONFile<T extends IJsonable> {
 	private final Context mContext;
+	private final File mBaseDir;
 
 	protected JSONFile(final Context context) {
 		mContext = context.getApplicationContext();
+		mBaseDir = null;
+	}
+
+	protected JSONFile(@NonNull final File baseDir) {
+		mContext = null;
+		mBaseDir = baseDir;
 	}
 
 	/**
@@ -20,12 +28,10 @@ public abstract class JSONFile<T extends IJsonable> {
 	 * @return Path to application directory
 	 */
 	protected final String getBaseApplicationDirectory() {
-		final File externalDir = mContext.getExternalFilesDir(null);
-		if (externalDir == null) {
+		final File dir = mBaseDir != null ? mBaseDir : mContext.getExternalFilesDir(null);
+		if (dir == null) {
 			throw new IllegalStateException("External files directory is not available");
 		}
-
-		File dir = externalDir;
 
 		if (!dir.exists()) {
 			if (!dir.mkdirs()) {

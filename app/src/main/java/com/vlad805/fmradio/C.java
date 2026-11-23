@@ -42,7 +42,6 @@ final public class C {
 
 		public static final String CHANGE_SPEAKER_MODE = BASE + "CHANGE_SPEAKER_MODE";
 
-		public static final String FAVORITE_LIST_CHANGED = BASE + "FAVORITE_LIST_CHANGED";
 		public static final String CURRENT_STATE = BASE + "CURRENT_STATE";
 
 		public static final String ERROR_INVALID_ANTENNA = BASE + "ERROR_INVALID_ANTENNA";

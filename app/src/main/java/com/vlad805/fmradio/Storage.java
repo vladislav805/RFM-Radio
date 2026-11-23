@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.preference.PreferenceManager;
 
 /**
@@ -92,7 +93,8 @@ public final class Storage {
 
 	private final SharedPreferences mPreferences;
 
-	Storage(@NonNull final SharedPreferences preferences) {
+	@VisibleForTesting
+	public Storage(@NonNull final SharedPreferences preferences) {
 		mPreferences = preferences;
 	}
 

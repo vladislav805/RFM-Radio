@@ -4,13 +4,14 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.Menu;
 import android.view.View;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.controller.FavoriteController;
-import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
 import com.vlad805.fmradio.helper.Toast;
@@ -26,14 +27,19 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 	protected List<FavoriteStation> mStations;
 	private FavoritePanelAdapter mAdapter;
 	private FavoriteController mController;
-	private final RadioController mRadioController;
 	private final Toast mToast;
 	private OnFavoritesChangedListener mOnFavoritesChangedListener;
+	private OnStationActionListener mOnStationActionListener;
 	private SimpleItemTouchHelperCallback mTouchHelperCallback;
 	private boolean mEditMode;
 
 	public interface OnFavoritesChangedListener {
 		void onFavoritesChanged();
+	}
+
+	public interface OnStationActionListener {
+		void onStationSelected(@NonNull FavoriteStation station);
+		void onAddCurrentStationRequested();
 	}
 
 	public FavoritesRecyclerView(final Context context) {
@@ -43,7 +49,6 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 	public FavoritesRecyclerView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
 
-		mRadioController = new RadioController(context);
 		mToast = Toast.create(context);
 
 		init(context);
@@ -67,9 +72,16 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 			mController.reload();
 		}
 
+		syncFromController();
+		notifyFavoritesChanged();
+	}
+
+	public void syncFromController() {
+		if (mController == null) {
+			return;
+		}
 		mStations = mController.getStationsInCurrentList();
 		mAdapter.setList(mStations);
-		notifyFavoritesChanged();
 	}
 
 	public void setActiveFrequency(final int frequency) {
@@ -78,6 +90,10 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 
 	public void setOnFavoritesChangedListener(final OnFavoritesChangedListener listener) {
 		mOnFavoritesChangedListener = listener;
+	}
+
+	public void setOnStationActionListener(@Nullable final OnStationActionListener listener) {
+		mOnStationActionListener = listener;
 	}
 
 	public int getStationsCount() {
@@ -110,35 +126,37 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 
 		if (position < size) {
 			final FavoriteStation station = mStations.get(position);
-			mRadioController.setFrequency(station.getFrequency());
+			if (mOnStationActionListener != null) {
+				mOnStationActionListener.onStationSelected(station);
+			}
 			return;
 		}
 
 		if (position == size) {
-			promptAddCurrentStation();
+			if (mOnStationActionListener != null) {
+				mOnStationActionListener.onAddCurrentStationRequested();
+			}
 		}
 	}
 
-	public void promptAddCurrentStation() {
+	public void promptAddStation(final int frequencyKhz, @Nullable final String suggestedTitle) {
 		if (mEditMode || mStations == null || !isEnabled()) {
 			return;
 		}
 
-		mRadioController.requestForCurrentState((state, mode) -> {
-			setActiveFrequency(state.getFrequency());
-			if (hasFrequency(state.getFrequency())) {
-				mToast.text(R.string.favorite_station_already_added).show();
-				return;
-			}
+		setActiveFrequency(frequencyKhz);
+		if (hasFrequency(frequencyKhz)) {
+			mToast.text(R.string.favorite_station_already_added).show();
+			return;
+		}
 
-			new EditTextDialog(getContext(), normalizeStationTitle(state.getPs()), title -> {
-				final int insertPos = mStations.size();
-				final FavoriteStation station = new FavoriteStation(state.getFrequency(), title);
-				mStations.add(station);
-				mAdapter.notifyItemInserted(insertPos);
-				onFavoriteListUpdated();
-			}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
-		});
+		new EditTextDialog(getContext(), normalizeStationTitle(suggestedTitle), title -> {
+			final int insertPos = mStations.size();
+			final FavoriteStation station = new FavoriteStation(frequencyKhz, title);
+			mStations.add(station);
+			mAdapter.notifyItemInserted(insertPos);
+			onFavoriteListUpdated();
+		}).setTitle(R.string.popup_station_create).setHint(R.string.popup_station_create_hint).open();
 	}
 
 	@Override

@@ -18,6 +18,7 @@ import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.controller.RadioController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.RadioStateUpdater;
+import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -51,8 +52,6 @@ public class FMService extends Service implements FMEventCallback {
     private RadioController mRadioController;
     private FavoriteController mFavoriteController;
 
-    private Map<Integer, String> mFavoriteList;
-
     private NativeTunerController mTunerDriver;
     private TunerDriver mTunerDriverKind;
     private AudioService mAudioService;
@@ -62,11 +61,16 @@ public class FMService extends Service implements FMEventCallback {
     private BroadcastReceiver mTunerStateUpdater;
 
     private Storage mStorage;
+    private RadioState mState;
     private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceChangeListener = this::onPreferenceChanged;
+    private final FavoriteController.OnFavoritesChangeListener mFavoritesListener =
+            (currentListName, stations) -> {
+                if (mState != null && mState.getStatus() == TunerStatus.ENABLED) {
+                    updateNotification();
+                }
+            };
     private boolean mRecordingNow = false;
     private boolean mDestroyed = false;
-
-    private RadioState mState;
 
     @Override
     public void onCreate() {
@@ -77,7 +81,8 @@ public class FMService extends Service implements FMEventCallback {
 
         // Controllers&managers
         mRadioController = new RadioController(this);
-        mFavoriteController = new FavoriteController(this);
+        mFavoriteController = FavoriteController.get(this);
+        mFavoriteController.addOnChangeListener(mFavoritesListener);
         mNotifications = new FMNotificationManager(this);
         mNotifications.createChannels();
 
@@ -102,8 +107,6 @@ public class FMService extends Service implements FMEventCallback {
         if (mTunerDriver != null) {
             mTunerDriver.setEventListener(this);
         }
-
-        reloadFavorite();
 
         Utils.registerAppReceiver(this, mTunerStateUpdater, RadioStateUpdater.sFilter);
         Utils.registerAppReceiver(this, mEventReaction, RadioStateUpdater.sFilter);
@@ -323,6 +326,10 @@ public class FMService extends Service implements FMEventCallback {
 
         if (mStorage != null) {
             mStorage.unregisterOnChangeListener(mPreferenceChangeListener);
+        }
+
+        if (mFavoriteController != null) {
+            mFavoriteController.removeOnChangeListener(mFavoritesListener);
         }
 
         stopForeground(true);
@@ -609,11 +616,6 @@ public class FMService extends Service implements FMEventCallback {
                     break;
                 }
 
-                case C.Event.FAVORITE_LIST_CHANGED: {
-                    reloadFavorite();
-                    break;
-                }
-
                 case C.Event.RECORD_STARTED: {
                     mRecordingNow = true;
                     updateNotification();
@@ -661,7 +663,7 @@ public class FMService extends Service implements FMEventCallback {
                 frequency,
                 mState.getPs(),
                 mState.getRt(),
-                mFavoriteList.get(frequency),
+                mFavoriteController.getFavoriteTitle(frequency),
                 showRds,
                 mRecordingNow
         );
@@ -672,14 +674,5 @@ public class FMService extends Service implements FMEventCallback {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    private void reloadFavorite() {
-        mFavoriteController.reload();
-        mFavoriteList = new HashMap<>();
-        final List<FavoriteStation> list = mFavoriteController.getStationsInCurrentList();
-        for (FavoriteStation station : list) {
-            mFavoriteList.put(station.getFrequency(), station.getTitle());
-        }
     }
 }

@@ -35,9 +35,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.Toast;
 
@@ -108,7 +106,7 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		setContentView(R.layout.activity_favorite_lists);
 
 		mToast = Toast.create(this);
-		mController = new FavoriteController(this);
+		mController = FavoriteController.get(this);
 
 		getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
 			@Override
@@ -257,8 +255,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 
 			final Intent intent = new Intent().putExtra("changed", true);
 			setResult(Activity.RESULT_OK, intent);
-
-			Utils.sendAppBroadcast(FavoriteListsActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 		} catch (final FileNotFoundException e) {
 			mToast.text("Not found this list").show();
 		}
@@ -393,7 +389,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 				reloadLists();
 				reloadContent();
 				setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-				Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 				mToast.text("Renamed list to '" + title + "'").show();
 			} catch (Error e) {
 				mToast.text(e.getMessage()).show();
@@ -543,7 +538,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 		reloadLists();
 		reloadContent();
 		setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-		Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 
 		if (importedCount == 1 && lastImportedName != null) {
 			mToast.text(getString(R.string.favorite_list_import_success, lastImportedName)).show();
@@ -715,7 +709,6 @@ public class FavoriteListsActivity extends AppCompatActivity {
 					reloadLists();
 					if (removed > 0) {
 						setResult(Activity.RESULT_OK, new Intent().putExtra("changed", true));
-						Utils.sendAppBroadcast(this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
 					}
 				})
 				.setNegativeButton(android.R.string.cancel, null)

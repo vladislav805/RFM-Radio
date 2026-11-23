@@ -1,7 +1,6 @@
 package com.vlad805.fmradio.view;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -15,9 +14,7 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.models.FavoriteStation;
 
@@ -43,6 +40,15 @@ public class FavoritesView extends FrameLayout {
 	private OnErrorListener mOnErrorListener;
 	private boolean mEditMode;
 
+	private final FavoriteController.OnFavoritesChangeListener mControllerListener = (currentListName, stations) -> {
+		mRecyclerView.syncFromController();
+		updateListSelector();
+		updateEmptyState();
+		if (mOnFavoritesChangedListener != null) {
+			mOnFavoritesChangedListener.onFavoritesChanged();
+		}
+	};
+
 	public FavoritesView(final Context context) {
 		this(context, null);
 	}
@@ -60,14 +66,8 @@ public class FavoritesView extends FrameLayout {
 		mListSelector = findViewById(R.id.favorite_list_selector);
 		mEmptyHint = findViewById(R.id.favorite_empty_hint);
 
-		mFavoriteController = new FavoriteController(context);
+		mFavoriteController = FavoriteController.get(context);
 		mRecyclerView.setFavoriteController(mFavoriteController);
-		mRecyclerView.setOnFavoritesChangedListener(() -> {
-			updateEmptyState();
-			if (mOnFavoritesChangedListener != null) {
-				mOnFavoritesChangedListener.onFavoritesChanged();
-			}
-		});
 
 		mEditToggle.setOnClickListener(v -> toggleEditMode());
 		mListSelector.setOnClickListener(v -> showFavoriteListsDialog());
@@ -77,12 +77,35 @@ public class FavoritesView extends FrameLayout {
 		updateEmptyState();
 	}
 
+	@Override
+	protected void onAttachedToWindow() {
+		super.onAttachedToWindow();
+		mFavoriteController.addOnChangeListener(mControllerListener);
+		mRecyclerView.syncFromController();
+		updateListSelector();
+		updateEmptyState();
+	}
+
+	@Override
+	protected void onDetachedFromWindow() {
+		mFavoriteController.removeOnChangeListener(mControllerListener);
+		super.onDetachedFromWindow();
+	}
+
 	public void setOnFavoritesChangedListener(final OnFavoritesChangedListener listener) {
 		mOnFavoritesChangedListener = listener;
 	}
 
 	public void setOnErrorListener(final OnErrorListener listener) {
 		mOnErrorListener = listener;
+	}
+
+	public void setOnStationActionListener(@Nullable final FavoritesRecyclerView.OnStationActionListener listener) {
+		mRecyclerView.setOnStationActionListener(listener);
+	}
+
+	public void promptAddStation(final int frequencyKhz, @Nullable final String suggestedTitle) {
+		mRecyclerView.promptAddStation(frequencyKhz, suggestedTitle);
 	}
 
 	public void reload(final boolean force) {
@@ -172,8 +195,6 @@ public class FavoritesView extends FrameLayout {
 			}
 
 			mFavoriteController.setCurrentFavoriteList(listName);
-			reload(true);
-			Utils.sendAppBroadcast(getContext(), new Intent(C.Event.FAVORITE_LIST_CHANGED));
 		} catch (final FileNotFoundException e) {
 			if (mOnErrorListener != null) {
 				mOnErrorListener.onError("Not found this list");

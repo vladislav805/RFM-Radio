@@ -27,6 +27,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.IdRes;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityCompat;
@@ -58,11 +59,13 @@ import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
+import com.vlad805.fmradio.view.FavoritesRecyclerView;
 import com.vlad805.fmradio.view.FavoritesView;
 import com.vlad805.fmradio.view.FrequencyDialView;
 import com.vlad805.fmradio.view.RadioUIView;
 import com.vlad805.fmradio.view.SignalStrengthView;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -133,6 +136,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     };
 
+    private final FavoriteController.OnFavoritesChangeListener mFavoritesListener =
+            (currentListName, stations) -> updateFavoriteFrequencyMarkers(stations);
+
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         DynamicColors.applyToActivityIfAvailable(this);
@@ -158,12 +164,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mStorage = Storage.get(this);
         mRadioController = new RadioController(this);
-        mFavoriteController = new FavoriteController(this);
+        mFavoriteController = FavoriteController.get(this);
         mRadioController.requestForCurrentState(this);
         mRadioController.registerForUpdates(this);
         mRadioController.setPowerMode(PowerMode.NORMAL);
 
         initUserInterface();
+        mFavoriteController.addOnChangeListener(mFavoritesListener);
         initLogic();
     }
 
@@ -176,6 +183,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mFavoritesView = findViewById(R.id.favorite_list);
         mFavoritesView.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
         mFavoritesView.setOnErrorListener(message -> mToast.text(message).show());
+        mFavoritesView.setOnStationActionListener(new FavoritesRecyclerView.OnStationActionListener() {
+            @Override
+            public void onStationSelected(@NonNull final FavoriteStation station) {
+                mRadioController.setFrequency(station.getFrequency());
+            }
+
+            @Override
+            public void onAddCurrentStationRequested() {
+                mRadioController.requestForCurrentState((state, mode) ->
+                        mFavoritesView.promptAddStation(state.getFrequency(), state.getPs())
+                );
+            }
+        });
 
         mSeek = findViewById(R.id.frequency_seek);
 
@@ -226,6 +246,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         if (mFrequencyInfo != null) {
             mFrequencyInfo.release();
+        }
+
+        if (mFavoriteController != null) {
+            mFavoriteController.removeOnChangeListener(mFavoritesListener);
         }
 
         if (mRadioController != null) {
@@ -553,20 +577,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
-            mFavoriteController.reload();
-            final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
-            stations.clear();
-
-            if (frequencies != null) {
-                for (final int kHz : frequencies) {
-                    stations.add(new FavoriteStation(kHz, ""));
-                }
+            final List<FavoriteStation> stations = new ArrayList<>(frequencies.length);
+            for (final int kHz : frequencies) {
+                stations.add(new FavoriteStation(kHz, ""));
             }
 
-            mFavoriteController.save();
-            Utils.sendAppBroadcast(MainActivity.this, new Intent(C.Event.FAVORITE_LIST_CHANGED));
-            mFavoritesView.reload(true);
-            updateFavoriteFrequencyMarkers();
+            mFavoriteController.replaceCurrentListStations(stations);
         }
     };
 
@@ -675,12 +691,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void updateFavoriteFrequencyMarkers() {
-        if (mFavoritesView == null || mSeek == null) {
+        if (mFavoriteController == null) {
+            return;
+        }
+        updateFavoriteFrequencyMarkers(mFavoriteController.getStationsInCurrentList());
+    }
+
+    private void updateFavoriteFrequencyMarkers(final List<FavoriteStation> stations) {
+        if (mSeek == null || stations == null) {
             return;
         }
 
         final Set<Integer> frequencies = new HashSet<>();
-        for (final FavoriteStation station : mFavoritesView.getStationsInCurrentList()) {
+        for (final FavoriteStation station : stations) {
             frequencies.add(station.getFrequency());
         }
         mSeek.setFavoriteFrequencies(frequencies);
