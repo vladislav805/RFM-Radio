@@ -148,6 +148,29 @@ public class RadioClientTest {
         assertEquals(1, binder.unbindCount);
     }
 
+    @Test
+    public void ignoresCommandsIssuedWhileDisconnectedSoTheyDoNotLeakIntoFutureConnect() {
+        final RadioClient client = new RadioClient(binder, 87500, null, null);
+
+        // Commands before connect() must be dropped
+        client.enable();
+        client.setFrequency(101700);
+
+        client.connect();
+        client.onConnected(controller);
+        assertEquals(Collections.emptyList(), controller.commands);
+
+        // Commands after disconnect() must also be dropped
+        client.disconnect();
+        client.disable();
+        client.setPowerMode(PowerMode.LOW);
+        client.cancelHwSearch();
+
+        client.connect();
+        client.onConnected(controller);
+        assertEquals(Collections.emptyList(), controller.commands);
+    }
+
     private static final class FakeServiceBinder implements RadioClient.ServiceBinder {
         int bindCount = 0;
         int unbindCount = 0;

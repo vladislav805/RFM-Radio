@@ -615,10 +615,15 @@ public final class NativeTunerController {
     }
 
     private void handleUnexpectedNativeExit(final NativeProcessSession session, final int exitCode) {
+        final boolean wasCurrent;
         synchronized (mSessionLock) {
-            if (mNativeSession == session) {
+            wasCurrent = (mNativeSession == session);
+            if (wasCurrent) {
                 mNativeSession = null;
             }
+        }
+        if (!wasCurrent) {
+            return;
         }
         final FMEventCallback callback = mEventCallback;
         if (callback != null) {

@@ -34,9 +34,9 @@ lifecycle (`START_NOT_STICKY`). UI talks to it directly via `FMService.LocalBind
 (`FMNotificationManager` `PendingIntent`s and `CallReceiver`) use
 `FMService.ACTION_START`, `ACTION_STOP`, `ACTION_RECORD_START`,
 `ACTION_RECORD_STOP`, and `ACTION_NOTIFICATION_SEEK` (`EXTRA_SEEK_DIRECTION`).
-`FMService.isTunerActive()` exposes a `volatile boolean` strictly reflecting
-`mState.getStatus() != TunerStatus.IDLE` so `CallReceiver` avoids starting an
-idle service.
+`FMService.isTunerActive()` exposes a `volatile boolean` reflecting an active
+tuner status (not `IDLE`, `ROOT_ACCESS_DENIED`, or `FATAL_ERROR`) so
+`CallReceiver` avoids starting an idle or failed service.
 
 Key flows:
 

@@ -205,7 +205,7 @@ public final class RadioClient {
     private void executeOrEnqueue(@NonNull final Consumer<RadioServiceController> command) {
         if (mController != null) {
             command.accept(mController);
-        } else {
+        } else if (mBound) {
             mPendingCommands.offer(command);
         }
     }

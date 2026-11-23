@@ -78,8 +78,9 @@ live in `Storage.java`.
   `mStateListeners`, and `mEventListeners` are accessed exclusively on the main
   thread.
 - `FMService.isTunerActive()`: `volatile boolean` updated on the main thread
-  strictly reflecting `mState.getStatus() != TunerStatus.IDLE`. `CallReceiver`
-  checks this before sending `ACTION_STOP` so calls never start an idle service.
+  reflecting an active tuner status (excluding `IDLE`, `ROOT_ACCESS_DENIED`,
+  and `FATAL_ERROR`). `CallReceiver` checks this before sending `ACTION_STOP`
+  so calls never start an idle or failed service.
 - `onCreate`: initializes `Storage`, the sole `RadioState` instance (seeded
   with `mStorage.getLastFrequency()`), `FavoriteController.get(this)` +
   `mFavoritesListener`, `FMNotificationManager` (`createChannels()` for

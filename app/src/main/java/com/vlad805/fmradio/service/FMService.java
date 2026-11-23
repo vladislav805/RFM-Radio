@@ -117,7 +117,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
                 @NonNull final String displayPath
         ) {
             runOnMainThread(() -> {
-                if (mDestroyed) {
+                if (mDestroyed || !mSessionActive) {
                     return;
                 }
                 onInternalStateChanged(mState.applyRecordingStarted(initialDurationSeconds));
@@ -131,7 +131,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
                 @NonNull final String displayPath
         ) {
             runOnMainThread(() -> {
-                if (mDestroyed) {
+                if (mDestroyed || !mState.isRecording()) {
                     return;
                 }
                 onInternalStateChanged(mState.applyRecordingProgress(durationSeconds));
@@ -654,7 +654,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
     @Override
     public void onUnexpectedExit(final int exitCode) {
         runOnMainThread(() -> {
-            if (mDestroyed) {
+            if (mDestroyed || !mSessionActive) {
                 return;
             }
             final String message = "Native tuner process exited with code " + exitCode;
@@ -667,12 +667,18 @@ public class FMService extends Service implements RadioServiceController, FMEven
 
     // --- Centralized state side effects ---
 
+    private static boolean isActiveStatus(@NonNull final TunerStatus status) {
+        return status != TunerStatus.IDLE
+                && status != TunerStatus.ROOT_ACCESS_DENIED
+                && status != TunerStatus.FATAL_ERROR;
+    }
+
     private void onInternalStateChanged(final int mode) {
         if (mode == 0) {
             return;
         }
 
-        sTunerActive = mState.getStatus() != TunerStatus.IDLE;
+        sTunerActive = isActiveStatus(mState.getStatus());
 
         if ((mode & RadioState.SET_FREQUENCY) != 0 && mState.getFrequency() > 0) {
             mStorage.setLastFrequency(mState.getFrequency());

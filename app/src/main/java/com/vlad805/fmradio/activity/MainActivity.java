@@ -223,7 +223,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onStop() {
-        if (mSearchActive && (isFinishing() || isChangingConfigurations())) {
+        if (mSearchActive) {
             cancelActiveSearch();
         }
         if (mRadioClient != null) {
@@ -775,8 +775,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     mSeek.setFrequency(state.getFrequency());
                     mFavoritesView.setActiveFrequency(state.getFrequency());
                 }
-                if (isInitial) {
+                if (isInitial || (mode & RadioState.SET_STEREO) != 0) {
                     updateStereoUi(state.isStereo());
+                }
+                if (isInitial || (mode & RadioState.SET_RECORDING) != 0) {
                     updateRecordingUi(state);
                 }
                 return;
