@@ -6,10 +6,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
+import androidx.core.os.ConfigurationCompat;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -255,24 +256,14 @@ public class Utils {
 		new Handler(Looper.getMainLooper()).post(run);
 	}
 
-	public static String getCountryISO(final Context context) {
-		try {
-			final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-			final String simCountry = tm.getSimCountryIso();
-
-			// SIM country code is available
-			if (simCountry != null && simCountry.length() == 2) {
-				return simCountry.toLowerCase(Locale.US);
-			} else if (tm.getPhoneType() != TelephonyManager.PHONE_TYPE_CDMA) { // device is not 3G (would be unreliable)
-				String networkCountry = tm.getNetworkCountryIso();
-				if (networkCountry != null && networkCountry.length() == 2) { // network country code is available
-					return networkCountry.toLowerCase(Locale.US);
-				}
-			}
-		} catch (Exception ignored) {
-		}
-
-		return null;
+	@NonNull
+	public static String getLanguageCode(@NonNull final Context context) {
+		final Locale locale = ConfigurationCompat
+				.getLocales(context.getResources().getConfiguration())
+				.get(0);
+		return (locale != null ? locale : Locale.getDefault())
+				.getLanguage()
+				.toLowerCase(Locale.US);
 	}
 
 	public static void browseUrl(final Context context, @NonNull final String url) {

@@ -57,7 +57,7 @@ public class AboutActivity extends AppCompatActivity {
 
 		github.setOnClickListener(v -> Utils.browseUrl(this, "https://github.com/vladislav805/RFM-Radio"));
 		telegram.setOnClickListener(v -> Utils.browseUrl(this, "https://t.me/RFMRadioApp"));
-		site.setOnClickListener(v -> Utils.browseUrl(this, "https://rfm.velu.ga/?ref=app&hl=" + Utils.getCountryISO(this)));
+		site.setOnClickListener(v -> Utils.browseUrl(this, "https://rfm.velu.ga/?ref=app&hl=" + Utils.getLanguageCode(this)));
 
 		animateEntrance(findViewById(R.id.about_hero_card), 0L);
 		animateEntrance(findViewById(R.id.about_links_card), 60L);
