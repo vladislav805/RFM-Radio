@@ -1,12 +1,11 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 
-import com.vlad805.fmradio.C;
+import androidx.annotation.Nullable;
+
 import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
@@ -41,6 +40,9 @@ public abstract class RecordService implements IFMRecorder {
      * Recording sample rate
      */
     private final int mSampleRate;
+
+    @Nullable
+    private final RecordingListener mListener;
 
     /**
      * State of recording
@@ -91,11 +93,13 @@ public abstract class RecordService implements IFMRecorder {
     public RecordService(
             final Context context,
             final int kHz,
-            final int sampleRate
+            final int sampleRate,
+            @Nullable final RecordingListener listener
     ) {
         mContext = context;
         mKHz = kHz;
         mSampleRate = sampleRate;
+        mListener = listener;
     }
 
     /**
@@ -112,7 +116,9 @@ public abstract class RecordService implements IFMRecorder {
         mSubtitlesRequested = Storage.get(mContext).isRecordingSaveSrt();
         createFile();
         mState = State.RECORDING;
-        updateState(C.Event.RECORD_STARTED);
+        if (mListener != null) {
+            mListener.onRecordingStarted(getDurationSeconds(), mRecordLength, getDisplayPath());
+        }
     }
 
     @Override
@@ -132,7 +138,9 @@ public abstract class RecordService implements IFMRecorder {
             final long now = System.currentTimeMillis();
             if (now - mLast > MIN_DELAY_PING) {
                 mLast = now;
-                updateState(C.Event.RECORD_TIME_UPDATE);
+                if (mListener != null) {
+                    mListener.onRecordingProgress(getDurationSeconds(), mRecordLength, getDisplayPath());
+                }
             }
         }
     }
@@ -215,11 +223,13 @@ public abstract class RecordService implements IFMRecorder {
             try {
                 target.commit();
                 publishSubtitles(target);
-                updateCompletedState(target);
+                notifyCompleted(target);
             } catch (IOException e) {
                 e.printStackTrace();
                 target.abort();
-                updateState(C.Event.RECORD_FAILED);
+                if (mListener != null) {
+                    mListener.onRecordingFailed(e);
+                }
             }
             target.closeQuietly();
             discardSubtitles();
@@ -250,40 +260,40 @@ public abstract class RecordService implements IFMRecorder {
         }
     }
 
-    /**
-     * Send event. Also send size of file, duration and path
-     * @param event Key of event
-     */
-    private void updateState(final String event) {
-        Utils.sendAppBroadcast(mContext, new Intent(event)
-                .putExtra(C.Key.SIZE, mRecordLength)
-                .putExtra(C.Key.DURATION, getDurationSeconds())
-                .putExtra(C.Key.PATH, getDisplayPath())
-        );
-    }
-
-    private void updateCompletedState(final RecordingTarget target) {
-        final Intent intent = new Intent(C.Event.RECORD_ENDED)
-                .putExtra(C.Key.SIZE, mRecordLength)
-                .putExtra(C.Key.DURATION, getDurationSeconds())
-                .putExtra(C.Key.PATH, target.getDisplayPath())
-                .putExtra(C.Key.DISPLAY_NAME, target.getDisplayName())
-                .putExtra(C.Key.SUBTITLES_REQUESTED, mSubtitlesRequested);
-
-        if (target.getPublishedUri() != null) {
-            intent.putExtra(C.Key.RECORDING_URI, target.getPublishedUri().toString());
-        } else {
-            intent.putExtra(C.Key.RECORDING_FILE_PATH, target.getPublishedFilePath());
+    private void notifyCompleted(final RecordingTarget target) {
+        if (mListener == null) {
+            return;
         }
 
+        final String recordingUri = target.getPublishedUri() != null
+                ? target.getPublishedUri().toString()
+                : null;
+        final String recordingFilePath = recordingUri == null
+                ? target.getPublishedFilePath()
+                : null;
+
+        String subtitleUri = null;
+        String subtitleFilePath = null;
         if (mPublishedSubtitles != null) {
             if (mPublishedSubtitles.getPublishedUri() != null) {
-                intent.putExtra(C.Key.SUBTITLE_URI, mPublishedSubtitles.getPublishedUri().toString());
+                subtitleUri = mPublishedSubtitles.getPublishedUri().toString();
             } else {
-                intent.putExtra(C.Key.SUBTITLE_FILE_PATH, mPublishedSubtitles.getPublishedFilePath());
+                subtitleFilePath = mPublishedSubtitles.getPublishedFilePath();
             }
         }
-        Utils.sendAppBroadcast(mContext, intent);
+
+        final RecordingResult result = new RecordingResult(
+                mRecordLength,
+                getDurationSeconds(),
+                target.getDisplayPath(),
+                target.getDisplayName(),
+                recordingUri,
+                recordingFilePath,
+                mSubtitlesRequested,
+                subtitleUri,
+                subtitleFilePath
+        );
+        mListener.onRecordingCompleted(result);
     }
 
     /**

@@ -3,19 +3,52 @@ package com.vlad805.fmradio.controller;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.vlad805.fmradio.models.RtPlusInfo;
+import com.vlad805.fmradio.service.fm.RadioStatePatch;
 
 import java.util.Arrays;
 
 /**
  * A class that stores the current state of the radio tuner, audio service and other
  * parameters.
- * The main storage is located in the FMService, but on demand it can be transferred
- * to an Activity, Fragment or other Service using Parcelable.
- * Changing an instance of this class can only be done using the class RadioStateUpdater.
  * vlad805 (c) 2021
  */
 public final class RadioState implements Parcelable {
+    public static final int SET_STATUS = 1;
+    public static final int SET_FREQUENCY = 1 << 1;
+    public static final int SET_PS = 1 << 2;
+    public static final int SET_RT = 1 << 3;
+    public static final int SET_PTY = 1 << 4;
+    public static final int SET_PI = 1 << 5;
+    public static final int SET_STEREO = 1 << 6;
+    public static final int SET_RECORDING = 1 << 7;
+    public static final int SET_SPEAKER = 1 << 8;
+    public static final int SET_COUNTRY = 1 << 9;
+    public static final int SET_RMSSI = 1 << 10;
+    public static final int SET_RT_PLUS = 1 << 11;
+    public static final int SET_SINR = 1 << 12;
+    public static final int SET_AF = 1 << 13;
+    public static final int SET_INITIAL = 1 << 31;
+
+    public static final int INITIAL_SNAPSHOT_MASK =
+            SET_INITIAL |
+            SET_STATUS |
+            SET_FREQUENCY |
+            SET_PS |
+            SET_RT |
+            SET_PTY |
+            SET_PI |
+            SET_COUNTRY |
+            SET_STEREO |
+            SET_RMSSI |
+            SET_SINR |
+            SET_RT_PLUS |
+            SET_AF |
+            SET_RECORDING |
+            SET_SPEAKER;
+
     public static final int RMSSI_UNKNOWN = Integer.MIN_VALUE;
     public static final int SINR_UNKNOWN = Integer.MIN_VALUE;
     private static final int[] EMPTY_AF = new int[0];
@@ -152,6 +185,106 @@ public final class RadioState implements Parcelable {
         stereo = false;
         rmssi = RMSSI_UNKNOWN;
         sinr = SINR_UNKNOWN;
+    }
+
+    public int applyStatus(@NonNull final TunerStatus nextStatus) {
+        status = nextStatus;
+        if (nextStatus == TunerStatus.IDLE) {
+            clear();
+            return SET_STATUS | SET_RMSSI | SET_SINR | SET_PS | SET_RT | SET_PTY
+                    | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS | SET_AF;
+        }
+        return SET_STATUS;
+    }
+
+    public int applyFrequency(final int frequencyKhz) {
+        int mode = SET_FREQUENCY;
+        if (frequencyKhz != frequency) {
+            rmssi = RMSSI_UNKNOWN;
+            sinr = SINR_UNKNOWN;
+            af = EMPTY_AF;
+            mode |= SET_RMSSI | SET_SINR | SET_AF;
+        }
+        frequency = frequencyKhz;
+        return mode;
+    }
+
+    public int applyPatch(@NonNull final RadioStatePatch patch) {
+        int mode = 0;
+
+        if (patch.getFrequency() != null) {
+            mode |= applyFrequency(patch.getFrequency());
+        }
+        if (patch.getPs() != null) {
+            ps = patch.getPs();
+            mode |= SET_PS;
+        }
+        if (patch.getRt() != null) {
+            rt = patch.getRt();
+            mode |= SET_RT;
+        }
+        if (patch.getPty() != null) {
+            pty = patch.getPty();
+            mode |= SET_PTY;
+        }
+        if (patch.getPi() != null) {
+            pi = patch.getPi();
+            mode |= SET_PI;
+        }
+        if (patch.getCountry() != null) {
+            country = patch.getCountry();
+            mode |= SET_COUNTRY;
+        }
+        if (patch.getAf() != null) {
+            setAf(patch.getAf());
+            mode |= SET_AF;
+        }
+        if (patch.getStereo() != null) {
+            stereo = patch.getStereo();
+            mode |= SET_STEREO;
+        }
+        if (patch.getRmssi() != null) {
+            rmssi = patch.getRmssi();
+            mode |= SET_RMSSI;
+        }
+        if (patch.getSinr() != null) {
+            sinr = patch.getSinr();
+            mode |= SET_SINR;
+        }
+        if (patch.hasRtPlus()) {
+            final RtPlusInfo current = rtPlus != null ? rtPlus : RtPlusInfo.EMPTY;
+            final String title = patch.getRtPlusTitle() != null ? patch.getRtPlusTitle() : current.getTitle();
+            final String artist = patch.getRtPlusArtist() != null ? patch.getRtPlusArtist() : current.getArtist();
+            final String album = patch.getRtPlusAlbum() != null ? patch.getRtPlusAlbum() : current.getAlbum();
+            setRtPlus(title.isEmpty() && artist.isEmpty() && album.isEmpty()
+                    ? null
+                    : new RtPlusInfo(title, artist, album));
+            mode |= SET_RT_PLUS;
+        }
+
+        return mode;
+    }
+
+    public int applyRecordingStarted(final int durationSeconds) {
+        recording = true;
+        recordingStarted = System.currentTimeMillis() - Math.max(0, durationSeconds) * 1000L;
+        return SET_RECORDING;
+    }
+
+    public int applyRecordingProgress(final int durationSeconds) {
+        recordingStarted = System.currentTimeMillis() - Math.max(0, durationSeconds) * 1000L;
+        return SET_RECORDING;
+    }
+
+    public int applyRecordingStopped() {
+        recording = false;
+        recordingStarted = -1L;
+        return SET_RECORDING;
+    }
+
+    public int applyForceSpeaker(final boolean forceSpeaker) {
+        this.forceSpeaker = forceSpeaker;
+        return SET_SPEAKER;
     }
 
     public boolean isStereo() {

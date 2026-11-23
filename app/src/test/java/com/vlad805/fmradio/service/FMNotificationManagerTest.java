@@ -1,11 +1,15 @@
 package com.vlad805.fmradio.service;
 
+import com.vlad805.fmradio.service.recording.RecordingResult;
+
 import org.junit.Test;
 
 import java.util.Locale;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class FMNotificationManagerTest {
     private static String frequencyLabel(final int frequencyKhz) {
@@ -88,6 +92,56 @@ public class FMNotificationManagerTest {
                         "/storage/emulated/0/Music/test.wav"
                 )
         );
+    }
+
+    @Test
+    public void recordingNotificationTag_fromRecordingResult_andSubtitleFailureDetection() {
+        final RecordingResult withUriAndSubtitles = new RecordingResult(
+                2048,
+                15,
+                "Music/FM-1017.wav",
+                "FM-1017.wav",
+                "content://media/external/audio/media/99",
+                null,
+                true,
+                "content://media/external/file/100",
+                null
+        );
+        assertEquals(
+                "recording:content://media/external/audio/media/99",
+                FMNotificationManager.recordingNotificationTag(withUriAndSubtitles)
+        );
+        assertFalse(withUriAndSubtitles.hasSubtitleFailure());
+
+        final RecordingResult withFileAndFailedSubtitles = new RecordingResult(
+                4096,
+                30,
+                "/storage/emulated/0/Music/FM-1017.mp3",
+                "FM-1017.mp3",
+                null,
+                "/storage/emulated/0/Music/FM-1017.mp3",
+                true,
+                null,
+                null
+        );
+        assertEquals(
+                "recording:/storage/emulated/0/Music/FM-1017.mp3",
+                FMNotificationManager.recordingNotificationTag(withFileAndFailedSubtitles)
+        );
+        assertTrue(withFileAndFailedSubtitles.hasSubtitleFailure());
+
+        final RecordingResult withoutSubtitlesRequested = new RecordingResult(
+                1024,
+                5,
+                "/storage/emulated/0/Music/FM-985.wav",
+                "FM-985.wav",
+                null,
+                "/storage/emulated/0/Music/FM-985.wav",
+                false,
+                null,
+                null
+        );
+        assertFalse(withoutSubtitlesRequested.hasSubtitleFailure());
     }
 
     @Test

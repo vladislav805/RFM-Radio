@@ -2,6 +2,8 @@ package com.vlad805.fmradio.service.fm;
 
 import android.content.Intent;
 
+import androidx.annotation.Nullable;
+
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.models.RtPlusInfo;
 
@@ -16,7 +18,9 @@ public final class RadioStatePatch {
     private Boolean stereo;
     private Integer rmssi;
     private Integer sinr;
-    private RtPlusInfo rtPlus;
+    private String rtPlusTitle;
+    private String rtPlusArtist;
+    private String rtPlusAlbum;
 
     public Integer getFrequency() {
         return frequency;
@@ -98,12 +102,52 @@ public final class RadioStatePatch {
         this.sinr = sinr;
     }
 
+    @Nullable
     public RtPlusInfo getRtPlus() {
-        return rtPlus;
+        return hasRtPlus() ? new RtPlusInfo(rtPlusTitle, rtPlusArtist, rtPlusAlbum) : null;
     }
 
-    public void setRtPlus(final RtPlusInfo rtPlus) {
-        this.rtPlus = rtPlus;
+    public void setRtPlus(@Nullable final RtPlusInfo rtPlus) {
+        if (rtPlus == null) {
+            this.rtPlusTitle = null;
+            this.rtPlusArtist = null;
+            this.rtPlusAlbum = null;
+        } else {
+            this.rtPlusTitle = rtPlus.getTitle();
+            this.rtPlusArtist = rtPlus.getArtist();
+            this.rtPlusAlbum = rtPlus.getAlbum();
+        }
+    }
+
+    public boolean hasRtPlus() {
+        return rtPlusTitle != null || rtPlusArtist != null || rtPlusAlbum != null;
+    }
+
+    @Nullable
+    public String getRtPlusTitle() {
+        return rtPlusTitle;
+    }
+
+    public void setRtPlusTitle(@Nullable final String rtPlusTitle) {
+        this.rtPlusTitle = rtPlusTitle;
+    }
+
+    @Nullable
+    public String getRtPlusArtist() {
+        return rtPlusArtist;
+    }
+
+    public void setRtPlusArtist(@Nullable final String rtPlusArtist) {
+        this.rtPlusArtist = rtPlusArtist;
+    }
+
+    @Nullable
+    public String getRtPlusAlbum() {
+        return rtPlusAlbum;
+    }
+
+    public void setRtPlusAlbum(@Nullable final String rtPlusAlbum) {
+        this.rtPlusAlbum = rtPlusAlbum;
     }
 
     public boolean isEmpty() {
@@ -118,7 +162,7 @@ public final class RadioStatePatch {
                 stereo == null &&
                 rmssi == null &&
                 sinr == null &&
-                rtPlus == null
+                !hasRtPlus()
         );
     }
 
@@ -165,10 +209,14 @@ public final class RadioStatePatch {
             intent.putExtra(C.Key.SINR, sinr);
         }
 
-        if (rtPlus != null) {
-            intent.putExtra(C.Key.RT_PLUS_TITLE, rtPlus.getTitle());
-            intent.putExtra(C.Key.RT_PLUS_ARTIST, rtPlus.getArtist());
-            intent.putExtra(C.Key.RT_PLUS_ALBUM, rtPlus.getAlbum());
+        if (rtPlusTitle != null) {
+            intent.putExtra(C.Key.RT_PLUS_TITLE, rtPlusTitle);
+        }
+        if (rtPlusArtist != null) {
+            intent.putExtra(C.Key.RT_PLUS_ARTIST, rtPlusArtist);
+        }
+        if (rtPlusAlbum != null) {
+            intent.putExtra(C.Key.RT_PLUS_ALBUM, rtPlusAlbum);
         }
 
         return intent;

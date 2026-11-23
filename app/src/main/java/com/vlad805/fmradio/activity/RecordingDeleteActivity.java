@@ -12,7 +12,6 @@ import androidx.core.app.NotificationManagerCompat;
 
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
 
@@ -25,6 +24,8 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
     private static final String EXTRA_FILE_PATH = "recording_file_path";
     private static final String EXTRA_DISPLAY_NAME = "display_name";
     private static final String EXTRA_NOTIFICATION_TAG = "notification_tag";
+    private static final String EXTRA_SUBTITLE_URI = "subtitle_uri";
+    private static final String EXTRA_SUBTITLE_FILE_PATH = "subtitle_file_path";
 
     public static Intent createIntent(
             final Context context,
@@ -42,8 +43,8 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
                 .putExtra(EXTRA_FILE_PATH, filePath)
                 .putExtra(EXTRA_DISPLAY_NAME, displayName)
                 .putExtra(EXTRA_NOTIFICATION_TAG, notificationTag)
-                .putExtra(C.Key.SUBTITLE_URI, subtitleUri)
-                .putExtra(C.Key.SUBTITLE_FILE_PATH, subtitlePath);
+                .putExtra(EXTRA_SUBTITLE_URI, subtitleUri)
+                .putExtra(EXTRA_SUBTITLE_FILE_PATH, subtitlePath);
     }
 
     @Override
@@ -75,8 +76,8 @@ public final class RecordingDeleteActivity extends AppCompatActivity {
                             throw new IOException("Recording was not deleted");
                         }
 
-                        final String subtitleUri = intent.getStringExtra(C.Key.SUBTITLE_URI);
-                        final String subtitlePath = intent.getStringExtra(C.Key.SUBTITLE_FILE_PATH);
+                        final String subtitleUri = intent.getStringExtra(EXTRA_SUBTITLE_URI);
+                        final String subtitlePath = intent.getStringExtra(EXTRA_SUBTITLE_FILE_PATH);
 
                         if (subtitleUri != null || subtitlePath != null) {
                             if (!RecordingStorage.deletePublished(this, subtitleUri, subtitlePath)) {

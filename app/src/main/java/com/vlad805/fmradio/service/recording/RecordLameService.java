@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
+import androidx.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,9 +32,10 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 			final Context context,
 			final int kHz,
 			final int sampleRate,
-			final int bitrateKbps
+			final int bitrateKbps,
+			@Nullable final RecordingListener listener
 	) {
-		super(context, kHz, sampleRate);
+		super(context, kHz, sampleRate, listener);
 		mBitrateKbps = bitrateKbps;
 	}
 

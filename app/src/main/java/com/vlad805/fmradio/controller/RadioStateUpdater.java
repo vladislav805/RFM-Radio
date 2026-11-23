@@ -17,21 +17,21 @@ public class RadioStateUpdater extends BroadcastReceiver {
      * Bit masks, the sums of which explain what has changed in the object after
      * a certain event
      */
-    public static final int SET_STATUS = 1;
-    public static final int SET_FREQUENCY = 1 << 1;
-    public static final int SET_PS = 1 << 2;
-    public static final int SET_RT = 1 << 3;
-    public static final int SET_PTY = 1 << 4;
-    public static final int SET_PI = 1 << 5;
-    public static final int SET_STEREO = 1 << 6;
-    public static final int SET_RECORDING = 1 << 7;
-    public static final int SET_SPEAKER = 1 << 8;
-    public static final int SET_COUNTRY = 1 << 9;
-    public static final int SET_RMSSI = 1 << 10;
-    public static final int SET_RT_PLUS = 1 << 11;
-    public static final int SET_SINR = 1 << 12;
-    public static final int SET_AF = 1 << 13;
-    public static final int SET_INITIAL = 1 << 31;
+    public static final int SET_STATUS = RadioState.SET_STATUS;
+    public static final int SET_FREQUENCY = RadioState.SET_FREQUENCY;
+    public static final int SET_PS = RadioState.SET_PS;
+    public static final int SET_RT = RadioState.SET_RT;
+    public static final int SET_PTY = RadioState.SET_PTY;
+    public static final int SET_PI = RadioState.SET_PI;
+    public static final int SET_STEREO = RadioState.SET_STEREO;
+    public static final int SET_RECORDING = RadioState.SET_RECORDING;
+    public static final int SET_SPEAKER = RadioState.SET_SPEAKER;
+    public static final int SET_COUNTRY = RadioState.SET_COUNTRY;
+    public static final int SET_RMSSI = RadioState.SET_RMSSI;
+    public static final int SET_RT_PLUS = RadioState.SET_RT_PLUS;
+    public static final int SET_SINR = RadioState.SET_SINR;
+    public static final int SET_AF = RadioState.SET_AF;
+    public static final int SET_INITIAL = RadioState.SET_INITIAL;
 
     public interface TunerStateListener {
         void onStateUpdated(final RadioState state, final int mode);

@@ -7,8 +7,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Bundle;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -16,6 +16,7 @@ import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.activity.RecordingDeleteActivity;
+import com.vlad805.fmradio.service.recording.RecordingResult;
 
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
@@ -130,6 +131,10 @@ public final class FMNotificationManager {
 
     static int[] compactActionIndices(final boolean recordingActive) {
         return recordingActive ? new int[]{1} : new int[]{1, 2};
+    }
+
+    static String recordingNotificationTag(@NonNull final RecordingResult result) {
+        return recordingNotificationTag(result.getRecordingUri(), result.getRecordingFilePath());
     }
 
     static String recordingNotificationTag(final String uri, final String filePath) {
@@ -250,18 +255,18 @@ public final class FMNotificationManager {
         mNotificationManager.cancel(NOTIFICATION_RECORD_ID);
     }
 
-    public void showRecordingResult(final Bundle extras, final boolean showSavedNotification) {
-        final int size = extras.getInt(C.Key.SIZE);
-        final int duration = extras.getInt(C.Key.DURATION);
-        final String filename = extras.getString(C.Key.DISPLAY_NAME);
-        final String uri = extras.getString(C.Key.RECORDING_URI);
-        final String filePath = extras.getString(C.Key.RECORDING_FILE_PATH);
-        final String subtitleUri = extras.getString(C.Key.SUBTITLE_URI);
-        final String subtitlePath = extras.getString(C.Key.SUBTITLE_FILE_PATH);
+    public void showRecordingResult(@NonNull final RecordingResult result, final boolean showSavedNotification) {
+        final int size = result.getSizeBytes();
+        final int duration = result.getDurationSeconds();
+        final String filename = result.getDisplayName();
+        final String uri = result.getRecordingUri();
+        final String filePath = result.getRecordingFilePath();
+        final String subtitleUri = result.getSubtitleUri();
+        final String subtitlePath = result.getSubtitleFilePath();
 
         if (showSavedNotification) {
-            final String location = uri != null ? uri : filePath;
-            final String notificationTag = recordingNotificationTag(uri, filePath);
+            final String location = result.getLocation();
+            final String notificationTag = recordingNotificationTag(result);
             final Intent deleteIntent = RecordingDeleteActivity.createIntent(
                     mContext,
                     uri,
@@ -273,7 +278,7 @@ public final class FMNotificationManager {
             );
             final PendingIntent pendingDelete = PendingIntent.getActivity(
                     mContext,
-                    location.hashCode(),
+                    location != null ? location.hashCode() : 0,
                     deleteIntent,
                     FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
             );
@@ -306,11 +311,7 @@ public final class FMNotificationManager {
                 getTimeStringBySeconds(duration)
         );
 
-        if (
-                extras.getBoolean(C.Key.SUBTITLES_REQUESTED, false) &&
-                subtitleUri == null &&
-                subtitlePath == null
-        ) {
+        if (result.hasSubtitleFailure()) {
             message += "\n" + mContext.getString(R.string.record_subtitles_failed);
         }
 

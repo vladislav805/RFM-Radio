@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
+import androidx.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -14,8 +15,13 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	 * @param context Context
 	 * @param kHz Current frequency in kHz
 	 */
-	public RecordRawService(final Context context, final int kHz, final int sampleRate) {
-		super(context, kHz, sampleRate);
+	public RecordRawService(
+			final Context context,
+			final int kHz,
+			final int sampleRate,
+			@Nullable final RecordingListener listener
+	) {
+		super(context, kHz, sampleRate, listener);
 	}
 
 	@Override

@@ -24,12 +24,9 @@ import android.util.Log;
 
 import androidx.annotation.RequiresPermission;
 
-import com.vlad805.fmradio.C;
-import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.recording.PcmFormat;
-import com.vlad805.fmradio.service.recording.RecordService;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
 
 /**
@@ -42,7 +39,6 @@ public class RoutingAudioService extends AudioService {
 	// Values from @hide Android API
 	private static final String ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION";
 	private static final String EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE";
-	private static final int RECORDING_UPDATE_MS = 1000;
 	private static final int SAMSUNG_FM_AUDIO_SOURCE = 11;
 	private static final int FM_ROUTE_SETTLE_TIMEOUT_MS = 300;
 	private static final int FM_ROUTE_POLL_INTERVAL_MS = 25;
@@ -74,21 +70,8 @@ public class RoutingAudioService extends AudioService {
 	/** Whether the current record action had to start an on-demand FM capture. */
 	private boolean mCaptureStartedForRecording;
 
-	/** Main-thread handler publishing recording progress. */
-	private final Handler mRecordingHandler = new Handler(Looper.getMainLooper());
-
-	/** Periodically refreshes duration and file size while recording. */
-	private final Runnable mRecordingUpdateRunnable = new Runnable() {
-		@Override
-		public void run() {
-			if (mPcmRecorder == null) {
-				return;
-			}
-
-			sendRecordingUpdate(C.Event.RECORD_TIME_UPDATE);
-			mRecordingHandler.postDelayed(this, RECORDING_UPDATE_MS);
-		}
-	};
+	/** Main-thread handler for MediaSession callbacks. */
+	private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
 	private final BroadcastReceiver mVolumeReceiver = new BroadcastReceiver() {
 		@Override
@@ -222,7 +205,6 @@ public class RoutingAudioService extends AudioService {
 		}
 
 		mPcmRecorder = recorder;
-		startRecordingTimer();
 	}
 
 	/**
@@ -352,7 +334,6 @@ public class RoutingAudioService extends AudioService {
 		}
 
 		Log.d(TAG, "stopRecord");
-		stopRecordingTimer();
 		mPcmSession.stop();
 		mPcmRecorder = null;
 
@@ -462,7 +443,7 @@ public class RoutingAudioService extends AudioService {
 
 		final MediaSession session = new MediaSession(mContext, TAG + "-RecVol");
 		session.setCallback(new MediaSession.Callback() {
-		}, mRecordingHandler);
+		}, mMainHandler);
 		session.setFlags(
 				MediaSession.FLAG_HANDLES_MEDIA_BUTTONS
 						| MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
@@ -797,55 +778,6 @@ public class RoutingAudioService extends AudioService {
 				buffer[i] = (short) scaled;
 			}
 		}
-	}
-
-	/** Starts periodic recording progress broadcasts. */
-	private void startRecordingTimer() {
-		stopRecordingTimer();
-		mRecordingHandler.postDelayed(mRecordingUpdateRunnable, RECORDING_UPDATE_MS);
-	}
-
-	/** Stops periodic recording progress broadcasts. */
-	private void stopRecordingTimer() {
-		mRecordingHandler.removeCallbacks(mRecordingUpdateRunnable);
-	}
-
-	/** Sends current recording metadata to UI and notification receivers. */
-	private void sendRecordingUpdate(final String event) {
-		final String displayPath = getRecordingDisplayPath();
-		if (displayPath == null) {
-			return;
-		}
-
-		final long durationSec = getRecordingDurationSeconds();
-		final long fileSize = getRecordingSizeBytes();
-
-		Utils.sendAppBroadcast(mContext, new Intent(event)
-				.putExtra(C.Key.SIZE, (int) Math.min(Integer.MAX_VALUE, fileSize))
-				.putExtra(C.Key.DURATION, (int) Math.min(Integer.MAX_VALUE, durationSec))
-				.putExtra(C.Key.PATH, displayPath));
-	}
-
-	private String getRecordingDisplayPath() {
-		if (mPcmRecorder instanceof RecordService) {
-			return ((RecordService) mPcmRecorder).getDisplayPath();
-		}
-		return null;
-	}
-
-	private long getRecordingSizeBytes() {
-		if (mPcmRecorder instanceof RecordService) {
-			return ((RecordService) mPcmRecorder).getCurrentSizeBytes();
-		}
-		return 0L;
-	}
-
-	/** @return Current duration based on accepted PCM samples. */
-	private long getRecordingDurationSeconds() {
-		if (mPcmRecorder instanceof RecordService) {
-			return ((RecordService) mPcmRecorder).getDurationSeconds();
-		}
-		return 0L;
 	}
 
 	private void ensureRecordingPermissions() throws RecordError {

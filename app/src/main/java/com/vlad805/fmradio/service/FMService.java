@@ -7,9 +7,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -38,6 +41,8 @@ import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordLameService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.recording.RecordService;
+import com.vlad805.fmradio.service.recording.RecordingListener;
+import com.vlad805.fmradio.service.recording.RecordingResult;
 
 import java.util.*;
 
@@ -62,6 +67,7 @@ public class FMService extends Service implements FMEventCallback {
 
     private Storage mStorage;
     private RadioState mState;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceChangeListener = this::onPreferenceChanged;
     private final FavoriteController.OnFavoritesChangeListener mFavoritesListener =
             (currentListName, stations) -> {
@@ -69,8 +75,72 @@ public class FMService extends Service implements FMEventCallback {
                     updateNotification();
                 }
             };
+    private final RecordingListener mRecordingListener = new RecordingListener() {
+        @Override
+        public void onRecordingStarted(
+                final int initialDurationSeconds,
+                final int sizeBytes,
+                @NonNull final String displayPath
+        ) {
+            runOnMainThread(() -> {
+                mRecordingNow = true;
+                if (mState != null) {
+                    mState.applyRecordingStarted(initialDurationSeconds);
+                }
+                updateNotification();
+            });
+        }
+
+        @Override
+        public void onRecordingProgress(
+                final int durationSeconds,
+                final int sizeBytes,
+                @NonNull final String displayPath
+        ) {
+            runOnMainThread(() -> {
+                if (mState != null) {
+                    mState.applyRecordingProgress(durationSeconds);
+                }
+                mNotifications.showRecordingProgress(durationSeconds, sizeBytes);
+            });
+        }
+
+        @Override
+        public void onRecordingCompleted(@NonNull final RecordingResult result) {
+            runOnMainThread(() -> {
+                mRecordingNow = false;
+                if (mState != null) {
+                    mState.applyRecordingStopped();
+                }
+                updateNotification();
+                mNotifications.cancelRecordingProgress();
+                mNotifications.showRecordingResult(result, mStorage.isRecordingShowNotify());
+            });
+        }
+
+        @Override
+        public void onRecordingFailed(@NonNull final Throwable error) {
+            runOnMainThread(() -> {
+                mRecordingNow = false;
+                if (mState != null) {
+                    mState.applyRecordingStopped();
+                }
+                updateNotification();
+                mNotifications.cancelRecordingProgress();
+                Toast.makeText(FMService.this, R.string.record_save_failed, Toast.LENGTH_LONG).show();
+            });
+        }
+    };
     private boolean mRecordingNow = false;
     private boolean mDestroyed = false;
+
+    private void runOnMainThread(@NonNull final Runnable action) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action.run();
+        } else {
+            mMainHandler.post(action);
+        }
+    }
 
     @Override
     public void onCreate() {
@@ -443,15 +513,15 @@ public class FMService extends Service implements FMEventCallback {
 
         switch (mode) {
             case C.RecordFormat.WAV: {
-                return new RecordRawService(this, kHz, sampleRate);
+                return new RecordRawService(this, kHz, sampleRate, mRecordingListener);
             }
 
             case C.RecordFormat.MP3_192: {
-                return new RecordLameService(this, kHz, sampleRate, 192);
+                return new RecordLameService(this, kHz, sampleRate, 192, mRecordingListener);
             }
 
             case C.RecordFormat.MP3_128: {
-                return new RecordLameService(this, kHz, sampleRate, 128);
+                return new RecordLameService(this, kHz, sampleRate, 128, mRecordingListener);
             }
         }
 
@@ -613,40 +683,6 @@ public class FMService extends Service implements FMEventCallback {
 
                 case C.Event.UPDATE_PTY:
                 case C.Event.UPDATE_PI: {
-                    break;
-                }
-
-                case C.Event.RECORD_STARTED: {
-                    mRecordingNow = true;
-                    updateNotification();
-                    break;
-                }
-
-                case C.Event.RECORD_TIME_UPDATE: {
-                    mNotifications.showRecordingProgress(
-                            intent.getIntExtra(C.Key.DURATION, 0),
-                            intent.getIntExtra(C.Key.SIZE, 0)
-                    );
-                    break;
-                }
-
-                case C.Event.RECORD_ENDED: {
-                    mRecordingNow = false;
-                    updateNotification();
-                    mNotifications.cancelRecordingProgress();
-
-                    if (intent.getExtras() != null) {
-                        final boolean showSavedNotification = mStorage.isRecordingShowNotify();
-                        mNotifications.showRecordingResult(intent.getExtras(), showSavedNotification);
-                    }
-                    break;
-                }
-
-                case C.Event.RECORD_FAILED: {
-                    mRecordingNow = false;
-                    updateNotification();
-                    mNotifications.cancelRecordingProgress();
-                    Toast.makeText(FMService.this, R.string.record_save_failed, Toast.LENGTH_LONG).show();
                     break;
                 }
             }
