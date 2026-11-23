@@ -192,7 +192,7 @@ enable/disable and seek frequencies arrive via `state` patches).
   `tuner_antenna`, `tuner_power_mode`, `rds_auto_af`,
   `recording_directory`/`recording_filename` (templates `$f $y $m $d $h $i $s
   $r`), `recording_mode`, `recording_save_srt`, `recording_save_past`,
-  `recording_show_notify`, `app_auto_startup`, `app_favorites_columns`,
+  `recording_show_notify`, `app_auto_startup`, `app_favorites_columns`, `app_theme`,
   `notification_show_ps`, `notification_seek_by_favorites`. Feature availability is driven by
   `TunerDriver` capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
   `supportsNotchFilter`, `supportsAntenna`, `supportsAutoAf`,

@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 
 import androidx.annotation.Nullable;
 
+import com.vlad805.fmradio.enums.AppTheme;
 import com.vlad805.fmradio.service.fm.implementation.NativeTunerController;
 
 import org.junit.Before;
@@ -90,6 +91,7 @@ public class StorageTest {
 
         assertEquals(Storage.Default.APP_AUTO_STARTUP, storage.isAutoStartupEnabled());
         assertEquals(Storage.Default.APP_FAVORITES_COLUMNS, storage.getFavoritesColumns());
+        assertEquals(Storage.Default.APP_THEME, storage.getAppTheme());
         assertEquals(Storage.Default.NOTIFICATION_SHOW_RDS, storage.isNotificationShowRds());
         assertEquals(Storage.Default.NOTIFICATION_SEEK_BY_FAVORITES, storage.isNotificationSeekByFavorites());
 
@@ -134,6 +136,7 @@ public class StorageTest {
         storageDefaults.put(Storage.Key.RECORDING_SHOW_NOTIFY, String.valueOf(storage.isRecordingShowNotify()));
         storageDefaults.put(Storage.Key.APP_AUTO_STARTUP, String.valueOf(storage.isAutoStartupEnabled()));
         storageDefaults.put(Storage.Key.APP_FAVORITES_COLUMNS, String.valueOf(storage.getFavoritesColumns()));
+        storageDefaults.put(Storage.Key.APP_THEME, storage.getAppTheme().getPreferenceValue());
         storageDefaults.put(Storage.Key.NOTIFICATION_SHOW_RDS, String.valueOf(storage.isNotificationShowRds()));
         storageDefaults.put(
                 Storage.Key.NOTIFICATION_SEEK_BY_FAVORITES,
@@ -174,6 +177,7 @@ public class StorageTest {
                 .putBoolean(Storage.Key.RECORDING_SHOW_NOTIFY, false)
                 .putBoolean(Storage.Key.APP_AUTO_STARTUP, true)
                 .putString(Storage.Key.APP_FAVORITES_COLUMNS, "2")
+                .putString(Storage.Key.APP_THEME, AppTheme.DARK.getPreferenceValue())
                 .putBoolean(Storage.Key.NOTIFICATION_SHOW_RDS, false)
                 .putBoolean(Storage.Key.NOTIFICATION_SEEK_BY_FAVORITES, true)
                 .apply();
@@ -196,6 +200,7 @@ public class StorageTest {
 
         assertTrue(storage.isAutoStartupEnabled());
         assertEquals(2, storage.getFavoritesColumns());
+        assertEquals(AppTheme.DARK, storage.getAppTheme());
         assertFalse(storage.isNotificationShowRds());
         assertTrue(storage.isNotificationSeekByFavorites());
 
@@ -283,6 +288,7 @@ public class StorageTest {
         assertFalse(NativeTunerController.isTunerPreferenceKey(Storage.Key.RECORDING_FORMAT));
         assertFalse(NativeTunerController.isTunerPreferenceKey(Storage.Key.NOTIFICATION_SHOW_RDS));
         assertFalse(NativeTunerController.isTunerPreferenceKey(Storage.Key.APP_FAVORITES_COLUMNS));
+        assertFalse(NativeTunerController.isTunerPreferenceKey(Storage.Key.APP_THEME));
     }
 
     private static File resolveAppResource(final String relativePath) {

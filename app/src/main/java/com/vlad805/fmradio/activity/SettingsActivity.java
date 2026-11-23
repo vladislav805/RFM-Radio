@@ -29,10 +29,12 @@ public class SettingsActivity extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.settings_activity);
 		setSupportActionBar(findViewById(R.id.settings_toolbar));
-		getSupportFragmentManager()
-				.beginTransaction()
-				.replace(R.id.settings, new PreferencesFragment())
-				.commit();
+		if (savedInstanceState == null) {
+			getSupportFragmentManager()
+					.beginTransaction()
+					.replace(R.id.settings, new PreferencesFragment())
+					.commit();
+		}
 
 		final ActionBar ab = getSupportActionBar();
 

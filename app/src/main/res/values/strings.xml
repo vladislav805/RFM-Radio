@@ -188,4 +188,8 @@
     <string name="favorites_create_new_list">Create new list</string>
     <string name="favorites_playing_indicator">Now playing</string>
     <string name="pref_app_favorites_columns">Favorites columns</string>
+    <string name="pref_app_theme">Theme</string>
+    <string name="pref_app_theme_system">Follow system</string>
+    <string name="pref_app_theme_light">Light</string>
+    <string name="pref_app_theme_dark">Dark</string>
 </resources>

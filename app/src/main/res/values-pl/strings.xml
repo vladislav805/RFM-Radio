@@ -162,4 +162,8 @@
     <string name="favorites_create_new_list">Nowa lista</string>
     <string name="favorites_playing_indicator">Teraz odtwarzane</string>
     <string name="pref_app_favorites_columns">Kolumny ulubionych</string>
+    <string name="pref_app_theme">Motyw</string>
+    <string name="pref_app_theme_system">Systemowy</string>
+    <string name="pref_app_theme_light">Jasny</string>
+    <string name="pref_app_theme_dark">Ciemny</string>
 </resources>

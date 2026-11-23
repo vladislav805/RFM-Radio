@@ -178,4 +178,8 @@
     <string name="favorites_create_new_list">Новый список</string>
     <string name="favorites_playing_indicator">Сейчас играет</string>
     <string name="pref_app_favorites_columns">Колонки в избранном</string>
+    <string name="pref_app_theme">Тема</string>
+    <string name="pref_app_theme_system">Как в системе</string>
+    <string name="pref_app_theme_light">Светлая</string>
+    <string name="pref_app_theme_dark">Тёмная</string>
 </resources>

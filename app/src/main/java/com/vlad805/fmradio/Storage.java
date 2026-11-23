@@ -8,6 +8,8 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.preference.PreferenceManager;
 
+import com.vlad805.fmradio.enums.AppTheme;
+
 /**
  * Typed settings wrapper around the application's default {@link SharedPreferences}.
  *
@@ -40,6 +42,7 @@ public final class Storage {
 
 		public static final String APP_AUTO_STARTUP = "app_auto_startup";
 		public static final String APP_FAVORITES_COLUMNS = "app_favorites_columns";
+		public static final String APP_THEME = "app_theme";
 
 		public static final String NOTIFICATION_SHOW_RDS = "notification_show_ps";
 		public static final String NOTIFICATION_SEEK_BY_FAVORITES = "notification_seek_by_favorites";
@@ -82,6 +85,7 @@ public final class Storage {
 
 		static final boolean APP_AUTO_STARTUP = false;
 		static final int APP_FAVORITES_COLUMNS = 3;
+		static final AppTheme APP_THEME = AppTheme.SYSTEM;
 
 		static final boolean NOTIFICATION_SHOW_RDS = true;
 		static final boolean NOTIFICATION_SEEK_BY_FAVORITES = false;
@@ -211,6 +215,13 @@ public final class Storage {
 	public int getFavoritesColumns() {
 		final int cols = getPrefInt(Key.APP_FAVORITES_COLUMNS, Default.APP_FAVORITES_COLUMNS);
 		return cols == 2 ? 2 : 3;
+	}
+
+	@NonNull
+	public AppTheme getAppTheme() {
+		return AppTheme.fromPreferenceValue(
+				getPrefString(Key.APP_THEME, Default.APP_THEME.getPreferenceValue())
+		);
 	}
 
 	public boolean isNotificationShowRds() {

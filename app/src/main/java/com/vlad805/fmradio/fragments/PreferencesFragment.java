@@ -32,8 +32,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.RFMApplication;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.enums.AppTheme;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.ProgressDialog;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
@@ -87,12 +89,20 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		setDividerHeight(0);
 
 		final RecyclerView listView = getListView();
-		final int bottomPad = Math.round(16f * getResources().getDisplayMetrics().density);
+		final float density = getResources().getDisplayMetrics().density;
+		final int bottomPad = Math.round(16f * density);
 		listView.setPadding(listView.getPaddingLeft(), listView.getPaddingTop(), listView.getPaddingRight(), bottomPad);
 		listView.setClipToPadding(false);
 
+		if (savedInstanceState != null) {
+			return;
+		}
+
+		final float offset = 14f * density;
 		listView.post(() -> {
-			final float offset = 14f * getResources().getDisplayMetrics().density;
+			if (!isAdded()) {
+				return;
+			}
 			final int count = listView.getChildCount();
 			for (int i = 0; i < count; i++) {
 				final View child = listView.getChildAt(i);
@@ -259,6 +269,15 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 						.setPositiveButton(android.R.string.ok, (dialog, which) -> enablePreRoll(savePast))
 						.show();
 				return false;
+			});
+		}
+
+		final Preference theme = findPreference(Storage.Key.APP_THEME);
+		if (theme != null) {
+			theme.setOnPreferenceChangeListener((preference, newValue) -> {
+				final String raw = newValue instanceof String ? (String) newValue : null;
+				RFMApplication.applyTheme(AppTheme.fromPreferenceValue(raw));
+				return true;
 			});
 		}
 

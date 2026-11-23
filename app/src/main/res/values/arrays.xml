@@ -67,4 +67,16 @@
         <item>2</item>
         <item>3</item>
     </string-array>
+
+    <string-array name="pref_app_theme_entries" translatable="false">
+        <item>@string/pref_app_theme_system</item>
+        <item>@string/pref_app_theme_light</item>
+        <item>@string/pref_app_theme_dark</item>
+    </string-array>
+
+    <string-array name="pref_app_theme_values" translatable="false">
+        <item>system</item>
+        <item>light</item>
+        <item>dark</item>
+    </string-array>
 </resources>
