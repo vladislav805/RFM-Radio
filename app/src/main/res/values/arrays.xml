@@ -62,4 +62,9 @@
         <item>2</item>
         <item>1</item>
     </string-array>
+
+    <string-array name="pref_app_favorites_columns" translatable="false">
+        <item>2</item>
+        <item>3</item>
+    </string-array>
 </resources>

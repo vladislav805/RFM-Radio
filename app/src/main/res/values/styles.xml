@@ -34,6 +34,9 @@
 		<item name="android:insetLeft">0dp</item>
 		<item name="android:insetRight">0dp</item>
 		<item name="cornerRadius">16dp</item>
+		<item name="iconGravity">textStart</item>
+		<item name="iconPadding">0dp</item>
+		<item name="iconSize">@dimen/icon_size_transport</item>
 	</style>
 
 	<style name="RfmIconButtonStandard" parent="Widget.Material3.Button.IconButton">
@@ -41,5 +44,13 @@
 		<item name="android:insetBottom">0dp</item>
 		<item name="android:insetLeft">0dp</item>
 		<item name="android:insetRight">0dp</item>
+		<item name="iconGravity">textStart</item>
+		<item name="iconPadding">0dp</item>
+		<item name="iconSize">@dimen/icon_size_action</item>
+		<item name="iconTint">?attr/colorOnSurfaceVariant</item>
+	</style>
+
+	<style name="RfmIconButtonStandard.Toolbar">
+		<item name="cornerRadius">@dimen/icon_button_corner_radius</item>
 	</style>
 </resources>

@@ -23,6 +23,7 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -55,6 +56,7 @@ import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
+import com.vlad805.fmradio.view.FavoriteListsBottomSheet;
 import com.vlad805.fmradio.view.FavoritesRecyclerView;
 import com.vlad805.fmradio.view.FavoritesView;
 import com.vlad805.fmradio.view.FrequencyDialView;
@@ -99,11 +101,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RadioState mLastState;
 
     private static final int MENU_SETTINGS = 1;
-    private static final int MENU_SCAN = 2;
-    private static final int MENU_SPEAKER = 3;
-    private static final int MENU_ABOUT = 4;
+    private static final int MENU_SPEAKER = 2;
+    private static final int MENU_ABOUT = 3;
 
-    private static final int REQUEST_CODE_FAVORITES_OPENED = 1048;
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
     private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
     private static final int REQUEST_CODE_PLAYBACK_PERMISSION = 1052;
@@ -131,6 +131,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mRecordDuration.setText(getTimeStringBySeconds(durationSec));
             }
             mUiHandler.postDelayed(this, 500L);
+        }
+    };
+
+    private final OnBackPressedCallback mFavoritesEditBackCallback = new OnBackPressedCallback(false) {
+        @Override
+        public void handleOnBackPressed() {
+            if (mFavoritesView != null && mFavoritesView.isEditMode()) {
+                mFavoritesView.exitEditMode();
+            }
         }
     };
 
@@ -165,6 +174,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mRadioClient = new RadioClient(this, this, mEventListener);
 
         initUserInterface();
+        getOnBackPressedDispatcher().addCallback(this, mFavoritesEditBackCallback);
         mFavoriteController.addOnChangeListener(mFavoritesListener);
 
         setEnabledUi(false);
@@ -180,6 +190,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mFavoritesView = findViewById(R.id.favorite_list);
         mFavoritesView.setOnFavoritesChangedListener(this::updateFavoriteFrequencyMarkers);
         mFavoritesView.setOnErrorListener(message -> mToast.text(message).show());
+        mFavoritesView.setOnListSelectorClickListener(() -> FavoriteListsBottomSheet.show(getSupportFragmentManager()));
+        mFavoritesView.setOnEditModeChangeListener(mFavoritesEditBackCallback::setEnabled);
+        mFavoritesView.setOnScanClickListener(this::showSearchDialog);
         mFavoritesView.setOnStationActionListener(new FavoritesRecyclerView.OnStationActionListener() {
             @Override
             public void onStationSelected(@NonNull final FavoriteStation station) {
@@ -264,14 +277,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
         switch (requestCode) {
-            case REQUEST_CODE_FAVORITES_OPENED: {
-                if (resultCode == Activity.RESULT_OK && data != null && data.getBooleanExtra("changed", false)) {
-                    mFavoritesView.reload(true);
-                    updateFavoriteFrequencyMarkers();
-                }
-                break;
-            }
-
             case REQUEST_CODE_SETTINGS_CHANGED: {
                 if (resultCode == RESULT_OK && data != null && data.getBooleanExtra("changed", false)) {
                     alert(
@@ -337,7 +342,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 R.id.ctl_go_up,
                 R.id.ctl_seek_down,
                 R.id.ctl_seek_up,
-                R.id.favorite_button,
                 R.id.btn_record,
                 R.id.btn_settings_menu,
                 R.id.af_badge_card
@@ -384,8 +388,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (id == R.id.ctl_seek_up) {
             mRadioClient.hwSeek(Direction.UP);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
-        } else if (id == R.id.favorite_button) {
-            startActivityForResult(new Intent(this, FavoriteListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
         } else if (id == R.id.btn_record) {
             toggleRecording();
         } else if (id == R.id.btn_settings_menu) {
@@ -432,20 +434,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         menu.add(0, MENU_SETTINGS, 1, R.string.menu_settings);
         final boolean isEnabled = mLastState != null && mLastState.getStatus() == TunerStatus.ENABLED;
-        menu.add(0, MENU_SCAN, 2, R.string.menu_scan_stations).setEnabled(isEnabled);
-        menu.add(0, MENU_SPEAKER, 3, R.string.menu_speaker)
+        menu.add(0, MENU_SPEAKER, 2, R.string.menu_speaker)
                 .setCheckable(true)
                 .setChecked(mLastState != null && mLastState.isForceSpeaker())
                 .setEnabled(isEnabled);
-        menu.add(0, MENU_ABOUT, 4, R.string.menu_about);
+        menu.add(0, MENU_ABOUT, 3, R.string.menu_about);
 
         popup.setOnMenuItemClickListener(item -> {
             final int itemId = item.getItemId();
             if (itemId == MENU_SETTINGS) {
                 startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
-                return true;
-            } else if (itemId == MENU_SCAN) {
-                showSearchDialog();
                 return true;
             } else if (itemId == MENU_SPEAKER) {
                 mRadioClient.toggleSpeaker();
@@ -686,6 +684,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         mSeek.setMinMaxValue(bandLimit.lower, bandLimit.upper, spacing);
         mSeek.setOnFrequencyChangeListener(mOnFrequencyChanged);
+        if (mFavoritesView != null) {
+            mFavoritesView.setColumnCount(mStorage.getFavoritesColumns());
+        }
         updateFavoriteFrequencyMarkers();
     }
 

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="16dp">
+
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+        android:id="@+id/sheet_drag_handle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/sheet_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:text="@string/favorites_lists_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toBottomOf="@id/btn_sheet_export"
+        app:layout_constraintEnd_toStartOf="@id/btn_sheet_create_list"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/btn_sheet_export" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_sheet_create_list"
+        style="@style/RfmIconButtonStandard"
+        android:layout_width="@dimen/icon_button_size_compact"
+        android:layout_height="@dimen/icon_button_size_compact"
+        android:contentDescription="@string/menu_favorite_list_create"
+        app:icon="@drawable/ic_rfm_add"
+        app:layout_constraintBottom_toBottomOf="@id/btn_sheet_export"
+        app:layout_constraintEnd_toStartOf="@id/btn_sheet_import"
+        app:layout_constraintTop_toTopOf="@id/btn_sheet_export" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_sheet_import"
+        style="@style/RfmIconButtonStandard"
+        android:layout_width="@dimen/icon_button_size_compact"
+        android:layout_height="@dimen/icon_button_size_compact"
+        android:contentDescription="@string/menu_favorite_list_import"
+        app:icon="@drawable/ic_import"
+        app:layout_constraintBottom_toBottomOf="@id/btn_sheet_export"
+        app:layout_constraintEnd_toStartOf="@id/btn_sheet_export"
+        app:layout_constraintTop_toTopOf="@id/btn_sheet_export" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_sheet_export"
+        style="@style/RfmIconButtonStandard"
+        android:layout_width="@dimen/icon_button_size_compact"
+        android:layout_height="@dimen/icon_button_size_compact"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="@string/menu_favorite_list_export_all"
+        app:icon="@drawable/ic_export"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/sheet_drag_handle" />
+
+    <!-- Favorite lists -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/sheet_favorite_lists_recycler"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constrainedHeight="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_sheet_export"
+        tools:itemCount="4"
+        tools:listitem="@layout/item_favorite_list_sheet" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

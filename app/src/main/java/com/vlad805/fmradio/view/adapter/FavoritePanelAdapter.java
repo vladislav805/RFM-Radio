@@ -9,6 +9,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
@@ -24,18 +25,11 @@ import java.util.List;
 /**
  * vlad805 (c) 2020
  */
-public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> implements ItemTouchHelperAdapter {
+public class FavoritePanelAdapter extends RecyclerView.Adapter<FavoritePanelAdapter.ViewHolder> implements ItemTouchHelperAdapter {
 	private final LayoutInflater mInflater;
 	protected List<FavoriteStation> mList;
 	private int mActiveFrequency = -1;
 	private boolean mEditMode;
-
-	private static final int TYPE_STATION = 0;
-	private static final int TYPE_BUTTON = 1;
-
-	private static final String[] BUTTONS = {
-			"+"
-	};
 
 	public FavoritePanelAdapter(Context context) {
 		mInflater = LayoutInflater.from(context);
@@ -75,45 +69,19 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 
 	@Override
 	@NonNull
-	public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-		switch (viewType) {
-			case TYPE_STATION:
-				return new ViewHolder(mInflater.inflate(R.layout.favorite_station_item, parent, false));
-
-			case TYPE_BUTTON:
-			default:
-				return new ViewHolderButton(mInflater.inflate(R.layout.favorite_station_button, parent, false));
-		}
+	public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+		return new ViewHolder(mInflater.inflate(R.layout.favorite_station_item, parent, false));
 	}
 
 	@Override
-	public void onBindViewHolder(final @NonNull RecyclerView.ViewHolder holder, final int position) {
-		switch (holder.getItemViewType()) {
-			case TYPE_STATION: {
-				final FavoriteStation station = mList.get(position);
-				((ViewHolder) holder).populate(station, station.getFrequency() == mActiveFrequency, mEditMode);
-				break;
-			}
-
-			case TYPE_BUTTON: {
-				final int fromLast = position - mList.size();
-				((ViewHolderButton) holder).setContent(BUTTONS[fromLast]);
-				break;
-			}
-
-		}
-	}
-
-	@Override
-	public int getItemViewType(final int position) {
-		return position < mList.size()
-				? TYPE_STATION
-				: TYPE_BUTTON;
+	public void onBindViewHolder(final @NonNull ViewHolder holder, final int position) {
+		final FavoriteStation station = mList.get(position);
+		holder.populate(station, station.getFrequency() == mActiveFrequency, mEditMode);
 	}
 
 	@Override
 	public int getItemCount() {
-		return mList.size() + BUTTONS.length;
+		return mList == null ? 0 : mList.size();
 	}
 
 	@Override
@@ -161,9 +129,8 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 		private final MaterialCardView card;
 		private final TextView frequency;
 		private final TextView title;
+		private final ImageView playing;
 		private final ImageView reorder;
-		private final int strokeDefaultPx;
-		private final int strokeActivePx;
 
 		private ViewHolder(View root) {
 			super(root);
@@ -171,10 +138,8 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 			card = (MaterialCardView) root;
 			frequency = root.findViewById(R.id.favorite_panel_item_frequency);
 			title = root.findViewById(R.id.favorite_panel_item_title);
+			playing = root.findViewById(R.id.favorite_panel_item_playing);
 			reorder = root.findViewById(R.id.favorite_panel_item_reorder);
-			final float density = root.getResources().getDisplayMetrics().density;
-			strokeDefaultPx = Math.max(1, Math.round(1f * density));
-			strokeActivePx = Math.max(2, Math.round(1.5f * density));
 		}
 
 		public void populate(final FavoriteStation station, final boolean active, final boolean editMode) {
@@ -185,11 +150,6 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 					card,
 					active ? com.google.android.material.R.attr.colorPrimaryContainer : com.google.android.material.R.attr.colorSurfaceContainer,
 					ContextCompat.getColor(card.getContext(), active ? R.color.rfm_md_primary_container : R.color.rfm_md_secondary_container)
-			);
-			final int strokeColor = MaterialColors.getColor(
-					card,
-					active ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOutlineVariant,
-					ContextCompat.getColor(card.getContext(), active ? R.color.rfm_md_primary : R.color.rfm_md_secondary_container)
 			);
 			final int freqColor = MaterialColors.getColor(
 					card,
@@ -203,15 +163,25 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 			);
 
 			card.setCardBackgroundColor(bgColor);
-			card.setStrokeColor(strokeColor);
-			card.setStrokeWidth(active ? strokeActivePx : strokeDefaultPx);
 
 			frequency.setText(Utils.getMHz(station.getFrequency()).trim());
 			final String stationTitle = station.getTitle() != null ? station.getTitle().trim() : "";
 			title.setText(stationTitle.isEmpty() ? itemView.getContext().getString(R.string.rds_placeholder) : stationTitle);
 			frequency.setTextColor(freqColor);
 			title.setTextColor(titleColor);
-			reorder.setVisibility(editMode ? View.VISIBLE : View.GONE);
+
+			if (editMode) {
+				playing.setVisibility(View.GONE);
+				reorder.setVisibility(View.VISIBLE);
+				ImageViewCompat.setImageTintList(reorder, ColorStateList.valueOf(titleColor));
+			} else if (active) {
+				reorder.setVisibility(View.GONE);
+				playing.setVisibility(View.VISIBLE);
+				ImageViewCompat.setImageTintList(playing, ColorStateList.valueOf(freqColor));
+			} else {
+				reorder.setVisibility(View.GONE);
+				playing.setVisibility(View.GONE);
+			}
 		}
 
 		@Override
@@ -226,18 +196,4 @@ public class FavoritePanelAdapter extends RecyclerView.Adapter<RecyclerView.View
 	}
 
 	private static final float ALPHA_FULL = 1f;
-
-	public static class ViewHolderButton extends RecyclerView.ViewHolder {
-		private final TextView content;
-
-		private ViewHolderButton(final View root) {
-			super(root);
-
-			content = root.findViewById(R.id.favorite_station_item_button);
-		}
-
-		public void setContent(final String text) {
-			content.setText(text);
-		}
-	}
 }

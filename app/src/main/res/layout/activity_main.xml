@@ -9,7 +9,6 @@
     android:clipChildren="false"
     android:clipToPadding="false"
     android:paddingTop="4dp"
-    android:paddingBottom="10dp"
     tools:context=".activity.MainActivity">
 
     <!-- 1. TOP MATERIAL 3 APP BAR -->
@@ -111,45 +110,32 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_settings_menu"
             style="@style/RfmIconButtonStandard"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="@dimen/icon_button_size"
+            android:layout_height="@dimen/icon_button_size"
             android:layout_marginStart="2dp"
             android:contentDescription="@string/menu_settings"
             app:icon="@drawable/ic_settings"
-            app:iconGravity="textStart"
-            app:iconPadding="0dp"
-            app:iconSize="24dp"
-            app:iconTint="?attr/colorOnSurfaceVariant" />
+            app:iconSize="@dimen/icon_size_app_bar" />
     </LinearLayout>
-
-    <View
-        android:id="@+id/top_divider"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:alpha="0.5"
-        android:background="?attr/colorOutlineVariant"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/top_status_bar" />
 
     <!-- 2. SYMMETRIC 3-COLUMN TUNER HEADER (SIGNAL+STEREO / PS | FREQUENCY | PI / PTY) -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/tuner_header"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:minHeight="132dp"
+        android:minHeight="126dp"
         android:paddingStart="16dp"
-        android:paddingTop="16dp"
+        android:paddingTop="12dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="16dp"
+        android:paddingBottom="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/top_divider">
+        app:layout_constraintTop_toBottomOf="@id/top_status_bar">
 
         <!-- CENTER: LARGE FREQUENCY + MHz -->
         <TextView
             android:id="@+id/frequency_mhz"
-            android:layout_width="134dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-medium"
             android:fontFeatureSettings="tnum"
@@ -157,6 +143,7 @@
             android:includeFontPadding="false"
             android:letterSpacing="-0.03"
             android:maxLines="1"
+            android:minWidth="124dp"
             android:textColor="?attr/colorOnSurface"
             android:textSize="44sp"
             app:layout_constraintBottom_toTopOf="@+id/frequency_unit"
@@ -185,7 +172,7 @@
         <com.vlad805.fmradio.view.SignalStrengthView
             android:id="@+id/signal_strength"
             android:layout_width="28dp"
-            android:layout_height="20dp"
+            android:layout_height="28dp"
             android:contentDescription="@string/signal_strength_indicator"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -227,8 +214,8 @@
             android:ellipsize="end"
             android:fontFamily="monospace"
             android:gravity="start|bottom"
-            android:maxLines="2"
-            android:minLines="2"
+            android:maxLines="1"
+            android:minLines="1"
             android:text="@string/rds_placeholder"
             android:textColor="?attr/colorOnSurface"
             android:textSize="14sp"
@@ -414,9 +401,6 @@
             android:contentDescription="@string/seek_down"
             android:visibility="gone"
             app:icon="@drawable/ic_rfm_seek_prev"
-            app:iconGravity="textStart"
-            app:iconPadding="0dp"
-            app:iconSize="22dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/ctl_go_down"
             app:layout_constraintStart_toStartOf="parent"
@@ -432,9 +416,6 @@
             android:contentDescription="@string/jump_down"
             android:visibility="gone"
             app:icon="@drawable/ic_rfm_step_prev"
-            app:iconGravity="textStart"
-            app:iconPadding="0dp"
-            app:iconSize="22dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/ctl_toggle"
             app:layout_constraintStart_toEndOf="@+id/ctl_seek_down"
@@ -471,9 +452,6 @@
             android:contentDescription="@string/jump_up"
             android:visibility="gone"
             app:icon="@drawable/ic_rfm_step_next"
-            app:iconGravity="textStart"
-            app:iconPadding="0dp"
-            app:iconSize="22dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/ctl_seek_up"
             app:layout_constraintStart_toEndOf="@+id/ctl_toggle"
@@ -489,9 +467,6 @@
             android:contentDescription="@string/seek_up"
             android:visibility="gone"
             app:icon="@drawable/ic_rfm_seek_next"
-            app:iconGravity="textStart"
-            app:iconPadding="0dp"
-            app:iconSize="22dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/ctl_go_up"
@@ -499,14 +474,12 @@
             tools:visibility="visible" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 6. FAVORITES STATION CONSOLE (FILLS REMAINING HEIGHT, NO SCREEN SCROLL) -->
+    <!-- 6. FAVORITES STATION CONSOLE (SURFACE-COLORED PANEL, FILLING REMAINING HEIGHT) -->
     <com.vlad805.fmradio.view.FavoritesView
         android:id="@+id/favorite_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginStart="14dp"
-        android:layout_marginTop="14dp"
-        android:layout_marginEnd="14dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

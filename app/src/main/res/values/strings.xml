@@ -183,4 +183,9 @@
     <string name="about_version_copied">Version copied</string>
     <string name="favorite_list_active_badge">Active</string>
     <string name="favorite_list_name_hint">List name</string>
+    <string name="favorites_add_station">Add</string>
+    <string name="favorites_lists_title">Favorite lists</string>
+    <string name="favorites_create_new_list">Create new list</string>
+    <string name="favorites_playing_indicator">Now playing</string>
+    <string name="pref_app_favorites_columns">Favorites columns</string>
 </resources>

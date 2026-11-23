@@ -173,4 +173,9 @@
     <string name="about_version_copied">Версия скопирована</string>
     <string name="favorite_list_active_badge">Активный</string>
     <string name="favorite_list_name_hint">Название списка</string>
+    <string name="favorites_add_station">Добавить</string>
+    <string name="favorites_lists_title">Списки избранного</string>
+    <string name="favorites_create_new_list">Новый список</string>
+    <string name="favorites_playing_indicator">Сейчас играет</string>
+    <string name="pref_app_favorites_columns">Колонки в избранном</string>
 </resources>

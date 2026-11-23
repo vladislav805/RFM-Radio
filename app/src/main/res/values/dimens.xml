@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Icon button touch targets -->
+    <dimen name="icon_button_size">48dp</dimen>
+    <dimen name="icon_button_size_compact">44dp</dimen>
+    <dimen name="icon_button_size_item">40dp</dimen>
+    <dimen name="icon_button_corner_radius">24dp</dimen>
+
+    <!-- Icon sizes -->
+    <dimen name="icon_size_app_bar">24dp</dimen>
+    <dimen name="icon_size_action">22dp</dimen>
+    <dimen name="icon_size_transport">22dp</dimen>
+    <dimen name="icon_size_item">20dp</dimen>
+    <dimen name="icon_size_small">16dp</dimen>
+
+    <!-- Favorites panel & cards -->
+    <dimen name="favorites_panel_radius">26dp</dimen>
+    <dimen name="favorites_card_radius">14dp</dimen>
+    <dimen name="favorites_card_height">54dp</dimen>
+    <dimen name="favorites_fading_edge">16dp</dimen>
+</resources>

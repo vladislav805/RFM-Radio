@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import com.vlad805.fmradio.R;
+import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.controller.FavoriteController;
 import com.vlad805.fmradio.helper.EditTextDialog;
 import com.vlad805.fmradio.helper.RecyclerItemClickListener;
@@ -25,6 +26,7 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 	public static final int MENU_RENAME = 101;
 
 	protected List<FavoriteStation> mStations;
+	private GridLayoutManager mLayoutManager;
 	private FavoritePanelAdapter mAdapter;
 	private FavoriteController mController;
 	private final Toast mToast;
@@ -100,8 +102,18 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 		return mStations == null ? 0 : mStations.size();
 	}
 
+	public void setColumnCount(final int columns) {
+		final int clamped = columns == 2 ? 2 : 3;
+		if (mLayoutManager != null && mLayoutManager.getSpanCount() != clamped) {
+			mLayoutManager.setSpanCount(clamped);
+		}
+	}
+
 	private void init(final Context context) {
-		setLayoutManager(new GridLayoutManager(getContext(), 2));
+		// View.isInEditMode() is for Android Studio Layout Preview, where SharedPreferences are unavailable.
+		final int columns = isInEditMode() ? 3 : Storage.get(context).getFavoritesColumns();
+		mLayoutManager = new GridLayoutManager(getContext(), columns);
+		setLayoutManager(mLayoutManager);
 
 		mAdapter = new FavoritePanelAdapter(context);
 		setAdapter(mAdapter);
@@ -122,19 +134,10 @@ public class FavoritesRecyclerView extends RecyclerView implements RecyclerItemC
 			return;
 		}
 
-		final int size = mStations.size();
-
-		if (position < size) {
+		if (position < mStations.size()) {
 			final FavoriteStation station = mStations.get(position);
 			if (mOnStationActionListener != null) {
 				mOnStationActionListener.onStationSelected(station);
-			}
-			return;
-		}
-
-		if (position == size) {
-			if (mOnStationActionListener != null) {
-				mOnStationActionListener.onAddCurrentStationRequested();
 			}
 		}
 	}

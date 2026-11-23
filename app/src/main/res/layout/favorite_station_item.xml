@@ -3,42 +3,44 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="48dp"
-    android:layout_margin="3dp"
+    android:layout_height="@dimen/favorites_card_height"
+    android:layout_margin="4dp"
     android:clickable="true"
     android:focusable="true"
     app:cardBackgroundColor="?attr/colorSurfaceContainer"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="@dimen/favorites_card_radius"
     app:cardElevation="0dp"
-    app:strokeColor="?attr/colorOutlineVariant"
-    app:strokeWidth="1dp">
+    app:strokeWidth="0dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingStart="12dp"
+        android:paddingStart="10dp"
         android:paddingEnd="8dp">
 
         <TextView
             android:id="@+id/favorite_panel_item_frequency"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:fontFeatureSettings="tnum"
             android:includeFontPadding="false"
+            android:maxLines="1"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="15sp"
-            android:textStyle="bold"
+            android:textSize="14sp"
             app:layout_constraintBottom_toTopOf="@+id/favorite_panel_item_title"
+            app:layout_constraintEnd_toStartOf="@+id/favorite_panel_item_indicator"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_chainStyle="packed"
-            tools:text="101.7" />
+            tools:text="106.3" />
 
         <TextView
             android:id="@+id/favorite_panel_item_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:includeFontPadding="false"
             android:maxLines="1"
@@ -46,22 +48,38 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="11sp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/favorite_panel_item_reorder"
+            app:layout_constraintEnd_toStartOf="@+id/favorite_panel_item_indicator"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/favorite_panel_item_frequency"
-            tools:text="Retro FM" />
+            tools:text="Record" />
 
-        <ImageView
-            android:id="@+id/favorite_panel_item_reorder"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:contentDescription="@string/drag_to_reorder"
-            android:src="@drawable/ic_preset_drag"
-            android:visibility="gone"
+        <FrameLayout
+            android:id="@+id/favorite_panel_item_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="?attr/colorOnSurfaceVariant"
-            tools:visibility="visible" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/favorite_panel_item_playing"
+                android:layout_width="@dimen/icon_size_small"
+                android:layout_height="@dimen/icon_size_small"
+                android:contentDescription="@string/favorites_playing_indicator"
+                android:src="@drawable/ic_rfm_play"
+                android:visibility="gone"
+                app:tint="?attr/colorOnPrimaryContainer"
+                tools:visibility="visible" />
+
+            <ImageView
+                android:id="@+id/favorite_panel_item_reorder"
+                android:layout_width="@dimen/icon_size_small"
+                android:layout_height="@dimen/icon_size_small"
+                android:contentDescription="@string/drag_to_reorder"
+                android:src="@drawable/ic_preset_drag"
+                android:visibility="gone"
+                app:tint="?attr/colorOnSurfaceVariant" />
+        </FrameLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

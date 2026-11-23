@@ -420,13 +420,13 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
 - In-process singleton: `FavoriteController.get(context)` maintains a
   `CopyOnWriteArraySet<OnFavoritesChangeListener>` and an in-memory frequency →
   title map rebuilt on `reload()` and `save()`.
-- `MainActivity`, `FavoritesView`, `FavoriteListsActivity`, and `FMService`
+- `MainActivity`, `FavoritesView`, `FavoriteListsBottomSheet`, and `FMService`
   share the singleton; all mutations (`save`, `setCurrentFavoriteList`,
   `addList`, `renameList`, `removeList`, `importList`,
   `replaceCurrentListStations`) automatically notify listeners.
 - Import: `FavoriteController.importList` (JSON) or
-  `FavoriteListsActivity` (ZIP via `ZipInputStream`, multiple lists).
-- Export: single list, selected lists, or all lists as ZIP.
+  `FavoriteListTransferHelper` via `FavoriteListsBottomSheet` (ZIP via `ZipInputStream`, multiple lists).
+- Export: single list or all lists as ZIP via SAF (`ACTION_CREATE_DOCUMENT`).
 - A completed hardware search (`EventListener.onSearchDone`) replaces the
   current list via `FavoriteController.replaceCurrentListStations(...)`.
 - `FavoriteStation(JSONObject)` defaults the frequency to **108100** —
@@ -447,10 +447,13 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
   `onDestroy()` also dismisses `mSearchProgress` to avoid `WindowLeaked`).
   Runtime permissions: recording (`RECORD_AUDIO`, storage when needed) with a
   "don't ask again → open settings" flow; playback `RECORD_AUDIO` only for
-  legacy + API < 26. Menu: settings, scan, speaker (`toggleSpeaker()`), about.
-- `FavoriteListsActivity` — list manager using `FavoriteController.get(this)`:
-  RecyclerView with selection mode, rename/remove, export (single/selected
-  ZIP/all), import (JSON or ZIP via SAF `ACTION_*_DOCUMENT`).
+  legacy + API < 26. Menu: settings, speaker (`toggleSpeaker()`), about.
+  Station scan (`hwSearch`) lives in the `FavoritesView` header bar.
+- `FavoriteListsBottomSheet` — Material 3 `BottomSheetDialogFragment` list
+  manager opened from `FavoritesView`, using `FavoriteController.get(this)` and
+  `FavoriteListTransferHelper`: switch active list, create/rename/remove,
+  export (single JSON or all as ZIP), and import (JSON or ZIP via SAF
+  `ActivityResultLauncher`).
 - `SettingsActivity` — hosts `PreferencesFragment`; binds `RadioClient` in
   `onStart()`/`onStop()` to observe `EventListener.onInvalidAntennaError()` →
   toast.
@@ -464,7 +467,8 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
   drum-style horizontal frequency dial themed via Material 3 `MaterialColors`
   with fling physics, haptic ticks, and favorite markers; band/spacing from
   `BandUtils`), `FavoritesView`/`FavoritesRecyclerView`/`FavoritePanelAdapter`
-  (Material 3 card-based 2-column preset grid observing `FavoriteController`
+  (Material 3 2/3-column preset grid controlled by `app_favorites_columns`,
+  observing `FavoriteController`
   on attach/detach and delegating station selection and add-current-station
   requests via `OnStationActionListener` to `MainActivity`),
   `SignalStrength.levelForRmssi` (thresholds −105/−91/−81/−71/−61 → five

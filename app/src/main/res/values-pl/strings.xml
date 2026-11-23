@@ -157,4 +157,9 @@
 	<string name="root_access_denied_message">Dostęp root nie został przyznany. Zezwól RFM Radio na dostęp root w aplikacji do zarządzania uprawnieniami root i spróbuj ponownie.</string>
     <string name="pref_recording_save_srt">Zapisuj RDS jako napisy</string>
     <string name="pref_recording_save_srt_summary">Zapisuj częstotliwość, PS, RT i PI w pliku .srt obok nagrania audio. Dotyczy nowych nagrań.</string>
+    <string name="favorites_add_station">Dodaj</string>
+    <string name="favorites_lists_title">Listy ulubionych</string>
+    <string name="favorites_create_new_list">Nowa lista</string>
+    <string name="favorites_playing_indicator">Teraz odtwarzane</string>
+    <string name="pref_app_favorites_columns">Kolumny ulubionych</string>
 </resources>

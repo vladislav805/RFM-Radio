@@ -164,6 +164,16 @@
             app:title="@string/pref_app_auto_startup"
             app:widgetLayout="@layout/pref_widget_material_switch" />
 
+        <ListPreference
+            app:defaultValue="3"
+            app:dialogTitle="@string/pref_app_favorites_columns"
+            app:entries="@array/pref_app_favorites_columns"
+            app:entryValues="@array/pref_app_favorites_columns"
+            app:icon="@drawable/ic_grid_view"
+            app:key="app_favorites_columns"
+            app:title="@string/pref_app_favorites_columns"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

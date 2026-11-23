@@ -11,7 +11,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | Package | Role |
 | --- | --- |
 | (root) | `C.java` — `RecordFormat` and `Config` constants; `Storage` — typed `SharedPreferences` wrapper, `Storage.Key`, defaults |
-| `activity/` | `MainActivity` (entry, gates), `FavoriteListsActivity`, `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
+| `activity/` | `MainActivity` (entry, gates), `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
 | `controller/` | `RadioServiceController` (local binder contract), `RadioClient` (`ServiceConnection` wrapper + command queue), `StateListener`, `EventListener`, `FavoriteController` (in-process singleton), `RadioState` (pure reducers + `SET_*` masks), `TunerStatus` |
 | `service/` | `FMService` — the orchestrator (`LocalBinder` + external `ACTION_*` entry points); `FMNotificationManager` — notification channels and playback/recording presentation |
 | `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
@@ -168,7 +168,7 @@ enable/disable and seek frequencies arrive via `state` patches).
   `replaceCurrentListStations(List<FavoriteStation>)`, rename/remove (never for
   `default`), import (JSON/ZIP, 1 MB limit, name sanitizing), export (single
   list or ZIP).
-- `MainActivity`, `FavoritesView`, `FavoriteListsActivity`, and `FMService`
+- `MainActivity`, `FavoritesView`, `FavoriteListsBottomSheet`, and `FMService`
   all share `FavoriteController.get(...)` and subscribe to changes directly.
 - `FavoritesRecyclerView` delegates station selection and add-current-station
   requests to `MainActivity` via `OnStationActionListener`.
@@ -192,8 +192,8 @@ enable/disable and seek frequencies arrive via `state` patches).
   `tuner_antenna`, `tuner_power_mode`, `rds_auto_af`,
   `recording_directory`/`recording_filename` (templates `$f $y $m $d $h $i $s
   $r`), `recording_mode`, `recording_save_srt`, `recording_save_past`,
-  `recording_show_notify`, `app_auto_startup`, `notification_show_ps`,
-  `notification_seek_by_favorites`. Feature availability is driven by
+  `recording_show_notify`, `app_auto_startup`, `app_favorites_columns`,
+  `notification_show_ps`, `notification_seek_by_favorites`. Feature availability is driven by
   `TunerDriver` capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
   `supportsNotchFilter`, `supportsAntenna`, `supportsAutoAf`,
   `supportsJapanWide`, `supportsStereoDetection`, `getJapanStandardUpperKhz`);
