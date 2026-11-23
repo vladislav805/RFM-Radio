@@ -7,11 +7,8 @@ import android.animation.PropertyValuesHolder;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.net.Uri;
@@ -40,14 +37,14 @@ import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.EventListener;
 import com.vlad805.fmradio.controller.FavoriteController;
-import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.controller.RadioClient;
 import com.vlad805.fmradio.controller.RadioState;
-import com.vlad805.fmradio.controller.RadioStateUpdater;
+import com.vlad805.fmradio.controller.StateListener;
 import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
@@ -57,7 +54,6 @@ import com.vlad805.fmradio.helper.Toast;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
 import com.vlad805.fmradio.preferences.BandUtils;
-import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
 import com.vlad805.fmradio.view.FavoritesRecyclerView;
 import com.vlad805.fmradio.view.FavoritesView;
@@ -76,15 +72,17 @@ import static com.vlad805.fmradio.Utils.alert;
 import static com.vlad805.fmradio.Utils.getTimeStringBySeconds;
 
 @SuppressLint("NonConstantResourceId")
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, RadioStateUpdater.TunerStateListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, StateListener {
     private Toast mToast;
     private RadioUIView mFrequencyInfo;
     private FrequencyDialView mSeek;
     private FavoritesView mFavoritesView;
 
-    private RadioController mRadioController;
+    private RadioClient mRadioClient;
     private FavoriteController mFavoriteController;
     private ProgressDialog mSearchProgress;
+    private boolean mSearchActive = false;
+    private boolean mAutoStartupChecked = false;
     private Storage mStorage;
 
     private MaterialButton mCtlToggle;
@@ -163,15 +161,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mToast = Toast.create(this);
 
         mStorage = Storage.get(this);
-        mRadioController = new RadioController(this);
         mFavoriteController = FavoriteController.get(this);
-        mRadioController.requestForCurrentState(this);
-        mRadioController.registerForUpdates(this);
-        mRadioController.setPowerMode(PowerMode.NORMAL);
+        mRadioClient = new RadioClient(this, this, mEventListener);
 
         initUserInterface();
         mFavoriteController.addOnChangeListener(mFavoritesListener);
-        initLogic();
+
+        setEnabledUi(false);
+        mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
     }
 
     /**
@@ -186,14 +183,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mFavoritesView.setOnStationActionListener(new FavoritesRecyclerView.OnStationActionListener() {
             @Override
             public void onStationSelected(@NonNull final FavoriteStation station) {
-                mRadioController.setFrequency(station.getFrequency());
+                mRadioClient.setFrequency(station.getFrequency());
             }
 
             @Override
             public void onAddCurrentStationRequested() {
-                mRadioController.requestForCurrentState((state, mode) ->
-                        mFavoritesView.promptAddStation(state.getFrequency(), state.getPs())
-                );
+                final RadioState state = mRadioClient.getState();
+                mFavoritesView.promptAddStation(state.getFrequency(), state.getPs());
             }
         });
 
@@ -209,19 +205,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         initClickableButtons();
     }
 
-    /**
-     * Initialize connection and service
-     */
-    private void initLogic() {
-        final boolean needStartup = mStorage.isAutoStartupEnabled();
-
-        if (needStartup) {
-            if (ensurePlaybackPermissionForLegacyAudio()) {
-                startRadio();
-            }
-        } else {
-            setEnabledUi(false);
-            mFrequencyInfo.showStatus(R.string.status_tuner_stopped);
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (mRadioClient != null) {
+            mRadioClient.connect();
         }
     }
 
@@ -234,8 +222,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
+    protected void onStop() {
+        if (mSearchActive && (isFinishing() || isChangingConfigurations())) {
+            cancelActiveSearch();
+        }
+        if (mRadioClient != null) {
+            if (mStorage.isLowPowerMode() && mRadioClient.getState().getStatus() == TunerStatus.ENABLED) {
+                mRadioClient.setPowerMode(PowerMode.LOW);
+            }
+            mRadioClient.disconnect();
+        }
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if (mSearchActive) {
+            cancelActiveSearch();
+        } else {
+            dismissSearchProgress();
+        }
 
         mUiHandler.removeCallbacks(mRecordTicker);
         mRecordTickerRunning = false;
@@ -250,14 +258,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (mFavoriteController != null) {
             mFavoriteController.removeOnChangeListener(mFavoritesListener);
-        }
-
-        if (mRadioController != null) {
-            mRadioController.unregisterForUpdates();
-        }
-
-        if (mRadioController != null && mStorage.isLowPowerMode()) {
-            mRadioController.setPowerMode(PowerMode.LOW);
         }
     }
 
@@ -292,7 +292,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (requestCode == REQUEST_CODE_RECORD_PERMISSIONS) {
             final boolean granted = hasRecordingPermissions();
             if (granted && mPendingRecordStart) {
-                mRadioController.record(true);
+                mRadioClient.startRecord();
             } else if (mPendingRecordStart) {
                 mToast.text(getString(R.string.record_permissions_required)).show();
             }
@@ -360,7 +360,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (id == R.id.ctl_toggle) {
             // Main power toggle button
-            switch (mRadioController.getState().getStatus()) {
+            switch (mRadioClient.getState().getStatus()) {
                 case IDLE: {
                     if (ensurePlaybackPermissionForLegacyAudio()) {
                         startRadio();
@@ -370,19 +370,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 case ENABLED: {
                     setEnabledToggleButton(false);
-                    mRadioController.disable();
+                    mRadioClient.disable();
                     break;
                 }
             }
         } else if (id == R.id.ctl_go_down) {
-            mRadioController.jump(Direction.DOWN);
+            mRadioClient.jump(Direction.DOWN);
         } else if (id == R.id.ctl_go_up) {
-            mRadioController.jump(Direction.UP);
+            mRadioClient.jump(Direction.UP);
         } else if (id == R.id.ctl_seek_down) {
-            mRadioController.hwSeek(Direction.DOWN);
+            mRadioClient.hwSeek(Direction.DOWN);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
         } else if (id == R.id.ctl_seek_up) {
-            mRadioController.hwSeek(Direction.UP);
+            mRadioClient.hwSeek(Direction.UP);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
         } else if (id == R.id.favorite_button) {
             startActivityForResult(new Intent(this, FavoriteListsActivity.class), REQUEST_CODE_FAVORITES_OPENED);
@@ -396,17 +396,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void toggleRecording() {
-        if (mRadioController.getState().getStatus() != TunerStatus.ENABLED) {
+        if (mRadioClient.getState().getStatus() != TunerStatus.ENABLED) {
             return;
         }
 
-        if (mRadioController.getState().isRecording()) {
-            mRadioController.record(false);
+        if (mRadioClient.getState().isRecording()) {
+            mRadioClient.stopRecord();
             return;
         }
 
         if (hasRecordingPermissions()) {
-            mRadioController.record(true);
+            mRadioClient.startRecord();
         } else if (shouldOpenRecordingPermissionSettings()) {
             showRecordingPermissionSettingsDialog();
         } else {
@@ -448,7 +448,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 showSearchDialog();
                 return true;
             } else if (itemId == MENU_SPEAKER) {
-                startService(new Intent(this, FMService.class).setAction(C.Command.SPEAKER_STATE));
+                mRadioClient.toggleSpeaker();
                 return true;
             } else if (itemId == MENU_ABOUT) {
                 startActivity(new Intent(this, AboutActivity.class));
@@ -485,8 +485,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.rds_af_dialog_title)
                 .setItems(labels, (dialog, which) -> {
-                    if (which >= 0 && which < sortedAf.length && mRadioController.getState().getStatus() == TunerStatus.ENABLED) {
-                        mRadioController.setFrequency(sortedAf[which]);
+                    if (which >= 0 && which < sortedAf.length && mRadioClient.getState().getStatus() == TunerStatus.ENABLED) {
+                        mRadioClient.setFrequency(sortedAf[which]);
                     }
                 })
                 .setPositiveButton(android.R.string.ok, null)
@@ -495,87 +495,67 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void startRadio() {
         setEnabledToggleButton(false);
-        mRadioController.setup();
+        mRadioClient.enable();
     }
 
     private void showSearchDialog() {
-        mRadioController.getCurrentState(state -> {
-            if (state.getStatus() != TunerStatus.ENABLED) {
-                mToast.text(R.string.scan_stations_error_tuner_not_enabled).show();
-                return;
-            }
+        if (mRadioClient.getState().getStatus() != TunerStatus.ENABLED) {
+            mToast.text(R.string.scan_stations_error_tuner_not_enabled).show();
+            return;
+        }
 
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle(R.string.scan_stations_confirm_title)
-                    .setMessage(R.string.scan_stations_confirm_message)
-                    .setCancelable(false)
-                    .setPositiveButton(R.string.scan_stations_confirm_continue, (dialog, buttonId) -> startSearch())
-                    .setNegativeButton(R.string.scan_stations_confirm_discard, null)
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
-        });
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.scan_stations_confirm_title)
+                .setMessage(R.string.scan_stations_confirm_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.scan_stations_confirm_continue, (dialog, buttonId) -> startSearch())
+                .setNegativeButton(R.string.scan_stations_confirm_discard, null)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
     }
 
     private void startSearch() {
-        mRadioController.hwSearch();
+        mSearchActive = true;
+        mRadioClient.hwSearch();
 
+        dismissSearchProgress();
         mSearchProgress = ProgressDialog.create(this)
                 .title(R.string.scan_stations_title)
                 .text(getString(R.string.scan_stations_progress_count, 0))
-                .negativeButton(android.R.string.cancel, (dialog, buttonId) -> {
-                    mRadioController.cancelHwSearch();
-                    unregisterSearchReceiver();
-                    mSearchProgress = null;
-                })
+                .negativeButton(android.R.string.cancel, (dialog, buttonId) -> cancelActiveSearch())
                 .show();
-
-        final IntentFilter searchFilter = new IntentFilter(C.Event.HW_SEARCH_PROGRESS);
-        searchFilter.addAction(C.Event.HW_SEARCH_DONE);
-        searchFilter.addAction(C.Event.HW_SEARCH_FAILED);
-        searchFilter.addAction(C.Event.ERROR_OCCURRED);
-        Utils.registerAppReceiver(this, mSearchDone, searchFilter);
     }
 
-    private void unregisterSearchReceiver() {
-        try {
-            unregisterReceiver(mSearchDone);
-        } catch (IllegalArgumentException ignored) {
+    private void cancelActiveSearch() {
+        mSearchActive = false;
+        dismissSearchProgress();
+        if (mRadioClient != null) {
+            mRadioClient.cancelHwSearch();
         }
     }
 
-    private final BroadcastReceiver mSearchDone = new BroadcastReceiver() {
+    private void dismissSearchProgress() {
+        if (mSearchProgress != null) {
+            mSearchProgress.hide();
+            mSearchProgress = null;
+        }
+    }
+
+    private final EventListener mEventListener = new EventListener() {
         @Override
-        public void onReceive(final Context context, final Intent intent) {
-            if (intent == null || intent.getAction() == null) {
+        public void onSearchProgress(final int count) {
+            if (mSearchActive && mSearchProgress != null && count >= 0) {
+                mSearchProgress.text(getString(R.string.scan_stations_progress_count, count));
+            }
+        }
+
+        @Override
+        public void onSearchDone(@NonNull final int[] frequencies) {
+            if (!mSearchActive) {
                 return;
             }
-
-            final String action = intent.getAction();
-            if (C.Event.HW_SEARCH_PROGRESS.equals(action)) {
-                final int count = intent.getIntExtra(C.Key.COUNT, -1);
-                if (mSearchProgress != null && count >= 0) {
-                    mSearchProgress.text(getString(R.string.scan_stations_progress_count, count));
-                }
-                return;
-            }
-
-            unregisterSearchReceiver();
-
-            if (mSearchProgress != null) {
-                mSearchProgress.hide();
-                mSearchProgress = null;
-            }
-
-            if (C.Event.HW_SEARCH_FAILED.equals(action) || C.Event.ERROR_OCCURRED.equals(action)) {
-                mToast.text(R.string.scan_stations_failed).show();
-                return;
-            }
-
-            final int[] frequencies = intent.getIntArrayExtra(C.Key.STATION_LIST);
-            if (frequencies == null) {
-                mToast.text(R.string.scan_stations_failed).show();
-                return;
-            }
+            mSearchActive = false;
+            dismissSearchProgress();
 
             final List<FavoriteStation> stations = new ArrayList<>(frequencies.length);
             for (final int kHz : frequencies) {
@@ -583,6 +563,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             mFavoriteController.replaceCurrentListStations(stations);
+        }
+
+        @Override
+        public void onSearchFailed() {
+            if (!mSearchActive) {
+                return;
+            }
+            mSearchActive = false;
+            dismissSearchProgress();
+            mToast.text(R.string.scan_stations_failed).show();
+        }
+
+        @Override
+        public void onTunerError(@NonNull final String message) {
+            if (mSearchActive) {
+                mSearchActive = false;
+                dismissSearchProgress();
+                mToast.text(R.string.scan_stations_failed).show();
+            }
         }
     };
 
@@ -721,11 +720,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mFrequencyInfo.setFrequency(kHz);
             mFavoritesView.setActiveFrequency(kHz);
 
-            if (mRadioController.getState().getFrequency() == kHz) {
+            if (mRadioClient.getState().getFrequency() == kHz) {
                 return;
             }
 
-            mRadioController.setFrequency(kHz);
+            mRadioClient.setFrequency(kHz);
         }
     };
 
@@ -735,10 +734,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * @param mode Bitmask what was changed
      */
     @Override
-    public void onStateUpdated(final RadioState state, final int mode) {
+    public void onStateUpdated(@NonNull final RadioState state, final int mode) {
         mLastState = state;
+        final boolean isInitial = (mode & RadioState.SET_INITIAL) != 0;
 
-        if ((mode & (RadioStateUpdater.SET_RMSSI | RadioStateUpdater.SET_SINR)) > 0) {
+        if ((mode & (RadioState.SET_RMSSI | RadioState.SET_SINR)) != 0) {
             final boolean available = (
                     state.getRmssi() != RadioState.RMSSI_UNKNOWN ||
                     state.getSinr() != RadioState.SINR_UNKNOWN
@@ -750,20 +750,44 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
 
-        if ((mode & RadioStateUpdater.SET_AF) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+        if ((mode & RadioState.SET_AF) != 0 || isInitial) {
             updateAfUi(state.getAf());
         }
 
-        if ((mode & RadioStateUpdater.SET_STATUS) > 0) {
+        if ((mode & RadioState.SET_STATUS) != 0) {
             handleChangingState(state.getStatus());
-            if ((mode & RadioStateUpdater.SET_INITIAL) == 0 || state.getStatus() != TunerStatus.ENABLED) {
+            if (isInitial) {
+                if (state.getStatus() == TunerStatus.ENABLED) {
+                    mRadioClient.setPowerMode(PowerMode.NORMAL);
+                }
+                if (!mAutoStartupChecked) {
+                    mAutoStartupChecked = true;
+                    if (mStorage.isAutoStartupEnabled() && state.getStatus() == TunerStatus.IDLE) {
+                        if (ensurePlaybackPermissionForLegacyAudio()) {
+                            startRadio();
+                        }
+                    }
+                }
+            }
+            if (!isInitial || state.getStatus() != TunerStatus.ENABLED) {
+                if (isInitial && state.getFrequency() > 0 && !mSeek.isUserInteracting()) {
+                    mFrequencyInfo.setFrequency(state.getFrequency());
+                    mSeek.setFrequency(state.getFrequency());
+                    mFavoritesView.setActiveFrequency(state.getFrequency());
+                }
+                if (isInitial) {
+                    updateStereoUi(state.isStereo());
+                    updateRecordingUi(state);
+                }
                 return;
             }
         }
 
-        if ((mode & RadioStateUpdater.SET_FREQUENCY) > 0) {
-            mFrequencyInfo.hideStatus();
-            if (!mSeek.isUserInteracting()) {
+        if ((mode & RadioState.SET_FREQUENCY) != 0) {
+            if (state.getStatus() == TunerStatus.ENABLED) {
+                mFrequencyInfo.hideStatus();
+            }
+            if (!mSeek.isUserInteracting() && state.getFrequency() > 0) {
                 mFrequencyInfo.setFrequency(state.getFrequency());
                 mSeek.setFrequency(state.getFrequency());
                 mFavoritesView.setActiveFrequency(state.getFrequency());
@@ -772,21 +796,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if (
-            (mode & RadioStateUpdater.SET_PS) > 0 ||
-            (mode & RadioStateUpdater.SET_PI) > 0 ||
-            (mode & RadioStateUpdater.SET_RT) > 0 ||
-            (mode & RadioStateUpdater.SET_PTY) > 0 ||
-            (mode & RadioStateUpdater.SET_COUNTRY) > 0 ||
-            (mode & RadioStateUpdater.SET_RT_PLUS) > 0
+            (mode & RadioState.SET_PS) != 0 ||
+            (mode & RadioState.SET_PI) != 0 ||
+            (mode & RadioState.SET_RT) != 0 ||
+            (mode & RadioState.SET_PTY) != 0 ||
+            (mode & RadioState.SET_COUNTRY) != 0 ||
+            (mode & RadioState.SET_RT_PLUS) != 0
         ) {
             mFrequencyInfo.setRadioState(state);
         }
 
-        if ((mode & RadioStateUpdater.SET_STEREO) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+        if ((mode & RadioState.SET_STEREO) != 0 || isInitial) {
             updateStereoUi(state.isStereo());
         }
 
-        if ((mode & RadioStateUpdater.SET_RECORDING) > 0 || (mode & RadioStateUpdater.SET_INITIAL) > 0) {
+        if ((mode & RadioState.SET_RECORDING) != 0 || isInitial) {
             updateRecordingUi(state);
         }
     }

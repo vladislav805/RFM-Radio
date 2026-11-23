@@ -2,26 +2,31 @@ package com.vlad805.fmradio.service;
 
 import android.app.Notification;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
+
+import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.EventListener;
 import com.vlad805.fmradio.controller.FavoriteController;
-import com.vlad805.fmradio.controller.RadioController;
+import com.vlad805.fmradio.controller.RadioServiceController;
 import com.vlad805.fmradio.controller.RadioState;
-import com.vlad805.fmradio.controller.RadioStateUpdater;
+import com.vlad805.fmradio.controller.StateListener;
 import com.vlad805.fmradio.controller.TunerStatus;
+import com.vlad805.fmradio.enums.Direction;
+import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.models.FavoriteStation;
@@ -44,17 +49,44 @@ import com.vlad805.fmradio.service.recording.RecordService;
 import com.vlad805.fmradio.service.recording.RecordingListener;
 import com.vlad805.fmradio.service.recording.RecordingResult;
 
-import java.util.*;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
-@SuppressWarnings({"deprecation", "unused"})
-public class FMService extends Service implements FMEventCallback {
+public class FMService extends Service implements RadioServiceController, FMEventCallback {
     private static final String TAG = "FMS";
+    private static final String ACTION_PREFIX = BuildConfig.APPLICATION_ID + ".action.";
+
+    public static final String ACTION_START = ACTION_PREFIX + "START";
+    public static final String ACTION_STOP = ACTION_PREFIX + "STOP";
+    public static final String ACTION_RECORD_START = ACTION_PREFIX + "RECORD_START";
+    public static final String ACTION_RECORD_STOP = ACTION_PREFIX + "RECORD_STOP";
+    public static final String ACTION_NOTIFICATION_SEEK = ACTION_PREFIX + "NOTIFICATION_SEEK";
+
+    public static final String EXTRA_SEEK_DIRECTION = "seek_direction";
+
     public static final int NOTIFICATION_ID = FMNotificationManager.NOTIFICATION_ID;
     public static final int NOTIFICATION_RECORD_ID = FMNotificationManager.NOTIFICATION_RECORD_ID;
 
-    private FMNotificationManager mNotifications;
+    private static volatile boolean sTunerActive = false;
 
-    private RadioController mRadioController;
+    public static boolean isTunerActive() {
+        return sTunerActive;
+    }
+
+    public final class LocalBinder extends Binder {
+        @NonNull
+        public RadioServiceController getController() {
+            return FMService.this;
+        }
+    }
+
+    private final IBinder mBinder = new LocalBinder();
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private final Set<StateListener> mStateListeners = new CopyOnWriteArraySet<>();
+    private final Set<EventListener> mEventListeners = new CopyOnWriteArraySet<>();
+
+    private FMNotificationManager mNotifications;
     private FavoriteController mFavoriteController;
 
     private NativeTunerController mTunerDriver;
@@ -62,19 +94,21 @@ public class FMService extends Service implements FMEventCallback {
     private AudioService mAudioService;
     private AudioLifecycle mAudioLifecycle;
 
-    private BroadcastReceiver mEventReaction;
-    private BroadcastReceiver mTunerStateUpdater;
-
     private Storage mStorage;
     private RadioState mState;
-    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private boolean mSessionActive = false;
+    private boolean mDestroyed = false;
+    private boolean mLastNotifiedRecording = false;
+
     private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceChangeListener = this::onPreferenceChanged;
+
     private final FavoriteController.OnFavoritesChangeListener mFavoritesListener =
-            (currentListName, stations) -> {
+            (currentListName, stations) -> runOnMainThread(() -> {
                 if (mState != null && mState.getStatus() == TunerStatus.ENABLED) {
                     updateNotification();
                 }
-            };
+            });
+
     private final RecordingListener mRecordingListener = new RecordingListener() {
         @Override
         public void onRecordingStarted(
@@ -83,11 +117,10 @@ public class FMService extends Service implements FMEventCallback {
                 @NonNull final String displayPath
         ) {
             runOnMainThread(() -> {
-                mRecordingNow = true;
-                if (mState != null) {
-                    mState.applyRecordingStarted(initialDurationSeconds);
+                if (mDestroyed) {
+                    return;
                 }
-                updateNotification();
+                onInternalStateChanged(mState.applyRecordingStarted(initialDurationSeconds));
             });
         }
 
@@ -98,9 +131,10 @@ public class FMService extends Service implements FMEventCallback {
                 @NonNull final String displayPath
         ) {
             runOnMainThread(() -> {
-                if (mState != null) {
-                    mState.applyRecordingProgress(durationSeconds);
+                if (mDestroyed) {
+                    return;
                 }
+                onInternalStateChanged(mState.applyRecordingProgress(durationSeconds));
                 mNotifications.showRecordingProgress(durationSeconds, sizeBytes);
             });
         }
@@ -108,31 +142,33 @@ public class FMService extends Service implements FMEventCallback {
         @Override
         public void onRecordingCompleted(@NonNull final RecordingResult result) {
             runOnMainThread(() -> {
-                mRecordingNow = false;
-                if (mState != null) {
-                    mState.applyRecordingStopped();
+                if (mDestroyed) {
+                    return;
                 }
-                updateNotification();
+                onInternalStateChanged(mState.applyRecordingStopped());
                 mNotifications.cancelRecordingProgress();
                 mNotifications.showRecordingResult(result, mStorage.isRecordingShowNotify());
+                for (final EventListener listener : mEventListeners) {
+                    listener.onRecordingFinished(result);
+                }
             });
         }
 
         @Override
         public void onRecordingFailed(@NonNull final Throwable error) {
             runOnMainThread(() -> {
-                mRecordingNow = false;
-                if (mState != null) {
-                    mState.applyRecordingStopped();
+                if (mDestroyed) {
+                    return;
                 }
-                updateNotification();
+                onInternalStateChanged(mState.applyRecordingStopped());
                 mNotifications.cancelRecordingProgress();
                 Toast.makeText(FMService.this, R.string.record_save_failed, Toast.LENGTH_LONG).show();
+                for (final EventListener listener : mEventListeners) {
+                    listener.onRecordingFailed(error.getMessage());
+                }
             });
         }
     };
-    private boolean mRecordingNow = false;
-    private boolean mDestroyed = false;
 
     private void runOnMainThread(@NonNull final Runnable action) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -146,217 +182,76 @@ public class FMService extends Service implements FMEventCallback {
     public void onCreate() {
         super.onCreate();
 
-        // Main state
+        mStorage = Storage.get(this);
         mState = new RadioState();
+        mState.applyFrequency(mStorage.getLastFrequency());
+        sTunerActive = false;
 
-        // Controllers&managers
-        mRadioController = new RadioController(this);
         mFavoriteController = FavoriteController.get(this);
         mFavoriteController.addOnChangeListener(mFavoritesListener);
         mNotifications = new FMNotificationManager(this);
         mNotifications.createChannels();
 
-        // Preferences
-        mStorage = Storage.get(this);
         mStorage.registerOnChangeListener(mPreferenceChangeListener);
 
-        // Services
         mTunerDriverKind = TunerDriverDetector.getTunerDriver();
         mTunerDriver = mTunerDriverKind != TunerDriver.NONE
                 ? new NativeTunerController(this, mTunerDriverKind)
                 : null;
 
-        // Broadcast receivers
-        mEventReaction = new EventReaction();
-        mTunerStateUpdater = new RadioStateUpdater(mState, (state, mode) -> {
-            if (mAudioService instanceof IAudioRecordable) {
-                ((IAudioRecordable) mAudioService).updateRds(createRdsSnapshot(state));
-            }
-        });
-
         if (mTunerDriver != null) {
             mTunerDriver.setEventListener(this);
         }
-
-        Utils.registerAppReceiver(this, mTunerStateUpdater, RadioStateUpdater.sFilter);
-        Utils.registerAppReceiver(this, mEventReaction, RadioStateUpdater.sFilter);
     }
 
-    /**
-     * Handling commands sent by the RadioController
-     * Upon completion of the command, a specific event is triggered
-     * @param intent Intent with command and arguments (in extras)
-     */
+    @Override
+    public IBinder onBind(final Intent intent) {
+        return mBinder;
+    }
+
     @Override
     public int onStartCommand(final Intent intent, final int flags, final int startId) {
         if (intent == null || intent.getAction() == null) {
-            stopSelf();
+            if (!isTunerActive()) {
+                stopSelf();
+            }
             return START_NOT_STICKY;
         }
 
         final String action = intent.getAction();
-        if (C.Command.REQUEST_CURRENT_STATE.equals(action)) {
-            Utils.sendAppBroadcast(this, new Intent(C.Event.CURRENT_STATE).putExtra(C.Key.STATE, mState));
-            return START_NOT_STICKY;
-        }
-
-        if (C.Command.KILL.equals(action)) {
-            if (mState.isRecording() && mAudioService instanceof IAudioRecordable) {
-                ((IAudioRecordable) mAudioService).stopRecord();
-            }
-
-            stopService(new Intent(this, FMService.class));
-            Utils.sendAppBroadcast(this, new Intent(C.Event.KILLED));
-            return START_NOT_STICKY;
-        }
-
-        if (mTunerDriver == null) {
-            onEvent(C.Event.LAUNCH_FAILED);
-            stopSelf();
-            return START_NOT_STICKY;
-        }
-
         switch (action) {
-            // Installing the native part to system, if required by the selected tuner.
-            // When completed, will fire event INSTALLED.
-            case C.Command.INSTALL: {
-                mTunerDriver.prepareBinary();
+            case ACTION_START: {
+                // Promotion to Started service triggered by enable().
                 break;
             }
 
-            // Native launch command.
-            // When completed, will fire event LAUNCHED.
-            case C.Command.LAUNCH: {
-                mTunerDriver.launch();
+            case ACTION_STOP: {
+                disable();
                 break;
             }
 
-            // Tuner start and unmute command.
-            // When completed, will fire event ENABLED.
-            case C.Command.ENABLE: {
-                if (mAudioLifecycle != null) {
-                    mAudioLifecycle.beforeEnable();
-                }
-                mTunerDriver.enable();
+            case ACTION_RECORD_START: {
+                startRecord();
                 break;
             }
 
-            // Tuner stop and mute command.
-            // When complete, will fire event DISABLED.
-            case C.Command.DISABLE: {
-                if (mAudioLifecycle != null) {
-                    mAudioLifecycle.beforeDisable();
-                }
-                mTunerDriver.disable();
-                stopSelf();
+            case ACTION_RECORD_STOP: {
+                stopRecord();
                 break;
             }
 
-            // Frequency change command.
-            // The required frequency is passed in extras.
-            // When complete, will fire event FREQUENCY_SET.
-            case C.Command.SET_FREQUENCY: {
-                if (!intent.hasExtra(C.Key.FREQUENCY)) {
-                    Log.e("FMS", "Command SET_FREQUENCY: not specified frequency");
-                    break;
-                }
-
-                final int frequency = intent.getIntExtra(C.Key.FREQUENCY, Storage.DEFAULT_LAST_FREQUENCY);
-                mTunerDriver.setFrequency(frequency);
-                break;
-            }
-
-            // The command to change the frequency to the next or previous.
-            // The direction of movement is passed in additional parameters.
-            // When complete, will fire event FREQUENCY_SET.
-            case C.Command.JUMP: {
-                mTunerDriver.jump(intent.getIntExtra(C.Key.JUMP_DIRECTION, 1));
-                break;
-            }
-
-            // Search command for next or previous station.
-            // The direction of search is passed in additional parameters.
-            // When complete, will fire event FREQUENCY_SET.
-            case C.Command.HW_SEEK: {
-                mTunerDriver.hwSeek(intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1));
-                break;
-            }
-
-            // The command to change the power mode.
-            // When complete, the event does not fire.
-            case C.Command.POWER_MODE: {
-                mTunerDriver.setPowerMode(intent.getStringExtra(C.Key.POWER_MODE));
-                break;
-            }
-
-            // The command to start recording the radio broadcast to a file.
-            // Event does not fire.
-            case C.Command.RECORD_START: {
-                if (mAudioService instanceof IAudioRecordable) {
-                    try {
-                        ((IAudioRecordable) mAudioService).startRecord(getPreferredRecorder());
-                    } catch (Throwable e) {
-                        Log.e("FMS", "Failed to start recording", e);
-                        final String message = e.getMessage() != null ? e.getMessage() : "Recording start failed";
-                        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-                    }
+            case ACTION_NOTIFICATION_SEEK: {
+                final int direction = intent.getIntExtra(EXTRA_SEEK_DIRECTION, 1);
+                if (mStorage.isNotificationSeekByFavorites()) {
+                    navigateThroughFavorite(direction);
                 } else {
-                    Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+                    hwSeek(direction >= 0 ? Direction.UP : Direction.DOWN);
                 }
                 break;
             }
 
-            // The command to stop recording the radio broadcast to a file.
-            case C.Command.RECORD_STOP: {
-                if (mAudioService instanceof IAudioRecordable) {
-                    ((IAudioRecordable) mAudioService).stopRecord();
-                } else {
-                    Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
-                }
-                break;
-            }
-
-            // Station switch command from notification.
-            // The principle of operation differs in the "Navigate over favorites" setting.
-            // If it is on, then switching occurs according to the principle of finding
-            // the current one and moving forward/backward.
-            // If disabled, works as HW_SEEK.
-            case C.Command.NOTIFICATION_SEEK: {
-                final int direction = intent.getIntExtra(C.Key.SEEK_HW_DIRECTION, 1);
-                final boolean byFavorite = mStorage.isNotificationSeekByFavorites();
-
-                if (!byFavorite) {
-                    startService(intent.setAction(C.Command.HW_SEEK));
-                    return START_NOT_STICKY;
-                }
-
-                navigateThroughFavorite(direction);
-                break;
-            }
-
-            case C.Command.HW_SEARCH: {
-                mTunerDriver.hwSearch();
-                break;
-            }
-
-            case C.Command.HW_SEARCH_CANCEL: {
-                mTunerDriver.cancelHwSearch();
-                break;
-            }
-
-            case C.Command.SPEAKER_STATE: {
-                if (mAudioService == null) {
-                    break;
-                }
-                final AudioOutput nextOutput = mAudioService.getOutput() == AudioOutput.SPEAKER
-                        ? AudioOutput.HEADPHONES
-                        : AudioOutput.SPEAKER;
-                mAudioService.setOutput(nextOutput);
-                Utils.sendAppBroadcast(
-                        this,
-                        new Intent(C.Event.CHANGE_SPEAKER_MODE)
-                                .putExtra(C.Key.IS_SPEAKER, nextOutput == AudioOutput.SPEAKER)
-                );
+            default: {
+                Log.w(TAG, "Ignoring unknown service action: " + action);
                 break;
             }
         }
@@ -364,34 +259,222 @@ public class FMService extends Service implements FMEventCallback {
         return START_NOT_STICKY;
     }
 
+    // --- RadioServiceController ---
+
+    @NonNull
+    @Override
+    public RadioState getState() {
+        return mState;
+    }
+
+    @Override
+    public void enable() {
+        final TunerStatus status = mState.getStatus();
+        if (
+                status == TunerStatus.INSTALLING ||
+                status == TunerStatus.INSTALLED ||
+                status == TunerStatus.LAUNCHING ||
+                status == TunerStatus.LAUNCHED ||
+                status == TunerStatus.ENABLING ||
+                status == TunerStatus.ENABLED
+        ) {
+            return;
+        }
+
+        if (mTunerDriver == null) {
+            mSessionActive = false;
+            onInternalStateChanged(mState.applyStatus(TunerStatus.FATAL_ERROR));
+            stopSelf();
+            return;
+        }
+
+        mSessionActive = true;
+        startService(new Intent(this, FMService.class).setAction(ACTION_START));
+        mTunerDriver.prepareBinary();
+    }
+
+    @Override
+    public void disable() {
+        stopPlaybackSession(true);
+    }
+
+    @Override
+    public void setFrequency(final int kHz) {
+        if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mTunerDriver.setFrequency(kHz);
+        }
+    }
+
+    @Override
+    public void jump(@NonNull final Direction direction) {
+        if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mTunerDriver.jump(direction.getValue());
+        }
+    }
+
+    @Override
+    public void hwSeek(@NonNull final Direction direction) {
+        if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mTunerDriver.hwSeek(direction.getValue());
+        }
+    }
+
+    @Override
+    public void hwSearch() {
+        if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mTunerDriver.hwSearch();
+        }
+    }
+
+    @Override
+    public void cancelHwSearch() {
+        if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mTunerDriver.cancelHwSearch();
+        }
+    }
+
+    @Override
+    public void setPowerMode(@NonNull final PowerMode mode) {
+        if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mTunerDriver.setPowerMode(mode.getValue());
+        }
+    }
+
+    @Override
+    public void toggleSpeaker() {
+        if (mAudioService == null || mState.getStatus() != TunerStatus.ENABLED) {
+            return;
+        }
+        final AudioOutput nextOutput = mAudioService.getOutput() == AudioOutput.SPEAKER
+                ? AudioOutput.HEADPHONES
+                : AudioOutput.SPEAKER;
+        mAudioService.setOutput(nextOutput);
+        onInternalStateChanged(mState.applyForceSpeaker(nextOutput == AudioOutput.SPEAKER));
+    }
+
+    @Override
+    public void startRecord() {
+        if (mState.getStatus() != TunerStatus.ENABLED) {
+            return;
+        }
+        if (mAudioService instanceof IAudioRecordable) {
+            try {
+                final RecordService recorder = getPreferredRecorder();
+                if (recorder == null) {
+                    Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                ((IAudioRecordable) mAudioService).startRecord(recorder);
+            } catch (final Throwable e) {
+                Log.e(TAG, "Failed to start recording", e);
+                final String message = e.getMessage() != null ? e.getMessage() : "Recording start failed";
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            }
+        } else {
+            Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void stopRecord() {
+        if (mAudioService instanceof IAudioRecordable) {
+            ((IAudioRecordable) mAudioService).stopRecord();
+        } else {
+            Toast.makeText(this, R.string.service_record_unsupported, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void addStateListener(@NonNull final StateListener listener) {
+        mStateListeners.add(listener);
+        listener.onStateUpdated(mState, RadioState.INITIAL_SNAPSHOT_MASK);
+    }
+
+    @Override
+    public void removeStateListener(@NonNull final StateListener listener) {
+        mStateListeners.remove(listener);
+    }
+
+    @Override
+    public void addEventListener(@NonNull final EventListener listener) {
+        mEventListeners.add(listener);
+    }
+
+    @Override
+    public void removeEventListener(@NonNull final EventListener listener) {
+        mEventListeners.remove(listener);
+    }
+
+    // --- Session & service teardown ---
+
     /**
-     * Stop FM
-     * Kill the tuner:
-     *   - the audio recording service;
-     *   - the radio controller;
-     *   - unregister the event receivers;
-     *   - stop the background operation of the service
+     * Tears down the active FM playback/recording session and terminates {@code fmbin}
+     * while keeping service-level listeners alive for bound UI clients.
      */
-    private void kill() {
-        mDestroyed = true;
+    private void stopPlaybackSession(final boolean gracefulTunerDisable) {
+        final TunerStatus previousStatus = mState.getStatus();
+        final boolean wasActive = mSessionActive
+                || previousStatus != TunerStatus.IDLE
+                || mAudioService != null
+                || mAudioLifecycle != null;
+
+        mSessionActive = false;
+
+        if (mState.isRecording() && mAudioService instanceof IAudioRecordable) {
+            ((IAudioRecordable) mAudioService).stopRecord();
+        }
+        mNotifications.cancelRecordingProgress();
+
         if (mAudioLifecycle != null) {
+            if (gracefulTunerDisable) {
+                mAudioLifecycle.beforeDisable();
+            }
             mAudioLifecycle.stop();
+            mAudioLifecycle = null;
         } else if (mAudioService != null) {
             mAudioService.stopAudio();
         }
+        mAudioService = null;
 
-        if (mTunerDriver != null) {
+        if (mTunerDriver != null && wasActive) {
+            if (gracefulTunerDisable
+                    && (previousStatus == TunerStatus.ENABLED || previousStatus == TunerStatus.ENABLING)) {
+                mTunerDriver.disable();
+            } else {
+                mTunerDriver.kill();
+            }
+        }
+
+        int mode = 0;
+        if (mState.isRecording()) {
+            mode |= mState.applyRecordingStopped();
+        }
+        if (mState.isForceSpeaker()) {
+            mode |= mState.applyForceSpeaker(false);
+        }
+        if (mState.getStatus() != TunerStatus.IDLE) {
+            mode |= mState.applyStatus(TunerStatus.IDLE);
+        }
+
+        mLastNotifiedRecording = false;
+        if (mode != 0) {
+            onInternalStateChanged(mode);
+        } else {
+            sTunerActive = false;
+        }
+
+        stopForeground(true);
+        stopSelf();
+    }
+
+    @Override
+    public void onDestroy() {
+        mDestroyed = true;
+
+        if (mSessionActive || mState.getStatus() != TunerStatus.IDLE || mAudioService != null || mAudioLifecycle != null) {
+            stopPlaybackSession(false);
+        } else if (mTunerDriver != null) {
             mTunerDriver.kill();
-        }
-
-        if (mEventReaction != null) {
-            unregisterReceiver(mEventReaction);
-            mEventReaction = null;
-        }
-
-        if (mTunerStateUpdater != null) {
-            unregisterReceiver(mTunerStateUpdater);
-            mTunerStateUpdater = null;
         }
 
         if (mStorage != null) {
@@ -402,18 +485,222 @@ public class FMService extends Service implements FMEventCallback {
             mFavoriteController.removeOnChangeListener(mFavoritesListener);
         }
 
-        stopForeground(true);
-    }
-
-    /**
-     * When the service is destroyed, we kill everything: notifications, recorder
-     * and controller
-     */
-    @Override
-    public void onDestroy() {
-        kill();
+        mStateListeners.clear();
+        mEventListeners.clear();
+        sTunerActive = false;
 
         super.onDestroy();
+    }
+
+    // --- FMEventCallback (marshaled to main looper) ---
+
+    @Override
+    public void onStatusChanged(@NonNull final TunerStatus status) {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            if (!mSessionActive && status != TunerStatus.IDLE) {
+                return;
+            }
+
+            switch (status) {
+                case INSTALLING:
+                case LAUNCHING:
+                case ENABLING:
+                case DISABLING: {
+                    onInternalStateChanged(mState.applyStatus(status));
+                    break;
+                }
+
+                case INSTALLED: {
+                    onInternalStateChanged(mState.applyStatus(TunerStatus.INSTALLED));
+                    if (mTunerDriver != null) {
+                        mTunerDriver.launch();
+                    }
+                    break;
+                }
+
+                case LAUNCHED: {
+                    onInternalStateChanged(mState.applyStatus(TunerStatus.LAUNCHED));
+                    if (mTunerDriver != null) {
+                        mTunerDriverKind = mTunerDriver.getDriverKind();
+                    }
+                    attachAudioService(mTunerDriverKind);
+                    if (mAudioLifecycle != null) {
+                        mAudioLifecycle.beforeEnable();
+                    }
+                    if (mTunerDriver != null) {
+                        mTunerDriver.enable();
+                    }
+                    break;
+                }
+
+                case ENABLED: {
+                    if (mAudioLifecycle != null) {
+                        mAudioLifecycle.onEnabled();
+                    }
+                    onInternalStateChanged(mState.applyStatus(TunerStatus.ENABLED));
+                    break;
+                }
+
+                case ROOT_ACCESS_DENIED:
+                case FATAL_ERROR: {
+                    mSessionActive = false;
+                    if (mAudioLifecycle != null) {
+                        mAudioLifecycle.stop();
+                        mAudioLifecycle = null;
+                    } else if (mAudioService != null) {
+                        mAudioService.stopAudio();
+                    }
+                    mAudioService = null;
+                    if (mTunerDriver != null) {
+                        mTunerDriver.kill();
+                    }
+                    onInternalStateChanged(mState.applyStatus(status));
+                    stopForeground(true);
+                    stopSelf();
+                    break;
+                }
+
+                case IDLE: {
+                    stopPlaybackSession(false);
+                    break;
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onFrequencyChanged(final int frequencyKhz) {
+        runOnMainThread(() -> {
+            if (mDestroyed || !mSessionActive || frequencyKhz <= 0) {
+                return;
+            }
+            onInternalStateChanged(mState.applyFrequency(frequencyKhz));
+        });
+    }
+
+    @Override
+    public void onStatePatch(@NonNull final RadioStatePatch patch) {
+        runOnMainThread(() -> {
+            if (mDestroyed || !mSessionActive) {
+                return;
+            }
+            onInternalStateChanged(mState.applyPatch(patch));
+        });
+    }
+
+    @Override
+    public void onSearchProgress(final int count) {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            for (final EventListener listener : mEventListeners) {
+                listener.onSearchProgress(count);
+            }
+        });
+    }
+
+    @Override
+    public void onSearchDone(@NonNull final int[] stations) {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            for (final EventListener listener : mEventListeners) {
+                listener.onSearchDone(stations);
+            }
+        });
+    }
+
+    @Override
+    public void onSearchFailed() {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            for (final EventListener listener : mEventListeners) {
+                listener.onSearchFailed();
+            }
+        });
+    }
+
+    @Override
+    public void onInvalidAntennaError() {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            for (final EventListener listener : mEventListeners) {
+                listener.onInvalidAntennaError();
+            }
+        });
+    }
+
+    @Override
+    public void onError(@NonNull final String message) {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            for (final EventListener listener : mEventListeners) {
+                listener.onTunerError(message);
+            }
+        });
+    }
+
+    @Override
+    public void onUnexpectedExit(final int exitCode) {
+        runOnMainThread(() -> {
+            if (mDestroyed) {
+                return;
+            }
+            final String message = "Native tuner process exited with code " + exitCode;
+            for (final EventListener listener : mEventListeners) {
+                listener.onTunerError(message);
+            }
+            stopPlaybackSession(false);
+        });
+    }
+
+    // --- Centralized state side effects ---
+
+    private void onInternalStateChanged(final int mode) {
+        if (mode == 0) {
+            return;
+        }
+
+        sTunerActive = mState.getStatus() != TunerStatus.IDLE;
+
+        if ((mode & RadioState.SET_FREQUENCY) != 0 && mState.getFrequency() > 0) {
+            mStorage.setLastFrequency(mState.getFrequency());
+        }
+
+        if (
+                (mode & (RadioState.SET_FREQUENCY | RadioState.SET_PS | RadioState.SET_RT
+                        | RadioState.SET_PI | RadioState.SET_RT_PLUS)) != 0
+                && mAudioService instanceof IAudioRecordable
+        ) {
+            ((IAudioRecordable) mAudioService).updateRds(createRdsSnapshot(mState));
+        }
+
+        if (mState.getStatus() == TunerStatus.ENABLED) {
+            final boolean recordingToggled =
+                    (mode & RadioState.SET_RECORDING) != 0 && mLastNotifiedRecording != mState.isRecording();
+            if (
+                    recordingToggled ||
+                    (mode & (RadioState.SET_STATUS | RadioState.SET_FREQUENCY
+                            | RadioState.SET_PS | RadioState.SET_RT)) != 0
+            ) {
+                updateNotification();
+            }
+        }
+
+        for (final StateListener listener : mStateListeners) {
+            listener.onStateUpdated(mState, mode);
+        }
     }
 
     /**
@@ -507,7 +794,7 @@ public class FMService extends Service implements FMEventCallback {
      */
     private RecordService getPreferredRecorder() {
         final int mode = mStorage.getRecordingFormat();
-        final int kHz = mStorage.getLastFrequency();
+        final int kHz = mState.getFrequency() > 0 ? mState.getFrequency() : mStorage.getLastFrequency();
 
         final int sampleRate = mAudioService.getPcmFormat().sampleRateHz();
 
@@ -528,37 +815,15 @@ public class FMService extends Service implements FMEventCallback {
         return null;
     }
 
-    /**
-     * Called by NativeTunerController via FMEventCallback
-     * @param event Action
-     */
-    @Override
-    public void onEvent(final String event) {
-        Utils.sendAppBroadcast(this, new Intent(event));
-    }
-
-    @Override
-    public void onStatePatch(final RadioStatePatch patch) {
-        Utils.sendAppBroadcast(this, patch.toIntent(C.Event.STATE_CHANGED));
-    }
-
-    @Override
-    public void onSearchProgress(final int count) {
-        Utils.sendAppBroadcast(this, new Intent(C.Event.HW_SEARCH_PROGRESS).putExtra(C.Key.COUNT, count));
-    }
-
-    @Override
-    public void onSearchDone(final int[] stations) {
-        Utils.sendAppBroadcast(this, new Intent(C.Event.HW_SEARCH_DONE).putExtra(C.Key.STATION_LIST, stations));
-    }
-
     private void navigateThroughFavorite(final int direction) {
         final List<FavoriteStation> stations = mFavoriteController.getStationsInCurrentList();
-        final int currentFrequency = mStorage.getLastFrequency();
+        final int currentFrequency = mState.getFrequency() > 0
+                ? mState.getFrequency()
+                : mStorage.getLastFrequency();
         int currentPosition = -1;
 
         for (int i = 0; i < stations.size(); i++) {
-            FavoriteStation station = stations.get(i);
+            final FavoriteStation station = stations.get(i);
             if (station.getFrequency() == currentFrequency) {
                 currentPosition = i;
                 break;
@@ -580,9 +845,7 @@ public class FMService extends Service implements FMEventCallback {
             currentPosition = 0;
         }
 
-        if (mTunerDriver != null) {
-            mTunerDriver.setFrequency(stations.get(currentPosition).getFrequency());
-        }
+        setFrequency(stations.get(currentPosition).getFrequency());
     }
 
     private void onPreferenceChanged(final SharedPreferences prefs, final String key) {
@@ -597,118 +860,38 @@ public class FMService extends Service implements FMEventCallback {
             return;
         }
 
-        if (mTunerDriver != null && NativeTunerController.isTunerPreferenceKey(key)) {
+        if (Storage.Key.NOTIFICATION_SHOW_RDS.equals(key)) {
+            if (mState != null && mState.getStatus() == TunerStatus.ENABLED) {
+                updateNotification();
+            }
+            return;
+        }
+
+        if (mTunerDriver != null
+                && mState != null
+                && mState.getStatus() == TunerStatus.ENABLED
+                && NativeTunerController.isTunerPreferenceKey(key)) {
             mTunerDriver.setupTunerByPreferences(new String[]{key});
         }
     }
 
     /**
-     * Event listener
-     */
-    public class EventReaction extends BroadcastReceiver {
-        @Override
-        public void onReceive(final Context context, final Intent intent) {
-            if (intent == null || intent.getAction() == null) {
-                return;
-            }
-
-            final String action = intent.getAction();
-
-            switch (action) {
-                case C.Event.INSTALLED: {
-                    mRadioController.launch();
-                    break;
-                }
-
-                case C.Event.LAUNCHED: {
-                    if (mDestroyed) {
-                        break;
-                    }
-                    if (mTunerDriver != null) {
-                        mTunerDriverKind = mTunerDriver.getDriverKind();
-                    }
-                    attachAudioService(mTunerDriverKind);
-                    mRadioController.enable();
-                    break;
-                }
-
-                case C.Event.LAUNCH_FAILED:
-                case C.Event.ROOT_ACCESS_DENIED: {
-                    stopSelf();
-                    break;
-                }
-
-                case C.Event.ENABLED: {
-                    if (mDestroyed) {
-                        break;
-                    }
-                    if (mAudioLifecycle != null) {
-                        mAudioLifecycle.onEnabled();
-                    }
-                    updateNotification();
-                    break;
-                }
-
-                case C.Event.DISABLED: {
-                    if (mAudioLifecycle != null) {
-                        mAudioLifecycle.stop();
-                    } else if (mAudioService != null) {
-                        mAudioService.stopAudio();
-                    }
-                    break;
-                }
-
-                case C.Event.FREQUENCY_SET: {
-                    final int frequency = intent.getIntExtra(C.Key.FREQUENCY, -1);
-                    mStorage.setLastFrequency(frequency);
-                    updateNotification();
-                    break;
-                }
-
-                case C.Event.STATE_CHANGED: {
-                    if (intent.hasExtra(C.Key.FREQUENCY)) {
-                        mStorage.setLastFrequency(intent.getIntExtra(C.Key.FREQUENCY, -1));
-                    }
-                    if (intent.hasExtra(C.Key.FREQUENCY) || intent.hasExtra(C.Key.PS) || intent.hasExtra(C.Key.RT)) {
-                        updateNotification();
-                    }
-                    break;
-                }
-
-                case C.Event.UPDATE_PS:
-                case C.Event.UPDATE_RT: {
-                    updateNotification();
-                    break;
-                }
-
-                case C.Event.UPDATE_PTY:
-                case C.Event.UPDATE_PI: {
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Update notification
+     * Update foreground playback notification.
      */
     private void updateNotification() {
         final int frequency = mState.getFrequency();
         final boolean showRds = mStorage.isNotificationShowRds();
+        final boolean recording = mState.isRecording();
+        mLastNotifiedRecording = recording;
         final Notification notification = mNotifications.buildPlayback(
                 frequency,
                 mState.getPs(),
                 mState.getRt(),
                 mFavoriteController.getFavoriteTitle(frequency),
                 showRds,
-                mRecordingNow
+                recording
         );
 
         startForeground(NOTIFICATION_ID, notification);
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
     }
 }

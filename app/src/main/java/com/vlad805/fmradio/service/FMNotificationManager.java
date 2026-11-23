@@ -12,7 +12,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.activity.RecordingDeleteActivity;
@@ -158,7 +157,7 @@ public final class FMNotificationManager {
         final PendingIntent pendingStop = PendingIntent.getService(
                 mContext,
                 1,
-                new Intent(mContext, FMService.class).setAction(C.Command.DISABLE),
+                new Intent(mContext, FMService.class).setAction(FMService.ACTION_STOP),
                 FLAG_IMMUTABLE
         );
 
@@ -166,7 +165,7 @@ public final class FMNotificationManager {
                 mContext,
                 2,
                 new Intent(mContext, FMService.class)
-                        .setAction(C.Command.RECORD_START),
+                        .setAction(FMService.ACTION_RECORD_START),
                 FLAG_IMMUTABLE
         );
 
@@ -174,8 +173,8 @@ public final class FMNotificationManager {
                 mContext,
                 3,
                 new Intent(mContext, FMService.class)
-                        .setAction(C.Command.NOTIFICATION_SEEK)
-                        .putExtra(C.Key.SEEK_HW_DIRECTION, -1),
+                        .setAction(FMService.ACTION_NOTIFICATION_SEEK)
+                        .putExtra(FMService.EXTRA_SEEK_DIRECTION, -1),
                 FLAG_IMMUTABLE
         );
 
@@ -183,8 +182,8 @@ public final class FMNotificationManager {
                 mContext,
                 4,
                 new Intent(mContext, FMService.class)
-                        .setAction(C.Command.NOTIFICATION_SEEK)
-                        .putExtra(C.Key.SEEK_HW_DIRECTION, 1),
+                        .setAction(FMService.ACTION_NOTIFICATION_SEEK)
+                        .putExtra(FMService.EXTRA_SEEK_DIRECTION, 1),
                 FLAG_IMMUTABLE
         );
 
@@ -224,7 +223,7 @@ public final class FMNotificationManager {
                 mContext,
                 5,
                 new Intent(mContext, FMService.class)
-                        .setAction(C.Command.RECORD_STOP),
+                        .setAction(FMService.ACTION_RECORD_STOP),
                 FLAG_IMMUTABLE
         );
         final NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_RECORDING_ID)

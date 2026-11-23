@@ -1,21 +1,28 @@
 package com.vlad805.fmradio.activity;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.widget.Toast;
+
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.android.material.color.DynamicColors;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.R;
-import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.EventListener;
+import com.vlad805.fmradio.controller.RadioClient;
 import com.vlad805.fmradio.fragments.PreferencesFragment;
 
 public class SettingsActivity extends AppCompatActivity {
+	private RadioClient mRadioClient;
+
+	private final EventListener mEventListener = new EventListener() {
+		@Override
+		public void onInvalidAntennaError() {
+			Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
+		}
+	};
+
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 		DynamicColors.applyToActivityIfAvailable(this);
@@ -32,6 +39,8 @@ public class SettingsActivity extends AppCompatActivity {
 		if (ab != null) {
 			ab.setDisplayHomeAsUpEnabled(true);
 		}
+
+		mRadioClient = new RadioClient(this, null, mEventListener);
 	}
 
 	@Override
@@ -45,37 +54,18 @@ public class SettingsActivity extends AppCompatActivity {
 	}
 
 	@Override
-	protected void onResume() {
-		super.onResume();
-
-		final IntentFilter filter = new IntentFilter();
-		filter.addAction(C.Event.ERROR_INVALID_ANTENNA);
-
-		Utils.registerAppReceiver(this, mEventListener, filter);
+	protected void onStart() {
+		super.onStart();
+		if (mRadioClient != null) {
+			mRadioClient.connect();
+		}
 	}
 
 	@Override
-	protected void onPause() {
-		super.onPause();
-
-		unregisterReceiver(mEventListener);
-	}
-
-	private final BroadcastReceiver mEventListener = new BroadcastReceiver() {
-		@Override
-		public void onReceive(final Context context, final Intent intent) {
-			final String action = intent.getAction();
-
-			if (action == null) {
-				return;
-			}
-
-			switch (action) {
-				case C.Event.ERROR_INVALID_ANTENNA: {
-					Toast.makeText(SettingsActivity.this, R.string.pref_tuner_antenna_error, Toast.LENGTH_SHORT).show();
-					break;
-				}
-			}
+	protected void onStop() {
+		if (mRadioClient != null) {
+			mRadioClient.disconnect();
 		}
-	};
+		super.onStop();
+	}
 }

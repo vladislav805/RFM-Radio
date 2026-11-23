@@ -2,7 +2,9 @@ package com.vlad805.fmradio.service.fm.communication;
 
 import android.util.Log;
 
-import com.vlad805.fmradio.C;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
@@ -14,13 +16,43 @@ import org.json.JSONObject;
 public final class NativeEventParser {
     private static final String TAG = "RFM-QCOM";
 
+    interface JsonObjectView {
+        boolean has(String key);
+
+        boolean isNull(String key);
+
+        String optString(String key, String fallback);
+
+        int optInt(String key, int fallback);
+
+        boolean optBoolean(String key, boolean fallback);
+
+        @Nullable
+        JsonObjectView optObject(String key);
+
+        @Nullable
+        JsonArrayView optArray(String key);
+
+        int length();
+    }
+
+    interface JsonArrayView {
+        int length();
+
+        int optInt(int index, int fallback);
+    }
+
     private final FMEventCallback callback;
 
-    public NativeEventParser(final FMEventCallback callback) {
+    public NativeEventParser(@NonNull final FMEventCallback callback) {
         this.callback = callback;
     }
 
-    public void handle(final JSONObject json) {
+    public void handle(@NonNull final JSONObject json) {
+        handle(wrapObject(json));
+    }
+
+    void handle(@NonNull final JsonObjectView json) {
         final String type = json.optString("type", "");
         switch (type) {
             case "state": {
@@ -31,13 +63,11 @@ public final class NativeEventParser {
                 break;
             }
 
-            case "enabled": {
-                callback.onEvent(C.Event.ENABLED);
-                break;
-            }
-
-            case "disabled": {
-                // Command completion remains authoritative for the Java lifecycle.
+            case "enabled":
+            case "disabled":
+            case "seek_done": {
+                // Command completion is authoritative for Java enable/disable lifecycle,
+                // and seek frequencies arrive via "state" patches.
                 break;
             }
 
@@ -50,7 +80,7 @@ public final class NativeEventParser {
             }
 
             case "search_done": {
-                final int[] stations = parseIntArray(json.optJSONArray("stations"));
+                final int[] stations = parseIntArray(json.optArray("stations"));
                 if (stations != null) {
                     callback.onSearchDone(stations);
                 }
@@ -58,29 +88,25 @@ public final class NativeEventParser {
             }
 
             case "search_failed": {
-                callback.onEvent(C.Event.HW_SEARCH_FAILED);
-                break;
-            }
-
-            case "seek_done": {
-                callback.onEvent(C.Event.HW_SEEK_COMPLETE);
+                callback.onSearchFailed();
                 break;
             }
 
             default: {
-                Log.w(TAG, "Unknown native message type: " + type);
+                logWarn("Unknown native message type: " + type);
                 break;
             }
         }
     }
 
-    private RadioStatePatch parseStatePatch(final JSONObject json) {
+    @Nullable
+    private RadioStatePatch parseStatePatch(@NonNull final JsonObjectView json) {
         final RadioStatePatch patch = new RadioStatePatch();
 
         if (json.has("frequency")) {
             final int frequency = json.optInt("frequency", -1);
             if (frequency <= 0) {
-                Log.w(TAG, "Invalid frequency payload");
+                logWarn("Invalid frequency payload");
                 return null;
             }
             patch.setFrequency(frequency);
@@ -96,7 +122,7 @@ public final class NativeEventParser {
             } else {
                 final int rmssi = json.optInt("rmssi", Integer.MIN_VALUE);
                 if (rmssi < -128 || rmssi > 127) {
-                    Log.w(TAG, "Invalid RMSSI payload");
+                    logWarn("Invalid RMSSI payload");
                 } else {
                     patch.setRmssi(rmssi);
                 }
@@ -109,14 +135,14 @@ public final class NativeEventParser {
             } else {
                 final int sinr = json.optInt("sinr", Integer.MIN_VALUE);
                 if (sinr < -128 || sinr > 127) {
-                    Log.w(TAG, "Invalid SINR payload");
+                    logWarn("Invalid SINR payload");
                 } else {
                     patch.setSinr(sinr);
                 }
             }
         }
 
-        final JSONObject rds = json.optJSONObject("rds");
+        final JsonObjectView rds = json.optObject("rds");
         if (rds != null) {
             if (rds.has("ps")) {
                 patch.setPs(sanitizeRdsText(rds.optString("ps", "")));
@@ -133,7 +159,7 @@ public final class NativeEventParser {
             if (rds.has("country")) {
                 final String country = rds.optString("country", "");
                 if (!country.isEmpty() && !country.matches("[A-Z]{2}")) {
-                    Log.w(TAG, "Invalid country payload");
+                    logWarn("Invalid country payload");
                     return null;
                 }
                 patch.setCountry(country);
@@ -142,34 +168,44 @@ public final class NativeEventParser {
             if (rds.has("pty")) {
                 final int pty = rds.optInt("pty", -1);
                 if (pty < 0) {
-                    Log.w(TAG, "Invalid PTY payload");
+                    logWarn("Invalid PTY payload");
                     return null;
                 }
                 patch.setPty(pty);
             }
 
             if (rds.has("af")) {
-                final int[] af = parseIntArray(rds.optJSONArray("af"));
+                final int[] af = parseIntArray(rds.optArray("af"));
                 if (af == null) {
-                    Log.w(TAG, "Invalid AF payload");
+                    logWarn("Invalid AF payload");
                     return null;
                 }
                 patch.setAf(af);
             }
 
-            final JSONObject rtPlus = rds.optJSONObject("rt_plus");
+            final JsonObjectView rtPlus = rds.optObject("rt_plus");
             if (rtPlus != null) {
-                final String title = rtPlus.has("title") ? sanitizeRdsText(rtPlus.optString("title", "")) : "";
-                final String artist = rtPlus.has("artist") ? sanitizeRdsText(rtPlus.optString("artist", "")) : "";
-                final String album = rtPlus.has("album") ? sanitizeRdsText(rtPlus.optString("album", "")) : "";
-                patch.setRtPlus(new RtPlusInfo(title, artist, album));
+                if (rtPlus.length() == 0) {
+                    patch.setRtPlus(RtPlusInfo.EMPTY);
+                } else {
+                    if (rtPlus.has("title")) {
+                        patch.setRtPlusTitle(sanitizeRdsText(rtPlus.optString("title", "")));
+                    }
+                    if (rtPlus.has("artist")) {
+                        patch.setRtPlusArtist(sanitizeRdsText(rtPlus.optString("artist", "")));
+                    }
+                    if (rtPlus.has("album")) {
+                        patch.setRtPlusAlbum(sanitizeRdsText(rtPlus.optString("album", "")));
+                    }
+                }
             }
         }
 
         return patch;
     }
 
-    private static int[] parseIntArray(final JSONArray json) {
+    @Nullable
+    private static int[] parseIntArray(@Nullable final JsonArrayView json) {
         if (json == null) {
             return null;
         }
@@ -187,5 +223,75 @@ public final class NativeEventParser {
 
     private static String sanitizeRdsText(final String value) {
         return value.trim().replaceAll("\n", " ");
+    }
+
+    private static void logWarn(final String message) {
+        try {
+            Log.w(TAG, message);
+        } catch (final RuntimeException ignored) {
+            // Host JVM unit tests run with unmocked android.util.Log.
+        }
+    }
+
+    private static JsonObjectView wrapObject(@NonNull final JSONObject object) {
+        return new JsonObjectView() {
+            @Override
+            public boolean has(final String key) {
+                return object.has(key);
+            }
+
+            @Override
+            public boolean isNull(final String key) {
+                return object.isNull(key);
+            }
+
+            @Override
+            public String optString(final String key, final String fallback) {
+                return object.optString(key, fallback);
+            }
+
+            @Override
+            public int optInt(final String key, final int fallback) {
+                return object.optInt(key, fallback);
+            }
+
+            @Override
+            public boolean optBoolean(final String key, final boolean fallback) {
+                return object.optBoolean(key, fallback);
+            }
+
+            @Nullable
+            @Override
+            public JsonObjectView optObject(final String key) {
+                final JSONObject nested = object.optJSONObject(key);
+                return nested != null ? wrapObject(nested) : null;
+            }
+
+            @Nullable
+            @Override
+            public JsonArrayView optArray(final String key) {
+                final JSONArray array = object.optJSONArray(key);
+                return array != null ? wrapArray(array) : null;
+            }
+
+            @Override
+            public int length() {
+                return object.length();
+            }
+        };
+    }
+
+    private static JsonArrayView wrapArray(@NonNull final JSONArray array) {
+        return new JsonArrayView() {
+            @Override
+            public int length() {
+                return array.length();
+            }
+
+            @Override
+            public int optInt(final int index, final int fallback) {
+                return array.optInt(index, fallback);
+            }
+        };
     }
 }

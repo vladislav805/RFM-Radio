@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.telephony.TelephonyManager;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.service.FMService;
 
 import static android.content.Context.TELEPHONY_SERVICE;
@@ -62,6 +61,8 @@ public class CallReceiver extends BroadcastReceiver {
 	}
 
 	private void stopRadio(final Context context) {
-		context.startService(new Intent(context, FMService.class).setAction(C.Command.KILL));
+		if (FMService.isTunerActive()) {
+			context.startService(new Intent(context, FMService.class).setAction(FMService.ACTION_STOP));
+		}
 	}
 }

@@ -2,21 +2,20 @@ package com.vlad805.fmradio.service.fm.implementation;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Bundle;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.vlad805.fmradio.BuildConfig;
-import com.vlad805.fmradio.C;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.controller.TunerStatus;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.TunerDriverDetector;
 import com.vlad805.fmradio.preferences.BandUtils;
-import com.vlad805.fmradio.service.FMService;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 import com.vlad805.fmradio.service.fm.communication.NativeProcessSession;
@@ -127,30 +126,29 @@ public final class NativeTunerController {
     }
 
     public void install() {
-        fireEvent(C.Event.INSTALLING);
+        notifyStatus(TunerStatus.INSTALLING);
         installNativeBinary(new Callback<>() {
             @Override
             public void onResult(final Void result) {
-                fireEvent(C.Event.INSTALLED);
+                notifyStatus(TunerStatus.INSTALLED);
             }
 
             @Override
             public void onError(final Error error) {
                 Log.e(TAG, "Failed to install native binary", error);
-                fireEvent(C.Event.LAUNCH_FAILED);
+                notifyStatus(TunerStatus.FATAL_ERROR);
             }
         });
     }
 
     public void prepareBinary() {
-        fireEvent(C.Event.PREPARING);
         final File binary = new File(getBinaryPath());
         if (binary.isFile() && !isObsolete()) {
             if (ensureNativeBinaryExecutable(binary)) {
-                fireEvent(C.Event.INSTALLED);
+                notifyStatus(TunerStatus.INSTALLED);
             } else {
                 Log.e(TAG, "Failed to restore native binary permissions: " + binary);
-                fireEvent(C.Event.LAUNCH_FAILED);
+                notifyStatus(TunerStatus.FATAL_ERROR);
             }
             return;
         }
@@ -159,58 +157,75 @@ public final class NativeTunerController {
     }
 
     public void launch() {
-        fireEvent(C.Event.LAUNCHING);
+        notifyStatus(TunerStatus.LAUNCHING);
         launchImpl(new Callback<>() {
             @Override
             public void onResult(final Void result) {
-                fireEvent(C.Event.LAUNCHED);
+                notifyStatus(TunerStatus.LAUNCHED);
             }
 
             @Override
             public void onError(final Error e) {
                 Log.e(TAG, "Failed to launch native tuner", e);
-                fireEvent(e instanceof RootAccessDeniedError
-                        ? C.Event.ROOT_ACCESS_DENIED
-                        : C.Event.LAUNCH_FAILED);
+                notifyStatus(e instanceof RootAccessDeniedError
+                        ? TunerStatus.ROOT_ACCESS_DENIED
+                        : TunerStatus.FATAL_ERROR);
             }
         });
     }
 
     public void kill() {
-        killImpl(result -> {
-            fireEvent(C.Event.DISABLED);
-            fireEvent(C.Event.KILLED);
-        });
+        final NativeProcessSession session;
+        synchronized (mSessionLock) {
+            session = mNativeSession;
+            mNativeSession = null;
+        }
+        if (session != null) {
+            stopSessionAsync(session, null);
+        }
     }
 
     public void enable() {
-        fireEvent(C.Event.ENABLING);
+        notifyStatus(TunerStatus.ENABLING);
         enableImpl(new Callback<>() {
             @Override
             public void onResult(final Void result) {
-                fireEvent(C.Event.ENABLED);
+                notifyStatus(TunerStatus.ENABLED);
             }
 
             @Override
             public void onError(final Error error) {
-                fireError(error.getMessage());
-                fireEvent(C.Event.DISABLED);
+                notifyError(error.getMessage() != null ? error.getMessage() : "Failed to enable tuner");
+                notifyStatus(TunerStatus.IDLE);
             }
         });
     }
 
+    /**
+     * Cleanly disables the FM hardware and terminates the native {@code fmbin} process
+     * so no root process lingers while the bound service sits in {@link TunerStatus#IDLE}.
+     */
     public void disable() {
-        fireEvent(C.Event.DISABLING);
-        sendCommand(new Request("disable", 5000)
-                .onResponse(result -> fireEvent(C.Event.DISABLED))
-                .onError(error -> Log.e(TAG, "Failed to disable native tuner", error)));
+        final NativeProcessSession session;
+        synchronized (mSessionLock) {
+            session = mNativeSession;
+        }
+        if (session == null) {
+            return;
+        }
+        session.send(new Request("disable", 5000)
+                .onResponse(result -> detachAndStopSession(session))
+                .onError(error -> {
+                    Log.e(TAG, "Failed to disable native tuner", error);
+                    detachAndStopSession(session);
+                }));
     }
 
     public void setFrequency(final int kHz) {
         if (mDriverKind == TunerDriver.HAL_HELIUM) {
             final long now = System.currentTimeMillis();
             if (mLastRequestedFrequencyKhz == kHz && now - mLastRequestedFrequencyAtMs < DUPLICATE_TUNE_WINDOW_MS) {
-                emitFrequencySet(kHz);
+                notifyFrequencyChanged(kHz);
                 return;
             }
 
@@ -218,30 +233,26 @@ public final class NativeTunerController {
             mLastRequestedFrequencyAtMs = now;
         }
 
-        sendCommand(new Request("setfreq " + kHz).onResponse(data -> emitFrequencySet(kHz)));
-    }
-
-    private void emitFrequencySet(final int kHz) {
-        final Bundle bundle = new Bundle();
-        bundle.putInt(C.Key.FREQUENCY, kHz);
-        fireEvent(C.Event.FREQUENCY_SET, bundle);
+        sendCommand(new Request("setfreq " + kHz).onResponse(data -> notifyFrequencyChanged(kHz)));
     }
 
     public void jump(final int direction) {
         sendCommand(new Request("jump " + direction, 1500).onResponse(data -> {
             final int result = Utils.parseInt(data);
-            if (result < 0) {
-                fireError("Error while jumping");
+            if (result < 0 || result == Integer.MAX_VALUE) {
+                notifyError("Error while jumping");
                 return;
             }
-            fireFrequencyEvent(C.Event.JUMP_COMPLETE, result);
+            if (result > 0) {
+                notifyFrequencyChanged(result);
+            }
         }));
     }
 
     public void hwSeek(final int direction) {
         sendCommand(new Request("seekhw " + direction, 4000).onResponse(data -> {
             if (data == null || !data.startsWith("ok")) {
-                fireError("Error while hwSeek: " + data);
+                notifyError("Error while hwSeek: " + data);
             }
         }));
     }
@@ -278,7 +289,7 @@ public final class NativeTunerController {
             case Storage.Key.TUNER_ANTENNA:
                 sendCommand(new Request("set_antenna " + value).onResponse(str -> {
                     if (str.startsWith("ERR_UNV_ANT")) {
-                        fireEvent(C.Event.ERROR_INVALID_ANTENNA);
+                        notifyInvalidAntennaError();
                     }
                 }));
                 break;
@@ -360,6 +371,15 @@ public final class NativeTunerController {
             if (Utils.runAsRoot("true") != 0) {
                 failLaunch(callback, new RootAccessDeniedError("Root access was not granted"));
                 return;
+            }
+
+            final NativeProcessSession previousSession;
+            synchronized (mSessionLock) {
+                previousSession = mNativeSession;
+                mNativeSession = null;
+            }
+            if (previousSession != null) {
+                previousSession.stop(5000L);
             }
 
             killRunningBinary();
@@ -455,10 +475,20 @@ public final class NativeTunerController {
         }).onError(error -> callback.onError(new Error("Failed to enable tuner", error))));
     }
 
+    private void detachAndStopSession(final NativeProcessSession session) {
+        synchronized (mSessionLock) {
+            if (mNativeSession == session) {
+                mNativeSession = null;
+            }
+        }
+        stopSessionAsync(session, null);
+    }
+
     private void killImpl(final Callback<Void> callback) {
         final NativeProcessSession session;
         synchronized (mSessionLock) {
             session = mNativeSession;
+            mNativeSession = null;
         }
 
         if (session == null) {
@@ -466,6 +496,10 @@ public final class NativeTunerController {
             return;
         }
 
+        stopSessionAsync(session, callback);
+    }
+
+    private void stopSessionAsync(final NativeProcessSession session, final Callback<Void> callback) {
         new Thread(() -> {
             final boolean stopped = session.stop(5000L);
             synchronized (mSessionLock) {
@@ -476,7 +510,9 @@ public final class NativeTunerController {
             if (!stopped) {
                 killRunningBinary();
             }
-            callback.onResult(null);
+            if (callback != null) {
+                callback.onResult(null);
+            }
         }, "NativeTunerStop").start();
     }
 
@@ -493,39 +529,70 @@ public final class NativeTunerController {
     }
 
     private void startNativeProcess(final long timeoutMs) throws IOException, InterruptedException {
+        final NativeProcessSession[] sessionHolder = new NativeProcessSession[1];
         final NativeProcessSession session = new NativeProcessSession(
                 getBinaryPath(),
                 new FMEventCallback() {
                     @Override
-                    public void onEvent(final String event) {
-                        if (mEventCallback != null) {
-                            mEventCallback.onEvent(event);
-                        }
+                    public void onStatusChanged(@NonNull final TunerStatus status) {
+                        notifyStatus(status);
                     }
 
                     @Override
-                    public void onStatePatch(final RadioStatePatch patch) {
-                        if (mEventCallback != null) {
-                            mEventCallback.onStatePatch(patch);
+                    public void onFrequencyChanged(final int frequencyKhz) {
+                        notifyFrequencyChanged(frequencyKhz);
+                    }
+
+                    @Override
+                    public void onStatePatch(@NonNull final RadioStatePatch patch) {
+                        final FMEventCallback callback = mEventCallback;
+                        if (callback != null) {
+                            callback.onStatePatch(patch);
                         }
                     }
 
                     @Override
                     public void onSearchProgress(final int count) {
-                        if (mEventCallback != null) {
-                            mEventCallback.onSearchProgress(count);
+                        final FMEventCallback callback = mEventCallback;
+                        if (callback != null) {
+                            callback.onSearchProgress(count);
                         }
                     }
 
                     @Override
-                    public void onSearchDone(final int[] stations) {
-                        if (mEventCallback != null) {
-                            mEventCallback.onSearchDone(stations);
+                    public void onSearchDone(@NonNull final int[] stations) {
+                        final FMEventCallback callback = mEventCallback;
+                        if (callback != null) {
+                            callback.onSearchDone(stations);
                         }
                     }
+
+                    @Override
+                    public void onSearchFailed() {
+                        final FMEventCallback callback = mEventCallback;
+                        if (callback != null) {
+                            callback.onSearchFailed();
+                        }
+                    }
+
+                    @Override
+                    public void onInvalidAntennaError() {
+                        notifyInvalidAntennaError();
+                    }
+
+                    @Override
+                    public void onError(@NonNull final String message) {
+                        notifyError(message);
+                    }
+
+                    @Override
+                    public void onUnexpectedExit(final int exitCode) {
+                        handleUnexpectedNativeExit(sessionHolder[0], exitCode);
+                    }
                 },
-                this::handleUnexpectedNativeExit
+                exitCode -> handleUnexpectedNativeExit(sessionHolder[0], exitCode)
         );
+        sessionHolder[0] = session;
 
         synchronized (mSessionLock) {
             if (mNativeSession != null) {
@@ -547,35 +614,44 @@ public final class NativeTunerController {
         }
     }
 
-    private void handleUnexpectedNativeExit(final int exitCode) {
+    private void handleUnexpectedNativeExit(final NativeProcessSession session, final int exitCode) {
         synchronized (mSessionLock) {
-            mNativeSession = null;
+            if (mNativeSession == session) {
+                mNativeSession = null;
+            }
         }
-        fireError("Native tuner process exited with code " + exitCode);
-        fireEvent(C.Event.DISABLED);
-        mContext.stopService(new Intent(mContext, FMService.class));
-    }
-
-    private void fireEvent(final String event, final Bundle bundle) {
-        Utils.sendAppBroadcast(mContext, new Intent(event).putExtras(bundle));
-    }
-
-    private void fireEvent(final String event) {
-        Utils.sendAppBroadcast(mContext, new Intent(event));
-    }
-
-    private void fireError(final String message) {
-        final Bundle bundle = new Bundle();
-        bundle.putString(Intent.EXTRA_TEXT, message);
-        fireEvent(C.Event.ERROR_OCCURRED, bundle);
-    }
-
-    private void fireFrequencyEvent(final String event, final int frequency) {
-        final Bundle bundle = new Bundle();
-        if (frequency > 0) {
-            bundle.putInt(C.Key.FREQUENCY, frequency);
+        final FMEventCallback callback = mEventCallback;
+        if (callback != null) {
+            callback.onUnexpectedExit(exitCode);
         }
-        fireEvent(event, bundle);
+    }
+
+    private void notifyStatus(@NonNull final TunerStatus status) {
+        final FMEventCallback callback = mEventCallback;
+        if (callback != null) {
+            callback.onStatusChanged(status);
+        }
+    }
+
+    private void notifyFrequencyChanged(final int frequencyKhz) {
+        final FMEventCallback callback = mEventCallback;
+        if (callback != null) {
+            callback.onFrequencyChanged(frequencyKhz);
+        }
+    }
+
+    private void notifyInvalidAntennaError() {
+        final FMEventCallback callback = mEventCallback;
+        if (callback != null) {
+            callback.onInvalidAntennaError();
+        }
+    }
+
+    private void notifyError(@NonNull final String message) {
+        final FMEventCallback callback = mEventCallback;
+        if (callback != null) {
+            callback.onError(message);
+        }
     }
 
     private String getBinaryName() {
