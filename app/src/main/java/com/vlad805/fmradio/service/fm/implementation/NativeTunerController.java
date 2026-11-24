@@ -258,7 +258,13 @@ public final class NativeTunerController {
     }
 
     public void hwSearch() {
-        sendCommand(new Request("searchhw", 60000));
+        sendCommand(new Request("searchhw", 4000)
+                .onResponse(data -> {
+                    if (!isOkResponse(data)) {
+                        notifySearchFailed();
+                    }
+                })
+                .onError(error -> notifySearchFailed()));
     }
 
     public void cancelHwSearch() {
@@ -642,6 +648,13 @@ public final class NativeTunerController {
         final FMEventCallback callback = mEventCallback;
         if (callback != null) {
             callback.onFrequencyChanged(frequencyKhz);
+        }
+    }
+
+    private void notifySearchFailed() {
+        final FMEventCallback callback = mEventCallback;
+        if (callback != null) {
+            callback.onSearchFailed();
         }
     }
 
