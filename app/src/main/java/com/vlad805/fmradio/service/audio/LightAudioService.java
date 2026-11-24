@@ -210,7 +210,7 @@ public class LightAudioService extends AudioService {
 
 	@Override
 	public void stopRecord() {
-		mPcmSession.stop();
+		mPcmSession.stopAsync();
 		applyPendingPreRollEnabled();
 	}
 }

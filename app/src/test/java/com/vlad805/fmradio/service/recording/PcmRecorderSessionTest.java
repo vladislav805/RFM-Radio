@@ -205,6 +205,44 @@ public class PcmRecorderSessionTest {
         }
     }
 
+    @Test
+    public void stopAsyncReturnsWithoutBlockingAndPublishesOnce() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 0);
+        final CountDownLatch stopEntered = new CountDownLatch(1);
+        final CountDownLatch allowStopFinish = new CountDownLatch(1);
+        final CountDownLatch stopCompleted = new CountDownLatch(1);
+        final FakeRecorder recorder = new FakeRecorder() {
+            @Override
+            public void stopRecord() {
+                stopEntered.countDown();
+                try {
+                    allowStopFinish.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                super.stopRecord();
+                stopCompleted.countDown();
+            }
+        };
+
+        session.start(recorder);
+        session.append(sequence(1, 6), 6);
+
+        // Must return immediately even while stopRecord() is blocked on slow I/O.
+        session.stopAsync();
+        assertFalse(session.isRecording());
+        assertTrue(stopEntered.await(1, TimeUnit.SECONDS));
+
+        // Repeated stopAsync() calls must be no-ops and never double-publish.
+        session.stopAsync();
+        assertEquals(0, recorder.stopCount());
+
+        allowStopFinish.countDown();
+        assertTrue(stopCompleted.await(1, TimeUnit.SECONDS));
+        assertEquals(1, recorder.stopCount());
+        assertArrayEquals(sequence(1, 6), recorder.samples());
+    }
+
     private static short[] sequence(final int start, final int length) {
         final short[] result = new short[length];
         for (int i = 0; i < length; i++) {

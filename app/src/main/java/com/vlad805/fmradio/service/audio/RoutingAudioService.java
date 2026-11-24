@@ -334,7 +334,7 @@ public class RoutingAudioService extends AudioService {
 		}
 
 		Log.d(TAG, "stopRecord");
-		mPcmSession.stop();
+		mPcmSession.stopAsync();
 		mPcmRecorder = null;
 
 		if (mCaptureStartedForRecording && !mPreRollEnabled) {

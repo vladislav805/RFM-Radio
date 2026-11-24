@@ -155,21 +155,34 @@ public final class PcmRecorderSession {
         return preRollMillis;
     }
 
-    /** Stops the writer after all queued PCM has been encoded. */
+    /** Stops the writer and waits until all queued PCM has been encoded and finalized. */
     public void stop() {
-        final Writer activeWriter;
-        synchronized (this) {
-            activeWriter = writer;
-            writer = null;
-        }
-
+        final Writer activeWriter = detachWriter();
         if (activeWriter == null) {
             return;
         }
 
         activeWriter.finish();
         activeWriter.join();
-        activeWriter.recorder.stopRecord();
+    }
+
+    /**
+     * Detaches the active recorder and requests asynchronous drain and finalization
+     * on the writer thread without blocking the caller.
+     */
+    public void stopAsync() {
+        final Writer activeWriter = detachWriter();
+        if (activeWriter == null) {
+            return;
+        }
+
+        activeWriter.finish();
+    }
+
+    private synchronized Writer detachWriter() {
+        final Writer activeWriter = writer;
+        writer = null;
+        return activeWriter;
     }
 
     /** @return Whether a destination recorder is currently active. */
@@ -237,6 +250,9 @@ public final class PcmRecorderSession {
         /** Worker that serializes all calls to the destination recorder. */
         private final Thread thread = new Thread(this, "FmPcmWriter");
 
+        /** Set once stop has been requested so finish() never blocks on a full queue. */
+        private volatile boolean finishRequested;
+
         private Writer(final IFMRecorder recorder) {
             this.recorder = recorder;
         }
@@ -262,12 +278,13 @@ public final class PcmRecorderSession {
             thread.start();
         }
 
-        /** Queues the end marker after all previously submitted PCM. */
+        /** Requests termination after all previously submitted PCM without blocking the caller. */
         private void finish() {
-            enqueue(FINISH);
+            finishRequested = true;
+            queue.offer(FINISH);
         }
 
-        /** Waits until all queued PCM has been written. */
+        /** Waits until all queued PCM has been written and finalized. */
         private void join() {
             boolean interrupted = false;
             while (thread.isAlive()) {
@@ -286,14 +303,22 @@ public final class PcmRecorderSession {
         public void run() {
             try {
                 while (true) {
-                    final short[] data = queue.take();
+                    short[] data = queue.poll();
+                    if (data == null) {
+                        if (finishRequested) {
+                            break;
+                        }
+                        data = queue.take();
+                    }
                     if (data == FINISH) {
-                        return;
+                        break;
                     }
                     recorder.record(data, data.length);
                 }
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
+            } finally {
+                recorder.stopRecord();
             }
         }
     }
