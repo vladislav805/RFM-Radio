@@ -16,7 +16,6 @@ import com.vlad805.fmradio.service.FMService;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.function.Consumer;
 
 /**
  * Activity-scoped wrapper around the local {@link FMService} binding.
@@ -30,12 +29,17 @@ public final class RadioClient {
         void unbind(@NonNull ServiceConnection connection);
     }
 
+    @FunctionalInterface
+    private interface Command {
+        void execute(@NonNull RadioServiceController controller);
+    }
+
     private final ServiceBinder mServiceBinder;
     @Nullable
     private final StateListener mStateListener;
     @Nullable
     private final EventListener mEventListener;
-    private final Queue<Consumer<RadioServiceController>> mPendingCommands = new ArrayDeque<>();
+    private final Queue<Command> mPendingCommands = new ArrayDeque<>();
     private final RadioState mFallbackState = new RadioState();
     @Nullable
     private final Storage mStorage;
@@ -191,9 +195,9 @@ public final class RadioClient {
             controller.addStateListener(mStateListener);
         }
         while (!mPendingCommands.isEmpty() && mController == controller) {
-            final Consumer<RadioServiceController> command = mPendingCommands.poll();
+            final Command command = mPendingCommands.poll();
             if (command != null) {
-                command.accept(controller);
+                command.execute(controller);
             }
         }
     }
@@ -202,9 +206,9 @@ public final class RadioClient {
         mController = null;
     }
 
-    private void executeOrEnqueue(@NonNull final Consumer<RadioServiceController> command) {
+    private void executeOrEnqueue(@NonNull final Command command) {
         if (mController != null) {
-            command.accept(mController);
+            command.execute(mController);
         } else if (mBound) {
             mPendingCommands.offer(command);
         }
