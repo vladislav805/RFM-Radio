@@ -103,6 +103,9 @@ public final class QualcommRoutedAudio implements RoutedAudioPolicy {
         mFrameworkRouteSink.applyFrameworkRoute(output);
 
         if (enabled) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M && mDeviceOutFm != 0) {
+                Audio.setDeviceConnectionState(mDeviceOutFm, 1);
+            }
             final String fmStatus = mParameterSink.getParameters("fm_status");
             logDebug("applyRoute: fm_status=" + fmStatus);
             if (fmStatus != null && fmStatus.contains("1")) {
@@ -120,6 +123,9 @@ public final class QualcommRoutedAudio implements RoutedAudioPolicy {
             return;
         }
 
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M && mDeviceOutFm != 0) {
+            Audio.setDeviceConnectionState(mDeviceOutFm, 0);
+        }
         sendAudioParameter("fm_routing", route);
         sendAudioParameter("handle_fm", route);
     }
@@ -277,11 +283,15 @@ public final class QualcommRoutedAudio implements RoutedAudioPolicy {
         }
 
         final int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-        if (maxVolume <= 0) {
+        if (maxVolume <= 0 || volumeIndex <= 0) {
             return 0f;
         }
 
-        return Math.max(0f, Math.min(1f, volumeIndex / (float) maxVolume));
+        final float fraction = Math.max(0f, Math.min(1f, volumeIndex / (float) maxVolume));
+        // Approximate Android's logarithmic music volume curve (~ -45 dB at step 1 to 0 dB at max)
+        // when getStreamVolumeDb() (API 28+) is unavailable.
+        final float decibels = -45.0f * (1.0f - fraction);
+        return (float) Math.exp(decibels * 0.115129f);
     }
 
     @SuppressLint("PrivateApi")

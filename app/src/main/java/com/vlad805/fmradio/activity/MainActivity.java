@@ -166,6 +166,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         setContentView(R.layout.activity_main);
+        setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
 
         mToast = Toast.create(this);
 

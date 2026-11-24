@@ -89,4 +89,26 @@ public class Audio {
             return -1;
         }
     }
+
+    @SuppressLint("PrivateApi")
+    public static int setDeviceConnectionState(final int device, final int state) {
+        if (device == 0) {
+            return -1;
+        }
+        try {
+            final Class<?> audioSystemClass = Class.forName("android.media.AudioSystem");
+            try {
+                final Method m3 = audioSystemClass.getMethod("setDeviceConnectionState", int.class, int.class, String.class);
+                final Object res = m3.invoke(null, device, state, "");
+                return res instanceof Integer ? (Integer) res : 0;
+            } catch (NoSuchMethodException ignored) {
+                final Method m4 = audioSystemClass.getMethod("setDeviceConnectionState", int.class, int.class, String.class, String.class);
+                final Object res = m4.invoke(null, device, state, "", "");
+                return res instanceof Integer ? (Integer) res : 0;
+            }
+        } catch (ReflectiveOperationException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
 }

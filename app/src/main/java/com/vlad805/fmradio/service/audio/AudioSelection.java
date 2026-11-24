@@ -5,7 +5,7 @@ import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.service.recording.PcmFormat;
 
 public final class AudioSelection {
-    public static final int API_ROUTED_MIN = 26;
+    public static final int API_ROUTED_MIN = 21;
 
     public enum Path {
         NONE,

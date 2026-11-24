@@ -23,6 +23,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.RequiresPermission;
+import androidx.core.content.ContextCompat;
 
 import com.vlad805.fmradio.service.fm.RecordError;
 import com.vlad805.fmradio.service.recording.IFMRecorder;
@@ -230,11 +231,6 @@ public class RoutingAudioService extends AudioService {
 			throw new RecordError("Please allow microphone access before recording");
 		}
 
-		final AudioDeviceInfo fmTuner = findFmTunerInputDevice();
-		if (fmTuner == null) {
-			throw new RecordError("FM Tuner input device not found");
-		}
-
 		final PcmFormat pcmFormat = getPcmFormat();
 		final int bufferSize = AudioRecord.getMinBufferSize(
 				pcmFormat.sampleRateHz(),
@@ -245,27 +241,40 @@ public class RoutingAudioService extends AudioService {
 			throw new RecordError("AudioRecord buffer init failed");
 		}
 
-		final AudioFormat format = new AudioFormat.Builder()
-				.setSampleRate(pcmFormat.sampleRateHz())
-				.setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-				.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
-				.build();
-
 		final SamsungS610Audio exynosPolicy = mPolicy instanceof SamsungS610Audio
 				? (SamsungS610Audio) mPolicy
 				: null;
 		final boolean isExynos = exynosPolicy != null;
-		if (isExynos && mAudioManager != null) {
-			// Intentionally spelled "fmradio_recoding" (without 'r') to match Samsung's audio HAL key.
-			mAudioManager.setParameters("fmradio_recoding=on");
-		}
-
-		final AudioRecord audioRecord = createFmAudioRecord(format, bufferSize * 2, fmTuner, pcmFormat, isExynos);
-		if (audioRecord == null) {
-			if (isExynos && mAudioManager != null) {
-				mAudioManager.setParameters("fmradio_recoding=off");
+		final AudioRecord audioRecord;
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+			audioRecord = createLegacyFmAudioRecord(pcmFormat, bufferSize * 2);
+			if (audioRecord == null) {
+				throw new RecordError("AudioRecord init failed");
 			}
-			throw new RecordError("AudioRecord init failed");
+		} else {
+			final AudioDeviceInfo fmTuner = findFmTunerInputDevice();
+			if (fmTuner == null) {
+				throw new RecordError("FM Tuner input device not found");
+			}
+
+			final AudioFormat format = new AudioFormat.Builder()
+					.setSampleRate(pcmFormat.sampleRateHz())
+					.setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+					.setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
+					.build();
+
+			if (isExynos && mAudioManager != null) {
+				// Intentionally spelled "fmradio_recoding" (without 'r') to match Samsung's audio HAL key.
+				mAudioManager.setParameters("fmradio_recoding=on");
+			}
+
+			audioRecord = createFmAudioRecord(format, bufferSize * 2, fmTuner, pcmFormat, isExynos);
+			if (audioRecord == null) {
+				if (isExynos && mAudioManager != null) {
+					mAudioManager.setParameters("fmradio_recoding=off");
+				}
+				throw new RecordError("AudioRecord init failed");
+			}
 		}
 
 		mRecordingAudioRecord = audioRecord;
@@ -568,8 +577,45 @@ public class RoutingAudioService extends AudioService {
 		if (audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
 			return false;
 		}
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+			return true;
+		}
 		final AudioDeviceInfo routed = audioRecord.getRoutedDevice();
 		return routed == null || routed.getType() == AudioDeviceInfo.TYPE_FM_TUNER;
+	}
+
+	@SuppressLint("MissingPermission")
+	private AudioRecord createLegacyFmAudioRecord(final PcmFormat pcmFormat, final int bufferBytes) {
+		// CAF Lollipop defines MediaRecorder.AudioSource.FM_RX (9) and FM_RX_A2DP (10)
+		// matching AUDIO_DEVICE_IN_FM_RX in audio_policy.conf.
+		final int[] sources = new int[]{9, 10, 1998};
+		for (final int source : sources) {
+			AudioRecord record = null;
+			try {
+				record = new AudioRecord(
+						source,
+						pcmFormat.sampleRateHz(),
+						AudioFormat.CHANNEL_IN_STEREO,
+						AudioFormat.ENCODING_PCM_16BIT,
+						bufferBytes
+				);
+				if (record.getState() == AudioRecord.STATE_INITIALIZED
+						&& pcmFormat.matches(record.getSampleRate(), record.getChannelCount())) {
+					record.startRecording();
+					if (record.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+						Log.d(TAG, "createLegacyFmAudioRecord: using source=" + source);
+						return record;
+					}
+				}
+				record.release();
+			} catch (Throwable t) {
+				Log.w(TAG, "createLegacyFmAudioRecord: source=" + source + " failed", t);
+				if (record != null) {
+					record.release();
+				}
+			}
+		}
+		return null;
 	}
 
 	static boolean isVerifiedFmRoute(final int recordingState, final Integer routedDeviceType) {
@@ -809,7 +855,7 @@ public class RoutingAudioService extends AudioService {
 		if (
 				RecordingStorage.requiresStoragePermission(mContext)
 				&&
-				mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+				ContextCompat.checkSelfPermission(mContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
 		) {
 			throw new RecordError("Please allow storage access before recording");
 		}
@@ -817,7 +863,7 @@ public class RoutingAudioService extends AudioService {
 
 	/** @return Whether microphone access needed for FM input capture is granted. */
 	private boolean hasRecordAudioPermission() {
-		return mContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+		return ContextCompat.checkSelfPermission(mContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
 	}
 
 	private AudioDeviceInfo findFmTunerInputDevice() {
