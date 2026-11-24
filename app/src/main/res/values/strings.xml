@@ -112,6 +112,7 @@
 	<string name="record_delete_success">Recording deleted</string>
 	<string name="record_delete_failed">Could not delete the recording.</string>
 	<string name="record_save_failed">Could not save the recording.</string>
+	<string name="record_interrupted_saved">Recording interrupted; partial file saved.</string>
 	<string name="toast_record_ended">Record saved as %1$s\nDuration: %3$s (%2$.1f MB)</string>
 	<string name="main_warning_pref_changed_title">Attention!</string>
 	<string name="main_warning_pref_changed_content">To apply some settings that you changed, you need to completely restart the application:\n1. Stop the tuner (shutdown button at the top)\n2. Close and swipe the application out of multitasking\n3. Launch the application.</string>

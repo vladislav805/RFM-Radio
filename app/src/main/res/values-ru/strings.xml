@@ -31,6 +31,7 @@
 	<string name="record_delete_success">Запись удалена</string>
 	<string name="record_delete_failed">Не удалось удалить запись.</string>
 	<string name="record_save_failed">Не удалось сохранить запись.</string>
+	<string name="record_interrupted_saved">Запись прервана, записанный фрагмент сохранён.</string>
 	<string name="notification_recording">Запись: %1$s (%2$.1f МБ)</string>
 	<string name="popup_favorite_list_create">Создать список избранного</string>
 	<string name="popup_favorite_list_rename">Переименовать список избранного</string>

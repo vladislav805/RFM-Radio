@@ -27,4 +27,9 @@ public interface IFMRecorder {
 
 	/** Finishes and closes the recording file. */
 	void stopRecord();
+
+	/** Aborts the recording due to an input or capture failure. */
+	default void failRecord(final Throwable error) {
+		stopRecord();
+	}
 }

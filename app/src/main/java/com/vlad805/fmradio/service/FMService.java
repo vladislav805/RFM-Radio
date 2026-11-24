@@ -155,6 +155,22 @@ public class FMService extends Service implements RadioServiceController, FMEven
         }
 
         @Override
+        public void onRecordingInterrupted(@NonNull final RecordingResult partialResult, @NonNull final Throwable error) {
+            runOnMainThread(() -> {
+                if (mDestroyed) {
+                    return;
+                }
+                onInternalStateChanged(mState.applyRecordingStopped());
+                mNotifications.cancelRecordingProgress();
+                mNotifications.showRecordingResult(partialResult, mStorage.isRecordingShowNotify());
+                Toast.makeText(FMService.this, R.string.record_interrupted_saved, Toast.LENGTH_LONG).show();
+                for (final EventListener listener : mEventListeners) {
+                    listener.onRecordingFailed(error.getMessage());
+                }
+            });
+        }
+
+        @Override
         public void onRecordingFailed(@NonNull final Throwable error) {
             runOnMainThread(() -> {
                 if (mDestroyed) {

@@ -243,6 +243,38 @@ public class PcmRecorderSessionTest {
         assertArrayEquals(sequence(1, 6), recorder.samples());
     }
 
+    @Test
+    public void failAsyncAbortsActiveRecordingOnceAndRejectsFurtherPcm() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 0);
+        final CountDownLatch failedLatch = new CountDownLatch(1);
+        final List<Throwable> failures = new ArrayList<>();
+        final FakeRecorder recorder = new FakeRecorder() {
+            @Override
+            public void failRecord(final Throwable error) {
+                failures.add(error);
+                failedLatch.countDown();
+            }
+        };
+
+        session.start(recorder);
+        session.append(sequence(1, 4), 4);
+        final RuntimeException cause = new RuntimeException("FM route lost");
+        session.failAsync(cause);
+
+        assertFalse(session.isRecording());
+        assertTrue(failedLatch.await(1, TimeUnit.SECONDS));
+
+        // Further PCM and manual stop after failure must not publish or fail again.
+        session.append(sequence(10, 4), 4);
+        session.stopAsync();
+        session.failAsync(new RuntimeException("duplicate"));
+
+        assertEquals(1, failures.size());
+        assertEquals(cause, failures.get(0));
+        assertEquals(0, recorder.stopCount());
+        assertArrayEquals(sequence(1, 4), recorder.samples());
+    }
+
     private static short[] sequence(final int start, final int length) {
         final short[] result = new short[length];
         for (int i = 0; i < length; i++) {

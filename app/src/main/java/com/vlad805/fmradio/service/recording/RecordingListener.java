@@ -13,5 +13,9 @@ public interface RecordingListener {
 
     void onRecordingCompleted(@NonNull RecordingResult result);
 
+    default void onRecordingInterrupted(@NonNull final RecordingResult partialResult, @NonNull final Throwable error) {
+        onRecordingFailed(error);
+    }
+
     void onRecordingFailed(@NonNull Throwable error);
 }

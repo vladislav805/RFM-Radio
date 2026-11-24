@@ -179,6 +179,19 @@ public final class PcmRecorderSession {
         activeWriter.finish();
     }
 
+    /**
+     * Detaches the active recorder and aborts it asynchronously on the writer thread
+     * after an unexpected capture failure.
+     */
+    public void failAsync(final Throwable error) {
+        final Writer activeWriter = detachWriter();
+        if (activeWriter == null) {
+            return;
+        }
+
+        activeWriter.fail(error);
+    }
+
     private synchronized Writer detachWriter() {
         final Writer activeWriter = writer;
         writer = null;
@@ -253,6 +266,9 @@ public final class PcmRecorderSession {
         /** Set once stop has been requested so finish() never blocks on a full queue. */
         private volatile boolean finishRequested;
 
+        /** Non-null when the recording was aborted by a capture failure. */
+        private volatile Throwable failure;
+
         private Writer(final IFMRecorder recorder) {
             this.recorder = recorder;
         }
@@ -280,6 +296,17 @@ public final class PcmRecorderSession {
 
         /** Requests termination after all previously submitted PCM without blocking the caller. */
         private void finish() {
+            finishRequested = true;
+            queue.offer(FINISH);
+        }
+
+        /**
+         * Requests finish due to capture failure without blocking the caller.
+         * Remaining valid PCM already queued before the failure is drained, then {@link IFMRecorder#failRecord}
+         * is invoked so the partial recording can be finalized and reported as interrupted.
+         */
+        private void fail(final Throwable error) {
+            failure = error != null ? error : new RuntimeException("Recording failed");
             finishRequested = true;
             queue.offer(FINISH);
         }
@@ -318,7 +345,11 @@ public final class PcmRecorderSession {
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
             } finally {
-                recorder.stopRecord();
+                if (failure != null) {
+                    recorder.failRecord(failure);
+                } else {
+                    recorder.stopRecord();
+                }
             }
         }
     }

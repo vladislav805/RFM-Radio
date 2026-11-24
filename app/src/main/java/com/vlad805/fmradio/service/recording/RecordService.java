@@ -178,6 +178,21 @@ public abstract class RecordService implements IFMRecorder {
      */
     @Override
     public synchronized void stopRecord() {
+        finishRecording(null);
+    }
+
+    /**
+     * Finalizes the recording after an unexpected capture failure (e.g. lost FM input route).
+     * Saves any already-captured audio and subtitles as a playable partial file instead of
+     * discarding them, while still reporting the interruption so the UI does not treat it as
+     * an uninterrupted success.
+     */
+    @Override
+    public synchronized void failRecord(final Throwable error) {
+        finishRecording(error != null ? error : new IOException("Recording interrupted"));
+    }
+
+    private void finishRecording(@Nullable final Throwable interruptionError) {
         if (mState == State.FINISHING || mState == State.DONE) {
             return;
         }
@@ -218,12 +233,24 @@ public abstract class RecordService implements IFMRecorder {
             e.printStackTrace();
         }
 
-        if (mRecordingTarget != null) {
-            final RecordingTarget target = mRecordingTarget;
+        final RecordingTarget target = mRecordingTarget;
+        if (interruptionError != null && mRecordedPcmSamples == 0) {
+            target.abort();
+            if (mListener != null) {
+                mListener.onRecordingFailed(interruptionError);
+            }
+        } else {
             try {
                 target.commit();
                 publishSubtitles(target);
-                notifyCompleted(target);
+                final RecordingResult result = buildResult(target);
+                if (mListener != null) {
+                    if (interruptionError != null) {
+                        mListener.onRecordingInterrupted(result, interruptionError);
+                    } else {
+                        mListener.onRecordingCompleted(result);
+                    }
+                }
             } catch (IOException e) {
                 e.printStackTrace();
                 target.abort();
@@ -231,10 +258,10 @@ public abstract class RecordService implements IFMRecorder {
                     mListener.onRecordingFailed(e);
                 }
             }
-            target.closeQuietly();
-            discardSubtitles();
-            mRecordingTarget = null;
         }
+        target.closeQuietly();
+        discardSubtitles();
+        mRecordingTarget = null;
         mState = State.DONE;
     }
 
@@ -260,11 +287,7 @@ public abstract class RecordService implements IFMRecorder {
         }
     }
 
-    private void notifyCompleted(final RecordingTarget target) {
-        if (mListener == null) {
-            return;
-        }
-
+    private RecordingResult buildResult(final RecordingTarget target) {
         final String recordingUri = target.getPublishedUri() != null
                 ? target.getPublishedUri().toString()
                 : null;
@@ -282,7 +305,7 @@ public abstract class RecordService implements IFMRecorder {
             }
         }
 
-        final RecordingResult result = new RecordingResult(
+        return new RecordingResult(
                 mRecordLength,
                 getDurationSeconds(),
                 target.getDisplayPath(),
@@ -293,7 +316,6 @@ public abstract class RecordService implements IFMRecorder {
                 subtitleUri,
                 subtitleFilePath
         );
-        mListener.onRecordingCompleted(result);
     }
 
     /**

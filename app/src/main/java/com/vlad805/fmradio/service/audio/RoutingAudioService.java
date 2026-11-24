@@ -29,6 +29,8 @@ import com.vlad805.fmradio.service.recording.IFMRecorder;
 import com.vlad805.fmradio.service.recording.PcmFormat;
 import com.vlad805.fmradio.service.recording.RecordingStorage;
 
+import java.io.IOException;
+
 /**
  * FM2/Helium devices route FM audio directly inside audio HAL.
  * No AudioRecord bridge is needed here.
@@ -65,7 +67,7 @@ public class RoutingAudioService extends AudioService {
 	private Thread mRecordingThread;
 
 	/** Destination recorder used by the current recording request. */
-	private IFMRecorder mPcmRecorder;
+	private volatile IFMRecorder mPcmRecorder;
 
 	/** Whether the current record action had to start an on-demand FM capture. */
 	private boolean mCaptureStartedForRecording;
@@ -280,12 +282,19 @@ public class RoutingAudioService extends AudioService {
 
 		mRecordingThread = new Thread(() -> {
 			final short[] buffer = new short[bufferSize / 2];
+			// Set only on unexpected FM input loss (route change or dead audio server).
+			// Normal user-initiated teardown via stopPcmCapture() clears mRecordingAudioRecord
+			// and interrupts this thread first, so it never reports a capture failure.
+			Throwable captureFailure = null;
 			try {
 				while (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
 					final int read = audioRecord.read(buffer, 0, buffer.length);
 					if (read > 0) {
 						if (!isActiveFmCapture(audioRecord)) {
 							Log.e(TAG, "FM capture lost FM_TUNER route, stopping capture");
+							if (mRecordingAudioRecord == audioRecord && !Thread.currentThread().isInterrupted()) {
+								captureFailure = new IOException("FM capture lost FM_TUNER route");
+							}
 							break;
 						}
 						if (exynosPolicy != null && gainTracker != null) {
@@ -298,6 +307,7 @@ public class RoutingAudioService extends AudioService {
 						mPcmSession.append(buffer, read);
 					} else if (read == AudioRecord.ERROR_DEAD_OBJECT) {
 						Log.e(TAG, "FM capture audio server died");
+						captureFailure = new IOException("FM capture audio server died");
 						break;
 					} else {
 						Log.w(TAG, "FM capture read returned " + read);
@@ -307,10 +317,16 @@ public class RoutingAudioService extends AudioService {
 			} finally {
 				boolean ownsAudioRecord = false;
 				synchronized (mCaptureLock) {
+					// If mRecordingAudioRecord still points to our instance, the worker exited on
+					// its own (not via stopPcmCapture()) and is responsible for cleanup.
 					if (mRecordingAudioRecord == audioRecord) {
 						mRecordingAudioRecord = null;
 						mRecordingThread = null;
 						ownsAudioRecord = true;
+						if (captureFailure != null) {
+							mPcmRecorder = null;
+							mCaptureStartedForRecording = false;
+						}
 						if (exynosPolicy != null) {
 							releaseExynosRecordingVolumeSession(exynosPolicy);
 							if (mAudioManager != null) {
@@ -320,6 +336,11 @@ public class RoutingAudioService extends AudioService {
 					}
 				}
 				if (ownsAudioRecord) {
+					if (captureFailure != null) {
+						// Finalize any active recording as interrupted (no-op if only pre-roll capture was
+						// running) so already-captured audio is saved and the UI exits recording state.
+						mPcmSession.failAsync(captureFailure);
+					}
 					audioRecord.release();
 				}
 			}
