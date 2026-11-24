@@ -172,6 +172,17 @@
     <string name="favorites_manage_lists">Управление списками избранного</string>
     <string name="power_toggle_description">Включить / выключить радио</string>
     <string name="about_version_copied">Версия скопирована</string>
+    <string name="about_version_format">Версия %1$s</string>
+    <string name="about_section_community">Сообщество и ресурсы</string>
+    <string name="about_section_information">Информация</string>
+    <string name="about_link_telegram_subtitle">Новости, обновления и обсуждение</string>
+    <string name="about_link_github_subtitle">vladislav805/RFM-Radio\nИсходный код и багрепорты</string>
+    <string name="about_link_site_subtitle">rfm.velu.ga\nСкачивание и документация</string>
+    <string name="about_licenses_title">Лицензии открытого ПО</string>
+    <string name="about_licenses_subtitle">Сторонние библиотеки и зависимости</string>
+    <string name="about_changelog_title">Список изменений</string>
+    <string name="about_changelog_subtitle">Что нового в v%1$s</string>
+    <string name="about_license_footer">Лицензия GNU General Public License v3.0</string>
     <string name="favorite_list_active_badge">Активный</string>
     <string name="favorite_list_name_hint">Название списка</string>
     <string name="favorites_add_station">Добавить</string>

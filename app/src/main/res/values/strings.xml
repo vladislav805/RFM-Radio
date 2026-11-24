@@ -182,6 +182,17 @@
     <string name="record_badge_idle" translatable="false">REC</string>
     <string name="power_toggle_description">Power on/off</string>
     <string name="about_version_copied">Version copied</string>
+    <string name="about_version_format">Version %1$s</string>
+    <string name="about_section_community">Community &amp; Resources</string>
+    <string name="about_section_information">Information</string>
+    <string name="about_link_telegram_subtitle">News, updates &amp; discussions</string>
+    <string name="about_link_github_subtitle">vladislav805/RFM-Radio\nSource code &amp; issues</string>
+    <string name="about_link_site_subtitle">rfm.velu.ga\nDownload &amp; documentation</string>
+    <string name="about_licenses_title">Open source licenses</string>
+    <string name="about_licenses_subtitle">Third-party libraries &amp; dependencies</string>
+    <string name="about_changelog_title">Changelog</string>
+    <string name="about_changelog_subtitle">What\'s new in v%1$s</string>
+    <string name="about_license_footer">Licensed under GNU General Public License v3.0</string>
     <string name="favorite_list_active_badge">Active</string>
     <string name="favorite_list_name_hint">List name</string>
     <string name="favorites_add_station">Add</string>
