@@ -14,7 +14,7 @@ public:
     void on_tune_requested();
     void tune_failed();
     bool begin_seek();
-    bool start_seek();
+    bool start_seek(bool *completed = nullptr);
     void seek_failed();
     bool start();
     void start_failed();
@@ -37,6 +37,7 @@ private:
     } status_ = Status::kIdle;
 
     bool tune_pending_ = false;
+    bool seek_tune_seen_ = false;
     int pending_frequency_khz_ = 0;
     ScanResultCollector stations_;
 };

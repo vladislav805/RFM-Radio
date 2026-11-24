@@ -1897,8 +1897,17 @@ bool V4l2QcomBackend::command_start_seek(int8_t direction, uint8_t dwell_period)
     }
 
     if (receiver_search_station_seek(SEEK, direction, dwell_period)) {
-        std::lock_guard<std::mutex> lock(state_lock_);
-        return legacy_scan_.start_seek();
+        bool started = false;
+        bool seek_completed = false;
+        {
+            std::lock_guard<std::mutex> lock(state_lock_);
+            started = legacy_scan_.start_seek(&seek_completed);
+        }
+        if (seek_completed) {
+            send_native_event("seek_done");
+            command_publish_sinr() || command_publish_rmssi();
+        }
+        return started;
     }
 
     std::lock_guard<std::mutex> lock(state_lock_);

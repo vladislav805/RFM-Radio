@@ -175,3 +175,53 @@ TEST(V4l2ScanStateTest, SeekCompleteClearsUnconsumedPendingSetfreqTune) {
     EXPECT_FALSE(state.busy());
     EXPECT_TRUE(state.start());
 }
+
+TEST(V4l2ScanStateTest, EarlySeekTuneBeforeStartSeekCompletesOnCommit) {
+    V4l2ScanState state;
+    ASSERT_TRUE(state.begin_seek());
+    EXPECT_TRUE(state.busy());
+
+    // TUNE_SUCC arrives before start_seek() promotes kSeekStarting -> kSeeking.
+    EXPECT_FALSE(state.on_tune(101700));
+    EXPECT_TRUE(state.busy());
+
+    ScanResult result;
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
+
+    bool completed = false;
+    ASSERT_TRUE(state.start_seek(&completed));
+    EXPECT_TRUE(completed);
+    EXPECT_FALSE(state.busy());
+    EXPECT_TRUE(state.start());
+}
+
+TEST(V4l2ScanStateTest, EarlyTuneDoesNotEmitCompletionWhenSeekIoctlFails) {
+    V4l2ScanState state;
+    ASSERT_TRUE(state.begin_seek());
+    EXPECT_FALSE(state.on_tune(101700));
+
+    state.seek_failed();
+    EXPECT_FALSE(state.busy());
+
+    // Subsequent seek must not inherit stale completion state.
+    ASSERT_TRUE(state.begin_seek());
+    bool completed = false;
+    ASSERT_TRUE(state.start_seek(&completed));
+    EXPECT_FALSE(completed);
+    EXPECT_TRUE(state.busy());
+}
+
+TEST(V4l2ScanStateTest, EarlySeekCompleteClearsPendingManualTuneBeforeEarlySeekTune) {
+    V4l2ScanState state;
+    state.on_tune_requested();
+    ASSERT_TRUE(state.begin_seek());
+
+    ScanResult result;
+    EXPECT_EQ(state.on_seek_complete(&result), V4l2ScanTerminal::kNone);
+    EXPECT_FALSE(state.on_tune(101700));
+
+    bool completed = false;
+    ASSERT_TRUE(state.start_seek(&completed));
+    EXPECT_TRUE(completed);
+    EXPECT_FALSE(state.busy());
+}

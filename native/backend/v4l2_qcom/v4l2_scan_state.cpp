@@ -18,21 +18,35 @@ bool V4l2ScanState::begin_seek() {
     }
 
     status_ = Status::kSeekStarting;
+    seek_tune_seen_ = false;
     return true;
 }
 
-bool V4l2ScanState::start_seek() {
+bool V4l2ScanState::start_seek(bool *completed) {
+    if (completed != nullptr) {
+        *completed = false;
+    }
     if (status_ != Status::kIdle && status_ != Status::kSeekStarting) {
         return false;
     }
 
+    if (status_ == Status::kSeekStarting && seek_tune_seen_) {
+        reset();
+        if (completed != nullptr) {
+            *completed = true;
+        }
+        return true;
+    }
+
     status_ = Status::kSeeking;
+    seek_tune_seen_ = false;
     return true;
 }
 
 void V4l2ScanState::seek_failed() {
     if (status_ == Status::kSeekStarting || status_ == Status::kSeeking) {
         status_ = Status::kIdle;
+        seek_tune_seen_ = false;
     }
 }
 
@@ -71,8 +85,16 @@ void V4l2ScanState::cancel_failed() {
 }
 
 bool V4l2ScanState::on_tune(int frequency_khz) {
-    if (status_ == Status::kIdle || status_ == Status::kSeekStarting) {
+    if (status_ == Status::kIdle) {
         tune_pending_ = false;
+        return false;
+    }
+    if (status_ == Status::kSeekStarting) {
+        if (tune_pending_) {
+            tune_pending_ = false;
+            return false;
+        }
+        seek_tune_seen_ = true;
         return false;
     }
     if (status_ == Status::kSeeking) {
@@ -107,7 +129,7 @@ int V4l2ScanState::on_scan_next(int fallback_frequency_khz) {
 }
 
 V4l2ScanTerminal V4l2ScanState::on_seek_complete(ScanResult *result) {
-    if (status_ == Status::kSeeking) {
+    if (status_ == Status::kSeekStarting || status_ == Status::kSeeking) {
         tune_pending_ = false;
         return V4l2ScanTerminal::kNone;
     }
@@ -131,6 +153,7 @@ bool V4l2ScanState::busy() const {
 void V4l2ScanState::reset() {
     status_ = Status::kIdle;
     tune_pending_ = false;
+    seek_tune_seen_ = false;
     pending_frequency_khz_ = 0;
     stations_.reset();
 }
