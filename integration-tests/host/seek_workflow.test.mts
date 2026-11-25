@@ -9,13 +9,18 @@ const stubPath = path.join(__dirname, "stub_fmbin.mjs");
 
 describe("seekhw -> searchhw synchronization (host stub)", () => {
     let activeClient: FmbinClient | null = null;
-    const prevEmitState = process.env.STUB_EMIT_STATE_ON_SEEK;
+    const savedEnv = {
+        STUB_EMIT_STATE_ON_SEEK: process.env.STUB_EMIT_STATE_ON_SEEK,
+        STUB_SEARCH_FAILED: process.env.STUB_SEARCH_FAILED,
+    };
 
     afterEach(async () => {
-        if (prevEmitState === undefined) {
-            delete process.env.STUB_EMIT_STATE_ON_SEEK;
-        } else {
-            process.env.STUB_EMIT_STATE_ON_SEEK = prevEmitState;
+        for (const [key, value] of Object.entries(savedEnv)) {
+            if (value === undefined) {
+                delete process.env[key];
+            } else {
+                process.env[key] = value;
+            }
         }
         if (activeClient) {
             const client = activeClient;
@@ -62,5 +67,15 @@ describe("seekhw -> searchhw synchronization (host stub)", () => {
         const exit = await client.shutdown();
         assert.equal(exit.code, 0);
         activeClient = null;
+    });
+
+    it("reports search_failed even if the event arrives before the command response", async () => {
+        process.env.STUB_SEARCH_FAILED = "1";
+        const client = FmbinClient.start({ localBinaryPath: stubPath });
+        activeClient = client;
+        await client.waitForReady();
+        assert.equal((await client.sendCommand("init")).ok, true);
+        assert.equal((await client.sendCommand("enable freq=87500")).ok, true);
+        await assert.rejects(runSeekThenSearch(client, { searchTimeoutMs: 1000 }), /'searchhw' emitted search_failed/);
     });
 });

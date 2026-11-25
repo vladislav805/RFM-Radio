@@ -73,7 +73,7 @@ Regions: `eu`/`us` 87500–108000 kHz, `jp` 76000–95000, `jp_wide`
 Transport: stdin frames `<request-id>\t<command>\n` (UTF-8, trailing `\r`
 tolerated, frames over 4096 bytes terminate the loop); stdout carries one
 JSON object per line; stderr is diagnostics → logcat tag `RFM-QCOM`. Ready
-handshake: `{"type":"ready","protocol":1,"pid":N,"backend":"v4l2_qcom"|"hal_helium"|"none"}`. Responses:
+handshake: `{"type":"ready","protocol":1,"pid":N,"backend":"v4l2_qcom"|"v4l2_exynos"|"hal_helium"|"none"}`. Responses:
 `{"type":"response","id":N,"ok":true,"data":"ok"}`. `make_ok()` delays the
 success response by 300 ms intentionally — do not remove it. Java matches
 success by a `"ok"` prefix on `data`, not by the `ok` field.
@@ -162,6 +162,9 @@ completion also sends this reset when the HAL emits only `seek_complete_cb`.
   (`V4L2_CID_S610_RDS_ON = 1` = `FM_RDS_ENABLE` without `RDS_PARSER_ENABLE` bit `0x04`; `5` from stock enables the in-kernel parser and breaks raw 3-byte reads), drops blocks with `errors != 0`, and requires
   2 consecutive hits for `PI`, `PTY`, `PS`, and `country` (suppressing mid-cycle
   dynamic PS splices); `kS610CidSnrCurr` is clamped to `[-128, 127]` before JSON emission.
+- On S610 a non-wrapping upward seek returns `EINVAL` at the band limit.
+  A full scan completes on this error only when `VIDIOC_G_FREQUENCY` confirms
+  the selected region's upper edge. Other `EINVAL` results emit `search_failed`.
 - Samsung Exynos S610 verified driver semantics (checked against `radio-s610.c`
   / `fm_low.c` — do not "fix" these to match the V4L2 spec):
   `use_soft_mute` is hardcoded `TRUE` in `fm_low.c`, so `set_soft_mute()` is a

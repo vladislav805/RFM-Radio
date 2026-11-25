@@ -249,7 +249,7 @@ keeps one request in flight, attaches a monotonically increasing ID, and uses
 that ID to match JSON responses. `shutdown` may be written behind an in-flight
 command so teardown does not wait for Java's regular command queue.
 
-Native announces a successful exec with (where `backend` is `"v4l2_qcom"`, `"hal_helium"`, or `"none"`):
+Native announces a successful exec with (where `backend` is `"v4l2_qcom"`, `"v4l2_exynos"`, `"hal_helium"`, or `"none"`):
 
 ```json
 {"type":"ready","protocol":1,"pid":1234,"backend":"v4l2_qcom"}
@@ -381,6 +381,11 @@ Search completion:
 ```json
 {"type":"search_done","stations":[87500,101700]}
 ```
+
+On Exynos S610 a non-wrapping seek can return `EINVAL` at the top of the band.
+The scan reads the stopped frequency with `VIDIOC_G_FREQUENCY`. A match with
+the selected upper limit completes the scan with the stations already found.
+A different frequency or a failed read produces `search_failed`.
 
 Disable notification:
 

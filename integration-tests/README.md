@@ -39,7 +39,7 @@ node --test integration-tests/fmbin.test.mts
 | `RFM_INITIAL_FREQ` | `87500` | Initial frequency in kHz |
 | `RFM_SECONDARY_FREQ` | `100000` | Target frequency in kHz for `setfreq` |
 | `RFM_SEEK_TIMEOUT_MS` | `30000` | Timeout waiting for `seek_done` before starting `searchhw` |
-| `RFM_SEARCH_TIMEOUT_MS` | `90000` | Timeout waiting for `search_done` |
+| `RFM_SEARCH_TIMEOUT_MS` | `90000` | Maximum wait for scan completion. A `search_failed` event fails the test immediately. |
 | `RFM_RDS_REQUIRE` | `ps,rt` | Comma-separated required RDS fields (`ps`, `rt`, `rt_plus`, `af`, or `all`) |
 | `RFM_RDS_DWELL_MS` | `6000` | Per-station listen window (ms) in `rds.test.mts` |
 | `RFM_RDS_MAX_SEEKS` | `35` | Maximum `seekhw 1` steps in `rds.test.mts` |

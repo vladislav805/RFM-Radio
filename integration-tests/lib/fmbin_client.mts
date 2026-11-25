@@ -9,7 +9,7 @@ export interface ReadyEvent {
     type: "ready";
     protocol: number;
     pid: number;
-    backend?: "v4l2_qcom" | "hal_helium" | "none";
+    backend?: "v4l2_qcom" | "v4l2_exynos" | "hal_helium" | "none";
 }
 
 export interface ResponseMessage {
@@ -49,6 +49,10 @@ export interface SearchDoneEvent {
     stations: number[];
 }
 
+export interface SearchFailedEvent {
+    type: "search_failed";
+}
+
 export interface SeekDoneEvent {
     type: "seek_done";
 }
@@ -62,6 +66,7 @@ export type FmbinMessage =
     | ResponseMessage
     | StateEvent
     | SearchDoneEvent
+    | SearchFailedEvent
     | SeekDoneEvent
     | DisabledEvent;
 
@@ -500,9 +505,13 @@ export async function runSeekThenSearch(
         throw new Error(`'searchhw' failed: ${searchResp.data}\n${client.getDiagnostics()}`);
     }
 
-    return client.waitForEvent(
-        (m): m is SearchDoneEvent => m.type === "search_done",
+    const terminal = await client.waitForEvent(
+        (m): m is SearchDoneEvent | SearchFailedEvent => m.type === "search_done" || m.type === "search_failed",
         searchTimeoutMs,
-        "search_done event",
+        "search_done or search_failed",
     );
+    if (terminal.type === "search_failed") {
+        throw new Error(`'searchhw' emitted search_failed\n${client.getDiagnostics()}`);
+    }
+    return terminal;
 }

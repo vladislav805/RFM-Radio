@@ -49,7 +49,7 @@ describe("fmbin device integration", () => {
         assert.equal(ready.protocol, 1);
         assert.ok(ready.pid > 0);
         assert.ok(
-            ready.backend === "v4l2_qcom" || ready.backend === "hal_helium",
+            ready.backend && ["v4l2_qcom", "v4l2_exynos", "hal_helium"].includes(ready.backend),
             `unexpected backend: ${String(ready.backend)}`,
         );
 

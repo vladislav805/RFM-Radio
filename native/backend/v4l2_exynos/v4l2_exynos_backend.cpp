@@ -729,6 +729,13 @@ void V4l2ExynosBackend::search_worker() {
                     if (!perform_hw_seek(true, false, &seek_errno)) {
                         if (search_cancel_.load() || !enabled_.load() || seek_errno == ECANCELED) {
                             cancelled = true;
+                        } else if (seek_errno == EINVAL) {
+                            // S610 returns EINVAL for FM_EVENT_BD_LMT on a non-wrapping seek.
+                            // exynos/seek   : VIDIOC_S_HW_FREQ_SEEK upward=1 wrap=0 failed, errno=22 (Invalid argument)
+                            // exynos/search : bounded seek EINVAL: stopped_khz=108000 upper_khz=108000
+                            uint32_t stopped_khz = 0;
+                            scan_failed = !read_frequency_khz(&stopped_khz) || stopped_khz != upper_khz;
+                            log("search", "bounded seek EINVAL: stopped_khz=%u upper_khz=%u", stopped_khz, upper_khz);
                         } else if (seek_errno != EAGAIN && seek_errno != ENODATA && seek_errno != ERANGE) {
                             log("search", "seek step failed with errno=%d", seek_errno);
                             scan_failed = true;

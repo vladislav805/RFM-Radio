@@ -73,6 +73,11 @@ rl.on("line", (line) => {
             emit({ type: "response", id, ok: false, data: "ERR_FAILED" });
             return;
         }
+        if (process.env.STUB_SEARCH_FAILED === "1") {
+            emit({ type: "search_failed" });
+            emit({ type: "response", id, ok: true, data: "ok" });
+            return;
+        }
         emit({ type: "response", id, ok: true, data: "ok" });
         emit({ type: "search_done", stations: [87500, 101700] });
         return;

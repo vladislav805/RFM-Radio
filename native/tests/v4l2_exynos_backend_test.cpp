@@ -473,12 +473,16 @@ protected:
                     return -1;
                 }
             }
-            if (step.ret == 0) {
+            if (step.ret == 0 || step.freq_khz != 0) {
                 seek_target_khz = step.freq_khz;
-                return FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
+                if (FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg) < 0) {
+                    return -1;
+                }
             }
-            errno = step.err;
-            return -1;
+            if (step.ret < 0) {
+                errno = step.err;
+            }
+            return step.ret;
         }
 
         return FakeV4l2ExynosBackend::v4l2_ioctl(fd, request, arg);
@@ -618,6 +622,50 @@ TEST(V4l2ExynosBackendTest, SearchZeroStationEndOfBandEmitsEmptySearchDone) {
     reset_ctl_server_state_for_test();
     EXPECT_NE(output.find("\"type\":\"search_done\",\"stations\":[]"), std::string::npos) << output;
     EXPECT_EQ(output.find("\"type\":\"search_failed\""), std::string::npos) << output;
+}
+
+TEST(V4l2ExynosBackendTest, BoundedSeekEINVALCompletesScanOnlyAtConfirmedUpperBandEdge) {
+    const struct {
+        StartupRegion region;
+        uint32_t stop_khz;
+        bool fail_readback;
+        bool expect_done;
+    } cases[] = {
+            {StartupRegion::kEurope, 108000, false, true},
+            {StartupRegion::kJapan, 90000, false, true},
+            {StartupRegion::kEurope, 90000, false, false},
+            {StartupRegion::kEurope, 108000, true, false},
+    };
+
+    for (const auto &item : cases) {
+        SCOPED_TRACE(item.stop_khz);
+        reset_ctl_server_state_for_test();
+        StdoutCapture capture;
+        ScanFakeBackend backend;
+        auto cfg = make_default_config();
+        cfg.region = item.region;
+        cfg.frequency_khz = 88000;
+        backend.seek_steps = {{0, 0, 88400, false}, {-1, EINVAL, item.stop_khz, false}};
+        // Readbacks: enable, lower-edge tune, found station, then failed seek.
+        if (item.fail_readback) {
+            backend.fail_get_freq_call_index = 4;
+        }
+        ASSERT_TRUE(backend.init());
+        ASSERT_TRUE(backend.enable(cfg));
+        ASSERT_TRUE(backend.search());
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (!backend.request_signal_metric()) {
+            ASSERT_LT(std::chrono::steady_clock::now(), deadline);
+            usleep(1000);
+        }
+        EXPECT_EQ(backend.raw_frequency_units(), cfg.frequency_khz * kS610FreqMultiplier);
+        ASSERT_TRUE(backend.disable());
+        const auto output = capture.read_all();
+        EXPECT_EQ(output.find("\"type\":\"search_done\",\"stations\":[88400]") != std::string::npos, item.expect_done) << output;
+        EXPECT_EQ(output.find("\"type\":\"search_failed\"") != std::string::npos, !item.expect_done) << output;
+    }
+    reset_ctl_server_state_for_test();
 }
 
 TEST(V4l2ExynosBackendTest, RdsWorkerShutdownInterruptsSignalableBlockingRead) {
