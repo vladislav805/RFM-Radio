@@ -86,7 +86,6 @@ private:
     fm_cmd_status_t command_disable();
     void command_shutdown(bool disable_receiver);
     fm_cmd_status_t command_tune_frequency(uint32_t frequency);
-    fm_cmd_status_t command_tune_frequency_by_delta(int16_t direction);
     uint32_t command_get_tuned_frequency();
     bool command_publish_sinr();
     bool command_publish_rmssi();

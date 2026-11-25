@@ -82,6 +82,9 @@ Commands: `init`, `enable`, `disable`, `setfreq`, `jump`, `seekhw`,
 `shutdown` (alias `exit`) for process teardown. `set_volume` and `set_force_use` return immediately
 without the 300 ms `make_ok()` delay to avoid serial queue lag.
 
+On Qualcomm V4L2, `jump` returns the target accepted by `VIDIOC_S_FREQUENCY`.
+`TAVARUA_EVT_TUNE_SUCC` publishes the actual tuned frequency in a `state` patch.
+
 `enable` is strict — exactly seven unique named parameters, any order:
 
 ```text

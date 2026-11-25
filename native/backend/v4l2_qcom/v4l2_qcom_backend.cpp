@@ -289,17 +289,29 @@ bool V4l2QcomBackend::jump(int direction, uint32_t *new_frequency) {
         return set_status(false, kErrFailed);
     }
 
-    if (!set_status(command_tune_frequency_by_delta(direction >= 0 ? 1 : -1) == FM_CMD_SUCCESS, kErrFailed)) {
-        return false;
+    const uint32_t current_khz = command_get_tuned_frequency();
+    if (current_khz == 0) {
+        return set_status(false, kErrFailed);
+    }
+
+    uint32_t step_khz = 100;
+    switch (fm_storage_.space_type) {
+        case FM_RX_SPACE_200KHZ: step_khz = 200; break;
+        case FM_RX_SPACE_100KHZ: break;
+        case FM_RX_SPACE_50KHZ: step_khz = 50; break;
+    }
+
+    const uint32_t target_khz = direction >= 0 ? current_khz + step_khz : current_khz - step_khz;
+    if (command_tune_frequency(target_khz) != FM_CMD_SUCCESS) {
+        return set_status(false, kErrFailed);
     }
 
     metric_resume_at_ms_ = monotonic_ms() + kMetricSettleMs;
-
     if (new_frequency != nullptr) {
-        *new_frequency = command_get_tuned_frequency();
+        // TUNE_SUCC reports the tuned frequency once the asynchronous retune completes.
+        *new_frequency = target_khz;
     }
-
-    return true;
+    return set_status(true, nullptr);
 }
 
 // Starts hardware seek up or down.
@@ -1102,30 +1114,6 @@ fm_cmd_status_t V4l2QcomBackend::command_tune_frequency(uint32_t frequency) {
     }
 
     log("tune", "request frequency_khz=%d accepted", frequency);
-    return FM_CMD_SUCCESS;
-}
-
-// Changes frequency by delta based on current channel spacing.
-fm_cmd_status_t V4l2QcomBackend::command_tune_frequency_by_delta(int16_t direction) {
-    uint32_t current_frequency_khz = receiver_get_tuned_frequency();
-    int32_t delta = 100;
-
-    switch (fm_storage_.space_type) {
-        case FM_RX_SPACE_200KHZ: delta = 200; break;
-        case FM_RX_SPACE_100KHZ: delta = 100; break;
-        case FM_RX_SPACE_50KHZ: delta = 50; break;
-    }
-
-    uint32_t need_frequency_khz = current_frequency_khz + (delta * direction);
-    {
-        std::lock_guard<std::mutex> lock(state_lock_);
-        legacy_scan_.on_tune_requested();
-    }
-    if (!receiver_set_tuned_frequency(need_frequency_khz)) {
-        std::lock_guard<std::mutex> lock(state_lock_);
-        legacy_scan_.tune_failed();
-        return FM_CMD_FAILURE;
-    }
     return FM_CMD_SUCCESS;
 }
 

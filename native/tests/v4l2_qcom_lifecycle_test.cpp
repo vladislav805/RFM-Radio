@@ -9,6 +9,7 @@
 #include <deque>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -101,6 +102,7 @@ public:
     bool fail_get_sinr = false;
     int sinr_value = 12;
     int rmssi_signal = -70;
+    std::optional<uint32_t> reported_frequency_khz;
 
     ~FakeV4l2QcomBackend() override {
         {
@@ -287,7 +289,7 @@ protected:
                 errno = EBADF;
                 return -1;
             }
-            freq->frequency = khz_to_freq(last_frequency_khz_);
+            freq->frequency = khz_to_freq(reported_frequency_khz.value_or(last_frequency_khz_));
             return 0;
         }
 
@@ -356,6 +358,30 @@ StartupConfig make_default_config() {
     cfg.antenna = 0;
     cfg.auto_af = true;
     return cfg;
+}
+
+TEST(V4l2QcomLifecycleTest, JumpReturnsTargetWhileDriverStillReportsPreviousFrequency) {
+    FakeV4l2QcomBackend backend;
+    auto cfg = make_default_config();
+    cfg.frequency_khz = 88000;
+    backend.reported_frequency_khz = cfg.frequency_khz;
+    ASSERT_TRUE(backend.init());
+    ASSERT_TRUE(backend.enable(cfg));
+
+    uint32_t reply_khz = 0;
+    ASSERT_TRUE(backend.jump(-1, &reply_khz));
+    EXPECT_EQ(87900u, backend.last_frequency_khz());
+    EXPECT_EQ(87900u, reply_khz);
+}
+
+TEST(V4l2QcomLifecycleTest, JumpRequiresAValidStartingFrequency) {
+    FakeV4l2QcomBackend backend;
+    ASSERT_TRUE(backend.init());
+
+    uint32_t reply_khz = 0;
+    EXPECT_FALSE(backend.jump(-1, &reply_khz));
+    EXPECT_EQ(0u, backend.last_frequency_khz());
+    EXPECT_EQ(0u, reply_khz);
 }
 
 TEST(V4l2QcomLifecycleTest, RepeatedEnableRejectsAndPreservesActiveSession) {

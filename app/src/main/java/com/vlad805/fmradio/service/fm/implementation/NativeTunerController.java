@@ -243,7 +243,8 @@ public final class NativeTunerController {
                 notifyError("Error while jumping");
                 return;
             }
-            if (result > 0) {
+            // Qualcomm V4L2 publishes the actual frequency in its TUNE_SUCC state patch.
+            if (result > 0 && mDriverKind != TunerDriver.V4L2_QCOM) {
                 notifyFrequencyChanged(result);
             }
         }));

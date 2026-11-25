@@ -119,6 +119,8 @@ PS/RT trimmed, newlines → spaces) and dispatches `onStatePatch`,
 `onSearchProgress`, `onSearchDone`, and `onSearchFailed`; `enabled`, `disabled`,
 and `seek_done` are ignored (Java command completion is authoritative for
 enable/disable and seek frequencies arrive via `state` patches).
+For Qualcomm V4L2, `jump` also updates the displayed frequency through the
+`state` patch from the tune event. Its delayed numeric reply acknowledges the target.
 
 ## Audio
 

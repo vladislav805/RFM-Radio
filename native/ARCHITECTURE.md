@@ -795,8 +795,11 @@ close the descriptor, and joins it only after exit is confirmed.
 
 Legacy tune writes `VIDIOC_S_FREQUENCY`.
 
-Legacy `jump` applies one spacing delta to the current frequency but does not
-wrap at regional boundaries, unlike HAL.
+Legacy `jump` reads the current frequency, applies one spacing step and submits
+the result to `VIDIOC_S_FREQUENCY`, leaving band-edge handling to the driver.
+Its numeric reply contains the accepted target in kHz. An immediate read
+after the write can still return the previous station. The event thread reads
+the tuned frequency on `TAVARUA_EVT_TUNE_SUCC` and publishes it to Android.
 
 Legacy seek uses V4L2 hardware seek with mode `SEEK` and dwell value 7. On
 verified legacy hardware, the seek-complete event arrives while

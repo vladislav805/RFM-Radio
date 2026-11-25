@@ -280,6 +280,11 @@ completion owns enable/disable lifecycle and seek frequency arrives via `state`
 patches); `search_progress` → `onSearchProgress`; `search_done` →
 `onSearchDone`; `search_failed` → `onSearchFailed`; anything else → warning.
 
+For Qualcomm V4L2, `NativeTunerController.jump()` takes the displayed frequency
+from the tune event's `state` patch. The numeric command reply acknowledges the
+target and can arrive after the event. Helium and Exynos also apply the frequency
+returned by `jump`.
+
 `Request.java` — command object: `command` + `timeout` (default 1000 ms),
 fluent `onResponse`/`onError`, `fire`/`fireError`. Per-command timeouts
 used by `NativeTunerController`: `init` 10000, `enable`/`disable` 5000,
