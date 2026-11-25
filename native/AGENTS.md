@@ -103,6 +103,10 @@ PS/RT text is UTF-8: `rds_parser.cpp` converts raw EBU Latin G0
 pre-conversion bytes are kept in `RdsTextPayload::raw_text` because RT+ tag
 indices refer to raw characters.
 
+All three backends use `make_station_metadata_reset_patch()` to clear published
+station metadata (PS, RT, PI, country, PTY, AF and RT+). Helium ordinary seek
+completion also sends this reset when the HAL emits only `seek_complete_cb`.
+
 ## Vendor Ordering Invariants (do not reorder without device evidence)
 
 - Qualcomm V4L2 enable order: prepare (emphasis/spacing/antenna) → RDS config →

@@ -207,6 +207,20 @@ radio_state_patch_t radio_state_patch_empty(void) {
     return patch;
 }
 
+radio_state_patch_t make_station_metadata_reset_patch(void) {
+    radio_state_patch_t patch = radio_state_patch_empty();
+    patch.ps = "";
+    patch.rt = "";
+    patch.pi = "";
+    patch.country = "";
+    patch.pty = 0;
+    patch.af_count = 0;
+    patch.rt_plus_title = "";
+    patch.rt_plus_artist = "";
+    patch.rt_plus_album = "";
+    return patch;
+}
+
 bool send_radio_state_patch(const radio_state_patch_t *patch) {
     if (patch == nullptr) {
         return false;

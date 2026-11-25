@@ -237,6 +237,25 @@ TEST_F(HalMetricTest, DuplicateFullScanCallbackDoesNotEmitSeekDone) {
     EXPECT_EQ(lines[0], "{\"type\":\"search_done\",\"stations\":[]}");
 }
 
+TEST_F(HalMetricTest, SeekCompletionClearsPreviousTrackWithoutTuneCallback) {
+    StdoutCapture capture;
+    radio_state_patch_t previous = radio_state_patch_empty();
+    previous.frequency_khz = 101700;
+    previous.rt_plus_title = "Title";
+    previous.rt_plus_artist = "Artist";
+    previous.rt_plus_album = "Album";
+    ASSERT_TRUE(send_radio_state_patch(&previous));
+
+    ASSERT_TRUE(backend->seek(1));
+    HalHeliumBackend::seek_complete_cb(102100);
+
+    const auto lines = split_lines(capture.read_all());
+    ASSERT_EQ(lines.size(), 3u);
+    EXPECT_NE(lines[1].find(R"("frequency":102100)"), std::string::npos);
+    EXPECT_NE(lines[1].find(R"("rt_plus":{"title":"","artist":"","album":""})"), std::string::npos);
+    EXPECT_EQ(lines[2], R"({"type":"seek_done"})");
+}
+
 TEST_F(HalMetricTest, OrdinarySeekEmitsSingleSeekDoneAtSameFrequencyAndUnblocksScan) {
     std::string output;
     {

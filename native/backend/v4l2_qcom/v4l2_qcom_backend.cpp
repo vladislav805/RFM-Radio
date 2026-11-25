@@ -1169,10 +1169,8 @@ void V4l2QcomBackend::event_thread() {
 
                     log("event", "tune frequency_khz=%d", fm_storage_.frequency);
 
-                    radio_state_patch_t patch = radio_state_patch_empty();
+                    radio_state_patch_t patch = make_station_metadata_reset_patch();
                     patch.frequency_khz = fm_storage_.frequency;
-                    patch.ps = patch.rt = patch.pi = patch.country = patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = "";
-                    patch.af_count = patch.pty = 0;
                     send_radio_state_patch(&patch);
 
                     if (seek_completed) {

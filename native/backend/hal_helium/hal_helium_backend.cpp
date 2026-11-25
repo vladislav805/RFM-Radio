@@ -1106,10 +1106,8 @@ void HalHeliumBackend::on_tune(int freq) {
         reset_search_result_locked();
         reset_rds_dedup_locked();
     }
-    radio_state_patch_t patch = radio_state_patch_empty();
+    radio_state_patch_t patch = make_station_metadata_reset_patch();
     patch.frequency_khz = freq;
-    patch.ps = patch.rt = patch.pi = patch.country = patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = "";
-    patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
 
     // The tune callback is the first authoritative point at which signal metric belongs
@@ -1166,10 +1164,8 @@ void HalHeliumBackend::on_seek_complete(int freq) {
         return;
     }
 
-    radio_state_patch_t patch = radio_state_patch_empty();
+    radio_state_patch_t patch = make_station_metadata_reset_patch();
     patch.frequency_khz = freq;
-    patch.ps = patch.rt = patch.pi = patch.country = "";
-    patch.af_count = patch.pty = 0;
     send_radio_state_patch(&patch);
     send_native_event("seek_done");
 }

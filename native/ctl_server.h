@@ -38,6 +38,7 @@ void poll_rmssi(void);
 void reset_ctl_server_state_for_test(void);
 int init_server(fm_srv_callback request_callback, const char *backend_name);
 radio_state_patch_t radio_state_patch_empty(void);
+radio_state_patch_t make_station_metadata_reset_patch(void);
 bool send_radio_state_patch(const radio_state_patch_t *patch);
 bool send_native_event(const char *type);
 bool send_search_progress(int count);

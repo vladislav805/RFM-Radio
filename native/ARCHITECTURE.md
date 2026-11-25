@@ -562,6 +562,9 @@ parse it as a frequency. `HeliumScanState::seeking` tracks an accepted ordinary
 seek so `seek_complete_cb` updates frequency, clears RDS, emits the
 authoritative state patch, and sends a single `seek_done` only for a live
 `seekhw` request (rejecting overlapping `seekhw` / `searchhw` while active).
+Both callbacks use `make_station_metadata_reset_patch()` for PS, RT, PI,
+country, PTY, AF and all three RT+ fields. A standalone seek completion thus
+clears the previous track in the frequency update before emitting `seek_done`.
 
 ### Full Search
 

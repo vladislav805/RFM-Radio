@@ -1029,15 +1029,7 @@ void V4l2ExynosBackend::reset_rds_state() {
     std::lock_guard<std::mutex> lock(rds_mutex_);
     rds_ = RdsDecoderState{};
 
-    radio_state_patch_t patch = radio_state_patch_empty();
-    patch.ps = "";
-    patch.rt = "";
-    patch.pi = "";
-    patch.country = "";
-    patch.pty = 0;
-    patch.rt_plus_title = "";
-    patch.rt_plus_artist = "";
-    patch.rt_plus_album = "";
+    const radio_state_patch_t patch = make_station_metadata_reset_patch();
     send_radio_state_patch(&patch);
 }
 
