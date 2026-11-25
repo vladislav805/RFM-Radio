@@ -443,6 +443,20 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/ctl_toggle_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:elevation="6dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorSize="26dp"
+            app:layout_constraintBottom_toBottomOf="@+id/ctl_toggle"
+            app:layout_constraintEnd_toEndOf="@+id/ctl_toggle"
+            app:layout_constraintStart_toStartOf="@+id/ctl_toggle"
+            app:layout_constraintTop_toTopOf="@+id/ctl_toggle"
+            app:trackThickness="3dp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/ctl_go_up"
             style="@style/RfmIconButtonTonal"

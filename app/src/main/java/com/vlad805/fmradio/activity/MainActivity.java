@@ -37,6 +37,7 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Storage;
@@ -88,6 +89,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Storage mStorage;
 
     private MaterialButton mCtlToggle;
+    private CircularProgressIndicator mCtlToggleProgress;
     private MaterialCardView mViewStereoModeCard;
     private TextView mViewStereoMode;
     private MaterialCardView mAfBadgeCard;
@@ -116,6 +118,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ObjectAnimator mRecordPulseAnimator;
     private ValueAnimator mPowerColorAnimator;
     private Boolean mLastPowerPlaying;
+    private boolean mPowerSeeking = false;
+    private final Runnable mClearPowerSeeking = () -> {
+        if (mPowerSeeking) {
+            mPowerSeeking = false;
+            updatePowerButtonProgress(mLastState != null ? mLastState.getStatus() : TunerStatus.IDLE);
+        }
+    };
 
     private final Runnable mRecordTicker = new Runnable() {
         @Override
@@ -258,6 +267,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mUiHandler.removeCallbacks(mRecordTicker);
+        mUiHandler.removeCallbacks(mClearPowerSeeking);
         mRecordTickerRunning = false;
         stopRecordPulseAnimation();
         if (mPowerColorAnimator != null) {
@@ -321,6 +331,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void initClickableButtons() {
         mCtlToggle = findViewById(R.id.ctl_toggle);
+        mCtlToggleProgress = findViewById(R.id.ctl_toggle_progress);
         mViewStereoModeCard = findViewById(R.id.stereo_mono_card);
         mViewStereoMode = findViewById(R.id.stereo_mono);
         final TunerDriver driver = TunerDriverDetector.getTunerDriver(this);
@@ -382,9 +393,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (id == R.id.ctl_go_up) {
             mRadioClient.jump(Direction.UP);
         } else if (id == R.id.ctl_seek_down) {
+            beginPowerSeekProgress();
             mRadioClient.hwSeek(Direction.DOWN);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
         } else if (id == R.id.ctl_seek_up) {
+            beginPowerSeekProgress();
             mRadioClient.hwSeek(Direction.UP);
             mFrequencyInfo.showStatus(R.string.status_searching_station);
         } else if (id == R.id.btn_record) {
@@ -578,9 +591,56 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     };
 
+    private static boolean isTransitioningStatus(final TunerStatus status) {
+        return status == TunerStatus.INSTALLING
+                || status == TunerStatus.INSTALLED
+                || status == TunerStatus.LAUNCHING
+                || status == TunerStatus.LAUNCHED
+                || status == TunerStatus.ENABLING
+                || status == TunerStatus.DISABLING;
+    }
+
+    private void beginPowerSeekProgress() {
+        mPowerSeeking = true;
+        mUiHandler.removeCallbacks(mClearPowerSeeking);
+        mUiHandler.postDelayed(mClearPowerSeeking, 4000L);
+        updatePowerButtonProgress(mLastState != null ? mLastState.getStatus() : TunerStatus.ENABLED);
+    }
+
+    private void clearPowerSeekProgress() {
+        if (!mPowerSeeking) {
+            return;
+        }
+        mPowerSeeking = false;
+        mUiHandler.removeCallbacks(mClearPowerSeeking);
+        updatePowerButtonProgress(mLastState != null ? mLastState.getStatus() : TunerStatus.IDLE);
+    }
+
+    private void updatePowerButtonProgress(final TunerStatus status) {
+        final boolean transitioning = isTransitioningStatus(status);
+        final boolean busy = transitioning || mPowerSeeking;
+        final boolean enabled = status == TunerStatus.IDLE || status == TunerStatus.ENABLED;
+
+        if (mCtlToggleProgress != null) {
+            mCtlToggleProgress.setVisibility(busy ? View.VISIBLE : View.GONE);
+            if (busy) {
+                mCtlToggleProgress.bringToFront();
+            }
+        }
+        if (busy) {
+            mCtlToggle.setIcon(null);
+        } else {
+            mCtlToggle.setIconResource(R.drawable.ic_rfm_power);
+        }
+        mCtlToggle.setEnabled(enabled && !busy);
+        mCtlToggle.setAlpha((enabled || busy) ? 1f : .45f);
+    }
+
     private void setEnabledToggleButton(final boolean enabled) {
-        mCtlToggle.setEnabled(enabled);
-        mCtlToggle.setAlpha(enabled ? 1f : .45f);
+        final TunerStatus status = mLastState != null ? mLastState.getStatus() : TunerStatus.IDLE;
+        final boolean busy = isTransitioningStatus(status) || mPowerSeeking;
+        mCtlToggle.setEnabled(enabled && !busy);
+        mCtlToggle.setAlpha((enabled || busy) ? 1f : .45f);
     }
 
     private boolean hasRecordingPermissions() {
@@ -782,6 +842,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         if ((mode & RadioState.SET_FREQUENCY) != 0) {
+            clearPowerSeekProgress();
             if (state.getStatus() == TunerStatus.ENABLED) {
                 mFrequencyInfo.hideStatus();
             }
@@ -878,6 +939,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void handleChangingState(final TunerStatus status) {
+        if (status != TunerStatus.ENABLED) {
+            mPowerSeeking = false;
+            mUiHandler.removeCallbacks(mClearPowerSeeking);
+        }
         switch (status) {
             case IDLE: {
                 setEnabledUi(false);
@@ -956,6 +1021,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
         }
+        updatePowerButtonProgress(status);
     }
 
     private void setPlayingMainPlayButton(final boolean isPlay) {
@@ -969,6 +1035,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 isPlay ? com.google.android.material.R.attr.colorOnPrimary : androidx.appcompat.R.attr.colorPrimary,
                 ContextCompat.getColor(this, isPlay ? R.color.rfm_md_on_primary : R.color.rfm_md_primary)
         );
+
+        if (mCtlToggleProgress != null) {
+            mCtlToggleProgress.setIndicatorColor(targetFg);
+        }
 
         if (mLastPowerPlaying == null || mLastPowerPlaying == isPlay || !mCtlToggle.isLaidOut()) {
             mLastPowerPlaying = isPlay;
