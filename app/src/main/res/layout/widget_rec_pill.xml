@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_rec_pill"
+    android:layout_width="wrap_content"
+    android:layout_height="28dp"
+    android:background="@drawable/bg_widget_rec_pill_disabled"
+    android:gravity="center"
+    android:minWidth="68dp"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
+
+    <ImageView
+        android:id="@+id/widget_rec_dot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_rfm_rec_dot"
+        android:tint="@color/widget_rec_disabled_text" />
+
+    <TextView
+        android:id="@+id/widget_rec_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:fontFamily="monospace"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text="@string/widget_rec_short"
+        android:textColor="@color/widget_rec_disabled_text"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+</LinearLayout>

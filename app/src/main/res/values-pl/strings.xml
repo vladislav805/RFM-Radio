@@ -43,6 +43,12 @@
 	<string name="about_changelog_title">Lista zmian</string>
 	<string name="about_changelog_subtitle">Co nowego w v%1$s</string>
 	<string name="about_license_footer">Licencja GNU General Public License v3.0</string>
+	<string name="widget_radio_4x1_label">RFM Radio (4×1)</string>
+	<string name="widget_radio_2x1_label">RFM Radio (2×1)</string>
+	<string name="widget_rec_short">REC</string>
+	<string name="cd_seek_prev">Poprzednia stacja</string>
+	<string name="cd_seek_next">Następna stacja</string>
+	<string name="cd_power_toggle">Włącz lub wyłącz radio</string>
 	<string name="menu_favorite_list_create">Stwórz listę</string>
 	<string name="menu_favorite_list_import">Importuj listę</string>
 	<string name="menu_favorite_list_export">Eksportuj listę</string>

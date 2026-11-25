@@ -193,6 +193,12 @@
     <string name="about_changelog_title">Changelog</string>
     <string name="about_changelog_subtitle">What\'s new in v%1$s</string>
     <string name="about_license_footer">Licensed under GNU General Public License v3.0</string>
+    <string name="widget_radio_4x1_label">RFM Radio (4×1)</string>
+    <string name="widget_radio_2x1_label">RFM Radio (2×1)</string>
+    <string name="widget_rec_short">REC</string>
+    <string name="cd_seek_prev">Previous station</string>
+    <string name="cd_seek_next">Next station</string>
+    <string name="cd_power_toggle">Toggle radio</string>
     <string name="favorite_list_active_badge">Active</string>
     <string name="favorite_list_name_hint">List name</string>
     <string name="favorites_add_station">Add</string>

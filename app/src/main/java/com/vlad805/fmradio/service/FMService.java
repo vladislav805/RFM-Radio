@@ -48,6 +48,7 @@ import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.recording.RecordService;
 import com.vlad805.fmradio.service.recording.RecordingListener;
 import com.vlad805.fmradio.service.recording.RecordingResult;
+import com.vlad805.fmradio.widget.RadioWidgetProvider;
 
 import java.util.List;
 import java.util.Set;
@@ -59,6 +60,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
 
     public static final String ACTION_START = ACTION_PREFIX + "START";
     public static final String ACTION_STOP = ACTION_PREFIX + "STOP";
+    public static final String ACTION_TOGGLE = ACTION_PREFIX + "TOGGLE";
     public static final String ACTION_RECORD_START = ACTION_PREFIX + "RECORD_START";
     public static final String ACTION_RECORD_STOP = ACTION_PREFIX + "RECORD_STOP";
     public static final String ACTION_NOTIFICATION_SEEK = ACTION_PREFIX + "NOTIFICATION_SEEK";
@@ -99,6 +101,13 @@ public class FMService extends Service implements RadioServiceController, FMEven
     private boolean mSessionActive = false;
     private boolean mDestroyed = false;
     private boolean mLastNotifiedRecording = false;
+    private boolean mWidgetSeeking = false;
+    private final Runnable mClearWidgetSeeking = () -> {
+        if (mWidgetSeeking) {
+            mWidgetSeeking = false;
+            updateWidget();
+        }
+    };
 
     private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceChangeListener = this::onPreferenceChanged;
 
@@ -246,6 +255,15 @@ public class FMService extends Service implements RadioServiceController, FMEven
                 break;
             }
 
+            case ACTION_TOGGLE: {
+                if (isTunerActive()) {
+                    disable();
+                } else {
+                    enable();
+                }
+                break;
+            }
+
             case ACTION_RECORD_START: {
                 startRecord();
                 break;
@@ -331,6 +349,10 @@ public class FMService extends Service implements RadioServiceController, FMEven
     @Override
     public void hwSeek(@NonNull final Direction direction) {
         if (mTunerDriver != null && mState.getStatus() == TunerStatus.ENABLED) {
+            mWidgetSeeking = true;
+            mMainHandler.removeCallbacks(mClearWidgetSeeking);
+            mMainHandler.postDelayed(mClearWidgetSeeking, 4000L);
+            updateWidget();
             mTunerDriver.hwSeek(direction.getValue());
         }
     }
@@ -473,10 +495,13 @@ public class FMService extends Service implements RadioServiceController, FMEven
         }
 
         mLastNotifiedRecording = false;
+        mWidgetSeeking = false;
+        mMainHandler.removeCallbacks(mClearWidgetSeeking);
         if (mode != 0) {
             onInternalStateChanged(mode);
         } else {
             sTunerActive = false;
+            updateWidget();
         }
 
         stopForeground(true);
@@ -698,6 +723,10 @@ public class FMService extends Service implements RadioServiceController, FMEven
 
         if ((mode & RadioState.SET_FREQUENCY) != 0 && mState.getFrequency() > 0) {
             mStorage.setLastFrequency(mState.getFrequency());
+            if (mWidgetSeeking) {
+                mWidgetSeeking = false;
+                mMainHandler.removeCallbacks(mClearWidgetSeeking);
+            }
         }
 
         if (
@@ -723,6 +752,18 @@ public class FMService extends Service implements RadioServiceController, FMEven
         for (final StateListener listener : mStateListeners) {
             listener.onStateUpdated(mState, mode);
         }
+
+        updateWidget();
+    }
+
+    private void updateWidget() {
+        if (mState == null) {
+            return;
+        }
+        final String favoriteTitle = mFavoriteController != null
+                ? mFavoriteController.getFavoriteTitle(mState.getFrequency())
+                : null;
+        RadioWidgetProvider.update(this, mState, favoriteTitle, mWidgetSeeking);
     }
 
     /**

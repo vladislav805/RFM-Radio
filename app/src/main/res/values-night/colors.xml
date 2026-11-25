@@ -24,4 +24,21 @@
 
 	<!-- Semantic accents -->
 	<color name="rfm_record">#F28B82</color>
+
+	<!-- Homescreen Widget (Dark) -->
+	<color name="widget_bg">#1E222B</color>
+	<color name="widget_bg_secondary">#272C38</color>
+	<color name="widget_stroke">#303645</color>
+	<color name="widget_text_primary">#E8ECF4</color>
+	<color name="widget_text_secondary">#9AA3B5</color>
+	<color name="widget_btn_tonal">#2E3442</color>
+	<color name="widget_btn_power_on">#AECBFA</color>
+	<color name="widget_btn_power_on_icon">#062E6F</color>
+	<color name="widget_rec_bg">#2E3442</color>
+	<color name="widget_rec_disabled_bg">#262B37</color>
+	<color name="widget_rec_disabled_text">#619AA3B5</color>
+	<color name="widget_rec_active_bg">#5A2226</color>
+	<color name="widget_rec_text">#F28B82</color>
+	<color name="widget_signal_on">#8AB4F8</color>
+	<color name="widget_signal_off">#3F4758</color>
 </resources>

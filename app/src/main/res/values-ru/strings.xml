@@ -183,6 +183,12 @@
     <string name="about_changelog_title">Список изменений</string>
     <string name="about_changelog_subtitle">Что нового в v%1$s</string>
     <string name="about_license_footer">Лицензия GNU General Public License v3.0</string>
+    <string name="widget_radio_4x1_label">RFM Radio (4×1)</string>
+    <string name="widget_radio_2x1_label">RFM Radio (2×1)</string>
+    <string name="widget_rec_short">REC</string>
+    <string name="cd_seek_prev">Предыдущая станция</string>
+    <string name="cd_seek_next">Следующая станция</string>
+    <string name="cd_power_toggle">Включить или выключить радио</string>
     <string name="favorite_list_active_badge">Активный</string>
     <string name="favorite_list_name_hint">Название списка</string>
     <string name="favorites_add_station">Добавить</string>

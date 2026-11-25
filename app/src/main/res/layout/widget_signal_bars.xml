@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_signal_bars"
+    android:layout_width="wrap_content"
+    android:layout_height="16dp"
+    android:gravity="bottom"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/widget_sig_1"
+        android:layout_width="3dp"
+        android:layout_height="4dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/bg_widget_signal_off" />
+
+    <ImageView
+        android:id="@+id/widget_sig_2"
+        android:layout_width="3dp"
+        android:layout_height="7dp"
+        android:layout_marginStart="2dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/bg_widget_signal_off" />
+
+    <ImageView
+        android:id="@+id/widget_sig_3"
+        android:layout_width="3dp"
+        android:layout_height="10dp"
+        android:layout_marginStart="2dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/bg_widget_signal_off" />
+
+    <ImageView
+        android:id="@+id/widget_sig_4"
+        android:layout_width="3dp"
+        android:layout_height="13dp"
+        android:layout_marginStart="2dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/bg_widget_signal_off" />
+
+    <ImageView
+        android:id="@+id/widget_sig_5"
+        android:layout_width="3dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="2dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/bg_widget_signal_off" />
+</LinearLayout>
