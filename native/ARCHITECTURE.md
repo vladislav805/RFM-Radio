@@ -25,17 +25,17 @@ application copies an ABI-specific executable from assets into its private
 files directory, starts it as root, and owns it through redirected standard
 input, output, and error streams.
 
-The executable contains two implementations behind the `Backend` interface:
+Three implementations share the `Backend` interface.
 
 | Backend | Selection condition | Hardware interface |
 | --- | --- | --- |
-| Legacy | `/dev/radio0` exists and `/sys/class/video4linux/radio0/name` contains `iris`/`tavarua` (or the sysfs name node is absent) | Direct V4L2 and Qualcomm private controls |
-| HAL/FM2 | Legacy check negative, and `fm_helium.so` exists | Dynamically loaded Qualcomm vendor HAL |
+| `v4l2_qcom` | `/dev/radio0` exists and `/sys/class/video4linux/radio0/name` contains `iris`/`tavarua` (or the sysfs name node is absent) | Direct V4L2 and Qualcomm private controls |
+| `hal_helium` | Neither V4L2 driver matches and `fm_helium.so` exists | Dynamically loaded Qualcomm vendor HAL |
+| `v4l2_exynos` | `/dev/radio0` exists and its sysfs name contains `s610` | Direct V4L2 and Samsung private controls |
 
-Selection is process-global and lazy. The first command requiring a backend
-calls `create_detected_backend()`, and the selected singleton is retained for
-the life of the process. There is currently no fallback from a failed legacy
-initialization to HAL.
+The process detects the backend kind at startup for the ready message. The first
+command requiring a backend calls `create_backend()` with that kind, and the
+process retains the singleton until exit, including after an initialization failure.
 
 ## Hardware Verification
 
@@ -43,9 +43,10 @@ Live device verification has been performed on:
 
 | Device | Platform context | OS | Backend |
 | --- | --- | --- | --- |
-| Xiaomi Redmi 4A | Qualcomm Snapdragon 425 (MSM8937) | Android 10 (Resurrection Remix 8.6.5) | Legacy V4L2, direct no-firmware bootstrap |
-| Xiaomi Mi A1 | Qualcomm Snapdragon 625 (MSM8953) | Android 7.1.2 (AOSP) | Legacy V4L2 |
-| Xiaomi Poco X3 Pro | Qualcomm Snapdragon 860 (SM8150-AD) | Android 15 (crDroid 11.12) | HAL/FM2 |
+| Xiaomi Redmi 4A | Qualcomm Snapdragon 425 (MSM8937) | Android 10 (Resurrection Remix 8.6.5) | `v4l2_qcom`, direct no-firmware bootstrap |
+| Xiaomi Mi A1 | Qualcomm Snapdragon 625 (MSM8953) | Android 7.1.2 (AOSP) | `v4l2_qcom` |
+| Xiaomi Poco X3 Pro | Qualcomm Snapdragon 860 (SM8150-AD) | Android 15 (crDroid 11.12) | `hal_helium` |
+| Samsung Galaxy A51 | Samsung Exynos 9611 | Android 11 (OneUI 3.0) | `v4l2_exynos` |
 
 Treat behavior observed on these devices as evidence for the corresponding
 backend, not as a universal Qualcomm contract. Re-test hardware-sensitive
@@ -54,12 +55,12 @@ changes on the matching backend whenever possible.
 High-level data flow:
 
 ```text
-Android QualcommNative
+Android
   -> NativeProcessSession -> su -> exec fmbin
   -> request-id + tab + text command on stdin
-  -> main.cpp command router
+  -> ctl_server.cpp request framing -> command_router.cpp dispatch
   -> Backend interface
-  -> Legacy V4L2 or Qualcomm fm_helium.so
+  -> v4l2_qcom, v4l2_exynos or hal_helium
   -> asynchronous hardware event/callback or periodic RMSSI sample
   -> newline-delimited JSON response/event on stdout
   -> Android NativeEventParser
@@ -72,7 +73,8 @@ Android QualcommNative
 
 | Path | Responsibility |
 | --- | --- |
-| `native/main.cpp` | Process entrypoint, text command parsing and routing |
+| `native/main.cpp` | Process entrypoint, backend lifetime and server callbacks |
+| `native/command_router.cpp` | Text command parsing, backend dispatch and response timing |
 | `native/backend.h` | Common C++ base interface implemented by all backends |
 | `native/backend_log.h` | `Logger` writes scoped messages to stderr using the backend's prefix |
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
@@ -951,6 +953,8 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 - PS, RT, AF, and station-list parsing
 - JSON serialization and state-cache behavior
 - standard-I/O request-frame parsing
+- command validation before backend lookup, `jump` frequency replies, volume
+  results, `set_force_use` dispatch and both shutdown aliases (`tests/command_router_test.cpp`)
 - strict startup configuration parsing
 - HAL shutdown callback waits, pending OFF/rollback cleanup, timeout, and retry
   using an injected vendor interface (not device HAL libraries)
@@ -971,7 +975,6 @@ Host-side GoogleTest is enabled with `RFM_NATIVE_TESTS=ON`. Current tests cover:
 
 Current host tests do not cover:
 
-- command routing in `main.cpp`
 - standard-I/O process transport and EOF-driven shutdown
 - `dlopen` and vendor ABI compatibility
 - device HAL callback lifecycle or HAL scan state machine

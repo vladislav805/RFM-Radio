@@ -1,69 +1,14 @@
-#include <stdlib.h>
-#include <unistd.h>
-#ifdef __ANDROID__
-#include <dlfcn.h>
-#endif
-
 #include <cstdio>
-#include <string>
-#include <vector>
+#include <unistd.h>
 
-#include "ctl_server.h"
-#include "backend.h"
 #include "backend_factory.h"
-#include "startup_config.h"
+#include "command_router.h"
 
 namespace {
-
-constexpr const char *kResponseOk = "ok";
-constexpr const char *kErrNoArg = "ERR_IVD_FRQ";
-constexpr const char *kErrInvalidConfig = "ERR_IVD_CFG";
-constexpr const char *kErrUnknown = "ERR_UNK_CMD";
-constexpr const char *kErrUnsupported = "ERR_UNSUPPORTED";
-constexpr useconds_t kResponseDelayUs = 300000;
 
 Backend *g_backend = nullptr;
 BackendKind g_backend_kind = BackendKind::kNone;
 bool g_backend_shutdown = false;
-
-std::vector<std::string> split_args(const char *request) {
-    std::vector<std::string> parts;
-    std::string current;
-    for (const char *it = request; *it != '\0'; ++it) {
-        if (*it == ' ') {
-            if (!current.empty()) {
-                parts.push_back(current);
-                current.clear();
-            }
-            continue;
-        }
-        current.push_back(*it);
-    }
-    if (!current.empty()) {
-        parts.push_back(current);
-    }
-    return parts;
-}
-
-int parse_int_arg(const std::vector<std::string> &args, size_t index, int fallback = 0) {
-    if (index >= args.size()) {
-        return fallback;
-    }
-    return atoi(args[index].c_str());
-}
-
-response_t make_error(const char *message) {
-    response_t res = {1, message};
-    return res;
-}
-
-response_t make_ok(const char *message = kResponseOk) {
-    // response is intentionally delayed to preserve timing expected by the Java/native
-    // interaction and avoid races with async backend events
-    usleep(kResponseDelayUs);
-    response_t res = {0, message};
-    return res;
-}
 
 Backend *ensure_backend() {
     if (g_backend != nullptr) {
@@ -83,328 +28,34 @@ void shutdown_backend() {
     }
 }
 
-response_t make_backend_error(Backend *backend) {
-    if (backend == nullptr) {
-        return make_error(kErrUnsupported);
-    }
-    return make_error(backend->last_error()[0] ? backend->last_error() : kErrUnsupported);
-}
-
-response_t handle_init() {
-    Backend *backend = ensure_backend();
-    if (backend == nullptr) {
-        return make_error(kErrUnsupported);
-    }
-    if (!backend->init()) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_enable(const std::vector<std::string> &args) {
-    StartupConfig config;
-    std::string error;
-
-    if (!parse_startup_config(args, &config, &error)) {
-        fprintf(stderr, "srv/enable : invalid config: %s\n", error.c_str());
-        return make_error(kErrInvalidConfig);
-    }
-
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->enable(config)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_disable() {
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->disable()) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_shutdown() {
-    shutdown_backend();
-    return make_ok();
-}
-
-response_t handle_setfreq(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_frequency(parse_int_arg(args, 1))) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_jump(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-
-    static char response[16];
-    uint32_t frequency = 0;
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->jump(parse_int_arg(args, 1, 1), &frequency)) {
-        return make_backend_error(backend);
-    }
-    snprintf(response, sizeof(response), "%u", frequency);
-    return make_ok(response);
-}
-
-response_t handle_seek(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->seek(parse_int_arg(args, 1, 1))) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_power_mode(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_power_mode(args[1] == "low")) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_stereo(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_stereo(parse_int_arg(args, 1) == 1)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_antenna(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_antenna(parse_int_arg(args, 1))) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_region(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-
-    StartupRegion region;
-    if (!parse_region_name(args[1], &region)) {
-        return make_error(kErrInvalidConfig);
-    }
-
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_region(region)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_spacing(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-
-    int spacing_khz = 0;
-    if (!parse_spacing_khz(args[1], &spacing_khz)) {
-        return make_error(kErrInvalidConfig);
-    }
-
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_spacing(spacing_khz)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_search() {
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->search()) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_search_cancel() {
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->cancel_search()) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_auto_af(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_auto_af(parse_int_arg(args, 1) == 1)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_slimbus(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_slimbus(parse_int_arg(args, 1) == 1)) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_soft_mute(const std::vector<std::string> &args) {
-    if (args.size() != 2 || (args[1] != "0" && args[1] != "1")) {
-        return make_error(kErrInvalidConfig);
-    }
-
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_soft_mute(args[1] == "1")) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_notch_filter(const std::vector<std::string> &args) {
-    if (args.size() != 2 || (args[1] != "0" && args[1] != "1" && args[1] != "2")) {
-        return make_error(kErrInvalidConfig);
-    }
-
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_notch_filter(args[1][0] - '0')) {
-        return make_backend_error(backend);
-    }
-    return make_ok();
-}
-
-response_t handle_volume(const std::vector<std::string> &args) {
-    if (args.size() < 2) {
-        return make_error(kErrNoArg);
-    }
-
-    Backend *backend = ensure_backend();
-    if (backend == nullptr || !backend->set_volume(parse_int_arg(args, 1, 15))) {
-        return make_backend_error(backend);
-    }
-    return {0, kResponseOk};
-}
-
-/*
- * Routes FM audio between headset and speaker via Android's AudioPolicyService.
- *
- * On Android 11+ (including Samsung OneUI), AudioSystem.setForceUse() from the
- * unprivileged app fails with -1 (MODIFY_AUDIO_ROUTING denied), and IAudioService$Stub
- * does not expose setForceUse because it talks directly to native media.audio_policy.
- * Running inside fmbin (uid 0) bypasses that permission check without spawning su/app_process.
- *
- * The mangled symbol is android::AudioSystem::setForceUse(audio_policy_force_use_t,
- * audio_policy_forced_cfg_t) in libaudioclient.so (Android 8+) or libmedia.so (older).
- */
-response_t handle_force_use(const std::vector<std::string> &args) {
-    if (args.size() < 3) {
-        return make_error(kErrNoArg);
-    }
-#ifdef __ANDROID__
-    const int usage = parse_int_arg(args, 1, 0);
-    const int config = parse_int_arg(args, 2, 0);
-    void *handle = dlopen("libaudioclient.so", RTLD_LAZY);
-    if (handle == nullptr) {
-        handle = dlopen("libmedia.so", RTLD_LAZY);
-    }
-    if (handle == nullptr) {
-        std::fprintf(stderr, "audio/set_force_use: dlopen failed: %s\n", dlerror());
-        return make_error("ERR_FAILED");
-    }
-    using SetForceUseFn = int (*)(int, int);
-    auto *fn = reinterpret_cast<SetForceUseFn>(dlsym(
-            handle,
-            "_ZN7android11AudioSystem11setForceUseE24audio_policy_force_use_t25audio_policy_forced_cfg_t"
-    ));
-    if (fn == nullptr) {
-        std::fprintf(stderr, "audio/set_force_use: dlsym failed: %s\n", dlerror());
-        return make_error("ERR_FAILED");
-    }
-    const int ret = fn(usage, config);
-    std::fprintf(stderr, "audio/set_force_use: usage=%d config=%d ret=%d\n", usage, config, ret);
-    if (ret != 0) {
-        return make_error("ERR_FAILED");
-    }
-    return {0, kResponseOk};
-#else
-    return {0, kResponseOk};
-#endif
-}
-
-}  // namespace
-
-void poll_rmssi() {
+void poll_signal_metric() {
     if (g_backend != nullptr) {
         g_backend->request_signal_metric();
     }
 }
 
-response_t api_handler(char *request) {
-    const std::vector<std::string> args = split_args(request);
-    if (args.empty()) {
-        return make_error(kErrUnknown);
-    }
-
-    const std::string &command = args[0];
-    if (command == "init") return handle_init();
-    if (command == "enable") return handle_enable(args);
-    if (command == "disable") return handle_disable();
-    if (command == "shutdown" || command == "exit") return handle_shutdown();
-    if (command == "setfreq") return handle_setfreq(args);
-    if (command == "jump") return handle_jump(args);
-    if (command == "seekhw") return handle_seek(args);
-    if (command == "power_mode") return handle_power_mode(args);
-    if (command == "set_stereo") return handle_stereo(args);
-    if (command == "set_antenna") return handle_antenna(args);
-    if (command == "set_region") return handle_region(args);
-    if (command == "set_spacing") return handle_spacing(args);
-    if (command == "searchhw") return handle_search();
-    if (command == "search_cancel") return handle_search_cancel();
-    if (command == "auto_af") return handle_auto_af(args);
-    if (command == "slimbus") return handle_slimbus(args);
-    if (command == "set_soft_mute") return handle_soft_mute(args);
-    if (command == "set_notch_filter") return handle_notch_filter(args);
-    if (command == "set_volume") return handle_volume(args);
-    if (command == "set_force_use") return handle_force_use(args);
-    return make_error(kErrUnknown);
+response_t handle_request(const char *request) {
+    return route_command(request, ensure_backend, shutdown_backend);
 }
+
+}  // namespace
 
 int main() {
     setvbuf(stdout, nullptr, _IOLBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 
     g_backend_kind = detect_backend_kind();
-    const int result = init_server(&api_handler, backend_kind_name(g_backend_kind));
-    const bool needs_shutdown_settle = g_backend != nullptr && !g_backend_shutdown
-            && g_backend->kind() == BackendKind::kV4l2Qcom;
+    const int result = init_server(handle_request, poll_signal_metric, backend_kind_name(g_backend_kind));
+    const bool needs_shutdown_settle = (
+            g_backend != nullptr &&
+            !g_backend_shutdown &&
+            g_backend->kind() == BackendKind::kV4l2Qcom
+    );
 
     shutdown_backend();
 
     if (needs_shutdown_settle) {
-        usleep(kResponseDelayUs);
+        usleep(kCommandResponseDelayUs);
     }
 
     const int exit_code = result == 0 ? 0 : 1;

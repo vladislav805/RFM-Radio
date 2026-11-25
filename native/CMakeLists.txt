@@ -42,6 +42,7 @@ if(RFM_NATIVE_TESTS)
         tests/rmssi_test.cpp
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
+        tests/command_router_test.cpp
         tests/hal_shutdown_test.cpp
         tests/hal_metric_test.cpp
         tests/backend_factory_test.cpp
@@ -53,6 +54,7 @@ if(RFM_NATIVE_TESTS)
         backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp
         ctl_server.cpp
+        command_router.cpp
         rds_parser.cpp
         rt_plus_context.cpp
         ctl_json.cpp
@@ -74,6 +76,7 @@ endif()
 add_executable(
     fmbin
     main.cpp
+    command_router.cpp
     ctl_server.cpp
     ctl_json.cpp
     ctl_protocol.cpp

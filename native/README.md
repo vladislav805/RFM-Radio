@@ -29,7 +29,8 @@ At runtime the executable auto-detects which backend to use:
 - [`backend.h`](backend.h): common C++ backend interface
 - [`backend_factory.h`](backend_factory.h): runtime backend selection API
 - [`backend_factory.cpp`](backend_factory.cpp): backend detection and factory implementation
-- [`main.cpp`](main.cpp): command router and process entrypoint
+- Process entrypoint and backend lifetime — [`main.cpp`](main.cpp)
+- Command dispatch and response timing — [`command_router.cpp`](command_router.cpp)
 - [`ctl_server.h`](ctl_server.h): shared state-patch and command response types
 - [`ctl_server.cpp`](ctl_server.cpp): standard-I/O command loop and event writer
 - [`ctl_protocol.cpp`](ctl_protocol.cpp): request-frame parsing
@@ -68,14 +69,14 @@ Each backend implements that interface while keeping its own low-level logic iso
 
 ### 3. Command Routing
 
-[`main.cpp`](main.cpp) is intentionally thin. It:
+`main()` detects the backend kind, supplies the command and signal-poll callbacks
+to the server, and shuts down the backend when the server returns. The first
+command that needs the backend creates it through the factory. [Process entrypoint](main.cpp)
 
-- parses incoming text commands
-- lazily creates the detected backend
-- routes commands to the selected backend
-- returns a request-ID-matched JSON response over stdout
-
-It does not contain backend detection tables or backend construction logic anymore; those live in [`backend_factory.cpp`](backend_factory.cpp).
+For each request the server passes the command text to the router. The router
+parses arguments and returns a result, such as the new frequency for `jump`. The
+server writes the result to stdout as JSON with the original request ID.
+[Command handlers](command_router.cpp) · [Server loop](ctl_server.cpp)
 
 ### 4. Event Delivery
 

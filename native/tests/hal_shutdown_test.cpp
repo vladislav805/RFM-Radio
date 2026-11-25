@@ -1,5 +1,4 @@
 #include "backend/hal_helium/hal_helium_backend.h"
-#include "ctl_server.h"
 
 #include <gtest/gtest.h>
 
@@ -7,9 +6,6 @@
 #include <thread>
 
 Backend *create_hal_helium_backend();
-
-// The real protocol writer is linked, but no command-loop polling is needed.
-void poll_rmssi() {}
 
 namespace {
 

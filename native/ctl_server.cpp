@@ -90,8 +90,12 @@ bool send_json_message(const std::string &json) {
 
 } // namespace
 
-int init_server(fm_srv_callback request_callback, const char *backend_name) {
-    if (request_callback == nullptr) {
+int init_server(
+        fm_srv_callback request_callback,
+        void (*poll_signal_metric)(void),
+        const char *backend_name
+) {
+    if (request_callback == nullptr || poll_signal_metric == nullptr) {
         return -1;
     }
 
@@ -119,7 +123,7 @@ int init_server(fm_srv_callback request_callback, const char *backend_name) {
 
         if (ready == 0) {
             // A zero result is a timeout, not a socket error.
-            poll_rmssi();
+            poll_signal_metric();
             rmssi_deadline.restart();
             continue;
         }
@@ -170,7 +174,7 @@ int init_server(fm_srv_callback request_callback, const char *backend_name) {
             server_log("recv", kServerLogIn, "id=%llu command=%s",
                     static_cast<unsigned long long>(request.id), request.command.c_str());
             const bool should_stop = request.command == "shutdown" || request.command == "exit";
-            response_t response = request_callback(request.command.data());
+            response_t response = request_callback(request.command.c_str());
             if (!write_protocol_message(build_response_json(request.id, response))) {
                 g_stop_requested = 1;
                 break;
@@ -182,7 +186,7 @@ int init_server(fm_srv_callback request_callback, const char *backend_name) {
             }
 
             if (rmssi_deadline.is_due()) {
-                poll_rmssi();
+                poll_signal_metric();
                 rmssi_deadline.restart();
             }
         }

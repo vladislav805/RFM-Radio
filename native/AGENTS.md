@@ -10,7 +10,8 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 
 | Path | Role |
 | --- | --- |
-| `main.cpp` | Entrypoint, command router, HAL `_exit()` bypass |
+| `main.cpp` | Process entrypoint, backend lifetime, HAL `_exit()` bypass |
+| `command_router.cpp` | Text command handlers, argument validation and response timing |
 | `backend.h` | Common `Backend` base interface for all implementations |
 | `backend_log.h` | `Logger` writes backend diagnostics to stderr. Each backend shares its logger with its helpers. |
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
@@ -56,7 +57,8 @@ Device log evidence lives in `tmp/` and `log.log`; `logcat.sh` captures more.
 
 ## Backends
 
-Selection is process-global, lazy (first command wins), with no fallback:
+`main()` detects the backend kind for the ready message. The first command that
+needs the backend creates its process-global instance. Detection follows this order:
 
 1. `/sys/class/video4linux/radio0/name` contains `iris` or `tavarua` (case-insensitive) with `/dev/radio0` present, or sysfs name node is absent while `/dev/radio0` exists → `kV4l2Qcom`
 2. name contains `s610` with `/dev/radio0` present → `kV4l2Exynos` (Samsung Exynos S610; protocol token `v4l2_exynos`)
@@ -194,14 +196,15 @@ Qualcomm V4L2 reads `VIDIOC_G_TUNER.signal` for RMSSI and waits 750 ms
 `make test-native` (host GoogleTest, no device) covers: RDS parsing
 (`rds_parser_test`), S610 group assembly, confirmation and RT+ updates
 (`s610_rds_decoder_test`), JSON serialization and state cache (`ctl_json_test`),
-request frames (`ctl_protocol_test`), startup config (`startup_config_test`),
+request frames (`ctl_protocol_test`), command routing, validation and replies
+(`command_router_test`), startup config (`startup_config_test`),
 backend allowlist classification (`backend_factory_test`), region profiles, frequency formatting, shared and V4L2 scan state (`v4l2_scan_state_test`),
 V4L2 Qcom lifecycle and metric switching (`v4l2_qcom_lifecycle_test`),
 Helium shutdown state machine (`hal_shutdown_test`) and metric switching
 (`hal_metric_test`) with injected vendor interfaces, RMSSI decoding
 (`rmssi_test.cpp`), and polling deadlines (`periodic_deadline_test.cpp`).
 
-Not covered: `main.cpp` routing, process transport,
+Not covered: process transport,
 `dlopen`/ABI compatibility, ioctls, event threads, device end-to-end.
 
 ## Full Specification
