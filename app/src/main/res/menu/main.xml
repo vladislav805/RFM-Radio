@@ -32,9 +32,5 @@
 				android:checkable="true"
 				android:id="@+id/menu_speaker"
 				android:title="@string/menu_speaker" />
-
-		<item
-				android:id="@+id/menu_about"
-				android:title="@string/menu_about" />
 	</group>
 </menu>

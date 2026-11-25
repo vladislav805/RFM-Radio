@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:title="@string/pref_activity_title">
 
-    <PreferenceCategory
-        app:key="tuner"
+    <PreferenceScreen
+        app:icon="@drawable/ic_band"
+        app:key="screen_tuner"
+        app:summary="@string/pref_section_tuner_summary"
         app:title="@string/pref_header_tuner">
 
         <ListPreference
@@ -71,10 +74,12 @@
             app:title="@string/pref_tuner_power_mode"
             app:widgetLayout="@layout/pref_widget_material_switch" />
 
-    </PreferenceCategory>
+    </PreferenceScreen>
 
-    <PreferenceCategory
-        app:key="rds"
+    <PreferenceScreen
+        app:icon="@drawable/ic_rds"
+        app:key="screen_rds"
+        app:summary="@string/pref_section_rds_summary"
         app:title="@string/pref_header_rds">
 
         <Preference
@@ -91,10 +96,12 @@
             app:title="@string/pref_tuner_rds_auto_af"
             app:widgetLayout="@layout/pref_widget_material_switch" />
 
-    </PreferenceCategory>
+    </PreferenceScreen>
 
-    <PreferenceCategory
-        app:key="recording"
+    <PreferenceScreen
+        app:icon="@drawable/ic_record_on"
+        app:key="screen_recording"
+        app:summary="@string/pref_section_recording_summary"
         app:title="@string/pref_header_recording">
 
         <EditTextPreference
@@ -149,10 +156,12 @@
             app:title="@string/pref_recording_show_notify"
             app:widgetLayout="@layout/pref_widget_material_switch" />
 
-    </PreferenceCategory>
+    </PreferenceScreen>
 
-    <PreferenceCategory
-        app:key="app"
+    <PreferenceScreen
+        app:icon="@drawable/ic_settings"
+        app:key="screen_app"
+        app:summary="@string/pref_section_app_summary"
         app:title="@string/pref_header_app">
 
         <SwitchPreferenceCompat
@@ -184,10 +193,12 @@
             app:title="@string/pref_app_theme"
             app:useSimpleSummaryProvider="true" />
 
-    </PreferenceCategory>
+    </PreferenceScreen>
 
-    <PreferenceCategory
-        app:key="notifications"
+    <PreferenceScreen
+        app:icon="@drawable/ic_notifications"
+        app:key="screen_notifications"
+        app:summary="@string/pref_section_notifications_summary"
         app:title="@string/pref_header_notifications">
 
         <SwitchPreferenceCompat
@@ -208,11 +219,16 @@
             app:title="@string/pref_notification_seek_by_favorites"
             app:widgetLayout="@layout/pref_widget_material_switch" />
 
-    </PreferenceCategory>
+    </PreferenceScreen>
 
     <PreferenceCategory
         app:key="info"
         app:title="@string/pref_header_info">
+
+        <Preference
+            app:icon="@drawable/ic_info"
+            app:key="pref_about"
+            app:title="@string/menu_about" />
 
         <Preference
             app:icon="@drawable/ic_update"

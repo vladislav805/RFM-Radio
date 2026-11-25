@@ -15,6 +15,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
@@ -35,6 +37,7 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.RFMApplication;
 import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
+import com.vlad805.fmradio.activity.AboutActivity;
 import com.vlad805.fmradio.enums.AppTheme;
 import com.vlad805.fmradio.enums.TunerDriver;
 import com.vlad805.fmradio.helper.ProgressDialog;
@@ -54,6 +57,7 @@ import static com.vlad805.fmradio.Utils.fetch;
 public class PreferencesFragment extends PreferenceFragmentCompat implements Preference.OnPreferenceClickListener {
 	/** Permission request used when enabling continuous FM capture. */
 	private static final int REQUEST_RECORD_AUDIO_FOR_PRE_ROLL = 1001;
+	private static final String KEY_ABOUT = "pref_about";
 	private static final String KEY_INFO_VERSION = "pref_info_version";
 
 	private ProgressDialog mProgress;
@@ -79,6 +83,18 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 		configureBackendCapabilities(driver);
 		configureInteractivePreferences(driver);
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		if (getActivity() instanceof AppCompatActivity) {
+			final ActionBar ab = ((AppCompatActivity) getActivity()).getSupportActionBar();
+			if (ab != null) {
+				final CharSequence title = getPreferenceScreen() != null ? getPreferenceScreen().getTitle() : null;
+				ab.setTitle(title != null && title.length() > 0 ? title : getString(R.string.pref_activity_title));
+			}
+		}
 	}
 
 	@Override
@@ -281,6 +297,11 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 			});
 		}
 
+		final Preference about = findPreference(KEY_ABOUT);
+		if (about != null) {
+			about.setOnPreferenceClickListener(this);
+		}
+
 		final Preference version = findPreference(KEY_INFO_VERSION);
 		if (version != null) {
 			version.setSummary(String.format(
@@ -349,6 +370,10 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 	@Override
 	public boolean onPreferenceClick(@NonNull final Preference preference) {
+		if (KEY_ABOUT.equals(preference.getKey())) {
+			startActivity(new Intent(requireContext(), AboutActivity.class));
+			return true;
+		}
 		if (KEY_INFO_VERSION.equals(preference.getKey())) {
 			checkVersion();
 			return true;

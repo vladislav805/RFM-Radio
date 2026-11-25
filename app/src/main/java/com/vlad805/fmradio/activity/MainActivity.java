@@ -102,7 +102,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static final int MENU_SETTINGS = 1;
     private static final int MENU_SPEAKER = 2;
-    private static final int MENU_ABOUT = 3;
 
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
     private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
@@ -438,7 +437,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .setCheckable(true)
                 .setChecked(mLastState != null && mLastState.isForceSpeaker())
                 .setEnabled(isEnabled);
-        menu.add(0, MENU_ABOUT, 3, R.string.menu_about);
 
         popup.setOnMenuItemClickListener(item -> {
             final int itemId = item.getItemId();
@@ -447,9 +445,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return true;
             } else if (itemId == MENU_SPEAKER) {
                 mRadioClient.toggleSpeaker();
-                return true;
-            } else if (itemId == MENU_ABOUT) {
-                startActivity(new Intent(this, AboutActivity.class));
                 return true;
             }
             return false;

@@ -6,6 +6,9 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceScreen;
 
 import com.google.android.material.color.DynamicColors;
 import com.vlad805.fmradio.R;
@@ -13,7 +16,8 @@ import com.vlad805.fmradio.controller.EventListener;
 import com.vlad805.fmradio.controller.RadioClient;
 import com.vlad805.fmradio.fragments.PreferencesFragment;
 
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends AppCompatActivity
+		implements PreferenceFragmentCompat.OnPreferenceStartScreenCallback {
 	private RadioClient mRadioClient;
 
 	private final EventListener mEventListener = new EventListener() {
@@ -46,9 +50,32 @@ public class SettingsActivity extends AppCompatActivity {
 	}
 
 	@Override
+	public boolean onPreferenceStartScreen(
+			final PreferenceFragmentCompat caller,
+			final PreferenceScreen pref
+	) {
+		final Bundle args = new Bundle();
+		args.putString(PreferenceFragmentCompat.ARG_PREFERENCE_ROOT, pref.getKey());
+		final PreferencesFragment fragment = new PreferencesFragment();
+		fragment.setArguments(args);
+
+		getSupportFragmentManager()
+				.beginTransaction()
+				.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+				.replace(R.id.settings, fragment)
+				.addToBackStack(pref.getKey())
+				.commit();
+		return true;
+	}
+
+	@Override
 	public boolean onOptionsItemSelected(final MenuItem item) {
 		if (item.getItemId() == android.R.id.home) {
-			finish();
+			if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+				getSupportFragmentManager().popBackStack();
+			} else {
+				finish();
+			}
 			return true;
 		}
 

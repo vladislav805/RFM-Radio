@@ -49,6 +49,11 @@
 	<string name="cd_seek_prev">Poprzednia stacja</string>
 	<string name="cd_seek_next">Następna stacja</string>
 	<string name="cd_power_toggle">Włącz lub wyłącz radio</string>
+	<string name="pref_section_tuner_summary">Region, krok częstotliwości, stereo, antena, zasilanie</string>
+	<string name="pref_section_rds_summary">Automatyczne przełączanie AF i informacje RDS</string>
+	<string name="pref_section_recording_summary">Katalog, nazwa pliku, format, napisy, bufor przed nagraniem</string>
+	<string name="pref_section_app_summary">Autostart, kolumny ulubionych, motyw</string>
+	<string name="pref_section_notifications_summary">Nazwa stacji i przyciski wyszukiwania w powiadomieniu</string>
 	<string name="menu_favorite_list_create">Stwórz listę</string>
 	<string name="menu_favorite_list_import">Importuj listę</string>
 	<string name="menu_favorite_list_export">Eksportuj listę</string>

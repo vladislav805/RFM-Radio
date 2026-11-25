@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 public class StorageTest {
     private static final String APP_NS = "http://schemas.android.com/apk/res-auto";
     private static final Set<String> NON_PERSISTED_XML_KEYS = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList("tuner_rds_description", "pref_info_version"))
+            new HashSet<>(Arrays.asList("tuner_rds_description", "pref_info_version", "pref_about"))
     );
 
     private InMemorySharedPreferences prefs;

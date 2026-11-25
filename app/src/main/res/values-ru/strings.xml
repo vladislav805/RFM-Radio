@@ -189,6 +189,11 @@
     <string name="cd_seek_prev">Предыдущая станция</string>
     <string name="cd_seek_next">Следующая станция</string>
     <string name="cd_power_toggle">Включить или выключить радио</string>
+    <string name="pref_section_tuner_summary">Регион, шаг частоты, стерео, антенна, питание</string>
+    <string name="pref_section_rds_summary">Автопереключение альтернативных частот (AF) и RDS</string>
+    <string name="pref_section_recording_summary">Директория, имя файла, формат, субтитры, предзапись</string>
+    <string name="pref_section_app_summary">Автозапуск, колонки избранного, тема</string>
+    <string name="pref_section_notifications_summary">Название станции и переключение в уведомлении</string>
     <string name="favorite_list_active_badge">Активный</string>
     <string name="favorite_list_name_hint">Название списка</string>
     <string name="favorites_add_station">Добавить</string>
