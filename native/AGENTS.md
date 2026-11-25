@@ -16,7 +16,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
 | `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
-| `backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend (`v4l2_exynos_backend.cpp`, `v4l2_exynos_backend.h`, `s610_fm_controls.h`) |
+| `backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend, driver controls and raw RDS block decoder (`s610_rds_decoder.cpp`) |
 | `backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `backend/qcom_fm_controls.h` | Shared Qualcomm V4L2 control IDs |
 | `hex_dump.cpp` / `.h` | Shared hex dump string formatting utility |
@@ -26,7 +26,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `startup_config.cpp` | Strict parser for the complete `enable` command |
 | `region_profile.cpp` | Region limits and vendor band mappings |
 | `rds_parser.cpp` | Shared PS/RT/AF/ECC/station-list payload parsers |
-| `rt_plus_context.cpp` | Extracts RT+ fields for all three backends. Qualcomm V4L2 and Helium also use it to store RadioText and tags between events. |
+| `rt_plus_context.cpp` | Stores completed RadioText and the latest tag pair for each backend and extracts the RT+ fields. |
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
 | `system.cpp` / `.h` | Shared system property, file-existence, and shell command helpers |
@@ -189,7 +189,8 @@ Qualcomm V4L2 reads `VIDIOC_G_TUNER.signal` for RMSSI and waits 750 ms
 ## Tests
 
 `make test-native` (host GoogleTest, no device) covers: RDS parsing
-(`rds_parser_test`), JSON serialization and state cache (`ctl_json_test`),
+(`rds_parser_test`), S610 group assembly, confirmation and RT+ updates
+(`s610_rds_decoder_test`), JSON serialization and state cache (`ctl_json_test`),
 request frames (`ctl_protocol_test`), startup config (`startup_config_test`),
 backend allowlist classification (`backend_factory_test`), region profiles, frequency formatting, shared and V4L2 scan state (`v4l2_scan_state_test`),
 V4L2 Qcom lifecycle and metric switching (`v4l2_qcom_lifecycle_test`),

@@ -78,7 +78,7 @@ Android QualcommNative
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
-| `native/backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend (`v4l2_exynos_backend.cpp`, `v4l2_exynos_backend.h`, `s610_fm_controls.h`) |
+| `native/backend/v4l2_exynos/` | Samsung Exynos V4L2 backend, driver controls and `S610RdsDecoder` |
 | `native/backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
 | `native/ctl_json.cpp` | JSON serialization and state-patch deduplication |
@@ -872,11 +872,15 @@ bytes because RT+ tag start/length indices refer to raw EBU Latin G0 byte offset
 Slicing MUST be performed in C++ on `raw_text` before UTF-8 conversion because
 EBU Latin G0 byte indices do not align with UTF-8 / Java UTF-16 character indices
 when non-ASCII characters or low-byte aliases are present. All three backends
-use `RtPlusContext::extract_slices()` to convert the tagged byte ranges.
-S610 passes its last complete RadioText and the two tags decoded from an ODA group.
-Qualcomm V4L2 and Helium each keep a `RtPlusContext` for the station. It owns
-the raw text and the current tag pair so either event can arrive first. The
-context uses the backend's `Logger` for slice diagnostics.
+use `RtPlusContext::slices()` to convert the tagged byte ranges. Each context
+owns the raw text and tag pair across events and uses its backend's `Logger`
+for slice diagnostics.
+The Exynos worker reads three-byte blocks and passes the data word, block
+type and error bits to `S610RdsDecoder::process_block()`. The decoder assembles
+groups and updates its context when it completes a RadioText or receives an
+ODA tag pair. When station metadata changes, it returns a patch whose
+strings refer to decoder storage. The worker checks the tuning generation,
+decodes the block and publishes the patch under the same RDS mutex used for reset.
 Each backend clears its context on its existing station reset path and handles
 vendor-specific payload validation before updating the tags.
 

@@ -68,12 +68,17 @@ TEST(RtPlusContextTest, KeepsBackendLogPrefixAcrossStationReset) {
 TEST(RtPlusContextTest, EvaluatesRtPlusSlices) {
     const unsigned char raw_rt[] = "Valeriy Syutkin - Stil'nyy oranjevyy galstuk";
     const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
-    const RdsRtPlusTag tags[2] = {
-            {4, 0, 15},   // ARTIST: "Valeriy Syutkin" (15 chars)
-            {1, 18, 26},  // TITLE: "Stil'nyy oranjevyy galstuk" (26 chars)
-    };
+    RtPlusContext context(kTestLog);
+    context.set_text(std::span(raw_rt, raw_rt_len));
+    context.set_tags({
+            .tags = {
+                    {4, 0, 15},   // ARTIST: "Valeriy Syutkin" (15 chars)
+                    {1, 18, 26},  // TITLE: "Stil'nyy oranjevyy galstuk" (26 chars)
+            },
+            .tag_count = 2
+    });
 
-    const auto slices = RtPlusContext::extract_slices(std::span(raw_rt, raw_rt_len), tags);
+    const auto slices = context.slices();
 
     EXPECT_STREQ(slices.artist, "Valeriy Syutkin");
     EXPECT_STREQ(slices.title, "Stil'nyy oranjevyy galstuk");
@@ -82,12 +87,16 @@ TEST(RtPlusContextTest, EvaluatesRtPlusSlices) {
 TEST(RtPlusContextTest, EvaluatesRtPlusAlbumSlices) {
     const unsigned char raw_rt[] = "Greatest Hits";
     const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
-    const RdsRtPlusTag tags[2] = {
-            {2, 0, 13},  // ALBUM: "Greatest Hits" (13 chars)
-            {0, 0, 0},
-    };
+    RtPlusContext context(kTestLog);
+    context.set_text(std::span(raw_rt, raw_rt_len));
+    context.set_tags({
+            .tags = {
+                    {2, 0, 13},  // ALBUM: "Greatest Hits" (13 chars)
+            },
+            .tag_count = 1
+    });
 
-    const auto slices = RtPlusContext::extract_slices(std::span(raw_rt, raw_rt_len), tags);
+    const auto slices = context.slices();
 
     EXPECT_STREQ(slices.album, "Greatest Hits");
 }
@@ -112,12 +121,16 @@ TEST(RtPlusContextTest, EvaluatesRtPlusSlicesWithMultiByteEbuCharacters) {
             'S', 'o', 'n', 'g'
     };
     const int raw_rt_len = static_cast<int>(sizeof(raw_rt));
-    const RdsRtPlusTag tags[2] = {
-            {1, 14, 4},  // TITLE: "Song" starting at raw byte index 14
-            {0, 0, 0},
-    };
+    RtPlusContext context(kTestLog);
+    context.set_text(std::span(raw_rt, raw_rt_len));
+    context.set_tags({
+            .tags = {
+                    {1, 14, 4},  // TITLE: "Song" starting at raw byte index 14
+            },
+            .tag_count = 1
+    });
 
-    const auto slices = RtPlusContext::extract_slices(std::span(raw_rt, raw_rt_len), tags);
+    const auto slices = context.slices();
 
     EXPECT_STREQ(slices.title, "Song");
 }
@@ -125,12 +138,17 @@ TEST(RtPlusContextTest, EvaluatesRtPlusSlicesWithMultiByteEbuCharacters) {
 TEST(RtPlusContextTest, EvaluatesRtPlusSlicesClearsWhenInvalidOrOutOfRange) {
     const unsigned char raw_rt[] = "Short RT";
     const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
-    const RdsRtPlusTag out_of_bounds_tags[2] = {
-            {1, 0, 50},  // TITLE: length 50 exceeds raw_rt_len 8
-            {4, 0, 0},   // ARTIST: invalid length 0
-    };
+    RtPlusContext context(kTestLog);
+    context.set_text(std::span(raw_rt, raw_rt_len));
+    context.set_tags({
+            .tags = {
+                    {1, 0, 50},  // TITLE: length 50 exceeds raw_rt_len 8
+                    {4, 0, 0},   // ARTIST: invalid length 0
+            },
+            .tag_count = 2
+    });
 
-    const auto slices = RtPlusContext::extract_slices(std::span(raw_rt, raw_rt_len), out_of_bounds_tags);
+    const auto slices = context.slices();
 
     EXPECT_STREQ(slices.title, "");
     EXPECT_STREQ(slices.artist, "");

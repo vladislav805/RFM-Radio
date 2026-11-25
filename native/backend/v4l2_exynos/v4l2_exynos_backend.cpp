@@ -84,22 +84,9 @@ int32_t map_emphasis_to_s610(const int emphasis) {
             : V4L2_DEEMPHASIS_50_uS;
 }
 
-int trim_rds_trailing(const unsigned char *buf, int len) {
-    for (int i = 0; i < len; ++i) {
-        if (buf[i] == '\r' || buf[i] == '\0') {
-            len = i;
-            break;
-        }
-    }
-    while (len > 0 && buf[len - 1] == ' ') {
-        --len;
-    }
-    return len;
-}
-
 }  // namespace
 
-V4l2ExynosBackend::V4l2ExynosBackend() : V4l2BackendBase(kExynosLog) {}
+V4l2ExynosBackend::V4l2ExynosBackend() : V4l2BackendBase(kExynosLog), rds_decoder_(log) {}
 
 V4l2ExynosBackend::~V4l2ExynosBackend() {
     shutdown();
@@ -1009,8 +996,12 @@ void V4l2ExynosBackend::rds_worker() {
 
         const ssize_t usable = (nread / kS610RdsBlockSize) * kS610RdsBlockSize;
         for (ssize_t offset = 0; offset < usable; offset += kS610RdsBlockSize) {
-            if (rds_stop_.load() || !enabled_.load()
-                    || gen != rds_generation_.load(std::memory_order_acquire)) {
+            std::lock_guard<std::mutex> lock(rds_mutex_);
+            if (
+                    rds_stop_.load() ||
+                    !enabled_.load() ||
+                    gen != rds_generation_.load(std::memory_order_acquire)
+            ) {
                 break;
             }
             const uint16_t data = static_cast<uint16_t>(buf[offset])
@@ -1018,7 +1009,9 @@ void V4l2ExynosBackend::rds_worker() {
             const uint8_t status = buf[offset + 2];
             const uint8_t blk_type = status & kS610RdsBlkTypeMask;
             const uint8_t errors = (status >> kS610RdsErrorsShift) & kS610RdsErrorsMask;
-            process_rds_block(data, blk_type, errors);
+            if (const auto patch = rds_decoder_.process_block(data, blk_type, errors)) {
+                send_radio_state_patch(&*patch);
+            }
         }
     }
 
@@ -1028,302 +1021,10 @@ void V4l2ExynosBackend::rds_worker() {
 void V4l2ExynosBackend::reset_rds_state() {
     rds_generation_.fetch_add(1, std::memory_order_acq_rel);
     std::lock_guard<std::mutex> lock(rds_mutex_);
-    rds_ = RdsDecoderState{};
+    rds_decoder_.reset();
 
     const radio_state_patch_t patch = make_station_metadata_reset_patch();
     send_radio_state_patch(&patch);
-}
-
-void V4l2ExynosBackend::process_rds_block(
-        const uint16_t data,
-        const uint8_t blk_type,
-        const uint8_t errors
-) {
-    std::lock_guard<std::mutex> lock(rds_mutex_);
-
-    // Reject any block with error-correction bits to avoid false-positive CRC
-    // passes on PI, ECC, and text segments, and reset the in-flight group.
-    if (errors != 0) {
-        std::memset(rds_.have_block, 0, sizeof(rds_.have_block));
-        return;
-    }
-
-    if (blk_type == kS610RdsBlkA) {
-        std::memset(rds_.have_block, 0, sizeof(rds_.have_block));
-        rds_.blocks[0] = data;
-        rds_.have_block[0] = true;
-        return;
-    }
-
-    if (!rds_.have_block[0]) {
-        return;
-    }
-
-    if (blk_type == kS610RdsBlkB) {
-        rds_.blocks[1] = data;
-        rds_.have_block[1] = true;
-        return;
-    }
-
-    if (!rds_.have_block[1]) {
-        std::memset(rds_.have_block, 0, sizeof(rds_.have_block));
-        return;
-    }
-
-    if (blk_type == kS610RdsBlkC || blk_type == kS610RdsBlkCPrime) {
-        rds_.blocks[2] = data;
-        rds_.have_block[2] = true;
-        return;
-    }
-
-    if (blk_type == kS610RdsBlkD) {
-        rds_.blocks[3] = data;
-        rds_.have_block[3] = true;
-        flush_rds_group();
-        std::memset(rds_.have_block, 0, sizeof(rds_.have_block));
-    }
-}
-
-void V4l2ExynosBackend::flush_rds_group() {
-    if (!rds_.have_block[0] || !rds_.have_block[1]) {
-        return;
-    }
-
-    const uint16_t a = rds_.blocks[0];
-    const uint16_t b = rds_.blocks[1];
-    const int group_type = (b >> 12) & 0x0F;
-    const bool version_b = ((b >> 11) & 0x01) != 0;
-    const int pty = (b >> 5) & 0x1F;
-
-    radio_state_patch_t patch = radio_state_patch_empty();
-    char pi_buf[8] = {};
-    char ps_buf[64] = {};
-    char rt_buf[256] = {};
-    char country_buf[4] = {};
-    bool dirty = false;
-
-    if (rds_.pi_candidate == a) {
-        ++rds_.pi_hits;
-    } else {
-        rds_.pi_candidate = a;
-        rds_.pi_hits = 1;
-    }
-    if (rds_.pi_hits >= 2 && (!rds_.has_pi || rds_.pi != a)) {
-        rds_.pi = a;
-        rds_.has_pi = true;
-        std::snprintf(pi_buf, sizeof(pi_buf), "%04X", a);
-        patch.pi = pi_buf;
-        dirty = true;
-    }
-
-    if (rds_.pty_candidate == pty) {
-        ++rds_.pty_hits;
-    } else {
-        rds_.pty_candidate = pty;
-        rds_.pty_hits = 1;
-    }
-    if (rds_.pty_hits >= 2 && rds_.pty != pty) {
-        rds_.pty = pty;
-        patch.pty = pty;
-        dirty = true;
-    }
-
-    // Wait for confirmed PI before trusting PS/RT/ECC so stale or stray blocks
-    // from another frequency never poison the current station's state.
-    if (!rds_.has_pi || rds_.pi != a) {
-        if (dirty) {
-            send_radio_state_patch(&patch);
-        }
-        return;
-    }
-
-    if (group_type == 0 && rds_.have_block[3]) {
-        const int seg = b & 0x03;
-        rds_.ps_raw[seg * 2] = static_cast<unsigned char>((rds_.blocks[3] >> 8) & 0xFF);
-        rds_.ps_raw[seg * 2 + 1] = static_cast<unsigned char>(rds_.blocks[3] & 0xFF);
-        rds_.ps_mask |= static_cast<uint8_t>(1U << seg);
-        if (rds_.ps_mask == 0x0F) {
-            const int trimmed = trim_rds_trailing(rds_.ps_raw, 8);
-            convert_ebu_latin_to_utf8(rds_.ps_raw, trimmed, ps_buf, sizeof(ps_buf));
-            // Reset mask after each complete 4-segment cycle so the next window
-            // gathers all 4 segments cleanly.
-            rds_.ps_mask = 0;
-            if (std::strcmp(rds_.ps_candidate, ps_buf) == 0) {
-                ++rds_.ps_hits;
-            } else {
-                std::snprintf(rds_.ps_candidate, sizeof(rds_.ps_candidate), "%s", ps_buf);
-                rds_.ps_hits = 1;
-            }
-            // Require two consecutive identical 4-segment cycles so dynamic PS
-            // words spliced mid-cycle (e.g. "106.RD" before "106.3") are suppressed.
-            if (rds_.ps_hits >= 2 && std::strcmp(rds_.ps_utf8, ps_buf) != 0) {
-                std::snprintf(rds_.ps_utf8, sizeof(rds_.ps_utf8), "%s", ps_buf);
-                patch.ps = rds_.ps_utf8;
-                dirty = true;
-            }
-        }
-    } else if (group_type == 1 && !version_b && rds_.have_block[2]) {
-        const uint16_t c = rds_.blocks[2];
-        const int variant = (c >> 12) & 0x07;
-        if (variant == 0) {
-            const int ecc = static_cast<int>(c & 0xFF);
-            const int country_code = (a >> 12) & 0x0F;
-            if (decode_rds_country_iso(ecc, country_code, country_buf)) {
-                if (std::strcmp(rds_.country_candidate, country_buf) == 0) {
-                    ++rds_.country_hits;
-                } else {
-                    std::snprintf(rds_.country_candidate, sizeof(rds_.country_candidate), "%s", country_buf);
-                    rds_.country_hits = 1;
-                }
-                if (rds_.country_hits >= 2 && std::strcmp(rds_.country, country_buf) != 0) {
-                    std::snprintf(rds_.country, sizeof(rds_.country), "%s", country_buf);
-                    patch.country = rds_.country;
-                    dirty = true;
-                }
-            }
-        }
-    } else if (group_type == 2) {
-        const int ab_flag = (b >> 4) & 0x01;
-        if (rds_.rt_ab_flag != ab_flag) {
-            rds_.rt_ab_flag = ab_flag;
-            std::memset(rds_.rt_raw, ' ', sizeof(rds_.rt_raw));
-            rds_.rt_mask = 0;
-            rds_.rt_end_seg = -1;
-            rds_.rtplus_tags_valid = false;
-        }
-
-        const int seg = b & 0x0F;
-        if (!version_b && rds_.have_block[2] && rds_.have_block[3]) {
-            const int base = seg * 4;
-            rds_.rt_raw[base] = static_cast<unsigned char>((rds_.blocks[2] >> 8) & 0xFF);
-            rds_.rt_raw[base + 1] = static_cast<unsigned char>(rds_.blocks[2] & 0xFF);
-            rds_.rt_raw[base + 2] = static_cast<unsigned char>((rds_.blocks[3] >> 8) & 0xFF);
-            rds_.rt_raw[base + 3] = static_cast<unsigned char>(rds_.blocks[3] & 0xFF);
-            rds_.rt_mask |= static_cast<uint16_t>(1U << seg);
-            if (std::memchr(&rds_.rt_raw[base], '\r', 4) != nullptr) {
-                if (rds_.rt_end_seg < 0 || seg < rds_.rt_end_seg) {
-                    rds_.rt_end_seg = seg;
-                }
-            } else if (rds_.rt_end_seg == seg) {
-                rds_.rt_end_seg = -1;
-            }
-        } else if (version_b && rds_.have_block[3]) {
-            const int base = seg * 2;
-            rds_.rt_raw[base] = static_cast<unsigned char>((rds_.blocks[3] >> 8) & 0xFF);
-            rds_.rt_raw[base + 1] = static_cast<unsigned char>(rds_.blocks[3] & 0xFF);
-            rds_.rt_mask |= static_cast<uint16_t>(1U << seg);
-            if (std::memchr(&rds_.rt_raw[base], '\r', 2) != nullptr) {
-                if (rds_.rt_end_seg < 0 || seg < rds_.rt_end_seg) {
-                    rds_.rt_end_seg = seg;
-                }
-            } else if (rds_.rt_end_seg == seg) {
-                rds_.rt_end_seg = -1;
-            }
-        }
-
-        const uint16_t needed_mask = rds_.rt_end_seg >= 0
-                ? static_cast<uint16_t>((1U << (rds_.rt_end_seg + 1)) - 1U)
-                : static_cast<uint16_t>(0xFFFFU);
-        if ((rds_.rt_mask & needed_mask) == needed_mask) {
-            const int raw_len = version_b ? 32 : 64;
-            const int trimmed = trim_rds_trailing(rds_.rt_raw, raw_len);
-            convert_ebu_latin_to_utf8(rds_.rt_raw, trimmed, rt_buf, sizeof(rt_buf));
-            rds_.rt_mask = 0;
-            rds_.rt_end_seg = -1;
-            std::memcpy(rds_.rt_committed_raw, rds_.rt_raw, static_cast<size_t>(trimmed));
-            rds_.rt_committed_raw_len = trimmed;
-            std::memset(rds_.rt_raw, ' ', sizeof(rds_.rt_raw));
-            if (std::strcmp(rds_.rt_utf8, rt_buf) != 0) {
-                std::snprintf(rds_.rt_utf8, sizeof(rds_.rt_utf8), "%s", rt_buf);
-                patch.rt = rds_.rt_utf8;
-                dirty = true;
-                // New RadioText string invalidates RT+ tag offsets from the previous message.
-                rds_.rtplus_tags_valid = false;
-                clear_rt_plus_slices(&patch, &dirty);
-            } else if (rds_.rtplus_tags_valid && !rds_.rtplus_ert) {
-                apply_rt_plus_slices(&patch, &dirty);
-            }
-        }
-    } else if (group_type == 3 && !version_b && rds_.have_block[2] && rds_.have_block[3]) {
-        constexpr uint16_t kAidRtPlus = 0x4BD7;
-        const uint16_t aid = rds_.blocks[3];
-        if (aid == kAidRtPlus) {
-            const uint16_t c = rds_.blocks[2];
-            const int oda_group = (b >> 1) & 0x0F;
-            const bool oda_is_b = (b & 0x01) != 0;
-            // RT+ ODA requires a Type A group (Blocks C and D carry the two 18-bit tag descriptors).
-            if (!oda_is_b && oda_group >= 3) {
-                rds_.rtplus_group = oda_group;
-                rds_.rtplus_group_is_b = false;
-                rds_.rtplus_ert = ((c >> 13) & 0x01) != 0;
-            }
-        }
-    } else if (rds_.rtplus_group >= 0
-            && group_type == rds_.rtplus_group
-            && version_b == rds_.rtplus_group_is_b
-            && rds_.have_block[2]
-            && rds_.have_block[3]) {
-        const uint16_t c = rds_.blocks[2];
-        const uint16_t d = rds_.blocks[3];
-        const int type1 = ((b & 0x07) << 3) | ((c >> 13) & 0x07);
-        const int start1 = (c >> 7) & 0x3F;
-        const int len1 = ((c >> 1) & 0x3F) + 1;
-        const int type2 = ((c & 0x01) << 5) | ((d >> 11) & 0x1F);
-        const int start2 = (d >> 5) & 0x3F;
-        const int len2 = (d & 0x1F) + 1;
-
-        rds_.rtplus_tags[0] = {type1, start1, len1};
-        rds_.rtplus_tags[1] = {type2, start2, len2};
-        rds_.rtplus_tags_valid = true;
-
-        if (!rds_.rtplus_ert && rds_.rt_committed_raw_len > 0) {
-            apply_rt_plus_slices(&patch, &dirty);
-        }
-    }
-
-    if (dirty) {
-        send_radio_state_patch(&patch);
-    }
-}
-
-void V4l2ExynosBackend::apply_rt_plus_slices(radio_state_patch_t *patch, bool *dirty) {
-    const auto slices = RtPlusContext::extract_slices(
-            std::span(rds_.rt_committed_raw, rds_.rt_committed_raw_len),
-            rds_.rtplus_tags
-    );
-    if (std::strcmp(rds_.rtplus_slices.title, slices.title) != 0) {
-        std::snprintf(rds_.rtplus_slices.title, sizeof(rds_.rtplus_slices.title), "%s", slices.title);
-        patch->rt_plus_title = rds_.rtplus_slices.title;
-        *dirty = true;
-    }
-    if (std::strcmp(rds_.rtplus_slices.artist, slices.artist) != 0) {
-        std::snprintf(rds_.rtplus_slices.artist, sizeof(rds_.rtplus_slices.artist), "%s", slices.artist);
-        patch->rt_plus_artist = rds_.rtplus_slices.artist;
-        *dirty = true;
-    }
-    if (std::strcmp(rds_.rtplus_slices.album, slices.album) != 0) {
-        std::snprintf(rds_.rtplus_slices.album, sizeof(rds_.rtplus_slices.album), "%s", slices.album);
-        patch->rt_plus_album = rds_.rtplus_slices.album;
-        *dirty = true;
-    }
-}
-
-void V4l2ExynosBackend::clear_rt_plus_slices(radio_state_patch_t *patch, bool *dirty) {
-    if (rds_.rtplus_slices.title[0] != '\0') {
-        rds_.rtplus_slices.title[0] = '\0';
-        patch->rt_plus_title = rds_.rtplus_slices.title;
-        *dirty = true;
-    }
-    if (rds_.rtplus_slices.artist[0] != '\0') {
-        rds_.rtplus_slices.artist[0] = '\0';
-        patch->rt_plus_artist = rds_.rtplus_slices.artist;
-        *dirty = true;
-    }
-    if (rds_.rtplus_slices.album[0] != '\0') {
-        rds_.rtplus_slices.album[0] = '\0';
-        patch->rt_plus_album = rds_.rtplus_slices.album;
-        *dirty = true;
-    }
 }
 
 void V4l2ExynosBackend::publish_state(

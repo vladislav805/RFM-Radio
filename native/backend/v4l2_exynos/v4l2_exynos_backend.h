@@ -2,9 +2,7 @@
 
 #include "../v4l2_base/v4l2_backend_base.h"
 #include "s610_fm_controls.h"
-#include "../../ctl_server.h"
-#include "../../rds_parser.h"
-#include "../../rt_plus_context.h"
+#include "s610_rds_decoder.h"
 #include "../../region_profile.h"
 
 #include <atomic>
@@ -46,11 +44,6 @@ public:
         return last_error_;
     }
 
-    // Host test seam for feeding raw 3-byte S610 RDS blocks directly into the decoder.
-    void feed_rds_block_for_test(uint16_t data, uint8_t blk_type, uint8_t errors) {
-        process_rds_block(data, blk_type, errors);
-    }
-
 protected:
     // Virtual file-descriptor seams for host unit tests.
     virtual int poll_rds_fd(int fd, int timeout_ms);
@@ -59,39 +52,6 @@ protected:
     virtual int set_fd_flags(int fd, int flags);
 
 private:
-    struct RdsDecoderState {
-        uint16_t blocks[4] = {};
-        bool have_block[4] = {};
-        uint16_t pi = 0;
-        uint16_t pi_candidate = 0;
-        int pi_hits = 0;
-        bool has_pi = false;
-        int pty = -1;
-        int pty_candidate = -1;
-        int pty_hits = 0;
-        unsigned char ps_raw[8] = {};
-        uint8_t ps_mask = 0;
-        char ps_candidate[64] = {};
-        int ps_hits = 0;
-        char ps_utf8[64] = {};
-        unsigned char rt_raw[64] = {};
-        unsigned char rt_committed_raw[64] = {};
-        int rt_committed_raw_len = 0;
-        uint16_t rt_mask = 0;
-        int rt_end_seg = -1;
-        int rt_ab_flag = -1;
-        char rt_utf8[256] = {};
-        int rtplus_group = -1;
-        bool rtplus_group_is_b = false;
-        bool rtplus_ert = false;
-        RdsRtPlusTag rtplus_tags[2] = {};
-        bool rtplus_tags_valid = false;
-        RdsRtPlusSlices rtplus_slices = {};
-        char country[4] = {};
-        char country_candidate[4] = {};
-        int country_hits = 0;
-    };
-
     bool ensure_open();
     bool apply_region(StartupRegion region);
     bool apply_spacing(int spacing_khz);
@@ -113,16 +73,12 @@ private:
     bool stop_rds_thread();
     void rds_worker();
     void reset_rds_state();
-    void process_rds_block(uint16_t data, uint8_t blk_type, uint8_t errors);
-    void flush_rds_group();
-    void apply_rt_plus_slices(radio_state_patch_t *patch, bool *dirty);
-    void clear_rt_plus_slices(radio_state_patch_t *patch, bool *dirty);
     void publish_state(int frequency_khz, int stereo, int rmssi, int sinr);
 
     std::mutex ioctl_mutex_;
     std::mutex rds_mutex_;
     std::mutex volume_mutex_;
-    RdsDecoderState rds_;
+    S610RdsDecoder rds_decoder_;
     std::atomic<uint64_t> rds_generation_{0};
 
     std::thread rds_thread_;

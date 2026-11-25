@@ -38,6 +38,7 @@ if(RFM_NATIVE_TESTS)
         tests/v4l2_backend_base_test.cpp
         tests/v4l2_qcom_lifecycle_test.cpp
         tests/v4l2_exynos_backend_test.cpp
+        tests/s610_rds_decoder_test.cpp
         tests/rmssi_test.cpp
         tests/periodic_deadline_test.cpp
         tests/ctl_protocol_test.cpp
@@ -47,6 +48,7 @@ if(RFM_NATIVE_TESTS)
         backend_factory.cpp
         backend/v4l2_qcom/v4l2_qcom_backend.cpp
         backend/v4l2_exynos/v4l2_exynos_backend.cpp
+        backend/v4l2_exynos/s610_rds_decoder.cpp
         backend/hal_helium/hal_helium_backend.cpp
         hex_dump.cpp
         ctl_server.cpp
@@ -84,6 +86,7 @@ add_executable(
     backend/v4l2_qcom/v4l2_qcom_backend.cpp
     backend/v4l2_qcom/v4l2_scan_state.cpp
     backend/v4l2_exynos/v4l2_exynos_backend.cpp
+    backend/v4l2_exynos/s610_rds_decoder.cpp
     backend/hal_helium/hal_helium_backend.cpp
     hex_dump.cpp
     system.cpp

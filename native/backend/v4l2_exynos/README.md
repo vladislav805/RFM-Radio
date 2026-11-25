@@ -29,7 +29,9 @@ Audio routing and capture run separately in Android's audio HAL through
 - [`v4l2_exynos_backend.h`](v4l2_exynos_backend.h) /
   [`v4l2_exynos_backend.cpp`](v4l2_exynos_backend.cpp): `V4l2ExynosBackend`
   implementation (lifecycle, tuning, `O_NONBLOCK`-safe hardware seek/scan,
-  hardware volume control, RSSI/SNR polling, raw RDS + RT+ decoding)
+  hardware volume control, RSSI/SNR polling, RDS reads and event publication)
+- `s610_rds_decoder.cpp` assembles raw RDS blocks and returns changed PI, PTY,
+  PS, RadioText, country and RT+ fields. [Decoder interface](s610_rds_decoder.h)
 - [`../v4l2_base/v4l2_backend_base.h`](../v4l2_base/v4l2_backend_base.h):
   shared V4L2 helpers (`open_device`, `close_device`, `set_v4l2_ctrl`,
   `get_v4l2_ctrl`)
@@ -91,8 +93,8 @@ Audio routing and capture run separately in Android's audio HAL through
     two consecutive matching readings (`*_hits >= 2`) so stale/stray blocks and
     mid-cycle dynamic PS splices (e.g. `"106.RD"` before `"106.3"`) are suppressed.
   - Group 3A (`AID = 0x4BD7`) identifies the ODA group carrying the two
-    RT+ tags. The backend passes them and the last complete RadioText to
-    `RtPlusContext::extract_slices()` to extract title, artist and album.
+    RT+ tags. The decoder stores the tag pair and the last complete RadioText
+    in its `RtPlusContext` and calls `slices()` to extract title, artist and album.
 
 ## Logs
 

@@ -217,20 +217,6 @@ StartupConfig make_default_config() {
     return cfg;
 }
 
-void feed_group(
-        FakeV4l2ExynosBackend *backend,
-        uint16_t a,
-        uint16_t b,
-        uint16_t c,
-        uint16_t d,
-        uint8_t errors = 0
-) {
-    backend->feed_rds_block_for_test(a, kS610RdsBlkA, errors);
-    backend->feed_rds_block_for_test(b, kS610RdsBlkB, errors);
-    backend->feed_rds_block_for_test(c, kS610RdsBlkC, errors);
-    backend->feed_rds_block_for_test(d, kS610RdsBlkD, errors);
-}
-
 TEST(V4l2ExynosBackendTest, UsesS610FrequencyMultiplierMutePolarityAndVolumeClamping) {
     reset_ctl_server_state_for_test();
     FakeV4l2ExynosBackend backend;
@@ -290,92 +276,6 @@ TEST(V4l2ExynosBackendTest, ClampsSnrToSignedByteRangeAndDecodesSignedRssi) {
     EXPECT_NE(output.find("\"sinr\":127"), std::string::npos) << output;
 }
 
-TEST(V4l2ExynosBackendTest, StabilizesPiPsEccAndClearsStaleRtPlusOnNewRadioText) {
-    reset_ctl_server_state_for_test();
-    FakeV4l2ExynosBackend backend;
-
-    std::string output;
-    {
-        StdoutCapture capture;
-        constexpr uint16_t kPi = 0x7714;
-        constexpr int kPty = 10;
-        const uint16_t b_0a_base = static_cast<uint16_t>((0 << 12) | (kPty << 5));
-
-        // Confirm PI & PTY with two Group 0A packets first (blocks before PI confirmation
-        // do not populate PS/RT/ECC).
-        const char *ps = "106.3   ";
-        const uint16_t d0 = (static_cast<uint16_t>(ps[0]) << 8) | static_cast<uint16_t>(ps[1]);
-        feed_group(&backend, kPi, b_0a_base, 0, d0);
-        feed_group(&backend, kPi, b_0a_base, 0, d0);
-
-        // First complete 4-segment PS cycle ("106.3   ") records PS candidate #1.
-        for (int seg = 0; seg < 4; ++seg) {
-            const uint16_t d = (static_cast<uint16_t>(ps[seg * 2]) << 8)
-                    | static_cast<uint16_t>(ps[seg * 2 + 1]);
-            feed_group(&backend, kPi, static_cast<uint16_t>(b_0a_base | seg), 0, d);
-        }
-
-        // Second identical 4-segment PS cycle confirms PS ("106.3").
-        for (int seg = 0; seg < 4; ++seg) {
-            const uint16_t d = (static_cast<uint16_t>(ps[seg * 2]) << 8)
-                    | static_cast<uint16_t>(ps[seg * 2 + 1]);
-            feed_group(&backend, kPi, static_cast<uint16_t>(b_0a_base | seg), 0, d);
-        }
-
-        // Group 2A RadioText: "Artist - Title\r" across segments 0..3, with trailing \r in seg 4.
-        const char *rt1 = "Artist - Title\r \r\r\r\r";
-        const uint16_t b_2a_base = static_cast<uint16_t>((2 << 12) | (kPty << 5));
-        for (int seg = 0; seg < 5; ++seg) {
-            const uint16_t c = (static_cast<uint16_t>(rt1[seg * 4]) << 8)
-                    | static_cast<uint16_t>(rt1[seg * 4 + 1]);
-            const uint16_t d = (static_cast<uint16_t>(rt1[seg * 4 + 2]) << 8)
-                    | static_cast<uint16_t>(rt1[seg * 4 + 3]);
-            feed_group(&backend, kPi, static_cast<uint16_t>(b_2a_base | seg), c, d);
-        }
-
-        // Group 3A announcing RT+ (AID 0x4BD7) on Group 11A (11 << 1 | 0 = 0x16).
-        const uint16_t b_3a = static_cast<uint16_t>((3 << 12) | (kPty << 5) | (11 << 1));
-        feed_group(&backend, kPi, b_3a, 0x0000, 0x4BD7);
-
-        // Group 11A carrying RT+ tags:
-        // tag1 = ITEM.ARTIST (4), start = 0, len = 6 (encoded len-1 = 5)
-        // tag2 = ITEM.TITLE (1), start = 9, len = 5 (encoded len-1 = 4)
-        const int type1 = 4, start1 = 0, len1_m1 = 5;
-        const int type2 = 1, start2 = 9, len2_m1 = 4;
-        const uint16_t b_11a = static_cast<uint16_t>((11 << 12) | (kPty << 5) | ((type1 >> 3) & 0x07));
-        const uint16_t c_11a = static_cast<uint16_t>(
-                ((type1 & 0x07) << 13) | (start1 << 7) | (len1_m1 << 1) | ((type2 >> 5) & 0x01)
-        );
-        const uint16_t d_11a = static_cast<uint16_t>(
-                ((type2 & 0x1F) << 11) | (start2 << 5) | (len2_m1 & 0x1F)
-        );
-        feed_group(&backend, kPi, b_11a, c_11a, d_11a);
-
-        // New Group 2A RadioText ("News Bulletin\r  ") must clear stale RT+ slices.
-        const char *rt2 = "News Bulletin\r  ";
-        for (int seg = 0; seg < 4; ++seg) {
-            const uint16_t c = (static_cast<uint16_t>(rt2[seg * 4]) << 8)
-                    | static_cast<uint16_t>(rt2[seg * 4 + 1]);
-            const uint16_t d = (static_cast<uint16_t>(rt2[seg * 4 + 2]) << 8)
-                    | static_cast<uint16_t>(rt2[seg * 4 + 3]);
-            feed_group(&backend, kPi, static_cast<uint16_t>(b_2a_base | seg), c, d);
-        }
-
-        output = capture.read_all();
-    }
-
-    reset_ctl_server_state_for_test();
-
-    EXPECT_NE(output.find("\"pi\":\"7714\""), std::string::npos) << output;
-    EXPECT_NE(output.find("\"ps\":\"106.3\""), std::string::npos) << output;
-    EXPECT_NE(output.find("\"rt\":\"Artist - Title\""), std::string::npos) << output;
-    EXPECT_NE(output.find("\"title\":\"Title\",\"artist\":\"Artist\""), std::string::npos) << output;
-    EXPECT_NE(
-            output.find("\"rt\":\"News Bulletin\",\"rt_plus\":{\"title\":\"\",\"artist\":\"\",\"album\":\"\"}"),
-            std::string::npos
-    ) << output;
-}
-
 TEST(V4l2ExynosBackendTest, SetFrequencyDoesNotBlockOnRdsReadAndDiscardsStaleBlocks) {
     class BlockingRdsBackend : public FakeV4l2ExynosBackend {
     public:
@@ -404,15 +304,28 @@ TEST(V4l2ExynosBackendTest, SetFrequencyDoesNotBlockOnRdsReadAndDiscardsStaleBlo
             rds_gate_cv_.notify_all();
         }
 
+        bool wait_for_both_packets() {
+            std::unique_lock<std::mutex> lock(rds_gate_mu_);
+            return rds_gate_cv_.wait_for(
+                    lock,
+                    std::chrono::milliseconds(1500),
+                    [this]() { return packets_processed_; }
+            );
+        }
+
     protected:
         int poll_rds_fd(int, int) override {
             std::lock_guard<std::mutex> lock(rds_gate_mu_);
-            return (armed_ && !served_packet_) ? 1 : 0;
+            if (packets_served_ == 2 && !packets_processed_) {
+                packets_processed_ = true;
+                rds_gate_cv_.notify_all();
+            }
+            return armed_ && packets_served_ < 2;
         }
 
         ssize_t read_rds_fd(int, void *buf, size_t count) override {
             std::unique_lock<std::mutex> lock(rds_gate_mu_);
-            if (served_packet_) {
+            if (packets_served_ == 2) {
                 return 0;
             }
             read_entered_ = true;
@@ -422,18 +335,17 @@ TEST(V4l2ExynosBackendTest, SetFrequencyDoesNotBlockOnRdsReadAndDiscardsStaleBlo
                     std::chrono::milliseconds(2000),
                     [this]() { return release_read_; }
             );
-            served_packet_ = true;
-
-            // Two 0A groups carrying PI 0x7714 (would normally lock PI immediately).
-            constexpr uint16_t kPi = 0x7714;
-            constexpr uint16_t kGrp[4] = {kPi, 0x0000, 0x0000, 0x0000};
+            // The first read began on the old station. The next read belongs to the new one.
+            const uint16_t pi = packets_served_ == 0 ? 0x7714 : 0x7725;
+            ++packets_served_;
+            const uint16_t group[4] = {pi, 0x0000, 0x0000, 0x0000};
             const size_t total = 8 * kS610RdsBlockSize;
             if (count < total) {
                 return 0;
             }
             auto *out = static_cast<uint8_t *>(buf);
             for (size_t i = 0; i < 8; ++i) {
-                const uint16_t word = kGrp[i % 4];
+                const uint16_t word = group[i % 4];
                 out[i * 3 + 0] = static_cast<uint8_t>(word & 0xFF);
                 out[i * 3 + 1] = static_cast<uint8_t>((word >> 8) & 0xFF);
                 out[i * 3 + 2] = static_cast<uint8_t>(i % 4);
@@ -447,7 +359,8 @@ TEST(V4l2ExynosBackendTest, SetFrequencyDoesNotBlockOnRdsReadAndDiscardsStaleBlo
         bool armed_ = false;
         bool read_entered_ = false;
         bool release_read_ = false;
-        bool served_packet_ = false;
+        int packets_served_ = 0;
+        bool packets_processed_ = false;
     };
 
     reset_ctl_server_state_for_test();
@@ -469,13 +382,14 @@ TEST(V4l2ExynosBackendTest, SetFrequencyDoesNotBlockOnRdsReadAndDiscardsStaleBlo
         EXPECT_LT(elapsed_ms, 250);
 
         backend.release_read();
-        usleep(50000);
+        EXPECT_TRUE(backend.wait_for_both_packets());
         ASSERT_TRUE(backend.disable());
         output = capture.read_all();
     }
 
     reset_ctl_server_state_for_test();
     EXPECT_EQ(output.find("\"pi\":\"7714\""), std::string::npos) << output;
+    EXPECT_NE(output.find("\"pi\":\"7725\""), std::string::npos) << output;
 }
 
 class ScanFakeBackend : public FakeV4l2ExynosBackend {
