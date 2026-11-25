@@ -4,6 +4,7 @@
 #include "s610_fm_controls.h"
 #include "../../ctl_server.h"
 #include "../../rds_parser.h"
+#include "../../rt_plus_context.h"
 #include "../../region_profile.h"
 
 #include <atomic>
@@ -51,10 +52,6 @@ public:
     }
 
 protected:
-    const char *log_prefix() const override {
-        return "exynos";
-    }
-
     // Virtual file-descriptor seams for host unit tests.
     virtual int poll_rds_fd(int fd, int timeout_ms);
     virtual ssize_t read_rds_fd(int fd, void *buf, size_t count);

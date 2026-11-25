@@ -16,6 +16,7 @@
 
 namespace {
 
+constexpr Logger kHeliumLog{"helium"};
 constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kFmLibraryName = "fm_helium.so";
 constexpr const char *kFmLibrarySymbol = "FM_HELIUM_LIB_INTERFACE";
@@ -79,14 +80,14 @@ bool is_duplicate_payload_locked(
 
 void log_length_prefixed_payload(const char *scope, const char *name, const char *payload, int extra_len = 0) {
     if (payload == nullptr) {
-        backend_log("hel", scope, "%s got null", name);
+        kHeliumLog(scope, "%s got null", name);
         return;
     }
 
     const int len = static_cast<unsigned char>(payload[0]) + extra_len;
     char dump[3 * 32 + 1];
     format_hex_dump(payload, len, dump, sizeof(dump));
-    backend_log("hel", scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
+    kHeliumLog(scope, "%s len=%d data=%s%s", name, len, dump, len > 32 ? " ..." : "");
 }
 
 }  // namespace
@@ -130,7 +131,7 @@ const fm_hal_callbacks_t HalHeliumBackend::kCallbacks = {
     HalHeliumBackend::enable_softmute_cb,
 };
 
-HalHeliumBackend::HalHeliumBackend() {
+HalHeliumBackend::HalHeliumBackend() : Backend(kHeliumLog), state_(log) {
     active_instance_ = this;
 }
 
@@ -196,9 +197,7 @@ void HalHeliumBackend::reset_scan_locked() {
 void HalHeliumBackend::reset_rds_dedup_locked() {
     state_.last_rt_plus_valid = false;
     state_.last_ecc_valid = false;
-    state_.current_rt[0] = '\0';
-    state_.current_rt_len = 0;
-    state_.rt_plus_tags_valid = false;
+    state_.rt_plus.reset();
 }
 
 // Updates region band bounds, emphasis, and RDS standard under state_lock_.
@@ -210,53 +209,6 @@ void HalHeliumBackend::apply_region_profile_locked(StartupRegion region) {
     state_.upper_band_khz = static_cast<int>(profile.upper_frequency_khz);
     state_.emphasis = profile.emphasis;
     state_.rds_standard = profile.rds_standard;
-}
-
-// Logs decoded RT+ slices against the current raw RT buffer under state_lock_.
-void HalHeliumBackend::log_rt_plus_slices_locked() {
-    if (!state_.rt_plus_tags_valid || state_.current_rt_len <= 0) {
-        return;
-    }
-
-    for (const RdsRtPlusTag &tag : state_.rt_plus_tags) {
-        if (tag.content_type == 0) {
-            continue;
-        }
-
-        // tag.start/tag.length are indices into the RAW EBU Latin RT buffer,
-        // not the UTF-8 text. Slice raw bytes and convert only the slice.
-        if (tag.start < 0 || tag.length <= 0 || tag.start + tag.length > state_.current_rt_len) {
-            log(
-                    "rds",
-                    "rt+ slice out of range ct=%d start=%d len=%d rt_len=%d",
-                    tag.content_type,
-                    tag.start,
-                    tag.length,
-                    state_.current_rt_len
-            );
-            continue;
-        }
-
-        char text[65 * 3 + 1];
-        convert_ebu_latin_to_utf8(
-                reinterpret_cast<const unsigned char *>(state_.current_rt + tag.start),
-                tag.length,
-                text,
-                static_cast<int>(sizeof(text))
-        );
-        log("rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
-    }
-}
-
-// Evaluates RT+ title/artist/album slices against the raw RT buffer under state_lock_.
-void HalHeliumBackend::evaluate_rt_plus_slices_locked(RdsRtPlusSlices *out) {
-    evaluate_rds_rt_plus_slices(
-            state_.rt_plus_tags_valid,
-            state_.rt_plus_tags,
-            reinterpret_cast<const unsigned char *>(state_.current_rt),
-            state_.current_rt_len,
-            out
-    );
 }
 
 // Updates last_error_ from state_.last_error on failure.
@@ -1370,13 +1322,9 @@ void HalHeliumBackend::on_rt_update(char *rt) {
     RdsRtPlusSlices slices;
     {
         std::lock_guard<std::mutex> lock(state_lock_);
-        // Keep the RAW EBU Latin RT bytes: RT+ tag indices refer to raw characters,
-        // and the raw buffer is what log_rt_plus_slices_locked() slices.
-        state_.current_rt_len = parsed.raw_text_len;
-        memcpy(state_.current_rt, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
-        state_.current_rt[parsed.raw_text_len] = '\0';
-        log_rt_plus_slices_locked();
-        evaluate_rt_plus_slices_locked(&slices);
+        state_.rt_plus.set_text(parsed);
+        state_.rt_plus.log_slices();
+        slices = state_.rt_plus.slices();
     }
 
     log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
@@ -1483,11 +1431,9 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
         RdsRtPlusSlices slices;
         {
             std::lock_guard<std::mutex> lock(state_lock_);
-            state_.rt_plus_tags[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
-            state_.rt_plus_tags[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
-            state_.rt_plus_tags_valid = parsed.tag_count > 0;
-            log_rt_plus_slices_locked();
-            evaluate_rt_plus_slices_locked(&slices);
+            state_.rt_plus.set_tags(parsed);
+            state_.rt_plus.log_slices();
+            slices = state_.rt_plus.slices();
         }
 
         log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x toggle=%d running=%d tags=%d data=%s%s",
@@ -1790,35 +1736,35 @@ void HalHeliumBackend::ext_country_code_cb(char *payload) {
 }
 
 void HalHeliumBackend::thread_evt_cb(unsigned int evt) {
-    backend_log("hel", "event", "thread event=%u", evt);
+    kHeliumLog("event", "thread event=%u", evt);
 }
 
 void HalHeliumBackend::fm_get_sig_thres_cb(int value, int status) {
-    backend_log("hel", "vendor", "fm_get_sig_thres_cb value=%d status=%d", value, status);
+    kHeliumLog("vendor", "fm_get_sig_thres_cb value=%d status=%d", value, status);
 }
 
 void HalHeliumBackend::fm_get_ch_det_thr_cb(int value, int status) {
-    backend_log("hel", "vendor", "fm_get_ch_det_thr_cb value=%d status=%d", value, status);
+    kHeliumLog("vendor", "fm_get_ch_det_thr_cb value=%d status=%d", value, status);
 }
 
 void HalHeliumBackend::fm_def_data_read_cb(int value, int status) {
-    backend_log("hel", "vendor", "fm_def_data_read_cb value=%d status=%d", value, status);
+    kHeliumLog("vendor", "fm_def_data_read_cb value=%d status=%d", value, status);
 }
 
 void HalHeliumBackend::fm_get_blend_cb(int value, int status) {
-    backend_log("hel", "vendor", "fm_get_blend_cb value=%d status=%d", value, status);
+    kHeliumLog("vendor", "fm_get_blend_cb value=%d status=%d", value, status);
 }
 
 void HalHeliumBackend::fm_set_ch_det_thr_cb(int status) {
-    backend_log("hel", "vendor", "fm_set_ch_det_thr_cb status=%d", status);
+    kHeliumLog("vendor", "fm_set_ch_det_thr_cb status=%d", status);
 }
 
 void HalHeliumBackend::fm_def_data_write_cb(int status) {
-    backend_log("hel", "vendor", "fm_def_data_write_cb status=%d", status);
+    kHeliumLog("vendor", "fm_def_data_write_cb status=%d", status);
 }
 
 void HalHeliumBackend::fm_set_blend_cb(int status) {
-    backend_log("hel", "vendor", "fm_set_blend_cb status=%d", status);
+    kHeliumLog("vendor", "fm_set_blend_cb status=%d", status);
 }
 
 void HalHeliumBackend::fm_get_station_param_cb(int value, int status) {
@@ -1828,7 +1774,7 @@ void HalHeliumBackend::fm_get_station_param_cb(int value, int status) {
 }
 
 void HalHeliumBackend::fm_get_station_debug_param_cb(int value, int status) {
-    backend_log("hel", "vendor", "fm_get_station_debug_param_cb value=%d status=%d", value, status);
+    kHeliumLog("vendor", "fm_get_station_debug_param_cb value=%d status=%d", value, status);
 }
 
 void HalHeliumBackend::enable_slimbus_cb(int status) {
@@ -1838,7 +1784,7 @@ void HalHeliumBackend::enable_slimbus_cb(int status) {
 }
 
 void HalHeliumBackend::enable_softmute_cb(int status) {
-    backend_log("hel", "audio", "soft_mute status=%d", status);
+    kHeliumLog("audio", "soft_mute status=%d", status);
 }
 
 Backend *create_hal_helium_backend() {

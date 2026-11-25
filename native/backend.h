@@ -42,14 +42,9 @@ public:
     virtual const char *last_error() const = 0;
 
 protected:
-    virtual const char *log_prefix() const = 0;
+    explicit Backend(const Logger &logger) : log(logger) {}
 
-    void log(const char *scope, const char *fmt, ...) const __attribute__((format(printf, 3, 4))) {
-        va_list args;
-        va_start(args, fmt);
-        backend_vlog(log_prefix(), scope, fmt, args);
-        va_end(args);
-    }
+    const Logger &log;
 
     // Shared mutex protecting backend state across command and callback/event threads.
     mutable std::mutex state_lock_;

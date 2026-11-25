@@ -13,8 +13,6 @@
 // standard V4L2 control I/O, and V4L2 frequency unit conversions.
 class V4l2BackendBase : public Backend {
 public:
-    V4l2BackendBase() = default;
-
     ~V4l2BackendBase() override {
         close_device();
     }
@@ -33,6 +31,8 @@ public:
     }
 
 protected:
+    using Backend::Backend;
+
     // Opens the underlying file descriptor; virtual for host test seams.
     virtual int open_device_fd(const char *path) {
         return open(path, O_RDWR | O_NONBLOCK);

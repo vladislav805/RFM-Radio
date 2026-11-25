@@ -67,11 +67,6 @@ public:
     static void scan_next_cb();
     static void fm_get_station_param_cb(int value, int status);
 
-protected:
-    const char *log_prefix() const override {
-        return "hel";
-    }
-
 private:
     bool configure_startup(const StartupConfig &config);
     bool enable_receiver();
@@ -98,8 +93,6 @@ private:
     void reset_scan_locked();
     void reset_rds_dedup_locked();
     void apply_region_profile_locked(StartupRegion region);
-    void log_rt_plus_slices_locked();
-    void evaluate_rt_plus_slices_locked(RdsRtPlusSlices *out);
 
     void on_enabled();
     void on_disabled();
@@ -150,7 +143,7 @@ private:
     static HalHeliumBackend *active_instance_;
     static const fm_hal_callbacks_t kCallbacks;
 
-    HeliumRuntimeState state_{};
+    HeliumRuntimeState state_;
     std::string last_error_;
     bool sinr_supported_ = true;
 };

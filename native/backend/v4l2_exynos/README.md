@@ -90,8 +90,9 @@ Audio routing and capture run separately in Android's audio HAL through
     only after full segment sets; `PI`, `PTY`, `PS`, and `country` (ECC) require
     two consecutive matching readings (`*_hits >= 2`) so stale/stray blocks and
     mid-cycle dynamic PS splices (e.g. `"106.RD"` before `"106.3"`) are suppressed.
-  - Group 3A (`AID = 0x4BD7`) + ODA group decoding extracts RT+ tags via the
-    shared `evaluate_rds_rt_plus_slices()` helper in `rds_parser.cpp`.
+  - Group 3A (`AID = 0x4BD7`) identifies the ODA group carrying the two
+    RT+ tags. The backend passes them and the last complete RadioText to
+    `RtPlusContext::extract_slices()` to extract title, artist and album.
 
 ## Logs
 

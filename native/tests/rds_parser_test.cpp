@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <string>
 #include <vector>
 
 namespace {
@@ -949,105 +950,6 @@ TEST(RdsParserTest, LegacyRtPlusRejectsShortPayload) {
             RdsRtPlusKind::kV4l2Qcom,
             &out
     ));
-}
-
-TEST(RdsParserTest, EvaluatesRtPlusSlices) {
-    const unsigned char raw_rt[] = "Valeriy Syutkin - Stil'nyy oranjevyy galstuk";
-    const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
-    const RdsRtPlusTag tags[2] = {
-            {4, 0, 15},   // ARTIST: "Valeriy Syutkin" (15 chars)
-            {1, 18, 26},  // TITLE: "Stil'nyy oranjevyy galstuk" (26 chars)
-    };
-
-    RdsRtPlusSlices slices;
-    EXPECT_TRUE(evaluate_rds_rt_plus_slices(
-            true,
-            tags,
-            raw_rt,
-            raw_rt_len,
-            &slices
-    ));
-
-    EXPECT_STREQ(slices.artist, "Valeriy Syutkin");
-    EXPECT_STREQ(slices.title, "Stil'nyy oranjevyy galstuk");
-}
-
-TEST(RdsParserTest, EvaluatesRtPlusAlbumSlices) {
-    const unsigned char raw_rt[] = "Greatest Hits";
-    const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
-    const RdsRtPlusTag tags[2] = {
-            {2, 0, 13},  // ALBUM: "Greatest Hits" (13 chars)
-            {0, 0, 0},
-    };
-
-    RdsRtPlusSlices slices;
-    EXPECT_TRUE(evaluate_rds_rt_plus_slices(
-            true,
-            tags,
-            raw_rt,
-            raw_rt_len,
-            &slices
-    ));
-
-    EXPECT_STREQ(slices.album, "Greatest Hits");
-}
-
-TEST(RdsParserTest, EvaluatesRtPlusSlicesWithMultiByteEbuCharacters) {
-    // raw EBU Latin G0 bytes:
-    // 0x82 = 'é' (2 UTF-8 bytes: 0xC3 0xA9)
-    // 0x8E = '¡' (2 UTF-8 bytes: 0xC2 0xA1)
-    // Raw text: "Café ¡Hola! - Song"
-    // Byte indices in raw EBU Latin G0:
-    //   'C'=0 'a'=1 'f'=2 'é'=3(0x82) ' '=4 '¡'=5(0x8E) 'H'=6 'o'=7 'l'=8 'a'=9 '!'=10
-    //   ' '=11 '-'=12 ' '=13
-    //   'S'=14 'o'=15 'n'=16 'g'=17
-    //
-    // Tag for TITLE starts at raw byte 14 ("Song", 4 bytes).
-    // Note that after UTF-8 conversion, "Café ¡Hola! - " takes 16 UTF-8 bytes!
-    // A naïve UTF-8 substring at offset 14 would cut into "¡Hola!".
-    // Slicing the raw EBU buffer at byte offset 14 correctly yields "Song".
-    const unsigned char raw_rt[] = {
-            'C', 'a', 'f', 0x82, ' ', 0x8E, 'H', 'o', 'l', 'a', '!',
-            ' ', '-', ' ',
-            'S', 'o', 'n', 'g'
-    };
-    const int raw_rt_len = static_cast<int>(sizeof(raw_rt));
-    const RdsRtPlusTag tags[2] = {
-            {1, 14, 4},  // TITLE: "Song" starting at raw byte index 14
-            {0, 0, 0},
-    };
-
-    RdsRtPlusSlices slices;
-    EXPECT_TRUE(evaluate_rds_rt_plus_slices(
-            true,
-            tags,
-            raw_rt,
-            raw_rt_len,
-            &slices
-    ));
-
-    EXPECT_STREQ(slices.title, "Song");
-}
-
-TEST(RdsParserTest, EvaluatesRtPlusSlicesClearsWhenInvalidOrOutOfRange) {
-    const unsigned char raw_rt[] = "Short RT";
-    const int raw_rt_len = static_cast<int>(sizeof(raw_rt) - 1);
-    const RdsRtPlusTag out_of_bounds_tags[2] = {
-            {1, 0, 50},  // TITLE: length 50 exceeds raw_rt_len 8
-            {4, 0, 0},   // ARTIST: invalid length 0
-    };
-
-    RdsRtPlusSlices slices;
-    EXPECT_FALSE(evaluate_rds_rt_plus_slices(
-            true,
-            out_of_bounds_tags,
-            raw_rt,
-            raw_rt_len,
-            &slices
-    ));
-
-    EXPECT_STREQ(slices.title, "");
-    EXPECT_STREQ(slices.artist, "");
 }
 
 TEST(RdsParserTest, ReturnsRdsRtPlusContentTypeNames) {

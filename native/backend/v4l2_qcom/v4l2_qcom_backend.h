@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../v4l2_base/v4l2_backend_base.h"
-#include "../../rds_parser.h"
+#include "../../rt_plus_context.h"
 #include "v4l2_qcom_types.h"
 #include "v4l2_scan_state.h"
 
@@ -57,10 +57,6 @@ public:
     const char *last_error() const override { return last_error_; }
 
 protected:
-    const char *log_prefix() const override {
-        return "qcom";
-    }
-
     // Sleeps for the requested microseconds; virtual for host test seams.
     virtual void sleep_us(unsigned int usec) {
         usleep(usec);
@@ -133,10 +129,6 @@ private:
     bool extract_ert();
     uint8_t extract_rds_af_list(uint32_t *list);
     uint8_t extract_search_station_list(uint32_t *list);
-    void clear_rt_plus_tags();
-    void reset_rt_context();
-    void log_rt_plus_slices();
-    void evaluate_rt_plus_slices(struct RdsRtPlusSlices *out);
 
     // Hardware detector helpers
     static bool is_smd_transport_layer();
@@ -165,9 +157,5 @@ private:
 
     fm_current_storage fm_storage_{};
 
-    // RT+ state
-    bool rt_plus_tags_valid_ = false;
-    RdsRtPlusTag rt_plus_tags_[2]{};
-    unsigned char rt_raw_text_[65] = {};
-    int rt_raw_text_len_ = 0;
+    RtPlusContext rt_plus_;
 };

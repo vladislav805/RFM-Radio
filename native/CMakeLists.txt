@@ -28,6 +28,7 @@ if(RFM_NATIVE_TESTS)
     add_executable(
         rfm_native_tests
         tests/rds_parser_test.cpp
+        tests/rt_plus_context_test.cpp
         tests/frequency_format_test.cpp
         tests/ctl_json_test.cpp
         tests/startup_config_test.cpp
@@ -50,6 +51,7 @@ if(RFM_NATIVE_TESTS)
         hex_dump.cpp
         ctl_server.cpp
         rds_parser.cpp
+        rt_plus_context.cpp
         ctl_json.cpp
         startup_config.cpp
         region_profile.cpp
@@ -76,6 +78,7 @@ add_executable(
     region_profile.cpp
     scan_result.cpp
     rds_parser.cpp
+    rt_plus_context.cpp
     periodic_deadline.cpp
     backend_factory.cpp
     backend/v4l2_qcom/v4l2_qcom_backend.cpp

@@ -1,4 +1,3 @@
-#include "backend_log.h"
 #pragma once
 
 #include <stddef.h>

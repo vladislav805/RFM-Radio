@@ -12,7 +12,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | --- | --- |
 | `main.cpp` | Entrypoint, command router, HAL `_exit()` bypass |
 | `backend.h` | Common `Backend` base interface for all implementations |
-| `backend_log.h` | Centralized logging utility `backend_log()` |
+| `backend_log.h` | `Logger` writes backend diagnostics to stderr. Each backend shares its logger with its helpers. |
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
 | `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
@@ -26,6 +26,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `startup_config.cpp` | Strict parser for the complete `enable` command |
 | `region_profile.cpp` | Region limits and vendor band mappings |
 | `rds_parser.cpp` | Shared PS/RT/AF/ECC/station-list payload parsers |
+| `rt_plus_context.cpp` | Extracts RT+ fields for all three backends. Qualcomm V4L2 and Helium also use it to store RadioText and tags between events. |
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
 | `system.cpp` / `.h` | Shared system property, file-existence, and shell command helpers |

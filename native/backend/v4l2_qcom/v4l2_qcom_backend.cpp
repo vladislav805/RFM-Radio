@@ -23,6 +23,7 @@
 
 namespace {
 
+constexpr Logger kQcomLog{"qcv4l2"};
 constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrAlreadyEnabled = "ERR_ALREADY_ENABLED";
 constexpr const char *kErrInvalidAntenna = "ERR_UNV_ANT";
@@ -191,7 +192,7 @@ V4l2BootstrapMode select_v4l2_bootstrap_mode() {
     return classify_v4l2_bootstrap_mode(service, has_fm_patch_downloader());
 }
 
-V4l2QcomBackend::V4l2QcomBackend() {
+V4l2QcomBackend::V4l2QcomBackend() : V4l2BackendBase(kQcomLog), rt_plus_(log) {
     fm_storage_.frequency = 0;
     fm_storage_.mute_mode = FM_RX_NO_MUTE;
     fm_storage_.stereo_type = FM_RX_STEREO;
@@ -816,55 +817,6 @@ int32_t V4l2QcomBackend::read_buffer(uint8_t *buf, uint32_t buffer_size, int ind
     return static_cast<int32_t>(v4l2_buf.bytesused);
 }
 
-// Clears cached RT+ tags.
-void V4l2QcomBackend::clear_rt_plus_tags() {
-    rt_plus_tags_valid_ = false;
-    rt_plus_tags_[0] = {};
-    rt_plus_tags_[1] = {};
-}
-
-// Resets RT text context.
-void V4l2QcomBackend::reset_rt_context() {
-    clear_rt_plus_tags();
-    rt_raw_text_len_ = 0;
-    memset(rt_raw_text_, 0, sizeof(rt_raw_text_));
-}
-
-// Logs RT+ slices against current raw EBU Latin RT buffer.
-void V4l2QcomBackend::log_rt_plus_slices() {
-    if (!rt_plus_tags_valid_) {
-        return;
-    }
-
-    for (const RdsRtPlusTag &tag : rt_plus_tags_) {
-        if (tag.content_type == 0) {
-            continue;
-        }
-
-        // tag.start/tag.length are indices into the RAW EBU Latin RT buffer, not
-        // the UTF-8 text. Slice raw bytes and convert only the slice.
-        if (tag.start >= 0 && tag.length > 0 && tag.start + tag.length <= rt_raw_text_len_) {
-            char text[65 * 3 + 1];
-            convert_ebu_latin_to_utf8(rt_raw_text_ + tag.start, tag.length, text, static_cast<int>(sizeof(text)));
-            log("rds", "rt+ slice %s=`%s`", get_rds_rt_plus_content_type_name(tag.content_type), text);
-        } else {
-            log("rds", "rt+ tag %s ct=%d start=%d len=%d rt_len=%d",
-                    get_rds_rt_plus_content_type_name(tag.content_type), tag.content_type, tag.start, tag.length, rt_raw_text_len_);
-        }
-    }
-}
-
-// Evaluates RT+ slices against current raw text.
-void V4l2QcomBackend::evaluate_rt_plus_slices(RdsRtPlusSlices *out) {
-    evaluate_rds_rt_plus_slices(
-            rt_plus_tags_valid_,
-            rt_plus_tags_,
-            rt_raw_text_,
-            rt_raw_text_len_,
-            out
-    );
-}
-
 // Extracts Program Service payload from V4L2 buffer.
 bool V4l2QcomBackend::extract_program_service(fm_rds_storage *storage) {
     uint8_t buf[64] = {0};
@@ -915,12 +867,9 @@ bool V4l2QcomBackend::extract_radio_text(fm_rds_storage *storage) {
     }
 
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
-    // Keep the RAW EBU Latin bytes: RT+ tag indices refer to raw characters,
-    // and rt_raw_text_ is what log_rt_plus_slices() slices.
-    rt_raw_text_len_ = parsed.raw_text_len;
-    memcpy(rt_raw_text_, parsed.raw_text, static_cast<size_t>(parsed.raw_text_len));
+    rt_plus_.set_text(parsed);
     log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
-    log_rt_plus_slices();
+    rt_plus_.log_slices();
 
     return true;
 }
@@ -966,7 +915,7 @@ bool V4l2QcomBackend::extract_rt_plus() {
     const int rt_ert_flag = buf[1];
     log("rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
 
-    clear_rt_plus_tags();
+    rt_plus_.set_tags({});
     RdsRtPlusPayload parsed;
 
     if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kV4l2Qcom, &parsed)) {
@@ -980,13 +929,10 @@ bool V4l2QcomBackend::extract_rt_plus() {
             return true;
         }
 
-        rt_plus_tags_[0] = parsed.tag_count > 0 ? parsed.tags[0] : RdsRtPlusTag{};
-        rt_plus_tags_[1] = parsed.tag_count > 1 ? parsed.tags[1] : RdsRtPlusTag{};
-        rt_plus_tags_valid_ = parsed.tag_count > 0;
-        log_rt_plus_slices();
+        rt_plus_.set_tags(parsed);
+        rt_plus_.log_slices();
 
-        RdsRtPlusSlices slices;
-        evaluate_rt_plus_slices(&slices);
+        const RdsRtPlusSlices slices = rt_plus_.slices();
         radio_state_patch_t patch = radio_state_patch_empty();
         patch.rt_plus_title = slices.title;
         patch.rt_plus_artist = slices.artist;
@@ -1165,7 +1111,7 @@ void V4l2QcomBackend::event_thread() {
 
                     fm_storage_.rds.program_name[0] = '\0';
                     fm_storage_.rds.radio_text[0] = '\0';
-                    reset_rt_context();
+                    rt_plus_.reset();
 
                     log("event", "tune frequency_khz=%d", fm_storage_.frequency);
 
@@ -1237,8 +1183,7 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_NEW_RT_RDS: {
                     if (extract_radio_text(&fm_storage_.rds)) {
-                        RdsRtPlusSlices slices;
-                        evaluate_rt_plus_slices(&slices);
+                        const RdsRtPlusSlices slices = rt_plus_.slices();
                         radio_state_patch_t patch = radio_state_patch_empty();
                         patch.rt = fm_storage_.rds.radio_text;
                         patch.rt_plus_title = slices.title;

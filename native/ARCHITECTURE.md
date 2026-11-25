@@ -74,7 +74,7 @@ Android QualcommNative
 | --- | --- |
 | `native/main.cpp` | Process entrypoint, text command parsing and routing |
 | `native/backend.h` | Common C++ base interface implemented by all backends |
-| `native/backend_log.h` | Centralized logging utility (`backend_log()`) |
+| `native/backend_log.h` | `Logger` writes scoped messages to stderr using the backend's prefix |
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
 | `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
@@ -871,8 +871,14 @@ UTF-8 with `text_len` in UTF-8 bytes; `raw_text` keeps the pre-conversion
 bytes because RT+ tag start/length indices refer to raw EBU Latin G0 byte offsets.
 Slicing MUST be performed in C++ on `raw_text` before UTF-8 conversion because
 EBU Latin G0 byte indices do not align with UTF-8 / Java UTF-16 character indices
-when non-ASCII characters or low-byte aliases are present. Both backends slice
-the raw buffer and convert only the slice (`evaluate_rds_rt_plus_slices`).
+when non-ASCII characters or low-byte aliases are present. All three backends
+use `RtPlusContext::extract_slices()` to convert the tagged byte ranges.
+S610 passes its last complete RadioText and the two tags decoded from an ODA group.
+Qualcomm V4L2 and Helium each keep a `RtPlusContext` for the station. It owns
+the raw text and the current tag pair so either event can arrive first. The
+context uses the backend's `Logger` for slice diagnostics.
+Each backend clears its context on its existing station reset path and handles
+vendor-specific payload validation before updating the tags.
 
 The Java receiver trims PS/RT and replaces newlines with spaces. It rejects
 non-positive frequency and negative PTY/array entries.

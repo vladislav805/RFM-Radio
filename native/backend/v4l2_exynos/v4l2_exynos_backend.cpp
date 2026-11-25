@@ -17,6 +17,7 @@
 
 namespace {
 
+constexpr Logger kExynosLog{"exynos"};
 constexpr const char *kErrFailed = "ERR_FAILED";
 constexpr const char *kErrCantSetRegion = "ERR_CNS_REG";
 constexpr int kRdsPollTimeoutMs = 50;
@@ -98,7 +99,7 @@ int trim_rds_trailing(const unsigned char *buf, int len) {
 
 }  // namespace
 
-V4l2ExynosBackend::V4l2ExynosBackend() = default;
+V4l2ExynosBackend::V4l2ExynosBackend() : V4l2BackendBase(kExynosLog) {}
 
 V4l2ExynosBackend::~V4l2ExynosBackend() {
     shutdown();
@@ -1286,13 +1287,9 @@ void V4l2ExynosBackend::flush_rds_group() {
 }
 
 void V4l2ExynosBackend::apply_rt_plus_slices(radio_state_patch_t *patch, bool *dirty) {
-    RdsRtPlusSlices slices;
-    evaluate_rds_rt_plus_slices(
-            true,
-            rds_.rtplus_tags,
-            rds_.rt_committed_raw,
-            rds_.rt_committed_raw_len,
-            &slices
+    const auto slices = RtPlusContext::extract_slices(
+            std::span(rds_.rt_committed_raw, rds_.rt_committed_raw_len),
+            rds_.rtplus_tags
     );
     if (std::strcmp(rds_.rtplus_slices.title, slices.title) != 0) {
         std::snprintf(rds_.rtplus_slices.title, sizeof(rds_.rtplus_slices.title), "%s", slices.title);

@@ -282,12 +282,6 @@ bool parse_v4l2_raw_rds_ecc(
         char country_iso[3]
 );
 
-struct RdsRtPlusSlices {
-    char title[256] = "";
-    char artist[256] = "";
-    char album[256] = "";
-};
-
 const char *get_rds_rt_plus_content_type_name(int content_type);
 
 bool parse_rds_rt_plus_payload(
@@ -295,12 +289,4 @@ bool parse_rds_rt_plus_payload(
         int payload_len,
         RdsRtPlusKind kind,
         RdsRtPlusPayload *out
-);
-
-bool evaluate_rds_rt_plus_slices(
-        bool tags_valid,
-        const RdsRtPlusTag tags[2],
-        const unsigned char *raw_rt,
-        int raw_rt_len,
-        RdsRtPlusSlices *out
 );

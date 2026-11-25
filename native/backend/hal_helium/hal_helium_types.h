@@ -5,7 +5,7 @@
 
 #include <condition_variable>
 
-#include "../../rds_parser.h"
+#include "../../rt_plus_context.h"
 #include "../../region_profile.h"
 #include "../../scan_result.h"
 #include "../../startup_config.h"
@@ -285,6 +285,8 @@ struct HeliumRmssiState {
 
 // Complete runtime state of HalHeliumBackend, guarded by lock.
 struct HeliumRuntimeState {
+    explicit HeliumRuntimeState(const Logger &log) : rt_plus(log) {}
+
     // dlopen() handle for fm_helium.so.
     void *lib_handle = nullptr;
 
@@ -376,19 +378,7 @@ struct HeliumRuntimeState {
     // Previous raw ECC payload bytes for deduplication.
     unsigned char last_ecc[12] = {};
 
-    // RAW (pre-UTF-8-conversion) EBU Latin RT bytes. RT+ tag start/length
-    // indices refer to these raw characters, not to the UTF-8 text sent to
-    // the app. Load-bearing for RT+ slicing (issue #103).
-    char current_rt[65] = "";
-
-    // Length of valid raw EBU Latin bytes in current_rt.
-    int current_rt_len = 0;
-
-    // True when rt_plus_tags holds active tag definitions for the current RT.
-    bool rt_plus_tags_valid = false;
-
-    // Up to two active RT+ tags parsed from rt_plus_update_cb.
-    RdsRtPlusTag rt_plus_tags[2];
+    RtPlusContext rt_plus;
 
     // Most recent backend error message for last_error().
     char last_error[128] = "";
