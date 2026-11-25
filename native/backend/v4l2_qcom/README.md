@@ -20,7 +20,8 @@ This is the classic "direct driver access" path.
 ## Important Files
 
 - [`v4l2_qcom_types.h`](v4l2_qcom_types.h): legacy FM enums, structs, and constants
-- [`v4l2_qcom_backend.h`](v4l2_qcom_backend.h) / [`v4l2_qcom_backend.cpp`](v4l2_qcom_backend.cpp): `V4l2QcomBackend` implementation (lifecycle, V4L2 controls, tuning, search, interrupt thread, RDS extraction, platform detection)
+- `V4l2QcomBackend` manages startup, V4L2 controls, tuning and search. [Class declaration](v4l2_qcom_backend.h) · [Receiver implementation](v4l2_qcom_backend.cpp)
+- The event thread dequeues Tavarua notifications, reads their payload buffers and publishes station updates. [Event handling](v4l2_qcom_events.cpp)
 - [`v4l2_scan_state.h`](v4l2_scan_state.h) / [`v4l2_scan_state.cpp`](v4l2_scan_state.cpp): sequential hardware scan/seek state machine and station collection
 - [`../v4l2_base/v4l2_backend_base.h`](../v4l2_base/v4l2_backend_base.h): shared V4L2 base class (`open_device`, `close_device`, `set_v4l2_ctrl`, `get_v4l2_ctrl`, frequency unit conversions)
 

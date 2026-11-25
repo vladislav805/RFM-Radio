@@ -36,6 +36,15 @@ constexpr int kTavaruaBufErt = 12;
 constexpr int kTavaruaBufEventsCci = 13;
 constexpr int kTavaruaBufMax = 14;
 
+// Raw group mask bit enabling group 3A (RT+/ERT ODA discovery).
+constexpr int kV4l2QcomRds3aGroupMask = 0x40;
+
+// Raw group mask bit enabling group 1A (ECC slow labelling).
+constexpr int kV4l2QcomRds1aGroupMask = 0x04;
+
+// Combined raw RDS group mask written to kV4l2CtrlRdsGroupMask.
+constexpr int kV4l2QcomRdsRawGroupMask = kV4l2QcomRds3aGroupMask | kV4l2QcomRds1aGroupMask;
+
 /* FM power state enum */
 typedef enum {
 	FM_POWER_OFF,

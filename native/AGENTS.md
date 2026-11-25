@@ -15,7 +15,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `backend_log.h` | `Logger` writes backend diagnostics to stderr. Each backend shares its logger with its helpers. |
 | `backend_factory.cpp` | Runtime backend detection and process-global singleton |
 | `backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
-| `backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
+| `backend/v4l2_qcom/` | Qualcomm V4L2 backend. `v4l2_qcom_events.cpp` handles the Tavarua event queue and reads the associated driver buffers. |
 | `backend/v4l2_exynos/` | Samsung Exynos S610 V4L2 backend, driver controls and raw RDS block decoder (`s610_rds_decoder.cpp`) |
 | `backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `backend/qcom_fm_controls.h` | Shared Qualcomm V4L2 control IDs |

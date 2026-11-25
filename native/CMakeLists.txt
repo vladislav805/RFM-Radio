@@ -47,6 +47,7 @@ if(RFM_NATIVE_TESTS)
         tests/backend_factory_test.cpp
         backend_factory.cpp
         backend/v4l2_qcom/v4l2_qcom_backend.cpp
+        backend/v4l2_qcom/v4l2_qcom_events.cpp
         backend/v4l2_exynos/v4l2_exynos_backend.cpp
         backend/v4l2_exynos/s610_rds_decoder.cpp
         backend/hal_helium/hal_helium_backend.cpp
@@ -84,6 +85,7 @@ add_executable(
     periodic_deadline.cpp
     backend_factory.cpp
     backend/v4l2_qcom/v4l2_qcom_backend.cpp
+    backend/v4l2_qcom/v4l2_qcom_events.cpp
     backend/v4l2_qcom/v4l2_scan_state.cpp
     backend/v4l2_exynos/v4l2_exynos_backend.cpp
     backend/v4l2_exynos/s610_rds_decoder.cpp

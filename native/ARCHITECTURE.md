@@ -77,7 +77,7 @@ Android QualcommNative
 | `native/backend_log.h` | `Logger` writes scoped messages to stderr using the backend's prefix |
 | `native/backend_factory.cpp` | Runtime detection and singleton backend creation |
 | `native/backend/v4l2_base/` | Abstract V4L2 base class (`V4l2BackendBase`) |
-| `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend (`v4l2_qcom_backend.cpp`, `v4l2_scan_state.cpp`, `v4l2_qcom_types.h`) |
+| `native/backend/v4l2_qcom/` | Qualcomm V4L2 backend, Tavarua event processing and scan state |
 | `native/backend/v4l2_exynos/` | Samsung Exynos V4L2 backend, driver controls and `S610RdsDecoder` |
 | `native/backend/hal_helium/` | Qualcomm Helium backend (`hal_helium_backend.cpp`, `hal_helium_types.h`) |
 | `native/ctl_server.cpp` | Standard-I/O command loop, process-liveness handling, and asynchronous event writer |
@@ -107,9 +107,10 @@ Android QualcommNative
 | Path | Responsibility |
 | --- | --- |
 | `native/backend/v4l2_base/v4l2_backend_base.h` | Shared V4L2 device handle, control I/O, and frequency unit conversion |
-| `native/backend/v4l2_qcom/v4l2_qcom_backend.cpp` | Qualcomm V4L2 `Backend`, lifecycle, controls, event thread, RDS extraction |
+| `native/backend/v4l2_qcom/v4l2_qcom_backend.cpp` | Qualcomm V4L2 backend initialization, receiver controls, tuning and search commands |
+| `native/backend/v4l2_qcom/v4l2_qcom_events.cpp` | Tavarua event IDs, event loop and shutdown, private buffer reads and RDS extraction |
 | `native/backend/v4l2_qcom/v4l2_scan_state.cpp` | Testable sequential-scan collection and cancellation state |
-| `native/backend/v4l2_qcom/v4l2_qcom_types.h` | Qualcomm V4L2 constants, state, structs, and event enums |
+| `native/backend/v4l2_qcom/v4l2_qcom_types.h` | Qualcomm V4L2 buffer indices, RDS group masks, receiver types and state |
 
 ### Android Bridge
 
