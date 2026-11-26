@@ -494,6 +494,8 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
 `res/xml/preferences.xml` (backed by `res/values/arrays.xml`). The preference
 theme uses `res/layout/pref_row.xml` for section links and settings, with
 themed circular icons and a trailing Material switch for toggle settings.
+Section navigation slides and fades the list with a horizontal Material
+shared-axis transition. Back reverses the motion under the fixed toolbar.
 The fragment applies `TunerDriver` capability gating (disabling unsupported options and
 filtering Exynos to narrow 76–90 MHz Japan band), antenna numeric validation,
 pre-roll warning/permission prompt, and version check clicks in Java.

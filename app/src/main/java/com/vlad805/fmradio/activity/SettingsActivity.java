@@ -6,7 +6,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceScreen;
 
@@ -61,7 +60,7 @@ public class SettingsActivity extends AppCompatActivity
 
 		getSupportFragmentManager()
 				.beginTransaction()
-				.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+				.setReorderingAllowed(true)
 				.replace(R.id.settings, fragment)
 				.addToBackStack(pref.getKey())
 				.commit();

@@ -17,7 +17,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
@@ -28,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.transition.MaterialSharedAxis;
 import com.vlad805.fmradio.BuildConfig;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.RFMApplication;
@@ -60,6 +60,13 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 
 	@Override
 	public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
+		setExitTransition(new MaterialSharedAxis(MaterialSharedAxis.X, true));
+		setReenterTransition(new MaterialSharedAxis(MaterialSharedAxis.X, false));
+		if (rootKey != null) {
+			setEnterTransition(new MaterialSharedAxis(MaterialSharedAxis.X, true));
+			setReturnTransition(new MaterialSharedAxis(MaterialSharedAxis.X, false));
+		}
+
 		final Context context = requireContext();
 		final Storage storage = Storage.get(context);
 		final TunerDriver driver = TunerDriverDetector.getTunerDriver(context);
@@ -79,8 +86,8 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 	}
 
 	@Override
-	public void onResume() {
-		super.onResume();
+	public void onStart() {
+		super.onStart();
 		if (getActivity() instanceof AppCompatActivity) {
 			final ActionBar ab = ((AppCompatActivity) getActivity()).getSupportActionBar();
 			if (ab != null) {
@@ -98,34 +105,11 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		setDividerHeight(0);
 
 		final RecyclerView listView = getListView();
+		listView.setTransitionGroup(true);
 		final float density = getResources().getDisplayMetrics().density;
 		final int bottomPad = Math.round(16f * density);
 		listView.setPadding(listView.getPaddingLeft(), listView.getPaddingTop(), listView.getPaddingRight(), bottomPad);
 		listView.setClipToPadding(false);
-
-		if (savedInstanceState != null) {
-			return;
-		}
-
-		final float offset = 14f * density;
-		listView.post(() -> {
-			if (!isAdded()) {
-				return;
-			}
-			final int count = listView.getChildCount();
-			for (int i = 0; i < count; i++) {
-				final View child = listView.getChildAt(i);
-				child.setAlpha(0f);
-				child.setTranslationY(offset);
-				child.animate()
-						.alpha(1f)
-						.translationY(0f)
-						.setStartDelay(Math.min(i * 22L, 200L))
-						.setDuration(220L)
-						.setInterpolator(new FastOutSlowInInterpolator())
-						.start();
-			}
-		});
 	}
 
 	@Override
