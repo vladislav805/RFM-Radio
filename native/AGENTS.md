@@ -119,12 +119,14 @@ completion also sends this reset when the HAL emits only `seek_complete_cb`.
 `rds.tp` defaults to false. A station reset clears an active flag with
 `false`. S610 reads bit 10 of block B after PI confirmation. Helium publishes
 TP directly from bit 0 of byte 4 in each new 12-byte ECC packet, even when
-ECC arrives before PS. PS supplies the displayed PI independently. Qualcomm
-V4L2 leaves the TP indicator off.
+ECC arrives before PS. PS supplies the displayed PI independently. For ECC
+variant 0 (byte 7), Helium decodes the country from byte 9 and the PI country
+nibble. Qualcomm V4L2 leaves the TP indicator off.
 
 S610 logs the first observed TP, TA and legacy M/S values for a confirmed PI
 and subsequent changes with the source block B. Both Qualcomm backends log the
-five original PS/RT header bytes for comparison. These diagnostics use stderr.
+five original PS/RT header bytes for comparison. Helium logs the RT+ item
+toggle from callback byte 6 and item running from byte 7. These diagnostics use stderr.
 
 ## Vendor Ordering Invariants (do not reorder without device evidence)
 

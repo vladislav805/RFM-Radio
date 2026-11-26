@@ -737,17 +737,16 @@ TEST(RdsParserTest, RejectsUnknownRdsCountries) {
 
 namespace {
 
-// Helium group 1A fixture for the current country decoder. Byte [4] holds TP,
-// [5] is the byte the parser checks, and [9] holds the ECC.
+// Helium group 1A callback: [4]=TP, [5]=radio paging codes, [7]=variant, [9]=ECC.
 void make_ecc_payload(unsigned char payload[12], unsigned char ta_tp, unsigned char variant, unsigned char ecc) {
     payload[0] = 12;
     payload[1] = 0x02;  // PTY
     payload[2] = 0x61;  // PI 0x6123 -> country nibble 6 (UA row at ecc 0xe4)
     payload[3] = 0x23;
     payload[4] = ta_tp;
-    payload[5] = variant;
+    payload[5] = 0x00;
     payload[6] = 0x00;
-    payload[7] = 0x00;
+    payload[7] = variant;
     payload[8] = 0x00;
     payload[9] = ecc;
     payload[10] = 0x12;
@@ -793,17 +792,15 @@ TEST(RdsParserTest, EccRejectsShortPayload) {
     EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, nullptr));
 }
 
-TEST(RdsParserTest, EccIgnoresPlausibleEccAtNonStandardVariant) {
-    // Real capture from station 90.6 (pi=0x7850, St. Petersburg): group 1A
-    // variants 4-6 with identical sl=0x00e2 / block_d=0xde52. Value 0xe2 at
-    // cc=7 formally decodes as "PL" — garbage for a Russian station, so
-    // non-zero variants stay ignored (this rejected the fallback of trusting
-    // payload[9] unconditionally).
+TEST(RdsParserTest, EccDecodesVariantZeroWithNonzeroPagingCodes) {
+    // 90.6 MHz capture. With paging codes 5 and variant 0, PI 0x7850
+    // and the transmitted ECC 0xe2 map to TN.
     const unsigned char payload[12] =
             {0x0c, 0x00, 0x78, 0x50, 0x00, 0x05, 0x00, 0x00, 0x00, 0xe2, 0xde, 0x52};
 
     char country[3] = "XX";
-    EXPECT_FALSE(parse_rds_ecc_payload(payload, 12, country));
+    ASSERT_TRUE(parse_rds_ecc_payload(payload, 12, country));
+    EXPECT_STREQ(country, "TN");
 }
 
 TEST(RdsParserTest, EccRejectsUnknownCountry) {
@@ -836,8 +833,8 @@ TEST(RdsParserTest, ParsesHalRtPlusPayload) {
             &out
     ));
 
-    EXPECT_TRUE(out.toggle);
-    EXPECT_FALSE(out.running);
+    EXPECT_FALSE(out.toggle);
+    EXPECT_TRUE(out.running);
     EXPECT_FALSE(out.ert);
     EXPECT_EQ(out.tag_count, 2);
 
@@ -852,7 +849,7 @@ TEST(RdsParserTest, ParsesHalRtPlusPayload) {
 
 TEST(RdsParserTest, HalRtPlusSkipsZeroClassTags) {
     const unsigned char payload[] = {
-            15, 0x07, 0x77, 0x56, 0x01, 0x0c, 0x00, 0x03,
+            15, 0x07, 0x77, 0x56, 0x01, 0x0c, 0x01, 0x00,
             0x00, 0, 0,
             0x04, 0, 20,
             0x00,
@@ -867,7 +864,7 @@ TEST(RdsParserTest, HalRtPlusSkipsZeroClassTags) {
     ));
 
     EXPECT_TRUE(out.toggle);
-    EXPECT_TRUE(out.running);
+    EXPECT_FALSE(out.running);
     EXPECT_EQ(out.tag_count, 1);
     EXPECT_EQ(out.tags[0].content_type, 4);
     EXPECT_EQ(out.tags[0].start, 0);

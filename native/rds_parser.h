@@ -79,10 +79,9 @@ constexpr int kRdsIsoCountryCodeStride = 2;
 // Byte offset of the big-endian PI code inside a HAL group 1A (ECC) payload.
 constexpr int kRdsEccPiOffset = 2;
 
-// Offset the current country decoder checks. Qualcomm's Cherokee event layout
-// puts radio_paging_codes at callback offset 5 and variant_code at offset 7.
+// Cherokee group 1A variant selector. Callback byte 5 carries radio paging codes.
 // https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L288-L298
-constexpr int kRdsEccVariantOffset = 5;
+constexpr int kRdsEccVariantOffset = 7;
 
 // Group 1A variant 0 carrying Extended Country Code slow labelling.
 constexpr int kRdsEccVariantSlowLabelling = 0;
@@ -128,12 +127,6 @@ constexpr int kRdsRawVariantShift = 12;
 
 // Bit mask isolating the 3-bit slow-labelling variant in block C of group 1A.
 constexpr int kRdsRawVariantMask = 0x07;
-
-// Mask the current Helium decoder uses for item toggle in callback byte [7].
-constexpr unsigned char kRdsHeliumRtPlusToggleBit = 0x01;
-
-// Mask the current Helium decoder uses for item running in callback byte [7].
-constexpr unsigned char kRdsHeliumRtPlusRunningBit = 0x02;
 
 // Exclusive upper bound for 1-byte ASCII code points in UTF-8.
 constexpr unsigned int kRdsUtf8OneByteLimit = 0x80;

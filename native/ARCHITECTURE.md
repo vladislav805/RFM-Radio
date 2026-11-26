@@ -675,15 +675,17 @@ callback byte 4. The example below is from 89.7 MHz on the Poco X3 Pro.
 
 Helium publishes TP immediately from a full ECC packet, independently of PS
 and the variant selector. PS continues to supply the displayed PI. In the
-captures at 87.5 and 88.4 MHz, ECC arrived first. The current country decoder
-tests byte 5 for zero. The Cherokee header places the variant at byte 7.
-Both bytes were zero in all four captures. An earlier decoder included byte 4
-in the check and suppressed country on TP stations (issue #102).
+captures at 87.5 and 88.4 MHz, ECC arrived first. Helium decodes the country
+when byte 7 (variant) is zero, independently of byte 5 (radio paging codes).
+An earlier decoder included the TP flag in the variant check (issue #102).
 
-All four captures carried variant 0 with ECC `E0`. At 89.7 MHz, the first
-PI nibble `7` and ECC `E0` identify Russia and form the global country code
-`7E0`. RadioDNS uses that code together with PI and frequency for FM service
-lookup. Historical group 1A could also carry a language code in variant 3
+All four stations in the Poco TP comparison carried variant 0 with ECC `E0`.
+At 89.7 MHz, the first PI nibble `7` and ECC `E0` identify Russia and form
+the global country code `7E0`. A separate capture at 90.6 MHz in St. Petersburg
+carried paging codes 5, variant 0, PI `7850` and ECC `E2`. Its transmitted
+country code decodes to `TN` (Tunisia). RadioDNS uses the global country code
+together with PI and frequency for FM service lookup. Historical group 1A
+could also carry a language code in variant 3
 and a Programme Item Number in block D. IEC removed both in 2018.
 [ETSI TS 103 270 §5.1.1 and Annex A](https://www.etsi.org/deliver/etsi_ts/103200_103299/103270/01.04.01_60/ts_103270v010401p.pdf) · [IEC 62106-2:2018, foreword](https://cdn.standards.iteh.ai/samples/100536/d004439245b641bb8ea531c79f935701/IEC-62106-2-2018.pdf)
 
@@ -997,9 +999,9 @@ and 88.4 MHz. All four RT+ tag callbacks at 93.3 MHz carried `0x01` at
 `[4]` for PI `7756`, which the Galaxy A51 received with TP=1 and TA=0.
 RT callback byte `[4]` took both values on 89.7 MHz while TP stayed set.
 
-The Cherokee event defines separate `item_toggle` and `item_running` fields.
-The HAL forwards them at callback offsets 6 and 7. The current Helium decoder
-reads both from byte 7. [RT+ tag fields](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326) · [HAL buffer copy](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L829-L837)
+Helium reads `item_toggle` from RT+ callback byte 6 and `item_running` from
+byte 7. One packet on 93.3 MHz contained `00 01` at those offsets and now
+logs `toggle=0 running=1`. [RT+ tag fields](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326) · [HAL buffer copy](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L829-L837)
 
 On the Redmi 4A (`radio-iris`), PS byte `[4]` was zero on 88.4 MHz (TP=0
 on the A51) and on 89.7 and 93.3 MHz (TP=1). RT byte `[4]` took both

@@ -1520,7 +1520,7 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
         const int pty = rds_decode_pty(static_cast<unsigned char>(payload[1]));
         const int pi = rds_read_be16(payload, 2);
         const int ta_tp = static_cast<unsigned char>(payload[4]);
-        const int variant = static_cast<unsigned char>(payload[5]);
+        const int variant = static_cast<unsigned char>(payload[kRdsEccVariantOffset]);
         const int slow_labelling = rds_read_be16(payload, 8);
         const int block_d = rds_read_be16(payload, 10);
 

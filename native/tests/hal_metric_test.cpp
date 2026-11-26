@@ -136,7 +136,7 @@ TEST_F(HalMetricTest, PublishesTrafficProgrammeFromEccIndependentlyOfPs) {
     ps[3] = 0x52;
     HalHeliumBackend::ps_update_cb(ps);
     ecc[3] = ps[3];
-    ecc[5] = 1; // This variant carries TP even though it carries no country.
+    ecc[7] = 1; // This variant carries TP even though it carries no country.
     ecc[4] = 2;
     ecc[0] = 6;
     HalHeliumBackend::ext_country_code_cb(ecc); // Truncated packet.

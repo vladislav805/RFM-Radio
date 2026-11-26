@@ -508,7 +508,8 @@ bool parse_rds_rt_plus_payload(
         //   [2..3] = PI (16-bit big-endian)
         //   [4]    = Traffic Programme (prgm_code_flag in Qualcomm's RT+ tag event)
         //   [5]    = ODA group number (e.g. 0x0C = group 12A)
-        //   [6..7] = item_toggle and item_running in the Qualcomm test tool
+        //   [6]    = item_toggle (changes when a new programme item starts)
+        //   [7]    = item_running (set while the item is on air)
         //   [8..10] = tag 1 ([8]=content_type, [9]=start char index, [10]=length-1)
         //   [11..13]= tag 2 ([11]=content_type, [12]=start char index, [13]=length-1)
         //   [14]   = padding
@@ -517,9 +518,8 @@ bool parse_rds_rt_plus_payload(
             return false;
         }
 
-        // The current decoder reads both flags from byte [7].
-        out->toggle = (payload[7] & kRdsHeliumRtPlusToggleBit) != 0;
-        out->running = (payload[7] & kRdsHeliumRtPlusRunningBit) != 0;
+        out->toggle = payload[6] != 0;
+        out->running = payload[7] != 0;
 
         // Tag length in the HAL vendor payload is 0-indexed (encoded as length - 1),
         // so +1 is applied to recover the true character count. content_type == 0
