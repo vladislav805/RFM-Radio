@@ -27,7 +27,7 @@ main/cpp` is a different, unrelated native component (LAME MP3 encoder).
 | `startup_config.cpp` | Strict parser for the complete `enable` command |
 | `region_profile.cpp` | Region limits and vendor band mappings |
 | `rds_parser.cpp` | Shared PS/RT/AF/ECC/station-list payload parsers |
-| `rt_plus_context.cpp` | Stores completed RadioText and the latest tag pair for each backend and extracts the RT+ fields. |
+| `rt_plus_context.cpp` | Decodes each pair of RT+ tags against raw RadioText and keeps values by six-bit content type until a reset or update. |
 | `scan_result.cpp` | Bounded, deduplicated, sorted scan results |
 | `rmssi.h` | `decode_rmssi()` — signed-low-byte RMSSI decoding, shared |
 | `system.cpp` / `.h` | Shared system property, file-existence, and shell command helpers |
@@ -73,7 +73,7 @@ Regions: `eu`/`us` 87500–108000 kHz, `jp` 76000–95000, `jp_wide`
 Transport: stdin frames `<request-id>\t<command>\n` (UTF-8, trailing `\r`
 tolerated, frames over 4096 bytes terminate the loop); stdout carries one
 JSON object per line; stderr is diagnostics → logcat tag `RFM-QCOM`. Ready
-handshake: `{"type":"ready","protocol":1,"pid":N,"backend":"v4l2_qcom"|"v4l2_exynos"|"hal_helium"|"none"}`. Responses:
+handshake: `{"type":"ready","pid":N,"backend":"v4l2_qcom"|"v4l2_exynos"|"hal_helium"|"none"}`. Responses:
 `{"type":"response","id":N,"ok":true,"data":"ok"}`. `make_ok()` delays the
 success response by 300 ms intentionally — do not remove it. Java matches
 success by a `"ok"` prefix on `data`, not by the `ok` field.
@@ -107,7 +107,10 @@ kHz array, at most 64 stations), and `disabled`. No `enabled` event is sent; Jav
 PS/RT text is UTF-8: `rds_parser.cpp` converts raw EBU Latin G0
 (EN 50067:1998 Annex E) bytes to UTF-8 before they reach JSON; raw
 pre-conversion bytes are kept in `RdsTextPayload::raw_text` because RT+ tag
-indices refer to raw characters.
+indices refer to raw characters. Each changed field in `rds.rt_plus` uses its
+RT+ content type name as the JSON key, such as `ITEM.TITLE` or `INFO.WEATHER`.
+An empty string clears that field. Dummy 0 and reserved 54–55 have no value.
+Private classes use distinct keys `PRIVATE.56`, `PRIVATE.57` and `PRIVATE.58`.
 
 All three backends use `make_station_metadata_reset_patch()` to clear published
 station metadata (PS, RT, PI, country, PTY, AF and RT+). Helium ordinary seek

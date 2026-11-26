@@ -1,4 +1,5 @@
 #include "ctl_json.h"
+#include "rds_parser.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -111,7 +112,7 @@ std::string build_native_event_json(const char *type) {
 }
 
 std::string build_ready_json(int pid, const char *backend) {
-    std::string json = "{\"type\":\"ready\",\"protocol\":1,\"pid\":" + std::to_string(pid);
+    std::string json = "{\"type\":\"ready\",\"pid\":" + std::to_string(pid);
     if (backend != nullptr && backend[0] != '\0') {
         json += ",\"backend\":";
         json += json_escape(backend);
@@ -204,36 +205,21 @@ bool build_radio_state_patch_json(
         append_field(rds, first_rds, "pty", std::to_string(patch->pty));
     }
 
-    struct RtPlusFieldSpec {
-        const char *key;
-        const char *patch_val;
-        const std::string &cache_val;
-    };
+    std::string rt_plus;
+    bool first_rt_plus = true;
+    for (int type = 1; type < kRdsRtpContentTypeTableSize; ++type) {
+        const char *value = patch->rt_plus[type];
 
-    const RtPlusFieldSpec rtp_fields[] = {
-        {"title", patch->rt_plus_title, cache.rt_plus_title},
-        {"artist", patch->rt_plus_artist, cache.rt_plus_artist},
-        {"album", patch->rt_plus_album, cache.rt_plus_album},
-    };
-
-    bool rtp_changed = false;
-    for (const auto &f : rtp_fields) {
-        if (f.patch_val != nullptr && f.cache_val != f.patch_val) {
-            rtp_changed = true;
-            break;
+        if (value && is_rt_plus_field(type) && cache.rt_plus[type] != value) {
+            append_field(
+                    rt_plus,
+                    first_rt_plus,
+                    get_rds_rt_plus_content_type_name(type),
+                    json_escape(value)
+            );
         }
     }
-
-    if (rtp_changed) {
-        std::string rt_plus;
-        bool first_rtp = true;
-        for (const auto &f : rtp_fields) {
-            if (f.patch_val != nullptr) {
-                append_field(rt_plus, first_rtp, f.key, json_escape(f.patch_val));
-            } else {
-                append_field(rt_plus, first_rtp, f.key, json_escape(f.cache_val));
-            }
-        }
+    if (!rt_plus.empty()) {
         append_field(rds, first_rds, "rt_plus", "{" + rt_plus + "}");
     }
 
@@ -330,15 +316,9 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
                 : patch->sinr;
     }
 
-    if (patch->rt_plus_title != nullptr) {
-        cache->rt_plus_title = patch->rt_plus_title;
-    }
-
-    if (patch->rt_plus_artist != nullptr) {
-        cache->rt_plus_artist = patch->rt_plus_artist;
-    }
-
-    if (patch->rt_plus_album != nullptr) {
-        cache->rt_plus_album = patch->rt_plus_album;
+    for (int type = 1; type < kRdsRtpContentTypeTableSize; ++type) {
+        if (patch->rt_plus[type] && is_rt_plus_field(type)) {
+            cache->rt_plus[type] = patch->rt_plus[type];
+        }
     }
 }

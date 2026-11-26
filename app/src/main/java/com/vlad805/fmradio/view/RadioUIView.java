@@ -6,8 +6,10 @@ import android.graphics.Color;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TableLayout;
 import android.widget.TextView;
 
 import androidx.annotation.StringRes;
@@ -25,8 +27,11 @@ import com.vlad805.fmradio.Storage;
 import com.vlad805.fmradio.Utils;
 import com.vlad805.fmradio.UtilsLocalization;
 import com.vlad805.fmradio.controller.RadioState;
+import com.vlad805.fmradio.models.RtPlusFields;
 import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.preferences.BandUtils;
+
+import java.util.Map;
 
 /**
  * UI binder/controller for the tuner frequency, RDS metadata, and RT+ overlay.
@@ -43,9 +48,9 @@ public final class RadioUIView {
 
 	private final ViewGroup mRtCard;
 	private final View mRtPlusOverlay;
-	private final TextView mRtPlusArtist;
-	private final TextView mRtPlusTitle;
-	private final TextView mRtPlusAlbum;
+	private final TableLayout mRtPlusFields;
+	private final Map<String, String> mRtPlusLabels;
+	private RtPlusInfo mDisplayedRtPlus = RtPlusInfo.EMPTY;
 
 	private final MaterialCardView mBtnToggleRtPlus;
 
@@ -73,9 +78,8 @@ public final class RadioUIView {
 
 		mRtCard = root.findViewById(R.id.rt_card);
 		mRtPlusOverlay = root.findViewById(R.id.rt_plus_overlay);
-		mRtPlusArtist = root.findViewById(R.id.rt_plus_artist_value);
-		mRtPlusTitle = root.findViewById(R.id.rt_plus_title_value);
-		mRtPlusAlbum = root.findViewById(R.id.rt_plus_album_value);
+		mRtPlusFields = root.findViewById(R.id.rt_plus_fields);
+		mRtPlusLabels = RtPlusFields.localizedLabels(mContext.getResources());
 
 		mBtnToggleRtPlus = root.findViewById(R.id.btn_toggle_rt_plus);
 		mBtnToggleRtPlus.setOnClickListener(v -> setRtPlusMode(!mShowRtPlusMode));
@@ -227,23 +231,12 @@ public final class RadioUIView {
 		}
 
 		final RtPlusInfo rtPlus = state.getRtPlus() != null ? state.getRtPlus() : RtPlusInfo.EMPTY;
-		final String artist = rtPlus.getArtist().trim();
-		final String title = rtPlus.getTitle().trim();
-		final String album = rtPlus.getAlbum().trim();
-
-		if (mRtPlusArtist != null) {
-			mRtPlusArtist.setText(artist.isEmpty() ? placeholder : artist);
-		}
-		if (mRtPlusTitle != null) {
-			mRtPlusTitle.setText(title.isEmpty() ? placeholder : title);
-		}
-		if (mRtPlusAlbum != null) {
-			mRtPlusAlbum.setText(album.isEmpty() ? placeholder : album);
-		}
+		showRtPlusFields(rtPlus);
 
 		final boolean hasRtPlus = !rtPlus.isEmpty();
 		if (mBtnToggleRtPlus != null) {
 			final int nextVisibility = hasRtPlus ? View.VISIBLE : View.GONE;
+
 			if (mBtnToggleRtPlus.getVisibility() != nextVisibility) {
 				if (mRtCard != null && mRtCard.isLaidOut()) {
 					final TransitionSet transition = new TransitionSet()
@@ -253,9 +246,11 @@ public final class RadioUIView {
 							.setInterpolator(new FastOutSlowInInterpolator());
 					TransitionManager.beginDelayedTransition(mRtCard, transition);
 				}
+
 				mBtnToggleRtPlus.setVisibility(nextVisibility);
 			}
 		}
+
 		if (!hasRtPlus && mShowRtPlusMode) {
 			setRtPlusMode(false);
 		}
@@ -274,6 +269,25 @@ public final class RadioUIView {
 		if (!nextPi.equals(mLastPiText)) {
 			mLastPiText = nextPi;
 			setTextSmooth(mRdsPi, nextPi);
+		}
+	}
+
+	private void showRtPlusFields(final RtPlusInfo info) {
+		if (info.equals(mDisplayedRtPlus)) {
+			return;
+		}
+
+		mDisplayedRtPlus = info;
+		mRtPlusFields.removeAllViews();
+		final LayoutInflater inflater = LayoutInflater.from(mContext);
+
+		for (Map.Entry<String, String> field : info.getFields().entrySet()) {
+			final View row = inflater.inflate(R.layout.rt_plus_field, mRtPlusFields, false);
+			final TextView label = row.findViewById(R.id.rt_plus_field_label);
+			final TextView value = row.findViewById(R.id.rt_plus_field_value);
+			label.setText(mRtPlusLabels.get(field.getKey()));
+			value.setText(field.getValue());
+			mRtPlusFields.addView(row);
 		}
 	}
 
@@ -383,15 +397,7 @@ public final class RadioUIView {
 		} else {
 			mRdsRt.setText(R.string.rds_rt_empty);
 		}
-		if (mRtPlusArtist != null) {
-			mRtPlusArtist.setText(placeholder);
-		}
-		if (mRtPlusTitle != null) {
-			mRtPlusTitle.setText(placeholder);
-		}
-		if (mRtPlusAlbum != null) {
-			mRtPlusAlbum.setText(placeholder);
-		}
+		showRtPlusFields(RtPlusInfo.EMPTY);
 		if (mBtnToggleRtPlus != null) {
 			mBtnToggleRtPlus.setVisibility(View.GONE);
 		}

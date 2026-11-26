@@ -3,11 +3,17 @@ package com.vlad805.fmradio.service.recording;
 import com.vlad805.fmradio.models.RtPlusInfo;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /** Immutable RDS state; empty strings represent unknown or cleared values. */
 public final class RdsSnapshot {
     public static final RdsSnapshot EMPTY = new RdsSnapshot(0, "", "", "", RtPlusInfo.EMPTY);
+
+    // These content types share the compact track line in an SRT cue.
+    private static final String TITLE = "ITEM.TITLE";
+    private static final String ALBUM = "ITEM.ALBUM";
+    private static final String ARTIST = "ITEM.ARTIST";
 
     private final int frequencyKhz;
     private final String ps;
@@ -33,7 +39,7 @@ public final class RdsSnapshot {
         this(frequencyKhz, ps, rt, pi, RtPlusInfo.EMPTY);
     }
 
-    public String toSubtitleText() {
+    public String toSubtitleText(final Map<String, String> rtPlusLabels) {
         final String frequency = frequencyKhz > 0
                 ? String.format(Locale.US, "%.2f", frequencyKhz / 1000.0).replaceAll("0$", "")
                 : "—";
@@ -45,11 +51,31 @@ public final class RdsSnapshot {
         final StringBuilder builder = new StringBuilder();
         builder.append(frequency).append(" MHz [").append(programId).append("]\nPS: ").append(display(ps)).append("\nRT: ").append(display(rt));
 
-        if (!rtPlus.isEmpty()) {
-            builder.append("\nRT+: ").append(display(rtPlus.getFormattedText()));
+        final String track = formatTrack();
+        if (!track.isEmpty()) {
+            builder.append("\nRT+: ").append(display(normalize(track)));
+        }
+        for (Map.Entry<String, String> field : rtPlus.getFields().entrySet()) {
+            final String key = field.getKey();
+            if (TITLE.equals(key) || ARTIST.equals(key) || ALBUM.equals(key)) {
+                continue;
+            }
+            builder.append("\nRT+ ").append(rtPlusLabels.get(key)).append(": ")
+                    .append(display(normalize(field.getValue())));
         }
 
         return builder.toString();
+    }
+
+    private String formatTrack() {
+        final String artist = rtPlus.get(ARTIST);
+        final String title = rtPlus.get(TITLE);
+        final String album = rtPlus.get(ALBUM);
+        final String track = artist.isEmpty() || title.isEmpty() ? artist + title : artist + " — " + title;
+        if (album.isEmpty()) {
+            return track;
+        }
+        return track.isEmpty() ? album : track + " (" + album + ")";
     }
 
     private static String normalize(final String value) {

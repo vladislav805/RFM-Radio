@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.TunerStatus;
+import com.vlad805.fmradio.models.RtPlusFields;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 
@@ -34,9 +35,9 @@ public class NativeEventParserTest {
     @Test
     public void dispatchesValidStatePatchWithoutIntent() {
         final MapJsonObject rtPlus = new MapJsonObject()
-                .put("title", "  Song Name\nLine2  ")
-                .put("artist", "Artist")
-                .put("album", "Album");
+                .put("ITEM.TITLE", "  Song Name\nLine2  ")
+                .put("ITEM.ARTIST", "Artist")
+                .put("ITEM.ALBUM", "Album");
 
         final MapJsonObject rds = new MapJsonObject()
                 .put("ps", "  ROCK FM  ")
@@ -69,9 +70,9 @@ public class NativeEventParserTest {
         assertEquals("UA", patch.getCountry());
         assertEquals(Integer.valueOf(11), patch.getPty());
         assertArrayEquals(new int[]{101700, 102500}, patch.getAf());
-        assertEquals("Song Name Line2", patch.getRtPlusTitle());
-        assertEquals("Artist", patch.getRtPlusArtist());
-        assertEquals("Album", patch.getRtPlusAlbum());
+        assertEquals("Song Name Line2", patch.getRtPlusFields().get("ITEM.TITLE"));
+        assertEquals("Artist", patch.getRtPlusFields().get("ITEM.ARTIST"));
+        assertEquals("Album", patch.getRtPlusFields().get("ITEM.ALBUM"));
     }
 
     @Test
@@ -120,15 +121,74 @@ public class NativeEventParserTest {
         final MapJsonObject message = new MapJsonObject()
                 .put("type", "state")
                 .put("rds", new MapJsonObject()
-                        .put("rt_plus", new MapJsonObject().put("title", "Only Title")));
+                        .put("rt_plus", new MapJsonObject().put("ITEM.TITLE", "Only Title")));
 
         parser.handle(message);
 
         assertEquals(1, callback.patches.size());
         final RadioStatePatch patch = callback.patches.get(0);
-        assertEquals("Only Title", patch.getRtPlusTitle());
-        assertNull(patch.getRtPlusArtist());
-        assertNull(patch.getRtPlusAlbum());
+        assertEquals("Only Title", patch.getRtPlusFields().get("ITEM.TITLE"));
+        assertNull(patch.getRtPlusFields().get("ITEM.ARTIST"));
+        assertNull(patch.getRtPlusFields().get("ITEM.ALBUM"));
+    }
+
+    @Test
+    public void emptyAndNullValuesClearOnlyTheirOwnFields() {
+        final RadioState state = new RadioState();
+        applyFields(state, new MapJsonObject().put("ITEM.TITLE", "Song").put("ITEM.ALBUM", "Album").put("ITEM.ARTIST", "Artist"));
+        assertEquals(Map.of("ITEM.TITLE", "Song", "ITEM.ALBUM", "Album", "ITEM.ARTIST", "Artist"), state.getRtPlus().getFields());
+        applyFields(state, new MapJsonObject().put("ITEM.TITLE", ""));
+        assertEquals(Map.of("ITEM.ALBUM", "Album", "ITEM.ARTIST", "Artist"), state.getRtPlus().getFields());
+        applyFields(state, new MapJsonObject().put("ITEM.ALBUM", null));
+        assertEquals(Map.of("ITEM.ARTIST", "Artist"), state.getRtPlus().getFields());
+    }
+
+    @Test
+    public void preservesTheWireNamesOfAllAssignedContentTypes() {
+        final RadioState state = new RadioState();
+        final MapJsonObject payload = new MapJsonObject();
+        final Map<String, String> expected = new LinkedHashMap<>();
+        for (String key : RtPlusFields.names()) {
+            final String value = "Field " + key;
+            payload.put(key, value);
+            expected.put(key, value);
+        }
+
+        applyFields(state, payload);
+        assertEquals(61, expected.size());
+        assertEquals(expected, state.getRtPlus().getFields());
+    }
+
+    @Test
+    public void unknownRtPlusKeysDoNotProduceAStatePatch() {
+        final MapJsonObject fields = new MapJsonObject().put("UNKNOWN", "dummy").put("RESERVED", "reserved")
+                .put("1", "numeric").put("25", "numeric")
+                .put("title", "Song").put("album", "Album").put("artist", "Artist");
+        parser.handle(new MapJsonObject().put("type", "state")
+                .put("rds", new MapJsonObject().put("rt_plus", fields)));
+        assertTrue(callback.patches.isEmpty());
+    }
+
+    @Test
+    public void partialUpdatesMergeByContentTypeAndEmptyValuesRemoveRows() {
+        final RadioState state = new RadioState();
+        applyFields(state, new MapJsonObject().put("ITEM.ARTIST", "Artist").put("INFO.WEATHER", " Rain ")
+                .put("RESERVED", "reserved").put("PRIVATE.56", "Station data").put("DESCRIPTOR.GET_DATA", " More\ninfo "));
+        assertEquals(4, state.getRtPlus().getFields().size());
+        assertEquals("More info", state.getRtPlus().getFields().get("DESCRIPTOR.GET_DATA"));
+        applyFields(state, new MapJsonObject().put("ITEM.ARTIST", " ").put("INFO.WEATHER", "").put("PROGRAMME.HOMEPAGE", "fm.example"));
+        assertEquals(3, state.getRtPlus().getFields().size());
+        assertEquals("Station data", state.getRtPlus().getFields().get("PRIVATE.56"));
+        assertNull(state.getRtPlus().getFields().get("INFO.WEATHER"));
+        assertNull(state.getRtPlus().getFields().get("ITEM.ARTIST"));
+        applyFields(state, new MapJsonObject());
+        assertTrue(state.getRtPlus().isEmpty());
+    }
+
+    private void applyFields(final RadioState state, final MapJsonObject fields) {
+        parser.handle(new MapJsonObject().put("type", "state")
+                .put("rds", new MapJsonObject().put("rt_plus", fields)));
+        state.applyPatch(callback.patches.get(callback.patches.size() - 1));
     }
 
     private static final class RecordingCallback implements FMEventCallback {
@@ -228,6 +288,11 @@ public class NativeEventParserTest {
             return val instanceof NativeEventParser.JsonArrayView
                     ? (NativeEventParser.JsonArrayView) val
                     : null;
+        }
+
+        @Override
+        public Iterable<String> keys() {
+            return entries.keySet();
         }
 
         @Override

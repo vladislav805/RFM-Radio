@@ -1,4 +1,5 @@
 #include "rt_plus_context.h"
+#include "rt_plus_test_types.h"
 
 #include <gtest/gtest.h>
 #include <string>
@@ -16,20 +17,20 @@ TEST(RtPlusContextTest, AcceptsTextAndTagsInEitherOrderAfterStationReset) {
     };
 
     context.set_tags(tags);
-    EXPECT_STREQ(context.slices().title, "");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "");
     context.set_text(text);
-    EXPECT_STREQ(context.slices().title, "é");
-    EXPECT_STREQ(context.slices().artist, "B");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "é");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeArtist], "B");
 
     context.reset();
     context.set_text(text);
-    EXPECT_STREQ(context.slices().artist, "");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeArtist], "");
     context.set_tags(tags);
-    EXPECT_STREQ(context.slices().title, "é");
-    EXPECT_STREQ(context.slices().artist, "B");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "é");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeArtist], "B");
 }
 
-TEST(RtPlusContextTest, ReplacingTagsDropsPreviousSlotsAndRetainsText) {
+TEST(RtPlusContextTest, SuccessiveTagPairsMergeFieldsOfTheSameRadioText) {
     RtPlusContext context(kTestLog);
     const RdsTextPayload text{.raw_text = {'A', 'B'}, .raw_text_len = 2};
     RdsRtPlusPayload tags{
@@ -38,17 +39,17 @@ TEST(RtPlusContextTest, ReplacingTagsDropsPreviousSlotsAndRetainsText) {
     };
     context.set_text(text);
     context.set_tags(tags);
-    EXPECT_STREQ(context.slices().artist, "B");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeArtist], "B");
 
     tags.tag_count = 1;
     context.set_tags(tags);
-    EXPECT_STREQ(context.slices().artist, "");
-    EXPECT_STREQ(context.slices().title, "A");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeArtist], "B");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "A");
 
     context.set_tags({});
-    EXPECT_STREQ(context.slices().title, "");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "");
     context.set_tags(tags);
-    EXPECT_STREQ(context.slices().title, "A");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "A");
 }
 
 TEST(RtPlusContextTest, KeepsBackendLogPrefixAcrossStationReset) {
@@ -58,9 +59,9 @@ TEST(RtPlusContextTest, KeepsBackendLogPrefixAcrossStationReset) {
     context.reset();
     context.set_tags(tags);
 
-    EXPECT_STREQ(context.slices().title, "");
+    EXPECT_EQ(context.fields().values[kRdsRtpContentTypeTitle], "");
     testing::internal::CaptureStderr();
-    context.log_slices();
+    context.set_text({.raw_text = {'B'}, .raw_text_len = 1});
     const std::string log = testing::internal::GetCapturedStderr();
     EXPECT_EQ(log.find("test-backend/rds"), 0u);
 }
@@ -78,10 +79,10 @@ TEST(RtPlusContextTest, EvaluatesRtPlusSlices) {
             .tag_count = 2
     });
 
-    const auto slices = context.slices();
+    const auto slices = context.fields().values;
 
-    EXPECT_STREQ(slices.artist, "Valeriy Syutkin");
-    EXPECT_STREQ(slices.title, "Stil'nyy oranjevyy galstuk");
+    EXPECT_EQ(slices[kRdsRtpContentTypeArtist], "Valeriy Syutkin");
+    EXPECT_EQ(slices[kRdsRtpContentTypeTitle], "Stil'nyy oranjevyy galstuk");
 }
 
 TEST(RtPlusContextTest, EvaluatesRtPlusAlbumSlices) {
@@ -96,9 +97,9 @@ TEST(RtPlusContextTest, EvaluatesRtPlusAlbumSlices) {
             .tag_count = 1
     });
 
-    const auto slices = context.slices();
+    const auto slices = context.fields().values;
 
-    EXPECT_STREQ(slices.album, "Greatest Hits");
+    EXPECT_EQ(slices[kRdsRtpContentTypeAlbum], "Greatest Hits");
 }
 
 TEST(RtPlusContextTest, EvaluatesRtPlusSlicesWithMultiByteEbuCharacters) {
@@ -130,9 +131,9 @@ TEST(RtPlusContextTest, EvaluatesRtPlusSlicesWithMultiByteEbuCharacters) {
             .tag_count = 1
     });
 
-    const auto slices = context.slices();
+    const auto slices = context.fields().values;
 
-    EXPECT_STREQ(slices.title, "Song");
+    EXPECT_EQ(slices[kRdsRtpContentTypeTitle], "Song");
 }
 
 TEST(RtPlusContextTest, EvaluatesRtPlusSlicesClearsWhenInvalidOrOutOfRange) {
@@ -148,10 +149,58 @@ TEST(RtPlusContextTest, EvaluatesRtPlusSlicesClearsWhenInvalidOrOutOfRange) {
             .tag_count = 2
     });
 
-    const auto slices = context.slices();
+    const auto slices = context.fields().values;
 
-    EXPECT_STREQ(slices.title, "");
-    EXPECT_STREQ(slices.artist, "");
+    EXPECT_EQ(slices[kRdsRtpContentTypeTitle], "");
+    EXPECT_EQ(slices[kRdsRtpContentTypeArtist], "");
+}
+
+TEST(RtPlusContextTest, VendorItemTagsCanPrecedeUpdatedTextAtTheSameOffsets) {
+    RtPlusContext context(kTestLog);
+    context.set_text({.raw_text = {'A', 'B'}, .raw_text_len = 2});
+    context.set_tags({.tags = {{1, 0, 1}, {4, 1, 1}}, .tag_count = 2});
+    context.set_text({.raw_text = {'C', 'D'}, .raw_text_len = 2});
+    EXPECT_EQ(context.fields().values[1], "C");
+    EXPECT_EQ(context.fields().values[4], "D");
+}
+
+TEST(RtPlusContextTest, SwitchingTagSourceClearsFieldsAndKeepsOrdinaryRadioText) {
+    RtPlusContext context(kTestLog);
+    context.set_text({.raw_text = {'A', 'B'}, .raw_text_len = 2});
+    context.set_tags({.tags = {{39, 0, 1}}, .tag_count = 1});
+    context.clear_tags();
+    EXPECT_TRUE(context.fields().values[39].empty());
+    context.set_tags({.tags = {{25, 1, 1}}, .tag_count = 1});
+    EXPECT_EQ(context.fields().values[25], "B");
+}
+
+TEST(RtPlusContextTest, DecodesAllAssignedAndPrivateFieldsAcrossTagGroups) {
+    RtPlusContext context(kTestLog);
+    // Several groups can arrive before the first complete RT.
+    for (int type = 0; type < 64; type += 2) {
+        context.set_tags({
+                .tags = {{type, 0, 1}, {type + 1, 1, 2}},
+                .tag_count = 2
+        });
+    }
+    context.set_text({.raw_text = {'A', 0x82, 'B'}, .raw_text_len = 3});
+    const auto &values = context.fields().values;
+    for (int type = 0; type < 64; ++type) {
+        if (type == 0 || type == 54 || type == 55) {
+            EXPECT_TRUE(values[type].empty()) << type;
+        } else {
+            EXPECT_EQ(values[type], type % 2 == 0 ? "A" : "éB") << type;
+        }
+    }
+    // The station homepage survives a new RT and can be deleted with a tagged blank.
+    context.set_text({.raw_text = {' ', 'C'}, .raw_text_len = 2});
+    EXPECT_TRUE(values[kRdsRtpContentTypeTitle].empty());
+    EXPECT_EQ(values[39], "éB");
+    context.set_tags({.tags = {{39, 0, 1}, {63, 50, 2}}, .tag_count = 2});
+    EXPECT_TRUE(values[39].empty());
+    EXPECT_EQ(values[63], "éB");
+    context.reset();
+    EXPECT_TRUE(values[63].empty());
 }
 
 }  // namespace

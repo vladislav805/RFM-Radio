@@ -580,77 +580,72 @@ bool parse_rds_rt_plus_payload(
 
 constexpr const char *kRtpContentTypeUnknown = "UNKNOWN";
 
-constexpr const char *kRtpContentTypeNames[64] = {
-        kRtpContentTypeUnknown,        // 0
-        // Class 1: Item
-        "ITEM.TITLE",                  // 1
-        "ITEM.ALBUM",                  // 2
-        "ITEM.TRACKNUMBER",            // 3
-        "ITEM.ARTIST",                 // 4
-        "ITEM.COMPOSITION",            // 5
-        "ITEM.MOVEMENT",               // 6
-        "ITEM.CONDUCTOR",              // 7
-        "ITEM.COMPOSER",               // 8
-        "ITEM.BAND",                   // 9
-        "ITEM.COMMENT",                // 10
-        "ITEM.GENRE",                  // 11
-        // Class 2: Info
-        "INFO.NEWS",                   // 12
-        "INFO.NEWS.LOCAL",             // 13
-        "INFO.STOCK",                  // 14
-        "INFO.SPORT",                  // 15
-        "INFO.LOTTERY",                // 16
-        "INFO.HOROSCOPE",              // 17
-        "INFO.DAILY_DIVER",            // 18
-        "INFO.HEALTH",                 // 19
-        "INFO.EVENT",                  // 20
-        "INFO.SCENE",                  // 21
-        "INFO.CINEMA",                 // 22
-        "INFO.TV",                     // 23
-        "INFO.DATE_TIME",              // 24
-        "INFO.WEATHER",                // 25
-        "INFO.TRAFFIC",                // 26
-        "INFO.ALARM",                  // 27
-        "INFO.ADVERTISEMENT",          // 28
-        "INFO.URL",                    // 29
-        "INFO.OTHER",                  // 30
-        // Class 3: Program
-        "PROGRAM.STATIONNAME",         // 31
-        "PROGRAM.NOW",                 // 32
-        "PROGRAM.NEXT",                // 33
-        "PROGRAM.PART",                // 34
-        "PROGRAM.HOST",                // 35
-        "PROGRAM.EDITORIAL_STAFF",     // 36
-        "PROGRAM.FREQUENCY",           // 37
-        "PROGRAM.HOMEPAGE",            // 38
-        "PROGRAM.SUBCHANNEL",          // 39
-        // Class 4: Interactivity
-        "INTERACTIVITY.PHONE.HOTLINE", // 40
-        "INTERACTIVITY.PHONE.STUDIO",  // 41
-        "INTERACTIVITY.PHONE.OTHER",   // 42
-        "INTERACTIVITY.SMS.STUDIO",    // 43
-        "INTERACTIVITY.SMS.OTHER",     // 44
-        "INTERACTIVITY.EMAIL.HOTLINE", // 45
-        "INTERACTIVITY.EMAIL.STUDIO",  // 46
-        "INTERACTIVITY.EMAIL.OTHER",   // 47
-        "INTERACTIVITY.MMS.OTHER",     // 48
-        "INTERACTIVITY.CHAT",          // 49
-        "INTERACTIVITY.CHAT.CENTER",   // 50
-        "INTERACTIVITY.VOTE.QUESTION", // 51
-        "INTERACTIVITY.VOTE.CENTRE",   // 52
-        // Class 5: Descriptor
-        "DESCRIPTOR.PLACE",            // 53
-        "DESCRIPTOR.APPOINTMENT",      // 54
-        "DESCRIPTOR.IDENTIFIER",       // 55
-        "DESCRIPTOR.PURCHASE",         // 56
-        "DESCRIPTOR.GET_DATA",         // 57
-        // Reserved
-        kRtpContentTypeUnknown,        // 58
-        kRtpContentTypeUnknown,        // 59
-        kRtpContentTypeUnknown,        // 60
-        kRtpContentTypeUnknown,        // 61
-        kRtpContentTypeUnknown,        // 62
-        kRtpContentTypeUnknown,        // 63
+// ETSI TS 102 980, table A.1 (codes shared with FM RT+).
+constexpr const char *kRtpContentTypeNames[kRdsRtpContentTypeTableSize] = {
+        "UNKNOWN",  // 0
+        "ITEM.TITLE",  // 1
+        "ITEM.ALBUM",  // 2
+        "ITEM.TRACKNUMBER",  // 3
+        "ITEM.ARTIST",  // 4
+        "ITEM.COMPOSITION",  // 5
+        "ITEM.MOVEMENT",  // 6
+        "ITEM.CONDUCTOR",  // 7
+        "ITEM.COMPOSER",  // 8
+        "ITEM.BAND",  // 9
+        "ITEM.COMMENT",  // 10
+        "ITEM.GENRE",  // 11
+        "INFO.NEWS",  // 12
+        "INFO.NEWS.LOCAL",  // 13
+        "INFO.STOCKMARKET",  // 14
+        "INFO.SPORT",  // 15
+        "INFO.LOTTERY",  // 16
+        "INFO.HOROSCOPE",  // 17
+        "INFO.DAILY_DIVERSION",  // 18
+        "INFO.HEALTH",  // 19
+        "INFO.EVENT",  // 20
+        "INFO.SCENE",  // 21
+        "INFO.CINEMA",  // 22
+        "INFO.TV",  // 23
+        "INFO.DATE_TIME",  // 24
+        "INFO.WEATHER",  // 25
+        "INFO.TRAFFIC",  // 26
+        "INFO.ALARM",  // 27
+        "INFO.ADVERTISEMENT",  // 28
+        "INFO.URL",  // 29
+        "INFO.OTHER",  // 30
+        "STATIONNAME.SHORT",  // 31
+        "STATIONNAME.LONG",  // 32
+        "PROGRAMME.NOW",  // 33
+        "PROGRAMME.NEXT",  // 34
+        "PROGRAMME.PART",  // 35
+        "PROGRAMME.HOST",  // 36
+        "PROGRAMME.EDITORIAL_STAFF",  // 37
+        "PROGRAMME.FREQUENCY",  // 38
+        "PROGRAMME.HOMEPAGE",  // 39
+        "PROGRAMME.SUBCHANNEL",  // 40
+        "PHONE.HOTLINE",  // 41
+        "PHONE.STUDIO",  // 42
+        "PHONE.OTHER",  // 43
+        "SMS.STUDIO",  // 44
+        "SMS.OTHER",  // 45
+        "EMAIL.HOTLINE",  // 46
+        "EMAIL.STUDIO",  // 47
+        "EMAIL.OTHER",  // 48
+        "MMS.OTHER",  // 49
+        "CHAT",  // 50
+        "CHAT.CENTER",  // 51
+        "VOTE.QUESTION",  // 52
+        "VOTE.CENTRE",  // 53
+        "RESERVED",  // 54
+        "RESERVED",  // 55
+        "PRIVATE.56",  // 56
+        "PRIVATE.57",  // 57
+        "PRIVATE.58",  // 58
+        "DESCRIPTOR.PLACE",  // 59
+        "DESCRIPTOR.APPOINTMENT",  // 60
+        "DESCRIPTOR.IDENTIFIER",  // 61
+        "DESCRIPTOR.PURCHASE",  // 62
+        "DESCRIPTOR.GET_DATA",  // 63
 };
 
 const char *get_rds_rt_plus_content_type_name(int content_type) {

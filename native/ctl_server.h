@@ -1,5 +1,7 @@
 #pragma once
 
+#include "rt_plus_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,9 +24,7 @@ typedef struct {
     int stereo;
     int rmssi;
     int sinr;
-    const char *rt_plus_title;
-    const char *rt_plus_artist;
-    const char *rt_plus_album;
+    const char *rt_plus[kRdsRtpContentTypeTableSize];
 } radio_state_patch_t;
 
 typedef struct {

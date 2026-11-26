@@ -15,7 +15,7 @@ function emit(obj) {
     process.stdout.write(`${JSON.stringify(obj)}\n`);
 }
 
-emit({ type: "ready", protocol: 1, pid: process.pid });
+emit({ type: "ready", pid: process.pid });
 
 const rl = readline.createInterface({ input: process.stdin });
 rl.on("close", () => {

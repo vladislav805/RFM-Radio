@@ -46,6 +46,8 @@ node --test integration-tests/fmbin.test.mts
 
 ## RDS Coverage and Broadcast Fixtures
 
+Any populated RT+ content type satisfies the `rt_plus` requirement, including station and programme information.
+
 Live over-the-air stations do not always broadcast optional `RT+` (ODA group 3A/tags) or `AF` lists, so `rds.test.mts` defaults to `RFM_RDS_REQUIRE=ps,rt` and logs any unobserved optional fields as diagnostics rather than failures.
 
 To deterministically validate all four groups (`RFM_RDS_REQUIRE=ps,rt,rt_plus,af` or `RFM_RDS_REQUIRE=all`), use a controlled low-power FM test transmitter / RF signal generator (such as an SDR or dedicated RDS encoder broadcasting PS, RT, RT+ 3A/tags, and AF) tuned cleanly inside the selected region, and point `RFM_INITIAL_FREQ` at the fixture carrier if desired.

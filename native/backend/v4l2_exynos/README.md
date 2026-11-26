@@ -93,8 +93,9 @@ Audio routing and capture run separately in Android's audio HAL through
     two consecutive matching readings (`*_hits >= 2`) so stale/stray blocks and
     mid-cycle dynamic PS splices (e.g. `"106.RD"` before `"106.3"`) are suppressed.
   - Group 3A (`AID = 0x4BD7`) identifies the ODA group carrying the two
-    RT+ tags. The decoder stores the tag pair and the last complete RadioText
-    in its `RtPlusContext` and calls `slices()` to extract title, artist and album.
+    RT+ tags. The decoder passes their type, offsets and item flags to
+    `RtPlusContext`. A stopped or toggled item clears track fields, while
+    station and programme fields can span several RadioText messages.
 
 ## Logs
 

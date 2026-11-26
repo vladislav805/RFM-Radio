@@ -168,9 +168,6 @@
     <string name="rds_placeholder" translatable="false">—</string>
     <string name="rds_rt_empty">No RadioText broadcast</string>
     <string name="rds_rt_plus_label" translatable="false">RT+</string>
-    <string name="rds_rt_plus_title">Title</string>
-    <string name="rds_rt_plus_artist">Artist</string>
-    <string name="rds_rt_plus_album">Album</string>
     <string name="rds_pi_prefix" translatable="false">PI</string>
     <string name="rds_pty_prefix" translatable="false">PTY</string>
     <string name="rds_af_label" translatable="false">AF</string>

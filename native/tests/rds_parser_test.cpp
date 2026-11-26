@@ -958,7 +958,7 @@ TEST(RdsParserTest, ReturnsRdsRtPlusContentTypeNames) {
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(4), "ITEM.ARTIST");
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(11), "ITEM.GENRE");
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(29), "INFO.URL");
-    EXPECT_STREQ(get_rds_rt_plus_content_type_name(40), "INTERACTIVITY.PHONE.HOTLINE");
+    EXPECT_STREQ(get_rds_rt_plus_content_type_name(41), "PHONE.HOTLINE");
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(0), "UNKNOWN");
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(64), "UNKNOWN");
     EXPECT_STREQ(get_rds_rt_plus_content_type_name(-1), "UNKNOWN");

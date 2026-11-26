@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 public final class NativeProcessSession {
     private static final String TAG = "RFM-QCOM";
-    private static final int PROTOCOL_VERSION = 1;
     private static final long PROCESS_EXIT_POLL_MS = 50L;
 
     public interface LifecycleListener {
@@ -289,14 +288,13 @@ public final class NativeProcessSession {
     }
 
     private void handleReady(final JSONObject json) {
-        final int protocol = json.optInt("protocol", -1);
         final int pid = json.optInt("pid", -1);
         final String backend = json.has("backend") && !json.isNull("backend")
                 ? json.optString("backend", "")
                 : "";
         synchronized (stateLock) {
-            if (protocol != PROTOCOL_VERSION || pid <= 0) {
-                launchFailure = new IOException("Unsupported native protocol handshake");
+            if (pid <= 0) {
+                launchFailure = new IOException("Invalid PID in native ready event");
             } else {
                 nativePid = pid;
                 nativeBackend = backend.isEmpty() ? null : backend;

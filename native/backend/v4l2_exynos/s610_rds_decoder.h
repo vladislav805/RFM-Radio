@@ -40,14 +40,14 @@ private:
         int rtplus_group = -1;
         bool rtplus_group_is_b = false;
         bool rtplus_ert = false;
-        RdsRtPlusSlices rtplus_slices = {};
+        RtPlusFields rtplus_fields = {};
         char country[4] = {};
         char country_candidate[4] = {};
         int country_hits = 0;
     };
 
     bool decode_group(radio_state_patch_t &patch);
-    void update_rt_plus_slices(const RdsRtPlusSlices &slices, radio_state_patch_t &patch, bool &dirty);
+    void update_rt_plus_fields(radio_state_patch_t &patch, bool &dirty);
 
     RdsDecoderState rds_;
     RtPlusContext rt_plus_;

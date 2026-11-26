@@ -6,6 +6,8 @@ import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Single in-process state model for the radio tuner, audio routing, and recording status.
@@ -248,14 +250,15 @@ public final class RadioState {
             sinr = patch.getSinr();
             mode |= SET_SINR;
         }
-        if (patch.hasRtPlus()) {
-            final RtPlusInfo current = rtPlus != null ? rtPlus : RtPlusInfo.EMPTY;
-            final String title = patch.getRtPlusTitle() != null ? patch.getRtPlusTitle() : current.getTitle();
-            final String artist = patch.getRtPlusArtist() != null ? patch.getRtPlusArtist() : current.getArtist();
-            final String album = patch.getRtPlusAlbum() != null ? patch.getRtPlusAlbum() : current.getAlbum();
-            setRtPlus(title.isEmpty() && artist.isEmpty() && album.isEmpty()
-                    ? null
-                    : new RtPlusInfo(title, artist, album));
+        final Map<String, String> changes = patch.getRtPlusFields();
+        if (changes != null) {
+            if (changes.isEmpty()) {
+                setRtPlus(null);
+            } else {
+                final Map<String, String> merged = new HashMap<>(getRtPlus().getFields());
+                merged.putAll(changes);
+                setRtPlus(new RtPlusInfo(merged));
+            }
             mode |= SET_RT_PLUS;
         }
 

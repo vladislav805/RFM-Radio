@@ -85,6 +85,11 @@ shared JSON writer in [`ctl_server.cpp`](ctl_server.cpp). Writes are serialized
 because vendor callback threads can emit events while the command thread emits
 a response. Native diagnostics go to stderr so stdout remains protocol-only.
 
+The ready event reports the process ID and the detected backend. In a state event,
+`"rds":{"rt_plus":{"ITEM.TITLE":"Song","INFO.WEATHER":"Rain"}}` updates the title and weather.
+Every key in `rt_plus` is an RT+ content type name. An empty string clears that
+field and omitted fields keep their previous values.
+
 ## Supported Commands
 
 The unified binary accepts the same external command API used before the merge:

@@ -196,11 +196,10 @@ int init_server(
 }
 
 radio_state_patch_t radio_state_patch_empty(void) {
-    radio_state_patch_t patch;
+    radio_state_patch_t patch{};
 
     patch.frequency_khz = RADIO_PATCH_ABSENT_INT;
     patch.ps = patch.rt = patch.pi = patch.country = nullptr;
-    patch.rt_plus_title = patch.rt_plus_artist = patch.rt_plus_album = nullptr;
     patch.pty = RADIO_PATCH_ABSENT_INT;
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;
@@ -219,9 +218,11 @@ radio_state_patch_t make_station_metadata_reset_patch(void) {
     patch.country = "";
     patch.pty = 0;
     patch.af_count = 0;
-    patch.rt_plus_title = "";
-    patch.rt_plus_artist = "";
-    patch.rt_plus_album = "";
+
+    for (auto &value : patch.rt_plus) {
+        value = "";
+    }
+
     return patch;
 }
 

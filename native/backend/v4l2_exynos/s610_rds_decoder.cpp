@@ -183,7 +183,7 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
             std::memset(rds_.rt_raw, ' ', sizeof(rds_.rt_raw));
             rds_.rt_mask = 0;
             rds_.rt_end_seg = -1;
-            rt_plus_.set_tags({});
+            rt_plus_.set_text(std::span<const unsigned char>{});
         }
 
         const int seg = b & 0x0F;
@@ -239,12 +239,8 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
                 std::snprintf(rds_.rt_utf8, sizeof(rds_.rt_utf8), "%s", rt_buf);
                 patch.rt = rds_.rt_utf8;
                 dirty = true;
-                // New RadioText string invalidates RT+ tag offsets from the previous message.
-                rt_plus_.set_tags({});
-                update_rt_plus_slices({}, patch, dirty);
-            } else if (!rds_.rtplus_ert && rt_plus_.has_text_and_tags()) {
-                update_rt_plus_slices(rt_plus_.slices(), patch, dirty);
             }
+            update_rt_plus_fields(patch, dirty);
         }
     } else if (
             group_type == 3 &&
@@ -264,7 +260,13 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
             if (!oda_is_b && oda_group >= 3) {
                 rds_.rtplus_group = oda_group;
                 rds_.rtplus_group_is_b = false;
-                rds_.rtplus_ert = ((c >> 13) & 0x01) != 0;
+                const bool ert = ((c >> 13) & 0x01) != 0;
+
+                if (ert != rds_.rtplus_ert) {
+                    rds_.rtplus_ert = ert;
+                    rt_plus_.clear_tags();
+                    update_rt_plus_fields(patch, dirty);
+                }
             }
         }
     } else if (
@@ -283,37 +285,33 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
         const int start2 = (d >> 5) & 0x3F;
         const int len2 = (d & 0x1F) + 1;
 
+        if (rds_.rtplus_ert) {
+            return dirty;
+        }
+
         rt_plus_.set_tags({
+                .toggle = (b & 0x10) != 0,
+                .running = (b & 0x08) != 0,
                 .tags = {{type1, start1, len1}, {type2, start2, len2}},
                 .tag_count = 2
-        });
+        }, true);
 
-        if (!rds_.rtplus_ert && rt_plus_.has_text_and_tags()) {
-            update_rt_plus_slices(rt_plus_.slices(), patch, dirty);
-        }
+        update_rt_plus_fields(patch, dirty);
     }
 
     return dirty;
 }
 
-void S610RdsDecoder::update_rt_plus_slices(
-        const RdsRtPlusSlices &slices,
-        radio_state_patch_t &patch,
-        bool &dirty
-) {
-    if (std::strcmp(rds_.rtplus_slices.title, slices.title) != 0) {
-        std::snprintf(rds_.rtplus_slices.title, sizeof(rds_.rtplus_slices.title), "%s", slices.title);
-        patch.rt_plus_title = rds_.rtplus_slices.title;
-        dirty = true;
-    }
-    if (std::strcmp(rds_.rtplus_slices.artist, slices.artist) != 0) {
-        std::snprintf(rds_.rtplus_slices.artist, sizeof(rds_.rtplus_slices.artist), "%s", slices.artist);
-        patch.rt_plus_artist = rds_.rtplus_slices.artist;
-        dirty = true;
-    }
-    if (std::strcmp(rds_.rtplus_slices.album, slices.album) != 0) {
-        std::snprintf(rds_.rtplus_slices.album, sizeof(rds_.rtplus_slices.album), "%s", slices.album);
-        patch.rt_plus_album = rds_.rtplus_slices.album;
-        dirty = true;
+void S610RdsDecoder::update_rt_plus_fields(radio_state_patch_t &patch, bool &dirty) {
+    const auto &values = rt_plus_.fields().values;
+
+    for (size_t type = 1; type < values.size(); ++type) {
+        auto &published = rds_.rtplus_fields.values[type];
+
+        if (published != values[type]) {
+            published = values[type];
+            patch.rt_plus[type] = published.c_str();
+            dirty = true;
+        }
     }
 }

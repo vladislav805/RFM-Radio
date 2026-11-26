@@ -197,8 +197,10 @@ live in `Storage.java`.
   `onInvalidAntennaError`, `onError`, `onUnexpectedExit`); implemented by
   `FMService`.
 - `RadioStatePatch.java` — nullable fields (frequency, ps, rt, pi, country,
-  pty, af, stereo, rmssi, sinr, and individual RT+ title/artist/album fields
-  supporting both full `RtPlusInfo` and partial updates); `isEmpty()`.
+  pty, af, stereo, rmssi, sinr, and RT+ fields indexed by content type
+  with per-field update and deletion); `isEmpty()`. `NativeEventParser` reads
+  each RT+ field directly under its content type name, such as `ITEM.TITLE`.
+  The parser, state, overlay and recording snapshots use the same string keys.
 - `RecordError.java` — simple `Throwable` subtype for recording errors.
 
 ## service/fm/implementation/
@@ -254,7 +256,7 @@ live in `Storage.java`.
 
 - `start(timeoutMs)`: `ProcessBuilder("su")`, writes `exec '<binary>'`
   (shell-quoted), waits on a `CountDownLatch` for
-  `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (`backend` overrides
+  `{"type":"ready","pid":N,"backend":"..."}` (`backend` overrides
   local sysfs fallback detection in `NativeTunerController`/`FMService` when present).
   Protocol mismatch or pid ≤ 0 → launch failure.
 - Threads: `NativeStdout` (parses lines; non-JSON → warn+skip),
@@ -409,9 +411,12 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   a sibling `.srt` (on Q through `MediaStore.Files` since SRT is not
   "media"); `commitToFile()` (rename with copy fallback),
   `commitToMediaStore()`.
-- `RdsSnapshot.java` — immutable {frequencyKhz, ps, rt, pi, rtPlusTitle, rtPlusArtist};
-  `toSubtitleText()` = "99.8 MHz [0432]\nPS: …\nRT: …\nRT+: …" with HTML escaping
-  and control/space normalization.
+- `RdsSnapshot.java` holds frequency, PS, RT, PI and the complete immutable
+  `RtPlusInfo`. Snapshot equality includes every populated RT+ field.
+  `toSubtitleText(rtPlusLabels)` groups the artist, title and album on one line.
+  The remaining populated fields follow in content type order, each with its
+  localized label from `RtPlusFields.localizedLabels()` selected at recording start.
+  Broadcast text is whitespace-normalized and HTML-escaped for SRT playback.
 - `RdsSubtitleWriter.java` — SRT cues: each snapshot change closes the
   previous cue (`HH:MM:SS,mmm --> …`); `finish(durationMillis)` closes the
   last. Times are PCM-relative, including pre-roll history.
@@ -467,8 +472,7 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
   audio + subtitles via `RecordingStorage.deletePublished`, cancels the
   notification.
 - Views: `RadioUIView` (Material 3 card with frequency, PS/RT/PTY/PI,
-  `MaterialButtonToggleGroup` RT ↔ RT+ mode switcher for structured
-  Artist/Title/Album display, statuses), `FrequencyDialView` (custom Canvas
+  RT+ toggle and scrollable overlay of populated fields with localized labels, statuses), `FrequencyDialView` (custom Canvas
   drum-style horizontal frequency dial themed via Material 3 `MaterialColors`
   with fling physics, haptic ticks, and favorite markers; band/spacing from
   `BandUtils`), `FavoritesView`/`FavoritesRecyclerView`/`FavoritePanelAdapter`

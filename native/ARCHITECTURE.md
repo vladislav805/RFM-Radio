@@ -252,7 +252,7 @@ command so teardown does not wait for Java's regular command queue.
 Native announces a successful exec with (where `backend` is `"v4l2_qcom"`, `"v4l2_exynos"`, `"hal_helium"`, or `"none"`):
 
 ```json
-{"type":"ready","protocol":1,"pid":1234,"backend":"v4l2_qcom"}
+{"type":"ready","pid":1234,"backend":"v4l2_qcom"}
 ```
 
 Command responses use:
@@ -571,7 +571,7 @@ seek so `seek_complete_cb` updates frequency, clears RDS, emits the
 authoritative state patch, and sends a single `seek_done` only for a live
 `seekhw` request (rejecting overlapping `seekhw` / `searchhw` while active).
 Both callbacks use `make_station_metadata_reset_patch()` for PS, RT, PI,
-country, PTY, AF and all three RT+ fields. A standalone seek completion thus
+country, PTY, AF and all RT+ fields. A standalone seek completion thus
 clears the previous track in the frequency update before emitting `seek_done`.
 
 ### Full Search
@@ -640,7 +640,7 @@ already-absent metric clears are deduplicated at JSON serialization time in
 
 Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
 App-facing state includes PS, RT, PI, PTY, AF, stereo, country decoded
-from ECC plus the PI country nibble, and RT+ item title/artist (sliced against raw RT).
+from ECC plus the PI country nibble, and RT+ fields (sliced against raw RT).
 
 The ECC callback (`ext_country_code_cb`) receives the 12-byte RDS group 1A
 payload where `[4]` is the firmware TA/TP header byte and `[5]` is the 1A
@@ -840,7 +840,7 @@ Frequencies retain their native kHz precision.
 ### Legacy RDS and Disable
 
 Legacy configures processed RDS/RBDS groups, raw group masks, data buffers, and
-PS-all behavior. PS, RT, PI, PTY, AF, and RT+ item title/artist (sliced against raw RT)
+PS-all behavior. PS, RT, PI, PTY, AF, and RT+ fields (sliced against raw RT)
 are forwarded to the client. ERT is logged for diagnostics.
 
 Verified `qcom_v4l2` IRIS kernel interfaces (tested on both `msm8953` Mi A1 and
@@ -883,9 +883,16 @@ bytes because RT+ tag start/length indices refer to raw EBU Latin G0 byte offset
 Slicing MUST be performed in C++ on `raw_text` before UTF-8 conversion because
 EBU Latin G0 byte indices do not align with UTF-8 / Java UTF-16 character indices
 when non-ASCII characters or low-byte aliases are present. All three backends
-use `RtPlusContext::slices()` to convert the tagged byte ranges. Each context
-owns the raw text and tag pair across events and uses its backend's `Logger`
-for slice diagnostics.
+use `RtPlusContext` to merge decoded values by content type. Each received group
+contributes up to two tags. Fields 1–53 and 56–63 have displayable values.
+The type assignments follow [ETSI TS 102 980, Annex A](https://www.etsi.org/deliver/etsi_ts/102900_102999/102980/02.01.02_60/ts_102980v020102p.pdf#page=19).
+The JSON writer uses `get_rds_rt_plus_content_type_name()` for each changed field,
+for example `"ITEM.TITLE":"Song"`, `"ITEM.ARTIST":"Artist"` or `"INFO.WEATHER":"Rain"`.
+An empty string deletes a field. A station reset clears every published value.
+Offsets waiting for the first complete RT are resolved on its arrival. S610
+uses the raw item toggle and running bits for the lifetime of item fields.
+On a changed RadioText the Qualcomm paths re-evaluate the most recent item offsets. Station information
+can span several texts on all three backends.
 The Exynos worker reads three-byte blocks and passes the data word, block
 type and error bits to `S610RdsDecoder::process_block()`. The decoder assembles
 groups and updates its context when it completes a RadioText or receives an

@@ -25,11 +25,7 @@ const rdsDwellMs = Number(process.env.RFM_RDS_DWELL_MS ?? "6000");
 const maxSeeks = Number(process.env.RFM_RDS_MAX_SEEKS ?? "35");
 
 function hasNonEmptyRtPlus(rtPlus: RtPlusInfo): boolean {
-    return (
-        (rtPlus.title?.trim().length ?? 0) > 0 ||
-        (rtPlus.artist?.trim().length ?? 0) > 0 ||
-        (rtPlus.album?.trim().length ?? 0) > 0
-    );
+    return Object.values(rtPlus).some(value => typeof value === "string" && value.trim().length > 0);
 }
 
 function updateChecklist(

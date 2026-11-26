@@ -1,5 +1,7 @@
 #pragma once
 
+#include "rt_plus_types.h"
+
 enum class RdsTextPayloadKind {
     kProgramService,
     kRadioText,
@@ -151,21 +153,6 @@ constexpr int kRdsUtf8ShiftMid = 6;
 
 // Bit shift for the top 4 bits of a 3-byte UTF-8 sequence.
 constexpr int kRdsUtf8ShiftHigh = 12;
-
-// EBU Tech 307 content type indicating an unused RT+ tag slot.
-constexpr int kRdsRtpContentTypeUnused = 0;
-
-// EBU Tech 307 content type for ITEM.TITLE.
-constexpr int kRdsRtpContentTypeTitle = 1;
-
-// EBU Tech 307 content type for ITEM.ALBUM.
-constexpr int kRdsRtpContentTypeAlbum = 2;
-
-// EBU Tech 307 content type for ITEM.ARTIST.
-constexpr int kRdsRtpContentTypeArtist = 4;
-
-// Number of defined 6-bit EBU Tech 307 RT+ content type entries (0..63).
-constexpr int kRdsRtpContentTypeTableSize = 64;
 
 // Extracts the 5-bit Program Type (PTY) from an RDS payload header byte.
 inline int rds_decode_pty(unsigned char header_byte) {

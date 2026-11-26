@@ -1319,20 +1319,19 @@ void HalHeliumBackend::on_rt_update(char *rt) {
         return;
     }
 
-    RdsRtPlusSlices slices;
+    RtPlusFields fields;
     {
         std::lock_guard<std::mutex> lock(state_lock_);
-        state_.rt_plus.set_text(parsed);
-        state_.rt_plus.log_slices();
-        slices = state_.rt_plus.slices();
+        if (state_.rt_plus.set_text(parsed)) {
+            state_.last_rt_plus_valid = false;
+        }
+        fields = state_.rt_plus.fields();
     }
 
     log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rt = parsed.text;
-    patch.rt_plus_title = slices.title;
-    patch.rt_plus_artist = slices.artist;
-    patch.rt_plus_album = slices.album;
+    fields.write_patch(patch);
     send_radio_state_patch(&patch);
 }
 
@@ -1428,12 +1427,11 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
                 (static_cast<unsigned char>(payload[6]) << 8) |
                 static_cast<unsigned char>(payload[7]);
 
-        RdsRtPlusSlices slices;
+        RtPlusFields fields;
         {
             std::lock_guard<std::mutex> lock(state_lock_);
             state_.rt_plus.set_tags(parsed);
-            state_.rt_plus.log_slices();
-            slices = state_.rt_plus.slices();
+            fields = state_.rt_plus.fields();
         }
 
         log("rds", "rt+ len=%d pi=%04x pty=%d flags=0x%08x toggle=%d running=%d tags=%d data=%s%s",
@@ -1441,9 +1439,7 @@ void HalHeliumBackend::on_rt_plus_update(char *payload) {
                 dump, len > 32 ? " ..." : "");
 
         radio_state_patch_t patch = radio_state_patch_empty();
-        patch.rt_plus_title = slices.title;
-        patch.rt_plus_artist = slices.artist;
-        patch.rt_plus_album = slices.album;
+        fields.write_patch(patch);
         send_radio_state_patch(&patch);
         return;
     }

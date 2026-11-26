@@ -108,7 +108,7 @@ Key flows:
 ## Communication Layer
 
 `NativeProcessSession` owns the root process: `su` + `exec fmbin`, ready
-handshake `{"type":"ready","protocol":1,"pid":N,"backend":"..."}` (updating
+handshake `{"type":"ready","pid":N,"backend":"..."}` (updating
 `NativeTunerController`/`FMService` driver kind when sysfs is hidden by SELinux),
 serial command queue (`<id>\t<command>\n`; `\t`, `\r`, `\n` are forbidden inside
 a command), timeout scheduler, and stop escalation (`shutdown` → stdin close →
@@ -119,6 +119,13 @@ PS/RT trimmed, newlines → spaces) and dispatches `onStatePatch`,
 `onSearchProgress`, `onSearchDone`, and `onSearchFailed`; `enabled`, `disabled`,
 and `seek_done` are ignored (Java command completion is authoritative for
 enable/disable and seek frequencies arrive via `state` patches).
+`RtPlusInfo` stores a `Map<String, String>` keyed by RT+ content type names.
+`NativeEventParser` preserves the keys in `rds.rt_plus`, such as `ITEM.TITLE`
+and `INFO.WEATHER`. `RtPlusFields` associates these keys with label resources.
+Omitted keys retain
+their values. Empty strings clear individual fields and an empty object clears
+the RT+ state. The overlay displays populated fields with localized English,
+Russian and Polish labels.
 For Qualcomm V4L2, `jump` also updates the displayed frequency through the
 `state` patch from the tune event. Its delayed numeric reply acknowledges the target.
 
@@ -155,8 +162,10 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
 - SRT subtitles (pref `recording_save_srt`, off by default): `FMService`
   `onInternalStateChanged` → `updateRds(RdsSnapshot)` → `PcmRecorderSession` →
   `RecordService.recordRds` → `RdsSubtitleWriter` (one cue per snapshot
-  change, PCM-relative times). `RdsSnapshot` is an immutable
-  {frequencyKhz, ps, rt, pi, rtPlusTitle, rtPlusArtist} value; deletion via
+  change, PCM-relative times). `RdsSnapshot` holds frequency, PS, RT, PI and
+  the complete immutable `RtPlusInfo`. Changes to any RT+ field start a new
+  cue. The compact track line is followed by localized rows for the other
+  populated fields. Deletion via
   notification (`RecordingDeleteActivity`) also removes the SRT file.
 - WAV: 44-byte header patched on stop. MP3: manual ID3v2.3 tag.
 

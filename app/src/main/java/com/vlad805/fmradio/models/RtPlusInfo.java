@@ -3,84 +3,54 @@ package com.vlad805.fmradio.models;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import java.util.Objects;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Immutable value object holding Radiotext+ (RT+) metadata.
  */
 public final class RtPlusInfo implements Parcelable {
-    public static final RtPlusInfo EMPTY = new RtPlusInfo("", "", "");
+    public static final RtPlusInfo EMPTY = new RtPlusInfo(Collections.emptyMap());
 
-    private final String title;
-    private final String artist;
-    private final String album;
+    private final Map<String, String> fields;
 
-    public RtPlusInfo(
-            final String title,
-            final String artist,
-            final String album
-    ) {
-        this.title = title != null ? title : "";
-        this.artist = artist != null ? artist : "";
-        this.album = album != null ? album : "";
-    }
+    public RtPlusInfo(final Map<String, String> values) {
+        final Map<String, String> populated = new LinkedHashMap<>();
 
-    public RtPlusInfo(
-            final String title,
-            final String artist
-    ) {
-        this(title, artist, "");
-    }
+        for (String key : RtPlusFields.names()) {
+            final String value = values.get(key);
 
-    public String getTitle() {
-        return title;
-    }
-
-    public String getArtist() {
-        return artist;
-    }
-
-    public String getAlbum() {
-        return album;
-    }
-
-    public boolean isEmpty() {
-        return title.isEmpty() && artist.isEmpty() && album.isEmpty();
-    }
-
-    /**
-     * Formats artist, title, and album for UI and subtitle display ("Artist — Title (Album)").
-     *
-     * @return Formatted string, or single non-empty field, or empty string if all are empty.
-     */
-    public String getFormattedText() {
-        final StringBuilder builder = new StringBuilder();
-        if (!artist.isEmpty() && !title.isEmpty()) {
-            builder.append(artist).append(" — ").append(title);
-        } else if (!artist.isEmpty()) {
-            builder.append(artist);
-        } else {
-            builder.append(title);
-        }
-
-        if (!album.isEmpty()) {
-            if (builder.length() > 0) {
-                builder.append(" (").append(album).append(")");
-            } else {
-                builder.append(album);
+            if (value != null && !value.trim().isEmpty()) {
+                populated.put(key, value.trim());
             }
         }
 
-        return builder.toString();
+        fields = Collections.unmodifiableMap(populated);
     }
 
-    RtPlusInfo(final Parcel in) {
-        final String t = in.readString();
-        final String a = in.readString();
-        final String al = in.readString();
-        title = t != null ? t : "";
-        artist = a != null ? a : "";
-        album = al != null ? al : "";
+    public Map<String, String> getFields() {
+        return fields;
+    }
+
+    public String get(final String key) {
+        final String value = fields.get(key);
+        return value == null ? "" : value;
+    }
+
+    public boolean isEmpty() {
+        return fields.isEmpty();
+    }
+
+    private static Map<String, String> readFields(final Parcel in) {
+        final Map<String, String> fields = new LinkedHashMap<>();
+        final int count = in.readInt();
+
+        for (int i = 0; i < count; ++i) {
+            fields.put(in.readString(), in.readString());
+        }
+
+        return fields;
     }
 
     @Override
@@ -90,15 +60,18 @@ public final class RtPlusInfo implements Parcelable {
 
     @Override
     public void writeToParcel(final Parcel dest, final int flags) {
-        dest.writeString(title);
-        dest.writeString(artist);
-        dest.writeString(album);
+        dest.writeInt(fields.size());
+
+        for (Map.Entry<String, String> entry : fields.entrySet()) {
+            dest.writeString(entry.getKey());
+            dest.writeString(entry.getValue());
+        }
     }
 
     public static final Creator<RtPlusInfo> CREATOR = new Creator<>() {
         @Override
         public RtPlusInfo createFromParcel(final Parcel in) {
-            return new RtPlusInfo(in);
+            return new RtPlusInfo(readFields(in));
         }
 
         @Override
@@ -116,20 +89,16 @@ public final class RtPlusInfo implements Parcelable {
             return false;
         }
         final RtPlusInfo that = (RtPlusInfo) other;
-        return title.equals(that.title) && artist.equals(that.artist) && album.equals(that.album);
+        return fields.equals(that.fields);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(title, artist, album);
+        return fields.hashCode();
     }
 
     @Override
     public String toString() {
-        return "RtPlusInfo{" +
-                "title='" + title + '\'' +
-                ", artist='" + artist + '\'' +
-                ", album='" + album + '\'' +
-                '}';
+        return fields.toString();
     }
 }

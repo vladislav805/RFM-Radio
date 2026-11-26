@@ -46,7 +46,6 @@ describe("fmbin device integration", () => {
         activeClient = client;
 
         const ready = await client.waitForReady();
-        assert.equal(ready.protocol, 1);
         assert.ok(ready.pid > 0);
         assert.ok(
             ready.backend && ["v4l2_qcom", "v4l2_exynos", "hal_helium"].includes(ready.backend),

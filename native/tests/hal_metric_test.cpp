@@ -1,6 +1,7 @@
 #include "backend/hal_helium/hal_helium_backend.h"
 #include "backend/qcom_fm_controls.h"
 #include "ctl_server.h"
+#include "rt_plus_test_types.h"
 
 #include <gtest/gtest.h>
 
@@ -241,9 +242,9 @@ TEST_F(HalMetricTest, SeekCompletionClearsPreviousTrackWithoutTuneCallback) {
     StdoutCapture capture;
     radio_state_patch_t previous = radio_state_patch_empty();
     previous.frequency_khz = 101700;
-    previous.rt_plus_title = "Title";
-    previous.rt_plus_artist = "Artist";
-    previous.rt_plus_album = "Album";
+    previous.rt_plus[kRdsRtpContentTypeTitle] = "Title";
+    previous.rt_plus[kRdsRtpContentTypeArtist] = "Artist";
+    previous.rt_plus[kRdsRtpContentTypeAlbum] = "Album";
     ASSERT_TRUE(send_radio_state_patch(&previous));
 
     ASSERT_TRUE(backend->seek(1));
@@ -252,7 +253,7 @@ TEST_F(HalMetricTest, SeekCompletionClearsPreviousTrackWithoutTuneCallback) {
     const auto lines = split_lines(capture.read_all());
     ASSERT_EQ(lines.size(), 3u);
     EXPECT_NE(lines[1].find(R"("frequency":102100)"), std::string::npos);
-    EXPECT_NE(lines[1].find(R"("rt_plus":{"title":"","artist":"","album":""})"), std::string::npos);
+    EXPECT_NE(lines[1].find(R"("rt_plus":{"ITEM.TITLE":"","ITEM.ALBUM":"","ITEM.ARTIST":""})"), std::string::npos);
     EXPECT_EQ(lines[2], R"({"type":"seek_done"})");
 }
 

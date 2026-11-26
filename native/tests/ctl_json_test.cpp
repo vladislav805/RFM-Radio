@@ -1,4 +1,5 @@
 #include "ctl_json.h"
+#include "rt_plus_test_types.h"
 
 #include <gtest/gtest.h>
 
@@ -10,6 +11,26 @@ radio_state_patch_t make_empty_patch() {
 
 } // namespace
 
+TEST(CtlJsonTest, SendsExtendedFieldsAndExplicitClearsOnStationReset) {
+    RadioStateJsonCache cache;
+    auto patch = radio_state_patch_empty();
+    patch.rt_plus[25] = "Sunny";
+    patch.rt_plus[63] = "fm.example";
+    std::string json;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, R"({"type":"state","rds":{"rt_plus":{"INFO.WEATHER":"Sunny","DESCRIPTOR.GET_DATA":"fm.example"}}})");
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+
+    patch = make_station_metadata_reset_patch();
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_NE(json.find(R"("INFO.WEATHER":"")"), std::string::npos);
+    EXPECT_NE(json.find(R"("DESCRIPTOR.GET_DATA":"")"), std::string::npos);
+    EXPECT_EQ(json.find(R"("RESERVED":)"), std::string::npos);
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+}
+
 TEST(CtlJsonTest, BuildsNativeEvent) {
     EXPECT_EQ(build_native_event_json("enabled"), "{\"type\":\"enabled\"}");
     EXPECT_EQ(build_native_event_json(""), "");
@@ -17,10 +38,10 @@ TEST(CtlJsonTest, BuildsNativeEvent) {
 }
 
 TEST(CtlJsonTest, BuildsProcessReadyMessage) {
-    EXPECT_EQ(build_ready_json(1234), "{\"type\":\"ready\",\"protocol\":1,\"pid\":1234}");
+    EXPECT_EQ(build_ready_json(1234), "{\"type\":\"ready\",\"pid\":1234}");
     EXPECT_EQ(
             build_ready_json(1234, "hal_helium"),
-            "{\"type\":\"ready\",\"protocol\":1,\"pid\":1234,\"backend\":\"hal_helium\"}"
+            "{\"type\":\"ready\",\"pid\":1234,\"backend\":\"hal_helium\"}"
     );
 }
 
@@ -127,42 +148,45 @@ TEST(CtlJsonTest, BuildsAndClearsCountryPatch) {
 TEST(CtlJsonTest, BuildsAndClearsRtPlusPatch) {
     RadioStateJsonCache cache;
     radio_state_patch_t patch = make_empty_patch();
-    patch.rt_plus_title = "Stil'nyy oranjevyy galstuk";
-    patch.rt_plus_artist = "Valeriy Syutkin";
-    patch.rt_plus_album = "Radio Hits";
+    patch.rt_plus[kRdsRtpContentTypeTitle] = "Stil'nyy oranjevyy galstuk";
+    patch.rt_plus[kRdsRtpContentTypeArtist] = "Valeriy Syutkin";
+    patch.rt_plus[kRdsRtpContentTypeAlbum] = "Radio Hits";
 
     std::string json;
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
-    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"Stil'nyy oranjevyy galstuk\",\"artist\":\"Valeriy Syutkin\",\"album\":\"Radio Hits\"}}}");
+    EXPECT_EQ(json, R"({"type":"state","rds":{"rt_plus":{"ITEM.TITLE":"Stil'nyy oranjevyy galstuk","ITEM.ALBUM":"Radio Hits","ITEM.ARTIST":"Valeriy Syutkin"}}})");
 
     apply_radio_state_patch(&cache, &patch);
-    EXPECT_EQ(cache.rt_plus_title, "Stil'nyy oranjevyy galstuk");
-    EXPECT_EQ(cache.rt_plus_artist, "Valeriy Syutkin");
-    EXPECT_EQ(cache.rt_plus_album, "Radio Hits");
+    EXPECT_EQ(cache.rt_plus[kRdsRtpContentTypeTitle], "Stil'nyy oranjevyy galstuk");
+    EXPECT_EQ(cache.rt_plus[kRdsRtpContentTypeArtist], "Valeriy Syutkin");
+    EXPECT_EQ(cache.rt_plus[kRdsRtpContentTypeAlbum], "Radio Hits");
     EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
 
-    patch.rt_plus_title = "";
-    patch.rt_plus_artist = "";
-    patch.rt_plus_album = "";
+    patch.rt_plus[kRdsRtpContentTypeTitle] = "";
+    patch.rt_plus[kRdsRtpContentTypeArtist] = "";
+    patch.rt_plus[kRdsRtpContentTypeAlbum] = "";
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
-    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"\",\"artist\":\"\",\"album\":\"\"}}}");
+    EXPECT_EQ(json, R"({"type":"state","rds":{"rt_plus":{"ITEM.TITLE":"","ITEM.ALBUM":"","ITEM.ARTIST":""}}})");
 }
 
 TEST(CtlJsonTest, PreservesExistingRtPlusFieldsOnPartialPatch) {
     RadioStateJsonCache cache;
     radio_state_patch_t patch1 = make_empty_patch();
-    patch1.rt_plus_title = "Song A";
-    patch1.rt_plus_artist = "Singer";
-    patch1.rt_plus_album = "Album";
+    patch1.rt_plus[kRdsRtpContentTypeTitle] = "Song A";
+    patch1.rt_plus[kRdsRtpContentTypeArtist] = "Singer";
+    patch1.rt_plus[kRdsRtpContentTypeAlbum] = "Album";
 
     std::string json;
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch1, &json));
     apply_radio_state_patch(&cache, &patch1);
 
     radio_state_patch_t patch2 = make_empty_patch();
-    patch2.rt_plus_title = "Song B";
+    patch2.rt_plus[kRdsRtpContentTypeTitle] = "Song B";
     ASSERT_TRUE(build_radio_state_patch_json(cache, &patch2, &json));
-    EXPECT_EQ(json, "{\"type\":\"state\",\"rds\":{\"rt_plus\":{\"title\":\"Song B\",\"artist\":\"Singer\",\"album\":\"Album\"}}}");
+    EXPECT_EQ(json, R"({"type":"state","rds":{"rt_plus":{"ITEM.TITLE":"Song B"}}})");
+    apply_radio_state_patch(&cache, &patch2);
+    EXPECT_EQ(cache.rt_plus[kRdsRtpContentTypeArtist], "Singer");
+    EXPECT_EQ(cache.rt_plus[kRdsRtpContentTypeAlbum], "Album");
 }
 
 TEST(CtlJsonTest, BuildsAfPatch) {

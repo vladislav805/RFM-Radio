@@ -7,7 +7,6 @@ const execFileAsync = promisify(execFile);
 
 export interface ReadyEvent {
     type: "ready";
-    protocol: number;
     pid: number;
     backend?: "v4l2_qcom" | "v4l2_exynos" | "hal_helium" | "none";
 }
@@ -19,11 +18,7 @@ export interface ResponseMessage {
     data: string;
 }
 
-export interface RtPlusInfo {
-    title?: string;
-    artist?: string;
-    album?: string;
-}
+export type RtPlusInfo = Record<string, string>;
 
 export interface RdsState {
     ps?: string;

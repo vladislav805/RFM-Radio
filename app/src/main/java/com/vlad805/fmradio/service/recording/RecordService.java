@@ -6,6 +6,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.vlad805.fmradio.Storage;
+import com.vlad805.fmradio.models.RtPlusFields;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
@@ -361,7 +362,8 @@ public abstract class RecordService implements IFMRecorder {
                                         new FileOutputStream(mSubtitleFile),
                                         StandardCharsets.UTF_8
                                 )
-                        )
+                        ),
+                        RtPlusFields.localizedLabels(mContext.getResources())
                 );
             } catch (IOException | SecurityException error) {
                 Log.e("RFM-Recording", "Cannot create RDS subtitles", error);

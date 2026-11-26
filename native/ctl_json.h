@@ -20,9 +20,7 @@ struct RadioStateJsonCache {
     int stereo = RADIO_PATCH_ABSENT_INT;
     int rmssi = RADIO_PATCH_ABSENT_METRIC;
     int sinr = RADIO_PATCH_ABSENT_METRIC;
-    std::string rt_plus_title;
-    std::string rt_plus_artist;
-    std::string rt_plus_album;
+    std::string rt_plus[kRdsRtpContentTypeTableSize];
 };
 
 std::string build_native_event_json(const char *type);

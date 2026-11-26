@@ -6,12 +6,15 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.vlad805.fmradio.controller.RadioState;
-import com.vlad805.fmradio.models.RtPlusInfo;
+import com.vlad805.fmradio.models.RtPlusFields;
 import com.vlad805.fmradio.service.fm.FMEventCallback;
 import com.vlad805.fmradio.service.fm.RadioStatePatch;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public final class NativeEventParser {
     private static final String TAG = "RFM-QCOM";
@@ -32,6 +35,8 @@ public final class NativeEventParser {
 
         @Nullable
         JsonArrayView optArray(String key);
+
+        Iterable<String> keys();
 
         int length();
     }
@@ -185,18 +190,16 @@ public final class NativeEventParser {
 
             final JsonObjectView rtPlus = rds.optObject("rt_plus");
             if (rtPlus != null) {
-                if (rtPlus.length() == 0) {
-                    patch.setRtPlus(RtPlusInfo.EMPTY);
-                } else {
-                    if (rtPlus.has("title")) {
-                        patch.setRtPlusTitle(sanitizeRdsText(rtPlus.optString("title", "")));
+                final Map<String, String> fields = new HashMap<>();
+
+                for (final String key : rtPlus.keys()) {
+                    if (RtPlusFields.names().contains(key)) {
+                        fields.put(key, rtPlus.isNull(key) ? "" : sanitizeRdsText(rtPlus.optString(key, "")));
                     }
-                    if (rtPlus.has("artist")) {
-                        patch.setRtPlusArtist(sanitizeRdsText(rtPlus.optString("artist", "")));
-                    }
-                    if (rtPlus.has("album")) {
-                        patch.setRtPlusAlbum(sanitizeRdsText(rtPlus.optString("album", "")));
-                    }
+                }
+
+                if (rtPlus.length() == 0 || !fields.isEmpty()) {
+                    patch.setRtPlusFields(fields);
                 }
             }
         }
@@ -272,6 +275,11 @@ public final class NativeEventParser {
             public JsonArrayView optArray(final String key) {
                 final JSONArray array = object.optJSONArray(key);
                 return array != null ? wrapArray(array) : null;
+            }
+
+            @Override
+            public Iterable<String> keys() {
+                return object::keys;
             }
 
             @Override

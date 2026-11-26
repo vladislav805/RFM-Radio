@@ -6,6 +6,8 @@ import com.vlad805.fmradio.view.SignalStrength;
 
 import org.junit.Test;
 
+import java.util.Map;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -23,13 +25,12 @@ public class RadioStateTest {
         state.setStereo(true);
         state.setRmssi(-70);
         state.setSinr(12);
-        state.setRtPlus(new RtPlusInfo("Title", "Artist", "Album"));
+        state.setRtPlus(new RtPlusInfo(Map.of("ITEM.TITLE", "Title", "ITEM.ARTIST", "Artist", "ITEM.ALBUM", "Album")));
         state.setAf(new int[]{87500, 101700});
 
-        assertEquals("Title", state.getRtPlus().getTitle());
-        assertEquals("Artist", state.getRtPlus().getArtist());
-        assertEquals("Album", state.getRtPlus().getAlbum());
-        assertEquals("Artist — Title (Album)", state.getRtPlus().getFormattedText());
+        assertEquals("Title", state.getRtPlus().get("ITEM.TITLE"));
+        assertEquals("Artist", state.getRtPlus().get("ITEM.ARTIST"));
+        assertEquals("Album", state.getRtPlus().get("ITEM.ALBUM"));
         assertEquals(2, state.getAf().length);
         assertEquals(87500, state.getAf()[0]);
         assertEquals(101700, state.getAf()[1]);
@@ -56,24 +57,20 @@ public class RadioStateTest {
         state.setRtPlus(null);
 
         assertTrue(state.getRtPlus().isEmpty());
-        assertEquals("", state.getRtPlus().getFormattedText());
     }
 
     @Test
     public void preservesRtPlusFieldsOnPartialUpdates() {
         final RadioState state = new RadioState();
-        state.setRtPlus(new RtPlusInfo("Title A", "Artist A", "Album A"));
+        state.setRtPlus(new RtPlusInfo(Map.of("ITEM.TITLE", "Title A", "ITEM.ARTIST", "Artist A", "ITEM.ALBUM", "Album A")));
 
-        final RtPlusInfo current = state.getRtPlus();
-        final String newTitle = "Title B";
-        final String newArtist = current != null ? current.getArtist() : "";
-        final String newAlbum = current != null ? current.getAlbum() : "";
+        final RadioStatePatch update = new RadioStatePatch();
+        update.setRtPlusFields(Map.of("ITEM.TITLE", "Title B"));
+        state.applyPatch(update);
 
-        state.setRtPlus(new RtPlusInfo(newTitle, newArtist, newAlbum));
-
-        assertEquals("Title B", state.getRtPlus().getTitle());
-        assertEquals("Artist A", state.getRtPlus().getArtist());
-        assertEquals("Album A", state.getRtPlus().getAlbum());
+        assertEquals("Title B", state.getRtPlus().get("ITEM.TITLE"));
+        assertEquals("Artist A", state.getRtPlus().get("ITEM.ARTIST"));
+        assertEquals("Album A", state.getRtPlus().get("ITEM.ALBUM"));
     }
 
     @Test
@@ -109,7 +106,7 @@ public class RadioStateTest {
         state.setStereo(true);
         state.setRmssi(-65);
         state.setSinr(14);
-        state.setRtPlus(new RtPlusInfo("Song", "Band", "LP"));
+        state.setRtPlus(new RtPlusInfo(Map.of("ITEM.TITLE", "Song", "ITEM.ARTIST", "Band", "ITEM.ALBUM", "LP")));
         state.setAf(new int[]{102100});
 
         assertEquals(RadioState.SET_STATUS, state.applyStatus(TunerStatus.DISABLING));
@@ -180,7 +177,7 @@ public class RadioStateTest {
         fullPatch.setCountry("UA");
         fullPatch.setPty(4);
         fullPatch.setStereo(true);
-        fullPatch.setRtPlus(new RtPlusInfo("Title A", "Artist A", "Album A"));
+        fullPatch.setRtPlusFields(Map.of("ITEM.TITLE", "Title A", "ITEM.ARTIST", "Artist A", "ITEM.ALBUM", "Album A"));
 
         final int fullMask = state.applyPatch(fullPatch);
         assertEquals(
@@ -200,22 +197,22 @@ public class RadioStateTest {
         assertEquals("UA", state.getCountry());
         assertEquals(4, state.getPty());
         assertTrue(state.isStereo());
-        assertEquals("Title A", state.getRtPlus().getTitle());
-        assertEquals("Artist A", state.getRtPlus().getArtist());
-        assertEquals("Album A", state.getRtPlus().getAlbum());
+        assertEquals("Title A", state.getRtPlus().get("ITEM.TITLE"));
+        assertEquals("Artist A", state.getRtPlus().get("ITEM.ARTIST"));
+        assertEquals("Album A", state.getRtPlus().get("ITEM.ALBUM"));
 
         // Partial patch updates only RT+ title and RMSSI, leaving other fields intact
         final RadioStatePatch partialPatch = new RadioStatePatch();
         partialPatch.setRmssi(-75);
-        partialPatch.setRtPlusTitle("Title B");
+        partialPatch.setRtPlusFields(Map.of("ITEM.TITLE", "Title B"));
 
         final int partialMask = state.applyPatch(partialPatch);
         assertEquals(RadioState.SET_RMSSI | RadioState.SET_RT_PLUS, partialMask);
         assertEquals(-75, state.getRmssi());
         assertEquals("STATION", state.getPs());
-        assertEquals("Title B", state.getRtPlus().getTitle());
-        assertEquals("Artist A", state.getRtPlus().getArtist());
-        assertEquals("Album A", state.getRtPlus().getAlbum());
+        assertEquals("Title B", state.getRtPlus().get("ITEM.TITLE"));
+        assertEquals("Artist A", state.getRtPlus().get("ITEM.ARTIST"));
+        assertEquals("Album A", state.getRtPlus().get("ITEM.ALBUM"));
 
         // Empty patch returns 0 and mutates nothing
         assertEquals(0, state.applyPatch(new RadioStatePatch()));

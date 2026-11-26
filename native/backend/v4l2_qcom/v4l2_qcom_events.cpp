@@ -140,7 +140,6 @@ bool V4l2QcomBackend::extract_radio_text(fm_rds_storage *storage) {
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
     rt_plus_.set_text(parsed);
     log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
-    rt_plus_.log_slices();
 
     return true;
 }
@@ -186,28 +185,22 @@ bool V4l2QcomBackend::extract_rt_plus() {
     const int rt_ert_flag = buf[1];
     log("rds", "rt+ len=%d rt_ert=%d data=%s%s", payload_len, rt_ert_flag, dump, bytes > 32 ? " ..." : "");
 
-    rt_plus_.set_tags({});
     RdsRtPlusPayload parsed;
 
     if (parse_rds_rt_plus_payload(buf, payload_len, RdsRtPlusKind::kV4l2Qcom, &parsed)) {
         if (parsed.ert) {
             log("rds", "rt+ tags belong to eRT (unsupported), ignoring ordinary RT slicing");
             radio_state_patch_t patch = radio_state_patch_empty();
-            patch.rt_plus_title = "";
-            patch.rt_plus_artist = "";
-            patch.rt_plus_album = "";
+            rt_plus_.clear_tags();
+            rt_plus_.fields().write_patch(patch);
             send_radio_state_patch(&patch);
             return true;
         }
 
         rt_plus_.set_tags(parsed);
-        rt_plus_.log_slices();
 
-        const RdsRtPlusSlices slices = rt_plus_.slices();
         radio_state_patch_t patch = radio_state_patch_empty();
-        patch.rt_plus_title = slices.title;
-        patch.rt_plus_artist = slices.artist;
-        patch.rt_plus_album = slices.album;
+        rt_plus_.fields().write_patch(patch);
         send_radio_state_patch(&patch);
     }
 
@@ -454,12 +447,9 @@ void V4l2QcomBackend::event_thread() {
 
                 case TAVARUA_EVT_NEW_RT_RDS: {
                     if (extract_radio_text(&fm_storage_.rds)) {
-                        const RdsRtPlusSlices slices = rt_plus_.slices();
                         radio_state_patch_t patch = radio_state_patch_empty();
                         patch.rt = fm_storage_.rds.radio_text;
-                        patch.rt_plus_title = slices.title;
-                        patch.rt_plus_artist = slices.artist;
-                        patch.rt_plus_album = slices.album;
+                        rt_plus_.fields().write_patch(patch);
                         send_radio_state_patch(&patch);
                     } else {
                         log("rds", "failed to extract RT");

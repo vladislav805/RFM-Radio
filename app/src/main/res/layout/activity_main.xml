@@ -516,11 +516,15 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/rt_card"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0"
+        app:layout_constrainedHeight="true"
         app:strokeColor="?attr/colorOutlineVariant"
         app:strokeWidth="1dp"
         tools:visibility="gone">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <LinearLayout
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingStart="14dp"
@@ -537,8 +541,7 @@
                 app:cardBackgroundColor="?attr/colorSecondaryContainer"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="0dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
+                android:layout_gravity="end"
                 app:strokeColor="?attr/colorSecondary"
                 app:strokeWidth="1dp">
 
@@ -554,95 +557,18 @@
                     android:textSize="11sp" />
             </com.google.android.material.card.MaterialCardView>
 
-            <TextView
-                android:id="@+id/rt_plus_artist_label"
-                android:layout_width="64dp"
-                android:layout_height="24dp"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center_vertical"
-                android:text="@string/rds_rt_plus_artist"
-                android:textAllCaps="true"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="10sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-            <TextView
-                android:id="@+id/rt_plus_artist_value"
-                android:layout_width="0dp"
-                android:layout_height="24dp"
-                android:layout_marginEnd="8dp"
-                android:ellipsize="end"
-                android:gravity="center_vertical"
-                android:maxLines="1"
-                android:text="@string/rds_placeholder"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toStartOf="@+id/btn_close_rt_plus"
-                app:layout_constraintStart_toEndOf="@+id/rt_plus_artist_label"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                android:id="@+id/rt_plus_title_label"
-                android:layout_width="64dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="4dp"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center_vertical"
-                android:text="@string/rds_rt_plus_title"
-                android:textAllCaps="true"
-                android:textColor="?attr/colorSecondary"
-                android:textSize="10sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_label" />
-
-            <TextView
-                android:id="@+id/rt_plus_title_value"
-                android:layout_width="0dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:gravity="center_vertical"
-                android:maxLines="1"
-                android:text="@string/rds_placeholder"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/rt_plus_title_label"
-                app:layout_constraintTop_toBottomOf="@+id/rt_plus_artist_value" />
-
-            <TextView
-                android:id="@+id/rt_plus_album_label"
-                android:layout_width="64dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="4dp"
-                android:fontFamily="sans-serif-medium"
-                android:gravity="center_vertical"
-                android:text="@string/rds_rt_plus_album"
-                android:textAllCaps="true"
-                android:textColor="?attr/colorTertiary"
-                android:textSize="10sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_label" />
-
-            <TextView
-                android:id="@+id/rt_plus_album_value"
-                android:layout_width="0dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:gravity="center_vertical"
-                android:maxLines="1"
-                android:text="@string/rds_placeholder"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/rt_plus_album_label"
-                app:layout_constraintTop_toBottomOf="@+id/rt_plus_title_value" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                <TableLayout
+                    android:id="@+id/rt_plus_fields"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:shrinkColumns="1"
+                    android:stretchColumns="1" />
+            </ScrollView>
+        </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -96,6 +96,8 @@ default. When enabled, each MP3/WAV recording is accompanied by a UTF-8 SRT file
 with the same basename in the same folder. Changes apply to new recordings;
 disabling the option leaves existing SRT files untouched. Each cue shows the
 frequency and four-digit hexadecimal PI, followed by PS and RT.
+Populated RT+ fields follow RT. The artist, title and album share one line.
+Each additional field has its own line with the same label.
 An unknown PI is written as `0000`; unavailable PS/RT are shown as `—`. ECC is not recorded.
 
 Subtitle times follow captured PCM, including the available pre-roll history.

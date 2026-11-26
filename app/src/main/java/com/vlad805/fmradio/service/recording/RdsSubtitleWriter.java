@@ -3,16 +3,19 @@ package com.vlad805.fmradio.service.recording;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Locale;
+import java.util.Map;
 
 /** Writes complete RDS snapshots as consecutive SRT cues. Times are PCM-relative. */
 public final class RdsSubtitleWriter {
     private final Writer output;
+    private final Map<String, String> rtPlusLabels;
     private RdsSnapshot current;
     private long startMillis;
     private int cueNumber;
 
-    public RdsSubtitleWriter(final Writer output) {
+    public RdsSubtitleWriter(final Writer output, final Map<String, String> rtPlusLabels) {
         this.output = output;
+        this.rtPlusLabels = rtPlusLabels;
     }
 
     public void update(final long positionMillis, final RdsSnapshot snapshot) throws IOException {
@@ -39,7 +42,7 @@ public final class RdsSubtitleWriter {
         }
         output.write(Integer.toString(++cueNumber));
         output.write("\n" + timestamp(startMillis) + " --> " + timestamp(endMillis) + "\n");
-        output.write(current.toSubtitleText());
+        output.write(current.toSubtitleText(rtPlusLabels));
         output.write("\n\n");
     }
 

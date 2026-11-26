@@ -2,7 +2,7 @@ package com.vlad805.fmradio.service.fm;
 
 import androidx.annotation.Nullable;
 
-import com.vlad805.fmradio.models.RtPlusInfo;
+import java.util.Map;
 
 public final class RadioStatePatch {
     private Integer frequency;
@@ -15,9 +15,8 @@ public final class RadioStatePatch {
     private Boolean stereo;
     private Integer rmssi;
     private Integer sinr;
-    private String rtPlusTitle;
-    private String rtPlusArtist;
-    private String rtPlusAlbum;
+    // Null omits RT+, an empty map clears all fields, and empty strings clear individual fields.
+    private Map<String, String> rtPlusFields;
 
     public Integer getFrequency() {
         return frequency;
@@ -100,51 +99,12 @@ public final class RadioStatePatch {
     }
 
     @Nullable
-    public RtPlusInfo getRtPlus() {
-        return hasRtPlus() ? new RtPlusInfo(rtPlusTitle, rtPlusArtist, rtPlusAlbum) : null;
+    public Map<String, String> getRtPlusFields() {
+        return rtPlusFields;
     }
 
-    public void setRtPlus(@Nullable final RtPlusInfo rtPlus) {
-        if (rtPlus == null) {
-            this.rtPlusTitle = null;
-            this.rtPlusArtist = null;
-            this.rtPlusAlbum = null;
-        } else {
-            this.rtPlusTitle = rtPlus.getTitle();
-            this.rtPlusArtist = rtPlus.getArtist();
-            this.rtPlusAlbum = rtPlus.getAlbum();
-        }
-    }
-
-    public boolean hasRtPlus() {
-        return rtPlusTitle != null || rtPlusArtist != null || rtPlusAlbum != null;
-    }
-
-    @Nullable
-    public String getRtPlusTitle() {
-        return rtPlusTitle;
-    }
-
-    public void setRtPlusTitle(@Nullable final String rtPlusTitle) {
-        this.rtPlusTitle = rtPlusTitle;
-    }
-
-    @Nullable
-    public String getRtPlusArtist() {
-        return rtPlusArtist;
-    }
-
-    public void setRtPlusArtist(@Nullable final String rtPlusArtist) {
-        this.rtPlusArtist = rtPlusArtist;
-    }
-
-    @Nullable
-    public String getRtPlusAlbum() {
-        return rtPlusAlbum;
-    }
-
-    public void setRtPlusAlbum(@Nullable final String rtPlusAlbum) {
-        this.rtPlusAlbum = rtPlusAlbum;
+    public void setRtPlusFields(final Map<String, String> fields) {
+        rtPlusFields = fields;
     }
 
     public boolean isEmpty() {
@@ -159,7 +119,7 @@ public final class RadioStatePatch {
                 stereo == null &&
                 rmssi == null &&
                 sinr == null &&
-                !hasRtPlus()
+                rtPlusFields == null
         );
     }
 }
