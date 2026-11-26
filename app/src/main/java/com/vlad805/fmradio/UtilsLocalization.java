@@ -2,6 +2,8 @@ package com.vlad805.fmradio;
 
 import com.vlad805.fmradio.preferences.BandUtils;
 
+import java.util.Locale;
+
 public class UtilsLocalization {
     private static final String[] RDS_PROGRAM_TYPES = new String[] {
             "", // 0
@@ -80,5 +82,32 @@ public class UtilsLocalization {
 
         return pty > 0 && pty < names.length ? names[pty] : names[0];
 
+    }
+
+    public static String formatRdsCountry(final String country) {
+        if (country == null) {
+            return "";
+        }
+
+        final String upper = country.trim().toUpperCase(Locale.ROOT);
+        if (upper.length() != 2) {
+            return country;
+        }
+
+        final char first = upper.charAt(0);
+        final char second = upper.charAt(1);
+        if (first < 'A' || first > 'Z' || second < 'A' || second > 'Z') {
+            return country;
+        }
+
+        // Unicode regional indicators start at U+1F1E6 for A.
+        final int regionalIndicatorA = 0x1F1E6;
+
+        return new StringBuilder(7)
+                .append(upper)
+                .append('\u00A0')
+                .appendCodePoint(regionalIndicatorA + (first - 'A'))
+                .appendCodePoint(regionalIndicatorA + (second - 'A'))
+                .toString();
     }
 }

@@ -267,7 +267,9 @@ public final class RadioUIView {
 		}
 
 		final String pi = state.getPi() != null ? state.getPi().trim() : "";
-		final String country = state.getCountry() != null ? state.getCountry().trim() : "";
+		final String country = state.getCountry() == null
+				? ""
+				: UtilsLocalization.formatRdsCountry(state.getCountry().trim());
 		final String nextPi = pi.isEmpty() ? placeholder : (country.isEmpty() ? pi : country + " · " + pi);
 		if (!nextPi.equals(mLastPiText)) {
 			mLastPiText = nextPi;
