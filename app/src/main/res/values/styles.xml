@@ -19,6 +19,36 @@
 		<item name="android:windowLightStatusBar">@bool/rfm_light_system_bars</item>
 		<item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/rfm_light_system_bars</item>
 		<item name="actionBarTheme">@style/ThemeOverlay.Material3.Dark.ActionBar</item>
+		<item name="preferenceTheme">@style/RfmPreferenceTheme</item>
+	</style>
+
+	<style name="RfmPreferenceTheme" parent="PreferenceThemeOverlay">
+		<item name="preferenceStyle">@style/RfmPreference</item>
+		<item name="preferenceScreenStyle">@style/RfmPreferenceScreen</item>
+		<item name="dialogPreferenceStyle">@style/RfmDialogPreference</item>
+		<item name="editTextPreferenceStyle">@style/RfmEditTextPreference</item>
+		<item name="switchPreferenceCompatStyle">@style/RfmSwitchPreference</item>
+	</style>
+
+	<style name="RfmPreference" parent="Preference.Material">
+		<item name="android:layout">@layout/pref_row</item>
+	</style>
+
+	<style name="RfmPreferenceScreen" parent="Preference.PreferenceScreen.Material">
+		<item name="android:layout">@layout/pref_row</item>
+	</style>
+
+	<style name="RfmDialogPreference" parent="Preference.DialogPreference.Material">
+		<item name="android:layout">@layout/pref_row</item>
+	</style>
+
+	<style name="RfmEditTextPreference" parent="Preference.DialogPreference.EditTextPreference.Material">
+		<item name="android:layout">@layout/pref_row</item>
+	</style>
+
+	<style name="RfmSwitchPreference" parent="Preference.SwitchPreferenceCompat.Material">
+		<item name="android:layout">@layout/pref_row</item>
+		<item name="android:widgetLayout">@layout/pref_widget_material_switch</item>
 	</style>
 
 	<style name="DialogActivityTheme" parent="Theme.Material3.DayNight.Dialog">

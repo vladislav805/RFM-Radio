@@ -491,8 +491,10 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
 ## Settings
 
 `PreferencesFragment` inflates declarative XML preferences from
-`res/xml/preferences.xml` (backed by `res/values/arrays.xml`) and applies icon
-tinting, `TunerDriver` capability gating (disabling unsupported options and
+`res/xml/preferences.xml` (backed by `res/values/arrays.xml`). The preference
+theme uses `res/layout/pref_row.xml` for section links and settings, with
+themed circular icons and a trailing Material switch for toggle settings.
+The fragment applies `TunerDriver` capability gating (disabling unsupported options and
 filtering Exynos to narrow 76–90 MHz Japan band), antenna numeric validation,
 pre-roll warning/permission prompt, and version check clicks in Java.
 Categories: Tuner, RDS, Recording, App, Notifications, Info. Store: standard

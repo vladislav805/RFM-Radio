@@ -188,11 +188,6 @@
     <string name="cd_seek_prev">Previous station</string>
     <string name="cd_seek_next">Next station</string>
     <string name="cd_power_toggle">Toggle radio</string>
-    <string name="pref_section_tuner_summary">Region, frequency step, stereo, antenna, power mode</string>
-    <string name="pref_section_rds_summary">Alternative frequency (AF) switching and RDS info</string>
-    <string name="pref_section_recording_summary">Output directory, file name, format, subtitles, pre-roll</string>
-    <string name="pref_section_app_summary">Auto-start, favorites columns, theme</string>
-    <string name="pref_section_notifications_summary">Station name and seek actions in notification</string>
     <string name="favorite_list_name_hint">List name</string>
     <string name="favorites_add_station">Add</string>
     <string name="favorites_lists_title">Favorite lists</string>

@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -18,18 +17,15 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
-import androidx.preference.PreferenceGroup;
 import androidx.preference.SwitchPreferenceCompat;
 import androidx.preference.TwoStatePreference;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.vlad805.fmradio.BuildConfig;
@@ -77,9 +73,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		}
 
 		setPreferencesFromResource(R.xml.preferences, rootKey);
-
-		final int iconTint = MaterialColors.getColor(context, androidx.appcompat.R.attr.colorPrimary, 0);
-		tintPreferenceIcons(getPreferenceScreen(), iconTint);
 
 		configureBackendCapabilities(driver);
 		configureInteractivePreferences(driver);
@@ -194,25 +187,6 @@ public class PreferencesFragment extends PreferenceFragmentCompat implements Pre
 		}
 
 		super.onDisplayPreferenceDialog(preference);
-	}
-
-	private void tintPreferenceIcons(@Nullable final PreferenceGroup group, final int tint) {
-		if (group == null) {
-			return;
-		}
-		final int count = group.getPreferenceCount();
-		for (int i = 0; i < count; i++) {
-			final Preference pref = group.getPreference(i);
-			final Drawable icon = pref.getIcon();
-			if (icon != null) {
-				final Drawable wrapped = DrawableCompat.wrap(icon.mutate());
-				DrawableCompat.setTint(wrapped, tint);
-				pref.setIcon(wrapped);
-			}
-			if (pref instanceof PreferenceGroup) {
-				tintPreferenceIcons((PreferenceGroup) pref, tint);
-			}
-		}
 	}
 
 	private void configureBackendCapabilities(final TunerDriver driver) {

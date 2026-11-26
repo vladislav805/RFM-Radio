@@ -3,9 +3,8 @@
     app:title="@string/pref_activity_title">
 
     <PreferenceScreen
-        app:icon="@drawable/ic_band"
+        app:icon="@drawable/ic_tuner"
         app:key="screen_tuner"
-        app:summary="@string/pref_section_tuner_summary"
         app:title="@string/pref_header_tuner">
 
         <ListPreference
@@ -34,8 +33,7 @@
             app:key="tuner_stereo"
             app:summaryOff="@string/pref_tuner_stereo_off"
             app:summaryOn="@string/pref_tuner_stereo_on"
-            app:title="@string/pref_tuner_stereo"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_tuner_stereo" />
 
         <SwitchPreferenceCompat
             app:defaultValue="true"
@@ -43,8 +41,7 @@
             app:key="tuner_soft_mute"
             app:summaryOff="@string/pref_tuner_soft_mute_off"
             app:summaryOn="@string/pref_tuner_soft_mute_on"
-            app:title="@string/pref_tuner_soft_mute"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_tuner_soft_mute" />
 
         <ListPreference
             app:defaultValue="0"
@@ -71,19 +68,18 @@
             app:key="tuner_power_mode"
             app:summaryOff="@string/pref_tuner_power_mode_normal"
             app:summaryOn="@string/pref_tuner_power_mode_low"
-            app:title="@string/pref_tuner_power_mode"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_tuner_power_mode" />
 
     </PreferenceScreen>
 
     <PreferenceScreen
         app:icon="@drawable/ic_rds"
         app:key="screen_rds"
-        app:summary="@string/pref_section_rds_summary"
         app:title="@string/pref_header_rds">
 
         <Preference
             app:enabled="false"
+            app:iconSpaceReserved="false"
             app:key="tuner_rds_description"
             app:summary="@string/pref_tuner_rds_description" />
 
@@ -93,15 +89,13 @@
             app:key="rds_auto_af"
             app:summaryOff="@string/pref_tuner_rds_auto_af_disabled"
             app:summaryOn="@string/pref_tuner_rds_auto_afenabled"
-            app:title="@string/pref_tuner_rds_auto_af"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_tuner_rds_auto_af" />
 
     </PreferenceScreen>
 
     <PreferenceScreen
         app:icon="@drawable/ic_record_on"
         app:key="screen_recording"
-        app:summary="@string/pref_section_recording_summary"
         app:title="@string/pref_header_recording">
 
         <EditTextPreference
@@ -137,31 +131,27 @@
             app:icon="@drawable/ic_subtitles"
             app:key="recording_save_srt"
             app:summary="@string/pref_recording_save_srt_summary"
-            app:title="@string/pref_recording_save_srt"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_recording_save_srt" />
 
         <SwitchPreferenceCompat
             app:defaultValue="false"
             app:icon="@drawable/ic_pre_roll"
             app:key="recording_save_past"
             app:summary="@string/pref_recording_save_past_summary"
-            app:title="@string/pref_recording_save_past"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_recording_save_past" />
 
         <SwitchPreferenceCompat
             app:defaultValue="true"
             app:icon="@drawable/ic_notifications"
             app:key="recording_show_notify"
             app:summary="@string/pref_recording_show_notify_summary"
-            app:title="@string/pref_recording_show_notify"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_recording_show_notify" />
 
     </PreferenceScreen>
 
     <PreferenceScreen
         app:icon="@drawable/ic_settings"
         app:key="screen_app"
-        app:summary="@string/pref_section_app_summary"
         app:title="@string/pref_header_app">
 
         <SwitchPreferenceCompat
@@ -170,8 +160,7 @@
             app:key="app_auto_startup"
             app:summaryOff="@string/pref_auto_startup_disabled"
             app:summaryOn="@string/pref_app_auto_startup_enabled"
-            app:title="@string/pref_app_auto_startup"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_app_auto_startup" />
 
         <ListPreference
             app:defaultValue="3"
@@ -198,7 +187,6 @@
     <PreferenceScreen
         app:icon="@drawable/ic_notifications"
         app:key="screen_notifications"
-        app:summary="@string/pref_section_notifications_summary"
         app:title="@string/pref_header_notifications">
 
         <SwitchPreferenceCompat
@@ -207,8 +195,7 @@
             app:key="notification_show_ps"
             app:summaryOff="@string/pref_notification_show_ps_disabled"
             app:summaryOn="@string/pref_notification_show_ps_enabled"
-            app:title="@string/pref_notification_show_ps"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_notification_show_ps" />
 
         <SwitchPreferenceCompat
             app:defaultValue="false"
@@ -216,12 +203,12 @@
             app:key="notification_seek_by_favorites"
             app:summaryOff="@string/pref_notification_seek_by_favorites_disabled"
             app:summaryOn="@string/pref_notification_seek_by_favorites_enabled"
-            app:title="@string/pref_notification_seek_by_favorites"
-            app:widgetLayout="@layout/pref_widget_material_switch" />
+            app:title="@string/pref_notification_seek_by_favorites" />
 
     </PreferenceScreen>
 
     <PreferenceCategory
+        app:iconSpaceReserved="false"
         app:key="info"
         app:title="@string/pref_header_info">
 
