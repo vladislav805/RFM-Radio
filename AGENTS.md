@@ -16,7 +16,7 @@ through one of two backends — legacy V4L2 (`/dev/radio0`) or vendor HAL
 | `fastlane/` | Store metadata and screenshots |
 | `LINKS.md` | External reference material links |
 
-`app/src/main/cpp/` builds the MP3 encoder (LAME 4.0 submodule) and is
+`app/src/main/cpp/` builds the MP3 and Ogg Opus recording encoders and is
 unrelated to the FM backend. `app/src/main/assets/fmbin-*` are git-ignored
 artifacts produced by `native/build.sh` and must be regenerated locally.
 
@@ -45,7 +45,7 @@ Deep references — open only for complex rework, they are long:
 | `make build-release` | Release APK (unsigned without `ANDROID_RELEASE_*`) |
 
 Native builds pin NDK `29.0.14033849` and CMake `3.22.1` and fail when they
-are unavailable. The LAME submodule requires
+are unavailable. The recording codec submodules require
 `git submodule update --init --recursive` after cloning.
 
 ## Verification Rules of Thumb

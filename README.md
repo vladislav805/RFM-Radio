@@ -13,7 +13,7 @@ Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 
 - Live FM playback using supported hardware backend.
 - RDS metadata: PS, RT, RT+, PTY.
-- Recording to `.wav` and `.mp3`, with a matching `.srt` file containing frequency, PI, PS and RT.
+- Recording to `.wav`, `.mp3` (128 or 192 kbps stereo), and `.opus` (96 kbps stereo VBR), with a matching `.srt` file containing frequency, PI, PS and RT.
 - Favorites (presets) with custom names.
 - Multiple favorite lists.
 - Favorite list manager screen with import/export.
@@ -78,13 +78,15 @@ Use `make build-debug` for a debug APK or `make build-release` for a release APK
 Release signing uses the `ANDROID_RELEASE_*` environment variables described below;
 without signing credentials, the release APK is unsigned.
 
-Gradle builds the app native MP3 encoder and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
+Gradle builds the native MP3 and Opus encoders and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
 
 The MP3 encoder uses LAME 4.0 from the [enzo1982/lame](https://github.com/enzo1982/lame)
 SVN mirror, pinned as a Git submodule to commit
 `5a2d347159f9e6e441ee436407949e122ae802dc` (tag `RELEASE__4_0`). The encoder
 sources and headers match the official 4.0 release archive. CMake builds the
-checked-out sources without downloading dependencies.
+checked-out sources without downloading dependencies. Ogg Opus recording uses
+the libopus 1.6.1 and libopusenc 0.3 submodules. Both are linked into a single
+JNI library for each ABI, including support for 44.1 kHz capture on Android 7.
 
 Run Java unit tests with `make test-java` and native host tests with
 `make test-native`.
@@ -92,7 +94,7 @@ Run Java unit tests with `make test-java` and native host tests with
 ## RDS recording subtitles
 
 The **Save RDS as subtitles** option in recording settings is disabled by
-default. When enabled, each MP3/WAV recording is accompanied by a UTF-8 SRT file
+default. When enabled, each audio recording is accompanied by a UTF-8 SRT file
 with the same basename in the same folder. Changes apply to new recordings;
 disabling the option leaves existing SRT files untouched. Each cue shows the
 frequency and four-digit hexadecimal PI, followed by PS and RT.

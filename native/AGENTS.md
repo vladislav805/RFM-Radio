@@ -4,7 +4,7 @@ This directory builds one root executable `fmbin` (C++20, CMake, Android NDK,
 minimum platform 21). It is NOT a JNI library: the app copies an ABI-specific
 binary (`fmbin-armv7a` / `fmbin-aarch64`) from assets into its private files
 directory, starts it through `su`, and owns it over stdin/stdout. `app/src/
-main/cpp` is a different, unrelated native component (LAME MP3 encoder).
+main/cpp` builds the app’s MP3 and Opus recording encoders.
 
 ## Layout
 

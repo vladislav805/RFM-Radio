@@ -76,6 +76,7 @@
 	<string name="pref_recording_format_wav">WAV PCM 16bit</string>
 	<string name="pref_recording_format_mp3_128">MP3 128kbps</string>
 	<string name="pref_recording_format_mp3_192">MP3 192kbps</string>
+	<string name="pref_recording_format_opus_96">Opus 96 kbps</string>
 	<string name="pref_recording_save_past">Record previous 5 seconds</string>
 	<string name="pref_recording_save_past_summary">Include the five seconds before Record was pressed</string>
 	<string name="pref_recording_save_past_warning_title">Enable recording history?</string>

@@ -1,3 +1,9 @@
 [submodule "app/src/main/cpp/third_party/lame"]
 	path = app/src/main/cpp/third_party/lame
 	url = https://github.com/enzo1982/lame.git
+[submodule "app/src/main/cpp/third_party/opus"]
+	path = app/src/main/cpp/third_party/opus
+	url = https://github.com/xiph/opus.git
+[submodule "app/src/main/cpp/third_party/libopusenc"]
+	path = app/src/main/cpp/third_party/libopusenc
+	url = https://github.com/xiph/libopusenc.git

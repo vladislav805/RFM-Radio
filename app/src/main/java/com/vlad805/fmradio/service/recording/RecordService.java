@@ -85,6 +85,7 @@ public abstract class RecordService implements IFMRecorder {
 
     /** Duration reported before the pre-roll snapshot reaches the encoder. */
     private int mInitialDurationMillis;
+    private IOException mWriteError;
 
     /**
      * Constructor
@@ -126,14 +127,12 @@ public abstract class RecordService implements IFMRecorder {
     public final synchronized void record(final short[] data, final int length) {
         if (mState == State.RECORDING) {
             try {
-                byte[] bufferEncoded = new byte[(int) (7200 + data.length * 2 * 1.75)];
-                int bytesEncoded = onReceivedData(data, length, bufferEncoded);
-                mBufferOutStream.write(bufferEncoded, 0, bytesEncoded);
-                mRecordLength += bytesEncoded;
+                mRecordLength += writePcm(data, length);
                 mRecordedPcmSamples += length;
             } catch (IOException e) {
-                e.printStackTrace();
+                mWriteError = e;
                 mState = State.IDLE;
+                return;
             }
 
             final long now = System.currentTimeMillis();
@@ -205,7 +204,11 @@ public abstract class RecordService implements IFMRecorder {
         // Reject further PCM data before flushing and closing the encoder.
         mState = State.FINISHING;
 
-        onFinishRecording();
+        try {
+            onFinishRecording();
+        } catch (IOException e) {
+            mWriteError = e;
+        }
         if (mSubtitles != null) {
             try {
                 mSubtitles.finish(mRecordedPcmSamples * 1000L / (mSampleRate * 2L));
@@ -222,7 +225,7 @@ public abstract class RecordService implements IFMRecorder {
                 mBufferOutStream = null;
             }
         } catch (final IOException e) {
-            e.printStackTrace();
+            mWriteError = e;
         }
 
         try {
@@ -231,14 +234,14 @@ public abstract class RecordService implements IFMRecorder {
                 mFileOutStream = null;
             }
         } catch (final IOException e) {
-            e.printStackTrace();
+            mWriteError = e;
         }
 
         final RecordingTarget target = mRecordingTarget;
-        if (interruptionError != null && mRecordedPcmSamples == 0) {
+        if (mWriteError != null || (interruptionError != null && mRecordedPcmSamples == 0)) {
             target.abort();
             if (mListener != null) {
-                mListener.onRecordingFailed(interruptionError);
+                mListener.onRecordingFailed(mWriteError != null ? mWriteError : interruptionError);
             }
         } else {
             try {
@@ -434,18 +437,11 @@ public abstract class RecordService implements IFMRecorder {
      */
     protected abstract void onFileCreated() throws IOException;
 
-    /**
-     * Calls when AudioRecord receive new packet of data
-     * @param data New data
-     * @param length Length of data
-     * @param encoded Pointer to byte array of encoded data (output)
-     * @return Length of payload encoded array
-     * @throws IOException If happens error
-     */
-    protected abstract int onReceivedData(final short[] data, final int length, final byte[] encoded) throws IOException;
+    /** Writes interleaved stereo PCM and returns the number of output bytes written. */
+    protected abstract int writePcm(short[] data, int length) throws IOException;
 
     /**
      * Calls when recording is finished.
      */
-    protected abstract void onFinishRecording();
+    protected abstract void onFinishRecording() throws IOException;
 }

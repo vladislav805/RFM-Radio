@@ -49,6 +49,7 @@ public class AboutActivity extends AppCompatActivity {
 			new LicenseEntry("AndroidX Libraries", "Apache License 2.0", "licenses/apache-2.0.txt"),
 			new LicenseEntry("Material Components for Android", "Apache License 2.0", "licenses/apache-2.0.txt"),
 			new LicenseEntry("LAME MP3 Encoder", "GNU LGPL v2.0", "licenses/lame-lgpl-2.0.txt"),
+			new LicenseEntry("Opus / libopusenc", "BSD", "licenses/opus-bsd.txt"),
 	};
 
 	@Override

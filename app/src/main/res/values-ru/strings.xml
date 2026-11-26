@@ -63,6 +63,7 @@
 	<string name="pref_recording_format_wav">WAV PCM 16 бит</string>
 	<string name="pref_recording_format_mp3_128">MP3 128 кбит/с</string>
 	<string name="pref_recording_format_mp3_192">MP3 192 кбит/с</string>
+	<string name="pref_recording_format_opus_96">Opus 96 кбит/с</string>
 	<string name="pref_recording_name_title">Название файла</string>
 	<string name="pref_recording_path_name_description" tools:ignore="TypographyDashes">Доступные переменные:\n$y - год\n$m - месяц\n$d - день в месяце\n$h - час\n$i - минута\n$s - секунда\n$f - часота (например, 103.4 МГц = 1034)\n$r - случайное число из диапазона 10000-99999\nЗаписи сохраняются внутри Music/RFM-Recordings.\nЗначение директории должно быть относительным путём внутри этого корня.\nПример:\nДиректория: station/$y-$m-$d -> Music/RFM-Recordings/station/2020-01-27\nНазвание файла: Rec-$h_$i_$s_$f -> Rec_23_01_49_0906.wav\nКрайне не рекомендуется использовать нелатинские символы</string>
 	<string name="pref_recording_path_title">Поддиректория для сохранения</string>

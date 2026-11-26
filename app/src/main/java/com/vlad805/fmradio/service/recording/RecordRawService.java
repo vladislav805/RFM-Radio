@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.recording;
 import android.content.Context;
 import androidx.annotation.Nullable;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
@@ -43,19 +44,21 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 	}
 
 	/**
-	 * We need simple copy data
+	 * Simple copy data
 	 * @param data New data
 	 * @param length Length of data
 	 * @param encoded Pointer to byte array of encoded data (output)
      */
 	@Override
-	protected int onReceivedData(short[] data, int length, byte[] encoded) {
-		for (int i = 0, l = data.length; i < l; ++i) {
+	protected int writePcm(short[] data, int length) throws IOException {
+		byte[] encoded = new byte[2 * length];
+		for (int i = 0; i < length; ++i) {
 			short s = data[i];
 			encoded[2 * i] = (byte) (s & 0xff);
 			encoded[2 * i + 1] = (byte) ((s >> 8) & 0xff);
 		}
-		return length * 2;
+		mBufferOutStream.write(encoded);
+		return encoded.length;
 	}
 
 	/**

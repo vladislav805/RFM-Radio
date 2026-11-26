@@ -59,22 +59,25 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 	}
 
 	/**
-	 * When data is received, encode chunk of data with lame
+	 * Encode chunk of data with lame
 	 * @param data New data
 	 * @param length Length of data
 	 * @param encoded Pointer to byte array of encoded data (output)
 	 * @return Length of encoded data
 	 */
 	@Override
-	protected int onReceivedData(short[] data, int length, byte[] encoded) throws IOException {
-		return mEncoder.encodeInterleaved(data, length / 2, encoded);
+	protected int writePcm(short[] data, int length) throws IOException {
+		byte[] encoded = new byte[7200 + CHANNELS * length];
+		int written = mEncoder.encodeInterleaved(data, length / CHANNELS, encoded);
+		mBufferOutStream.write(encoded, 0, written);
+		return written;
 	}
 
 	/**
 	 * When recording is finished, close encoder
 	 */
 	@Override
-	protected void onFinishRecording() {
+	protected void onFinishRecording() throws IOException {
 		try {
 			if (mEncoder != null) {
 				final byte[] buffer = new byte[MP3_FLUSH_BUFFER_SIZE];
@@ -84,8 +87,6 @@ public class RecordLameService extends RecordService implements IFMRecorder {
 					mRecordLength += written;
 				}
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
 		} finally {
 			if (mEncoder != null) {
 				mEncoder.close();

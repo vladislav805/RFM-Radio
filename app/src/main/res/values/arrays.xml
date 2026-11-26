@@ -54,13 +54,15 @@
         <item>@string/pref_recording_format_wav</item>
         <item>@string/pref_recording_format_mp3_128</item>
         <item>@string/pref_recording_format_mp3_192</item>
+        <item>@string/pref_recording_format_opus_96</item>
     </string-array>
 
-    <!-- Stable values match C.RecordFormat: WAV=0, MP3_128=2, MP3_192=1 -->
+    <!-- Stable values match C.RecordFormat: WAV=0, MP3_128=2, MP3_192=1, OPUS_96=3 -->
     <string-array name="pref_recording_format_values" translatable="false">
         <item>0</item>
         <item>2</item>
         <item>1</item>
+        <item>3</item>
     </string-array>
 
     <string-array name="pref_app_favorites_columns" translatable="false">

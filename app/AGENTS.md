@@ -18,13 +18,12 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/` | Contract: `FMEventCallback` (typed), `RadioStatePatch`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser`, `Request` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
-| `service/recording/` | 14 files: `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3 recording, SRT subtitles, storage |
+| `service/recording/` | `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3/Opus recording, SRT subtitles, storage |
 | `fragments/` | `PreferencesFragment` — declarative `res/xml/preferences.xml` + backend capability gating |
 | `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum (with backend capability flags), `BandUtils` |
 
-`service/streaming/` is an empty leftover. `app/src/main/cpp/` is the LAME
-MP3 encoder (JNI `libmp3encoder.so`), unrelated to the FM backend.
+`service/streaming/` is an empty leftover. `app/src/main/cpp/` builds the JNI recording encoders `libmp3encoder.so` (LAME) and `libopusencoder.so` (libopus and libopusenc).
 
 ## FMService — Orchestrator
 
@@ -153,8 +152,8 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
 ## Recording
 
 - `FMService.getPreferredRecorder()`: `recording_mode` pref →
-  `RecordRawService` (WAV) or `RecordLameService` (MP3 192/128 via
-  `LameMp3Encoder` JNI), passing `FMService`'s `RecordingListener`.
+  `RecordRawService` (WAV), `RecordLameService` (MP3 192/128), or
+  `RecordOpusService` (Ogg Opus, 96 kbps stereo VBR), passing `FMService`'s `RecordingListener`.
 - `PcmRecorderSession`: PCM ring buffer (5 s pre-roll) plus an RDS-change
   history bound to PCM positions; writer thread with a bounded queue
   (backpressure).
@@ -230,9 +229,7 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   `AudioSelectionTest`, `AudioLifecycleTest`, `QualcommRoutedAudioTest`,
   `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`,
   `PcmRecorderSessionTest`, `RdsSubtitleWriterTest`, `RecordingStorageTest`.
-- Remaining leftovers: `service/streaming/` (empty), `RecordService.record()`
-  on `IOException` silently goes IDLE leaving the file unfinished,
-  `FavoriteStation`'s JSON constructor defaults frequency to 108100 (outside
+- Remaining leftovers: `service/streaming/` (empty) and `FavoriteStation`'s JSON constructor defaults frequency to 108100 (outside
   the EU band).
 
 ## Critical Android Bridge Traps
@@ -245,7 +242,7 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   returns `PcmFormat.PCM16_STEREO_48000` on `RoutingAudioService` (including
   routed V4L2 on API ≥ 26) and `PcmFormat.PCM16_STEREO_44100` on
   `LightAudioService`; it drives capture validation, pre-roll, WAV headers,
-  MP3 encoding, and recorded durations.
+  MP3 encoding, Opus input resampling, and recorded durations.
 - **Legacy RMSSI settle delay**: the native legacy backend waits 750 ms
   (`kMetricSettleMs`) after tune/jump before sampling RMSSI; do not "fix"
   Java-side timing to compensate.

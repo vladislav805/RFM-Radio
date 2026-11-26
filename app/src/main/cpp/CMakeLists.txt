@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(rfm_app_native)
 
@@ -69,4 +69,36 @@ else()
     # Also allow host builds of the same JNI encoder for MP3 round-trip checks.
     find_package(JNI REQUIRED)
     target_include_directories(mp3encoder PRIVATE ${JNI_INCLUDE_DIRS})
+endif()
+
+set(OPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/opus)
+set(OPUSENC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libopusenc)
+if(NOT EXISTS "${OPUS_DIR}/CMakeLists.txt" OR NOT EXISTS "${OPUSENC_DIR}/include/opusenc.h")
+    message(FATAL_ERROR "Opus submodules are missing. Run: git submodule update --init --recursive")
+endif()
+
+add_subdirectory(${OPUS_DIR} opus EXCLUDE_FROM_ALL)
+set_target_properties(opus PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(opusencoder SHARED
+    opus_encoder_jni.c
+    ${OPUSENC_DIR}/src/ogg_packer.c
+    ${OPUSENC_DIR}/src/opus_header.c
+    ${OPUSENC_DIR}/src/opusenc.c
+    ${OPUSENC_DIR}/src/resample.c
+)
+target_include_directories(opusencoder PRIVATE ${OPUSENC_DIR}/include)
+target_compile_definitions(opusencoder PRIVATE
+    OPE_EXPORT= OUTSIDE_SPEEX RANDOM_PREFIX=libopusenc FLOATING_POINT
+    PACKAGE_NAME="libopusenc" PACKAGE_VERSION="0.3"
+)
+if(ANDROID)
+    target_compile_options(opus PRIVATE -Os)
+    target_compile_options(opusencoder PRIVATE -Os)
+endif()
+set_target_properties(opusencoder PROPERTIES C_VISIBILITY_PRESET hidden)
+# Keep only the codec functions reachable from JNI in the packaged library.
+target_link_options(opusencoder PRIVATE "-Wl,--exclude-libs,ALL")
+target_link_libraries(opusencoder PRIVATE opus m)
+if(NOT ANDROID)
+    target_include_directories(opusencoder PRIVATE ${JNI_INCLUDE_DIRS})
 endif()

@@ -61,8 +61,8 @@ live in `Storage.java`.
 | `service/streaming/` | 0 | empty leftover directory |
 | `view/` | 10 + `view/adapter/` 1 | see UI section |
 
-`app/src/main/cpp/` builds `libmp3encoder.so` from the LAME 4.0 submodule
-(`lame_encoder_jni.c`); it is unrelated to the FM backend in `native/`.
+`app/src/main/cpp/` builds the JNI recording libraries `libmp3encoder.so` (LAME 4.0)
+and `libopusencoder.so` (libopus 1.6.1 and libopusenc 0.3).
 
 ## FMService
 
@@ -140,8 +140,8 @@ live in `Storage.java`.
   `QUALCOMM_ROUTED` / `SAMSUNG_ROUTED` (`RoutingAudioService`), API 23–25 →
   `PCM_LOOPBACK` (`LightAudioService`), `NONE` → no hardware audio.
 - `getPreferredRecorder()`: `recording_mode` → WAV (`RecordRawService`) /
-  MP3 192 or 128 (`RecordLameService`), injecting `mRecordingListener`; sample
-  rate comes from `mAudioService.getPcmFormat().sampleRateHz()` (48000 on
+  MP3 192 or 128 (`RecordLameService`) / Opus 96 (`RecordOpusService`).
+  Each receives `mRecordingListener`. The sample rate comes from `mAudioService.getPcmFormat().sampleRateHz()` (48000 on
   routed capture, 44100 on loopback).
 - Notifications (`service/FMNotificationManager.java`): playback id 1027
   (MediaStyle, seek/stop/record/seek actions using `FMService.ACTION_*`;
@@ -352,7 +352,7 @@ AudioService capture thread
   -> PcmRecorderSession (ring buffer + rdsHistory)
   -> FmPcmWriter thread (bounded queue, backpressure)
   -> IFMRecorder.record(short[], int)          (PCM)
-  -> RecordService.onReceivedData              (encode + write)
+  -> RecordService.writePcm                    (encode + write)
   -> RecordingListener (marshaled to main looper in FMService)
      -> RadioState.applyRecording* + FMNotificationManager + EventListener
 RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
@@ -386,14 +386,13 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
 - `RecordService.java` (abstract) — state machine
   IDLE/RECORDING/FINISHING/DONE. `startRecord` creates the file via
   `RecordingStorage.create()`, reads `recording_save_srt` once per recording,
-  and invokes `RecordingListener.onRecordingStarted(...)`; `record()` buffers
-  (`7200 + len*2*1.75` bytes) → encode → write, throttled
+  and invokes `RecordingListener.onRecordingStarted(...)`. `record()` passes PCM to the selected writer and throttles
   `onRecordingProgress(...)` (≥ 750 ms); `stopRecord()` flushes the encoder,
   closes streams, `RecordingTarget.commit()`/`abort()`, publishes subtitles,
   and notifies `onRecordingCompleted(RecordingResult)` or
   `onRecordingFailed(IOException)`. Duration =
-  max(initialDuration, acceptedPcmSamples/sampleRate/2). On `IOException`
-  in `record()` it silently returns to IDLE, leaving the file unfinished.
+  max(initialDuration, acceptedPcmSamples/sampleRate/2). A PCM write error stops further writes.
+  Finalization reports write, encoder drain, and stream close errors and discards the failed file.
 - `RecordRawService.java` — WAV: writes a 44-byte header at start, patches
   chunk sizes (offsets 4 and 40) at stop via `FileChannel`.
 - `RecordLameService.java` — MP3 through `LameMp3Encoder` (CBR 192/128,
@@ -403,6 +402,11 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
 - `LameMp3Encoder.java` — JNI wrapper for `libmp3encoder`
   (`nativeInit` / `nativeEncodeInterleaved` / `nativeFlush` /
   `nativeClose`).
+- `RecordOpusService.java` — `.opus` (`audio/ogg`), stereo VBR at a target of
+  96 kbps. `OggOpusEncoder` feeds the capture sample rate to libopusenc and
+  writes complete Ogg pages to the recording stream. libopusenc resamples
+  legacy 44.1 kHz PCM, accepts routed 48 kHz PCM directly, and trims the last
+  packet to the actual input duration when the writer drains.
 - `RecordingStorage.java` — target factory: directory/filename templates
   from `recording_directory`/`recording_filename` with
   `RecordSchemaHelper.prepareString` (`$f` frequency×10, `$y $m $d $h $i
@@ -518,7 +522,7 @@ inside `Storage.java`.
 | `rds_auto_af` | false | automatic AF jump |
 | `recording_directory` | `$y-$m-$d` | directory template |
 | `recording_filename` | `FM-$h$i$s-$f` | filename template |
-| `recording_mode` | `"0"` (0) | 0=WAV, 1=MP3 192, 2=MP3 128 |
+| `recording_mode` | `"0"` (0) | 0=WAV, 1=MP3 192, 2=MP3 128, 3=Opus 96 |
 | `recording_save_srt` | false | SRT subtitles for recordings |
 | `recording_save_past` | false | 5 s pre-roll (confirm + mic permission) |
 | `recording_show_notify` | true | recording progress notification |
@@ -539,7 +543,7 @@ notification refresh (`notification_show_ps`), and pre-roll toggle.
 `app/build.gradle`: `applicationId` `com.vlad805.fmradio` (debug suffix
 `.dev`), minSdk 23, targetSdk 24, compileSdk 37, Java 11, ABI filters
 `armeabi-v7a`/`arm64-v8a`, NDK `29.0.14033849`, CMake `3.22.1`.
-`externalNativeBuild` points at `src/main/cpp` (LAME only). FM backend
+`externalNativeBuild` points at `src/main/cpp` (MP3 and Opus encoders). FM backend
 integration: task `buildFmbinNative` (Exec → `native/build.sh`) →
 `verifyNativeAssets` (asserts `fmbin-armv7a`/`fmbin-aarch64` in assets) →
 `preBuild`. Release: minify + proguard, signing from `ANDROID_RELEASE_*`
@@ -582,12 +586,11 @@ No instrumented tests.
    device-dependent.
 4. Hidden APIs via reflection (`AudioSystem.DEVICE_OUT_*`, `setForceUse`)
    and `AudioManager.setParameters("fm_…")` — vendor-dependent by design.
-5. `RecordService.record()` swallows `IOException` → silent IDLE.
-6. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
+5. `LightAudioService` writes to `PcmRecorderSession` synchronously on the
    audio thread.
-7. Debug builds always reinstall `fmbin` (`isObsolete()` includes
+6. Debug builds always reinstall `fmbin` (`isObsolete()` includes
    `BuildConfig.DEBUG`) — frequent binary copies are expected during
    debugging.
-8. `Utils.runAsRoot` has a 15-second shell timeout.
-9. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
+7. `Utils.runAsRoot` has a 15-second shell timeout.
+8. Bridge success matching is `data.startsWith("ok")`; the `ok` field is
    unused (see `NativeTunerController`).

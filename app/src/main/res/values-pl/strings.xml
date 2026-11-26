@@ -94,6 +94,7 @@
 	<string name="pref_recording_format_wav">WAV PCM 16-bit</string>
 	<string name="pref_recording_format_mp3_128">MP3 128 kb/s</string>
 	<string name="pref_recording_format_mp3_192">MP3 192 kb/s</string>
+	<string name="pref_recording_format_opus_96">Opus 96 kb/s</string>
 	<string name="pref_recording_save_past">Nagrywaj poprzednie 5 sekund</string>
 	<string name="pref_recording_save_past_summary">Dołącz pięć sekund sprzed naciśnięcia przycisku nagrywania</string>
 	<string name="pref_recording_save_past_warning_title">Włączyć historię nagrywania?</string>

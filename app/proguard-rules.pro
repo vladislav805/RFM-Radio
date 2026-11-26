@@ -21,3 +21,4 @@
 #-renamesourcefileattribute SourceFile
 
 -keep class com.vlad805.fmradio.service.recording.LameMp3Encoder { *; }
+-keep class com.vlad805.fmradio.service.recording.OggOpusEncoder { *; }

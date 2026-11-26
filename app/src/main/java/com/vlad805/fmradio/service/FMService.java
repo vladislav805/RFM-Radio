@@ -44,6 +44,7 @@ import com.vlad805.fmradio.service.fm.implementation.NativeTunerController;
 import com.vlad805.fmradio.service.recording.IAudioRecordable;
 import com.vlad805.fmradio.service.recording.RdsSnapshot;
 import com.vlad805.fmradio.service.recording.RecordLameService;
+import com.vlad805.fmradio.service.recording.RecordOpusService;
 import com.vlad805.fmradio.service.recording.RecordRawService;
 import com.vlad805.fmradio.service.recording.RecordService;
 import com.vlad805.fmradio.service.recording.RecordingListener;
@@ -852,7 +853,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
     }
 
     /**
-     * Returns preferred by user audio recorder (WAV / MP3)
+     * Returns preferred by user audio recorder (WAV / MP3 / Opus)
      * @return Recorder
      */
     private RecordService getPreferredRecorder() {
@@ -872,6 +873,10 @@ public class FMService extends Service implements RadioServiceController, FMEven
 
             case C.RecordFormat.MP3_128: {
                 return new RecordLameService(this, kHz, sampleRate, 128, mRecordingListener);
+            }
+
+            case C.RecordFormat.OPUS_96: {
+                return new RecordOpusService(this, kHz, sampleRate, mRecordingListener);
             }
         }
 

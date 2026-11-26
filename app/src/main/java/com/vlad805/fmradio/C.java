@@ -12,6 +12,7 @@ public final class C {
 		/** Existing value retained for compatibility with saved preferences. */
 		public static final int MP3_192 = 1;
 		public static final int MP3_128 = 2;
+		public static final int OPUS_96 = 3;
 
 		private RecordFormat() {}
 	}
