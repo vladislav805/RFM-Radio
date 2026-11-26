@@ -23,9 +23,7 @@
 	<string name="progress_starting">Włączanie tunera…</string>
 	<string name="menu_settings">Ustawienia</string>
 	<string name="menu_record">Nagraj</string>
-	<string name="recording_duration">Czas nagrywania</string>
 	<string name="menu_about">O aplikacji</string>
-	<string name="menu_open_list_favorites">Ulubione</string>
 	<string name="popup_station_create">Stwórz</string>
 	<string name="popup_station_create_hint">Nazwa stacji…</string>
 	<string name="favorite_station_already_added">Bieżąca częstotliwość jest już dodana do ulubionych</string>
@@ -50,6 +48,7 @@
 	<string name="cd_seek_prev">Poprzednia stacja</string>
 	<string name="cd_seek_next">Następna stacja</string>
 	<string name="cd_power_toggle">Włącz lub wyłącz radio</string>
+	<string name="power_toggle_description">Włącz lub wyłącz radio</string>
 	<string name="pref_section_tuner_summary">Region, krok częstotliwości, stereo, antena, zasilanie</string>
 	<string name="pref_section_rds_summary">Automatyczne przełączanie AF i informacje RDS</string>
 	<string name="pref_section_recording_summary">Katalog, nazwa pliku, format, napisy, bufor przed nagraniem</string>
@@ -58,11 +57,8 @@
 	<string name="menu_favorite_list_create">Stwórz listę</string>
 	<string name="menu_favorite_list_import">Importuj listę</string>
 	<string name="menu_favorite_list_export">Eksportuj listę</string>
-	<string name="menu_favorite_list_export_selected">Eksportuj wybrane listy</string>
-	<string name="menu_favorite_list_remove_selected">Usuń wybrane listy</string>
-	<string name="favorite_lists_remove_selected_confirm">Usunąć wybrane listy (%d)?</string>
+	<string name="menu_favorite_list_export_all">Eksportuj wszystkie listy</string>
 	<string name="favorite_lists_stations_count">Stacji: %d</string>
-	<string name="favorite_lists_selected_count">Wybrano: %d</string>
 	<string name="popup_favorite_list_create">Stwórz ulubioną listę</string>
 	<string name="popup_favorite_list_rename">Zmień nazwę ulubionej listy</string>
 	<string name="favorite_list_create_error_already_exists">Lista z taką nazwą już istnieje</string>
@@ -73,6 +69,8 @@
 	<string name="favorite_list_import_error">Nie udało się zaimportować listy ulubionych</string>
 	<string name="favorite_list_export_success">Wyeksportowano listę \"%s\"</string>
 	<string name="favorite_list_export_error">Nie udało się wyeksportować listy ulubionych</string>
+	<string name="favorite_list_export_all_success">Liczba wyeksportowanych list: %d</string>
+	<string name="favorite_list_export_all_error">Nie udało się wyeksportować list ulubionych</string>
 	<string name="favorite_list_remove_title">Potwierdzenie</string>
 	<string name="favorite_list_remove_message">Czy jesteś pewien, że chcesz usunąć tą listę \'%s\'?</string>
 	<string name="pref_activity_title">Ustawienia</string>
@@ -87,7 +85,6 @@
 	<string name="pref_info_link_telegram">Kanał Telegram</string>
 	<string name="pref_tuner_antenna">Antena</string>
 	<string name="pref_tuner_antenna_message">Domyślnie jest to \'0\'.\nNa niektórych urządzeniach Sony jest \'1\'.</string>
-	<string name="toolbar_favorite_title">Ulubione</string>
 	<string name="pref_header_notifications">Powiadomienia</string>
 	<string name="pref_notification_show_ps_enabled">Jeśli stacja nadaje PS, zostanie to pokazane w powiadomieniu</string>
 	<string name="pref_notification_show_ps_disabled">Nazwa z ulubionych będzie wyświetlana jako nazwa stacji</string>
@@ -145,8 +142,6 @@
 	<string name="pref_tuner_power_mode_normal">Oszczędzanie energii jest wyłączone.</string>
 	<string name="pref_tuner_power_mode">Oszczędzanie energii</string>
 	<string name="pref_tuner_region">Region / zespół</string>
-    <string name="pref_warning_applying_only_after_restart">Uwaga! Te zmiany zostaną zastosowane dopiero po pełnym ponownym uruchomieniu
-        Aplikacji.</string>
     <string name="pref_tuner_stereo">Stereo</string>
 	<string name="pref_tuner_stereo_on">Używaj stereo jeśli dostępne</string>
 	<string name="pref_tuner_stereo_off">Zawsze mono</string>
@@ -165,7 +160,6 @@
 	<string name="scan_stations_confirm_continue">Usuń i zeskanuj</string>
 	<string name="scan_stations_confirm_discard">Odrzuć</string>
 	<string name="scan_stations_title">Wyszukiwanie stacji</string>
-	<string name="scan_stations_progress">Proszę, poczekaj… próbuję znaleźć stacje.</string>
 	<string name="scan_stations_progress_count">Znaleziono stacji: %d</string>
     <string name="pref_tuner_rds_auto_af">Automatyczne przeskakiwanie przez AF</string>
 	<string name="pref_tuner_rds_auto_afenabled">Gdy sygnał ulega pogorszeniu i występują alternatywne częstotliwości
@@ -180,11 +174,17 @@
 	<string name="root_required_title">Wymagany dostęp root</string>
 	<string name="root_required_message">Aplikacja nie może działać bez roota.\nNie znaleziono su na urządzeniu.</string>
 	<string name="root_access_denied_message">Dostęp root nie został przyznany. Zezwól RFM Radio na dostęp root w aplikacji do zarządzania uprawnieniami root i spróbuj ponownie.</string>
+    <string name="record_subtitles_failed">Zapisano nagranie, ale nie udało się zapisać napisów RDS.</string>
     <string name="pref_recording_save_srt">Zapisuj RDS jako napisy</string>
     <string name="pref_recording_save_srt_summary">Zapisuj częstotliwość, PS, RT i PI w pliku .srt obok nagrania audio. Dotyczy nowych nagrań.</string>
+    <string name="rds_rt_empty">Stacja nie nadaje radiotekstu</string>
+    <string name="rds_af_dialog_title">Częstotliwości alternatywne (AF)</string>
+    <string name="rds_af_dialog_empty">Stacja nie nadaje listy częstotliwości alternatywnych.</string>
+    <string name="favorites_select_list">Wybierz listę ulubionych</string>
+    <string name="favorites_manage_lists">Zarządzaj listami ulubionych</string>
+    <string name="favorite_list_name_hint">Nazwa listy</string>
     <string name="favorites_add_station">Dodaj</string>
     <string name="favorites_lists_title">Listy ulubionych</string>
-    <string name="favorites_create_new_list">Nowa lista</string>
     <string name="favorites_playing_indicator">Teraz odtwarzane</string>
     <string name="pref_app_favorites_columns">Kolumny ulubionych</string>
     <string name="pref_app_theme">Motyw</string>
