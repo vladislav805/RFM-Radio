@@ -89,6 +89,8 @@ The ready event reports the process ID and the detected backend. In a state even
 `"rds":{"rt_plus":{"ITEM.TITLE":"Song","INFO.WEATHER":"Rain"}}` updates the title and weather.
 Every key in `rt_plus` is an RT+ content type name. An empty string clears that
 field and omitted fields keep their previous values.
+Exynos S610 and Helium report the Traffic Programme flag as `rds.tp` (`true`
+or `false`). A station reset turns an active flag off with `false`.
 
 ## Supported Commands
 

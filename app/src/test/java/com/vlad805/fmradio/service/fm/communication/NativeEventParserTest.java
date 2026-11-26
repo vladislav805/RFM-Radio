@@ -69,10 +69,21 @@ public class NativeEventParserTest {
         assertEquals("1234", patch.getPi());
         assertEquals("UA", patch.getCountry());
         assertEquals(Integer.valueOf(11), patch.getPty());
+        assertNull(patch.getTp());
         assertArrayEquals(new int[]{101700, 102500}, patch.getAf());
         assertEquals("Song Name Line2", patch.getRtPlusFields().get("ITEM.TITLE"));
         assertEquals("Artist", patch.getRtPlusFields().get("ITEM.ARTIST"));
         assertEquals("Album", patch.getRtPlusFields().get("ITEM.ALBUM"));
+    }
+
+    @Test
+    public void parsesBothTrafficProgrammeValues() {
+        for (final boolean tp : new boolean[]{true, false}) {
+            parser.handle(new MapJsonObject().put("type", "state").put("rds", new MapJsonObject().put("tp", tp)));
+        }
+        assertEquals(2, callback.patches.size());
+        assertEquals(Boolean.TRUE, callback.patches.get(0).getTp());
+        assertEquals(Boolean.FALSE, callback.patches.get(1).getTp());
     }
 
     @Test

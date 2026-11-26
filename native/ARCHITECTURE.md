@@ -353,15 +353,19 @@ State is sent as partial patches:
     "pi": "7756",
     "country": "UA",
     "pty": 7,
+    "tp": true,
     "af": [99500, 103200]
   }
 }
 ```
 
 Only changed/present fields are included. Supported state fields are frequency,
-stereo, RMSSI, PS, RT, PI, country, PTY, and AF frequencies. RMSSI is a signed
+stereo, RMSSI, SINR, PS, RT, PI, country, PTY, TP, RT+ and AF frequencies. RMSSI is a signed
 receiver value serialized as a top-level `rmssi` field. Country is a two-letter
 code decoded from the registered ECC and PI country-code combination.
+The boolean `rds.tp` turns true when the station signals that it carries traffic
+announcements. It defaults to false. A station metadata reset emits `false`
+when the indicator was on. Patches without `tp` preserve its current value.
 
 Seek completion (emitted for single hardware seeks even when landing back on the
 cached frequency):
@@ -571,7 +575,7 @@ seek so `seek_complete_cb` updates frequency, clears RDS, emits the
 authoritative state patch, and sends a single `seek_done` only for a live
 `seekhw` request (rejecting overlapping `seekhw` / `searchhw` while active).
 Both callbacks use `make_station_metadata_reset_patch()` for PS, RT, PI,
-country, PTY, AF and all RT+ fields. A standalone seek completion thus
+country, PTY, TP, AF and all RT+ fields. A standalone seek completion thus
 clears the previous track in the frequency update before emitting `seek_done`.
 
 ### Full Search
@@ -639,7 +643,7 @@ already-absent metric clears are deduplicated at JSON serialization time in
 ### HAL RDS and Audio
 
 Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
-App-facing state includes PS, RT, PI, PTY, AF, stereo, country decoded
+App-facing state includes PS, RT, PI, PTY, TP, AF, stereo, country decoded
 from ECC plus the PI country nibble, and RT+ fields (sliced against raw RT).
 
 The ECC callback (`ext_country_code_cb`) receives the 12-byte RDS group 1A
@@ -647,8 +651,10 @@ payload where `[4]` is the firmware TA/TP header byte and `[5]` is the 1A
 variant. The variant gate reads `[5]` only (via `parse_rds_ecc_payload()` in
 `rds_parser.cpp`): folding the TA/TP header byte into the variant made
 `variant` always non-zero on TP stations and silently dropped their country
-(issue #102). The slow-labelling low byte `[9]` is ECC only at variant 0;
-other variants are logged and discarded.
+(issue #102). The slow-labelling low byte `[9]` carries ECC at variant 0.
+All variants carry TP in bit 0 of byte `[4]`. Helium publishes it when the
+packet PI matches the latest PS PI, whichever callback arrived first. A new
+PS PI clears the previous TP until a matching ECC packet is available.
 
 The `rds_avail_status_cb` boolean is a decoder sync/lock snapshot, not a gate
 for processed RDS data. A tune-status callback commonly reports `rds_sync=0`
@@ -919,8 +925,63 @@ implemented in all of these places:
 
 Native logs go to stderr and are forwarded to logcat under `RFM-QCOM`. Stdout
 must contain protocol JSON only.
-Shared server logs use `srv/<scope>`, HAL logs use `hal/<scope>`, and legacy
-logs use `leg/<scope>`. All three prefixes reserve seven characters for scope.
+
+For live RDS flag diagnostics, tune the same station on each receiver and capture
+`adb logcat -v time -s RFM-QCOM:D`. S610 logs `flags pi=… group=… B=…` after
+PI confirmation, on the first observation and when values change. Bit 10 of
+block B carries TP. Groups 0A, 0B and 15B also log TA (bit 4) and legacy M/S
+(bit 3, 1 for music, 0 for speech). Other groups log TP alone. Qualcomm PS/RT
+lines include the five raw vendor header bytes in `header=[…]`. Helium ECC
+lines also include `ta_tp`.
+
+| Receiver | RadioText A/B | TP | TA | Legacy M/S |
+| --- | --- | --- | --- | --- |
+| Galaxy A51, Exynos S610 | Group 2 block B, bit 4, used during RT assembly | Both values observed | Decoded, only 0 observed | Both values observed |
+| Poco X3 Pro, Helium | RT callback byte `[4]` | ECC byte `[4]`, bit 0 matched four stations | Unconfirmed | Unconfirmed |
+| Redmi 4A, V4L2 Qualcomm | RT buffer byte `[4]`, both values observed | Unavailable through tested interfaces | Unavailable through tested interfaces | Unavailable through tested interfaces |
+| Mi A1, V4L2 Qualcomm | RT buffer byte `[4]`, both values observed | Unavailable through tested interfaces | Unavailable through tested interfaces | Unavailable through tested interfaces |
+
+The published Mi A1 driver copies the incoming `txt_ab_flag` into RT byte
+`[4]` and writes zero to PS byte `[4]`, omitting the traffic and M/S fields
+of the incoming PS event. The installed Mi A1 framework's `getRTInfo()`
+extracts the text starting at offset 5. The Poco's installed `fm_helium.so`
+also copies the incoming RadioText A/B byte into RT callback byte `[4]`.
+[Xiaomi driver](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/tissot-n-oss/drivers/media/radio/radio-iris.c#L2900) · [FM event layout](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/tissot-n-oss/include/uapi/media/radio-iris.h#L461)
+
+Broadcasters toggle A/B when starting a new RT message. On 89.7 MHz the
+Redmi reported 0 for the station phone number and 1 for its web address.
+The last SINR sample before both RT updates was 25. On the Mi A1 one update
+already carried the new A/B value alongside the end of the previous text.
+Treat the toggle as a message boundary hint when consuming processed RT.
+[IEC 62106-2 §6.3](https://www.fm-rds.org/rds-stuff/iec-62106-2-2021.pdf)
+
+On the Poco X3 Pro, ECC callback byte `[4]` matched TP measured on the Galaxy
+A51 at the same PI. It was `0x01` on 89.7 and 105.3 MHz and `0x00` on 87.5
+and 88.4 MHz. The 93.3 MHz RT+ callback also carried `0x01` at `[4]`.
+The Poco's installed `fm_helium.so` explicitly writes zero to PS callback
+byte `[4]`. RT callback byte `[4]` took both values on 89.7 MHz. These
+captures establish no mapping for TA or legacy M/S in the Helium callbacks.
+
+On the Redmi 4A (`radio-iris`), PS byte `[4]` was zero on 88.4 MHz (TP=0
+on the A51) and on 89.7 and 93.3 MHz (TP=1). RT byte `[4]` took both
+values on 89.7 MHz. With raw groups 0A, 0B, 1A and 3A enabled (mask
+`0x47`), the driver delivered processed PS/RT but no `NEW_RAW_RDS` event.
+Directly dequeuing the private raw buffer returned zero bytes on all three
+stations. The device reported `device_caps=0x00250000` (RDS capture and
+read/write capability bits clear), and a nonblocking `read()` on the tuned
+radio descriptor returned `EINVAL`. `VIDIOC_QUERYCTRL`, `VIDIOC_G_CTRL` and `VIDIOC_G_EXT_CTRLS`
+returned `EINVAL` for the standard FM RX controls for TP, TA and M/S.
+
+The Mi A1 (`radio-iris`, Android 7.1.2, kernel 3.18.31) also returned zero
+in PS byte `[4]` on 88.0 and 88.4 MHz (TP=0) and on 89.7, 93.3 and
+105.3 MHz (TP=1), with matching PI on the A51. RT byte `[4]` took both
+values on 89.7 MHz. With the same `0x47` mask, the private raw buffer
+returned zero bytes and no raw group event arrived. The standard TP, TA and
+M/S control queries and reads, as well as `read()` on the tuned device,
+returned `EINVAL`.
+
+Shared server logs use `srv/<scope>`. Backend logs use `helium/<scope>`,
+`qcv4l2/<scope>` or `exynos/<scope>` and pad the scope to seven characters.
 
 Legacy and HAL backend logs use the same shape:
 

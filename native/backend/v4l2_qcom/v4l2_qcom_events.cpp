@@ -1,5 +1,6 @@
 #include "v4l2_qcom_backend.h"
 #include "../qcom_fm_controls.h"
+#include "../qcom_rds_log.h"
 #include "../../ctl_server.h"
 #include "../../frequency_format.h"
 #include "../../hex_dump.h"
@@ -93,7 +94,7 @@ bool V4l2QcomBackend::extract_program_service(fm_rds_storage *storage) {
     uint8_t buf[64] = {0};
     int32_t bytes = read_buffer(buf, sizeof(buf), kTavaruaBufPsRds);
 
-    if (bytes < 5) {
+    if (bytes < kRdsTextHeaderSize) {
         return false;
     }
 
@@ -112,8 +113,7 @@ bool V4l2QcomBackend::extract_program_service(fm_rds_storage *storage) {
     storage->program_type = parsed.pty;
     snprintf(storage->program_name, sizeof(storage->program_name), "%s", parsed.text);
 
-    log("rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
-            parsed.block_count, storage->program_id, storage->program_type, storage->program_name, parsed.text_len);
+    log_qcom_rds_text(log, "ps", buf, parsed);
     return true;
 }
 
@@ -122,7 +122,7 @@ bool V4l2QcomBackend::extract_radio_text(fm_rds_storage *storage) {
     uint8_t buf[128] = {0};
     int32_t bytes = read_buffer(buf, sizeof(buf), kTavaruaBufRtRds);
 
-    if (bytes < 5) {
+    if (bytes < kRdsTextHeaderSize) {
         return false;
     }
 
@@ -139,7 +139,7 @@ bool V4l2QcomBackend::extract_radio_text(fm_rds_storage *storage) {
 
     snprintf(storage->radio_text, sizeof(storage->radio_text), "%s", parsed.text);
     rt_plus_.set_text(parsed);
-    log("rds", "rt text=`%s` (len=%d)", storage->radio_text, parsed.text_len);
+    log_qcom_rds_text(log, "rt", buf, parsed);
 
     return true;
 }

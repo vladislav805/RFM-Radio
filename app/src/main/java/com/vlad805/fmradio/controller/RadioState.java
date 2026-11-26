@@ -29,6 +29,7 @@ public final class RadioState {
     public static final int SET_RT_PLUS = 1 << 11;
     public static final int SET_SINR = 1 << 12;
     public static final int SET_AF = 1 << 13;
+    public static final int SET_TP = 1 << 14;
     public static final int SET_INITIAL = 1 << 31;
 
     public static final int INITIAL_SNAPSHOT_MASK =
@@ -38,6 +39,7 @@ public final class RadioState {
             SET_PS |
             SET_RT |
             SET_PTY |
+            SET_TP |
             SET_PI |
             SET_COUNTRY |
             SET_STEREO |
@@ -66,6 +68,8 @@ public final class RadioState {
 
     // PTY - Program TYpe
     private int pty;
+
+    private boolean tp;
 
     // PS - Program Service
     private String ps = "";
@@ -141,6 +145,10 @@ public final class RadioState {
         this.pty = pty;
     }
 
+    public boolean hasTrafficProgramme() {
+        return tp;
+    }
+
     public String getPs() {
         return ps;
     }
@@ -177,6 +185,7 @@ public final class RadioState {
         pi = "";
         country = "";
         pty = 0;
+        tp = false;
         ps = "";
         rt = "";
         rtPlus = RtPlusInfo.EMPTY;
@@ -191,7 +200,7 @@ public final class RadioState {
         if (nextStatus == TunerStatus.IDLE) {
             clear();
             return SET_STATUS | SET_RMSSI | SET_SINR | SET_PS | SET_RT | SET_PTY
-                    | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS | SET_AF;
+                    | SET_PI | SET_COUNTRY | SET_STEREO | SET_RT_PLUS | SET_AF | SET_TP;
         }
         return SET_STATUS;
     }
@@ -225,6 +234,10 @@ public final class RadioState {
         if (patch.getPty() != null) {
             pty = patch.getPty();
             mode |= SET_PTY;
+        }
+        if (patch.getTp() != null) {
+            tp = patch.getTp();
+            mode |= SET_TP;
         }
         if (patch.getPi() != null) {
             pi = patch.getPi();

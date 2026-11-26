@@ -43,6 +43,7 @@ public final class RadioUIView {
 	private final TextView mRdsPs;
 	private final TextView mRdsRt;
 	private final TextView mRdsPty;
+	private final TextView mRdsTp;
 	private final TextView mRdsPtyLabel;
 	private final TextView mRdsPi;
 
@@ -73,6 +74,7 @@ public final class RadioUIView {
 		mRdsPs = root.findViewById(R.id.frequency_ps);
 		mRdsRt = root.findViewById(R.id.frequency_rt);
 		mRdsPty = root.findViewById(R.id.frequency_pty);
+		mRdsTp = root.findViewById(R.id.frequency_tp);
 		mRdsPtyLabel = root.findViewById(R.id.frequency_pty_label);
 		mRdsPi = root.findViewById(R.id.frequency_pi);
 
@@ -180,6 +182,7 @@ public final class RadioUIView {
 	}
 
 	public final void setRadioState(final RadioState state) {
+		mRdsTp.setVisibility(state.hasTrafficProgramme() ? View.VISIBLE : View.GONE);
 		final String placeholder = getContext().getString(R.string.rds_placeholder);
 
 		final String ps = state.getPs() != null ? state.getPs().trim() : "";
@@ -368,6 +371,7 @@ public final class RadioUIView {
 	}
 
 	public final void clearMetadata() {
+		mRdsTp.setVisibility(View.GONE);
 		final String placeholder = getContext().getString(R.string.rds_placeholder);
 		cancelRtAppendAnimator();
 		if (!placeholder.equals(mLastPsText) && !mLastPsText.isEmpty()) {

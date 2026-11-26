@@ -14,6 +14,7 @@
 	<string name="favorites_edit">Edytuj</string>
 	<string name="favorites_done">Gotowe</string>
 	<string name="signal_strength_indicator">Siła sygnału</string>
+	<string name="rds_tp_description">Stacja nadaje komunikaty drogowe</string>
 	<string name="stereo_mode_label">Stereo</string>
 	<string name="mono_mode_label">Mono</string>
 	<string name="stereo_mode_active">Odbiór stereo</string>

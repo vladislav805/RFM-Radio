@@ -102,6 +102,8 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
     if (rds_.pi_hits >= 2 && (!rds_.has_pi || rds_.pi != a)) {
         rds_.pi = a;
         rds_.has_pi = true;
+        rds_.last_tp = -1;
+        rds_.last_ta_ms = -1;
         std::snprintf(rds_.pi_text, sizeof(rds_.pi_text), "%04X", a);
         patch.pi = rds_.pi_text;
         dirty = true;
@@ -123,6 +125,14 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
     // from another frequency never poison the current station's state.
     if (!rds_.has_pi || rds_.pi != a) {
         return dirty;
+    }
+
+    const int tp = (b >> 10) & 1;
+    log_station_flags(b, group_type, version_b, tp);
+    if (tp != rds_.last_tp) {
+        rds_.last_tp = tp;
+        patch.tp = tp;
+        dirty = true;
     }
 
     if (group_type == 0 && rds_.have_block[3]) {
@@ -300,6 +310,38 @@ bool S610RdsDecoder::decode_group(radio_state_patch_t &patch) {
     }
 
     return dirty;
+}
+
+void S610RdsDecoder::log_station_flags(uint16_t b, int group_type, bool version_b, int tp) {
+    const char version = version_b ? 'B' : 'A';
+    if (group_type == 0 || (group_type == 15 && version_b)) {
+        // TA and legacy M/S occupy adjacent bits in these groups.
+        const int ta_ms = (b >> 3) & 3;
+        if (tp != rds_.last_tp || ta_ms != rds_.last_ta_ms) {
+            log_(
+                    "rds",
+                    "flags pi=%04x group=%d%c B=%04x TP=%d TA=%d MS=%d",
+                    rds_.pi,
+                    group_type,
+                    version,
+                    b,
+                    tp,
+                    ta_ms >> 1,
+                    ta_ms & 1
+            );
+            rds_.last_ta_ms = ta_ms;
+        }
+    } else if (tp != rds_.last_tp) {
+        log_(
+                "rds",
+                "flags pi=%04x group=%d%c B=%04x TP=%d",
+                rds_.pi,
+                group_type,
+                version,
+                b,
+                tp
+        );
+    }
 }
 
 void S610RdsDecoder::update_rt_plus_fields(radio_state_patch_t &patch, bool &dirty) {

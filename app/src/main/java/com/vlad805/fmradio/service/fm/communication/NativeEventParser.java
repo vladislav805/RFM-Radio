@@ -179,6 +179,10 @@ public final class NativeEventParser {
                 patch.setPty(pty);
             }
 
+            if (rds.has("tp")) {
+                patch.setTp(rds.optBoolean("tp", false));
+            }
+
             if (rds.has("af")) {
                 final int[] af = parseIntArray(rds.optArray("af"));
                 if (af == null) {

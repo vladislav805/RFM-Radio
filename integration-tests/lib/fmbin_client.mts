@@ -26,6 +26,7 @@ export interface RdsState {
     pi?: string;
     country?: string;
     pty?: number;
+    tp?: boolean;
     af?: number[];
     rt_plus?: RtPlusInfo;
 }

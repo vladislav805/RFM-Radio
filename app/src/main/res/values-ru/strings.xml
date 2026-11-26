@@ -163,6 +163,7 @@
     <string name="pref_recording_save_srt">Сохранять RDS в субтитры</string>
     <string name="pref_recording_save_srt_summary">Сохранять частоту, PS, RT и PI рядом с аудиозаписью в .srt-файл. Применяется к новым записям.</string>
     <string name="rds_rt_empty">Радиотекст (RT) не передаётся</string>
+    <string name="rds_tp_description">Станция передаёт дорожные сводки</string>
     <string name="rds_af_dialog_title">Альтернативные частоты (AF)</string>
     <string name="rds_af_dialog_empty">Станция не передаёт список альтернативных частот.</string>
     <string name="favorites_select_list">Выбрать список избранного</string>

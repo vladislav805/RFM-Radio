@@ -13,6 +13,7 @@
 #include "../../monotonic_clock.h"
 #include "../../region_profile.h"
 #include "../../rmssi.h"
+#include "../qcom_rds_log.h"
 
 namespace {
 
@@ -164,6 +165,7 @@ void HalHeliumBackend::reset_for_test(
         state_.disable_pending = false;
         state_.scan.active = false;
         state_.current_frequency_khz = 0;
+        reset_rds_dedup_locked();
         state_.rmssi.clear_request();
         state_.rmssi.paused = false;
         sinr_supported_ = true;
@@ -1328,7 +1330,7 @@ void HalHeliumBackend::on_rt_update(char *rt) {
         fields = state_.rt_plus.fields();
     }
 
-    log("rds", "rt text=`%s` (len=%d)", parsed.text, parsed.text_len);
+    log_qcom_rds_text(log, "rt", rt, parsed);
     radio_state_patch_t patch = radio_state_patch_empty();
     patch.rt = parsed.text;
     fields.write_patch(patch);
@@ -1363,8 +1365,7 @@ void HalHeliumBackend::on_ps_update(char *ps) {
         return;
     }
 
-    log("rds", "ps count=%d pi=%04x pty=%d text=`%s` (len=%d)",
-            parsed.block_count, parsed.pi, parsed.pty, parsed.text, parsed.text_len);
+    log_qcom_rds_text(log, "ps", ps, parsed);
     char pi[16];
     snprintf(pi, sizeof(pi), "%x", parsed.pi);
     radio_state_patch_t patch = radio_state_patch_empty();
@@ -1465,17 +1466,14 @@ void HalHeliumBackend::on_ert_update(char *payload) {
  * [0]=12
  * [1]=PTY
  * [2..3]=PI
- * [4]=TA/TP header byte (firmware-side)
+ * [4]=firmware traffic flags, bit 0 is TP
  * [5]=1A variant
  * [6..7]=flags/reserved
  * [8..9]=slow labelling
  * [10..11]=block D.
  *
- * The slow-labelling low byte is ECC only when variant == 0. Other variants
- * are broadcaster/vendor data and are ignored to avoid log spam. Parsing is
- * delegated to parse_rds_ecc_payload(), which reads the variant from [5]
- * only; the TA/TP header byte at [4] stays outside the variant gate
- * (issue #102).
+ * TP applies to every variant. parse_rds_ecc_payload() interprets the
+ * slow-labelling low byte as ECC when the variant in [5] is zero (issue #102).
  */
 void HalHeliumBackend::on_ext_country_code(char *payload) {
     if (payload == nullptr) {
@@ -1487,6 +1485,7 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
     bool duplicate = false;
     char country[3] = "";
     bool has_country = false;
+    radio_state_patch_t patch = radio_state_patch_empty();
     {
         std::lock_guard<std::mutex> lock(state_lock_);
         duplicate = is_duplicate_payload_locked(
@@ -1497,6 +1496,9 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
                 len
         );
         if (!duplicate) {
+            if (len == sizeof(state_.last_ecc)) {
+                patch.tp = static_cast<unsigned char>(payload[4]) & 1;
+            }
             has_country = parse_rds_ecc_payload(
                     reinterpret_cast<const unsigned char *>(payload),
                     len,
@@ -1506,6 +1508,11 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
     }
     if (duplicate) {
         return;
+    }
+
+    if (has_country || patch.tp != RADIO_PATCH_ABSENT_INT) {
+        patch.country = has_country ? country : nullptr;
+        send_radio_state_patch(&patch);
     }
 
     char dump[3 * 32 + 1];
@@ -1537,15 +1544,12 @@ void HalHeliumBackend::on_ext_country_code(char *payload) {
                     dump,
                     len > 32 ? " ..." : ""
             );
-            radio_state_patch_t patch = radio_state_patch_empty();
-            patch.country = country;
-            send_radio_state_patch(&patch);
             return;
         }
 
         log(
                 "rds",
-                "ecc ignored len=%d pi=%04x pty=%d ta_tp=0x%02x variant=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
+                "ecc len=%d pi=%04x pty=%d ta_tp=0x%02x variant=0x%02x sl=0x%04x block_d=0x%04x data=%s%s",
                 len,
                 pi,
                 pty,

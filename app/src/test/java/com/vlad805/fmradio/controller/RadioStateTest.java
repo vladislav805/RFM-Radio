@@ -130,8 +130,26 @@ public class RadioStateTest {
                 RadioState.SET_STATUS | RadioState.SET_RMSSI | RadioState.SET_SINR
                         | RadioState.SET_PS | RadioState.SET_RT | RadioState.SET_PTY
                         | RadioState.SET_PI | RadioState.SET_COUNTRY | RadioState.SET_STEREO
-                        | RadioState.SET_RT_PLUS | RadioState.SET_AF;
+                        | RadioState.SET_RT_PLUS | RadioState.SET_AF | RadioState.SET_TP;
         assertEquals(expectedClearedMask, idleMask);
+    }
+
+    @Test
+    public void trafficProgrammeSurvivesUnrelatedUpdatesAndClearsOnStationResetOrStop() {
+        final RadioState state = new RadioState();
+        final RadioStatePatch patch = new RadioStatePatch();
+        assertFalse(state.hasTrafficProgramme());
+        patch.setTp(true);
+        assertEquals(RadioState.SET_TP, state.applyPatch(patch));
+        state.applyPatch(new RadioStatePatch());
+        assertTrue(state.hasTrafficProgramme());
+        patch.setTp(false);
+        assertEquals(RadioState.SET_TP, state.applyPatch(patch));
+        assertFalse(state.hasTrafficProgramme());
+        patch.setTp(true);
+        state.applyPatch(patch);
+        state.applyStatus(TunerStatus.IDLE);
+        assertFalse(state.hasTrafficProgramme());
     }
 
     @Test

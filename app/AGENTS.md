@@ -126,6 +126,9 @@ Omitted keys retain
 their values. Empty strings clear individual fields and an empty object clears
 the RT+ state. The overlay displays populated fields with localized English,
 Russian and Polish labels.
+`RadioState` stores TP as a boolean, initially false. An omitted `rds.tp`
+keeps the current value. A station reset or stopping the tuner clears it.
+`RadioUIView` shows TP beside PS when the flag is true.
 For Qualcomm V4L2, `jump` also updates the displayed frequency through the
 `state` patch from the tune event. Its delayed numeric reply acknowledges the target.
 

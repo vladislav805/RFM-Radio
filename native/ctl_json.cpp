@@ -205,6 +205,10 @@ bool build_radio_state_patch_json(
         append_field(rds, first_rds, "pty", std::to_string(patch->pty));
     }
 
+    if (patch->tp != RADIO_PATCH_ABSENT_INT && patch->tp != cache.tp) {
+        append_field(rds, first_rds, "tp", patch->tp == 1 ? "true" : "false");
+    }
+
     std::string rt_plus;
     bool first_rt_plus = true;
     for (int type = 1; type < kRdsRtpContentTypeTableSize; ++type) {
@@ -290,6 +294,9 @@ void apply_radio_state_patch(RadioStateJsonCache *cache, const radio_state_patch
 
     if (patch->pty != RADIO_PATCH_ABSENT_INT) {
         cache->pty = patch->pty;
+    }
+    if (patch->tp != RADIO_PATCH_ABSENT_INT) {
+        cache->tp = patch->tp;
     }
 
     if (patch->af_count != RADIO_PATCH_ABSENT_INT) {

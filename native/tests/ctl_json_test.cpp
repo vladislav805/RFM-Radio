@@ -31,6 +31,26 @@ TEST(CtlJsonTest, SendsExtendedFieldsAndExplicitClearsOnStationReset) {
     EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
 }
 
+TEST(CtlJsonTest, SendsTrafficProgrammeOnlyWhenTheIndicatorChanges) {
+    RadioStateJsonCache cache;
+    auto patch = radio_state_patch_empty();
+    std::string json;
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+    patch.tp = 0;
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+    patch.tp = 1;
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_EQ(json, R"({"type":"state","rds":{"tp":true}})");
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+
+    patch = make_station_metadata_reset_patch();
+    ASSERT_TRUE(build_radio_state_patch_json(cache, &patch, &json));
+    EXPECT_NE(json.find(R"("tp":false)"), std::string::npos);
+    apply_radio_state_patch(&cache, &patch);
+    EXPECT_FALSE(build_radio_state_patch_json(cache, &patch, &json));
+}
+
 TEST(CtlJsonTest, BuildsNativeEvent) {
     EXPECT_EQ(build_native_event_json("enabled"), "{\"type\":\"enabled\"}");
     EXPECT_EQ(build_native_event_json(""), "");

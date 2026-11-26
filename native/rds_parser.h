@@ -34,6 +34,9 @@ struct RdsRtPlusPayload {
     int tag_count = 0;
 };
 
+// Qualcomm PS/RT header: [0]=count/length, [1]=PTY, [2..3]=PI, [4]=vendor byte.
+constexpr int kRdsTextHeaderSize = 5;
+
 // Low-nibble block count mask in Program Service header byte [0].
 constexpr int kRdsPsCountMask = 0x0f;
 

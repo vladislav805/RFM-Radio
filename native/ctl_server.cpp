@@ -201,6 +201,7 @@ radio_state_patch_t radio_state_patch_empty(void) {
     patch.frequency_khz = RADIO_PATCH_ABSENT_INT;
     patch.ps = patch.rt = patch.pi = patch.country = nullptr;
     patch.pty = RADIO_PATCH_ABSENT_INT;
+    patch.tp = RADIO_PATCH_ABSENT_INT;
     patch.af_khz = nullptr;
     patch.af_count = RADIO_PATCH_ABSENT_INT;
     patch.stereo = RADIO_PATCH_ABSENT_INT;
@@ -217,6 +218,7 @@ radio_state_patch_t make_station_metadata_reset_patch(void) {
     patch.pi = "";
     patch.country = "";
     patch.pty = 0;
+    patch.tp = 0;
     patch.af_count = 0;
 
     for (auto &value : patch.rt_plus) {

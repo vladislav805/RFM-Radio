@@ -11,6 +11,7 @@ public final class RadioStatePatch {
     private String pi;
     private String country;
     private Integer pty;
+    private Boolean tp;
     private int[] af;
     private Boolean stereo;
     private Integer rmssi;
@@ -66,6 +67,15 @@ public final class RadioStatePatch {
         this.pty = pty;
     }
 
+    @Nullable
+    public Boolean getTp() {
+        return tp;
+    }
+
+    public void setTp(final boolean tp) {
+        this.tp = tp;
+    }
+
     public int[] getAf() {
         return af;
     }
@@ -115,6 +125,7 @@ public final class RadioStatePatch {
                 pi == null &&
                 country == null &&
                 pty == null &&
+                tp == null &&
                 af == null &&
                 stereo == null &&
                 rmssi == null &&

@@ -859,6 +859,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             (mode & RadioState.SET_PI) != 0 ||
             (mode & RadioState.SET_RT) != 0 ||
             (mode & RadioState.SET_PTY) != 0 ||
+            (mode & RadioState.SET_TP) != 0 ||
             (mode & RadioState.SET_COUNTRY) != 0 ||
             (mode & RadioState.SET_RT_PLUS) != 0
         ) {

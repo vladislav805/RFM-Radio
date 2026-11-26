@@ -19,6 +19,7 @@ typedef struct {
     const char *pi;
     const char *country;
     int pty;
+    int tp; // 0/1, or RADIO_PATCH_ABSENT_INT in unrelated patches.
     const int *af_khz;
     int af_count;
     int stereo;

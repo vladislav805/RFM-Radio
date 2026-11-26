@@ -240,6 +240,22 @@
             app:layout_constraintStart_toStartOf="parent"
             tools:ignore="HardcodedText" />
 
+        <TextView
+            android:id="@+id/frequency_tp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@string/rds_tp_description"
+            android:fontFamily="monospace"
+            android:text="@string/rds_tp_label"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBaseline_toBaselineOf="@id/frequency_ps_label"
+            app:layout_constraintStart_toEndOf="@id/frequency_ps_label"
+            tools:visibility="visible" />
+
         <!-- TOP RIGHT: PI -->
         <TextView
             android:id="@+id/frequency_pi"

@@ -6,9 +6,6 @@
 
 namespace {
 
-// Shared RDS text payload header: [0]=count/length, [1]=PTY, [2..3]=PI, [4]=vendor/header byte.
-constexpr int kMetadataSize = 5;
-
 // AF list payload header: [0..3]=tuned frequency, [4..5]=PI, [6]=AF count.
 constexpr int kAfMetadataSize = 7;
 
@@ -204,7 +201,7 @@ bool parse_rds_text_payload(
         return false;
     }
 
-    if (payload_len >= 0 && payload_len < kMetadataSize) {
+    if (payload_len >= 0 && payload_len < kRdsTextHeaderSize) {
         return false;
     }
 
@@ -234,7 +231,7 @@ bool parse_rds_text_payload(
     raw_len = std::min(raw_len, static_cast<int>(sizeof(out->raw_text)));
 
     if (payload_len >= 0) {
-        raw_len = std::min(raw_len, payload_len - kMetadataSize);
+        raw_len = std::min(raw_len, payload_len - kRdsTextHeaderSize);
     }
 
     if (raw_len < 0) {
@@ -242,7 +239,7 @@ bool parse_rds_text_payload(
     }
 
     if (raw_len > 0) {
-        memcpy(out->raw_text, payload + kMetadataSize, static_cast<size_t>(raw_len));
+        memcpy(out->raw_text, payload + kRdsTextHeaderSize, static_cast<size_t>(raw_len));
     }
 
     // Raw-byte post-processing. The \r terminator truncation (RT only) and

@@ -15,6 +15,7 @@ struct RadioStateJsonCache {
     std::string pi;
     std::string country;
     int pty = RADIO_PATCH_ABSENT_INT;
+    int tp = 0;
     int af_khz[kRadioJsonMaxAfCount] = {};
     int af_count = RADIO_PATCH_ABSENT_INT;
     int stereo = RADIO_PATCH_ABSENT_INT;

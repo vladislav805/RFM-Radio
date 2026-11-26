@@ -8,7 +8,7 @@
 
 class S610RdsDecoder {
 public:
-    explicit S610RdsDecoder(const Logger &log) : rt_plus_(log) {}
+    explicit S610RdsDecoder(const Logger &log) : log_(log), rt_plus_(log) {}
 
     void reset();
 
@@ -24,6 +24,8 @@ private:
         uint16_t pi_candidate = 0;
         int pi_hits = 0;
         bool has_pi = false;
+        int last_tp = -1;
+        int last_ta_ms = -1;
         int pty = -1;
         int pty_candidate = -1;
         int pty_hits = 0;
@@ -47,8 +49,10 @@ private:
     };
 
     bool decode_group(radio_state_patch_t &patch);
+    void log_station_flags(uint16_t b, int group_type, bool version_b, int tp);
     void update_rt_plus_fields(radio_state_patch_t &patch, bool &dirty);
 
+    const Logger &log_;
     RdsDecoderState rds_;
     RtPlusContext rt_plus_;
 };

@@ -282,6 +282,11 @@ completion owns enable/disable lifecycle and seek frequency arrives via `state`
 patches); `search_progress` → `onSearchProgress`; `search_done` →
 `onSearchDone`; `search_failed` → `onSearchFailed`; anything else → warning.
 
+`NativeEventParser` reads `rds.tp` as a boolean when the key is present.
+An omitted key preserves the current value. `RadioState.hasTrafficProgramme()`
+defaults to false and returns to false on idle. The tuner card shows TP beside
+the PS label while the flag is true.
+
 For Qualcomm V4L2, `NativeTunerController.jump()` takes the displayed frequency
 from the tune event's `state` patch. The numeric command reply acknowledges the
 target and can arrive after the event. Helium and Exynos also apply the frequency

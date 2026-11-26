@@ -169,6 +169,8 @@
     <string name="rds_rt_empty">No RadioText broadcast</string>
     <string name="rds_rt_plus_label" translatable="false">RT+</string>
     <string name="rds_pi_prefix" translatable="false">PI</string>
+    <string name="rds_tp_label" translatable="false">TP</string>
+    <string name="rds_tp_description">This station carries traffic announcements</string>
     <string name="rds_pty_prefix" translatable="false">PTY</string>
     <string name="rds_af_label" translatable="false">AF</string>
     <string name="rds_af_count" translatable="false">AF · %d</string>

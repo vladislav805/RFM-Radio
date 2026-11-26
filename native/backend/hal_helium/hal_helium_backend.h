@@ -65,6 +65,8 @@ public:
     static void tune_cb(int freq);
     static void seek_complete_cb(int freq);
     static void scan_next_cb();
+    static void ps_update_cb(char *ps);
+    static void ext_country_code_cb(char *payload);
     static void fm_get_station_param_cb(int value, int status);
 
 private:
@@ -117,7 +119,6 @@ private:
     static void rds_avail_status_cb(bool rds_available);
     static void af_update_cb(uint16_t *raw);
     static void rt_update_cb(char *rt);
-    static void ps_update_cb(char *ps);
     static void oda_update_cb();
     static void rt_plus_update_cb(char *payload);
     static void ert_update_cb(char *payload);
@@ -127,7 +128,6 @@ private:
     static void fm_ssbi_peek_rsp_cb(char *payload);
     static void fm_agc_gain_rsp_cb(char *payload);
     static void fm_ch_det_th_rsp_cb(char *payload);
-    static void ext_country_code_cb(char *payload);
     static void thread_evt_cb(unsigned int evt);
     static void fm_get_sig_thres_cb(int value, int status);
     static void fm_get_ch_det_thr_cb(int value, int status);

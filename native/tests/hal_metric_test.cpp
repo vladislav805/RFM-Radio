@@ -125,6 +125,45 @@ protected:
     }
 };
 
+TEST_F(HalMetricTest, PublishesTrafficProgrammeFromEccIndependentlyOfPs) {
+    StdoutCapture capture;
+    // Group 1A from 89.7 MHz on the Poco X3 Pro, followed by matching PS.
+    char ecc[] = {12, 9, 0x72, 0x51, 1, 0, 0, 0, 7, char(0xe0), 0, 0};
+    char ps[] = {1, 9, 0x72, 0x51, 0, ' ', '8', '9', '.', '7', 'F', 'M', ' '};
+    HalHeliumBackend::ext_country_code_cb(ecc);
+    HalHeliumBackend::ps_update_cb(ps);
+
+    ps[3] = 0x52;
+    HalHeliumBackend::ps_update_cb(ps);
+    ecc[3] = ps[3];
+    ecc[5] = 1; // This variant carries TP even though it carries no country.
+    ecc[4] = 2;
+    ecc[0] = 6;
+    HalHeliumBackend::ext_country_code_cb(ecc); // Truncated packet.
+    ecc[0] = 12;
+    ecc[4] = 1;
+    HalHeliumBackend::ext_country_code_cb(ecc);
+    ecc[4] = 2; // Bit 0 clear, with another header bit set.
+    HalHeliumBackend::ext_country_code_cb(ecc);
+    HalHeliumBackend::ext_country_code_cb(ecc);
+    ecc[4] = 1;
+    HalHeliumBackend::ext_country_code_cb(ecc);
+
+    HalHeliumBackend::tune_cb(89700);
+    HalHeliumBackend::ps_update_cb(ps);
+    HalHeliumBackend::ext_country_code_cb(ecc);
+    const auto lines = split_lines(capture.read_all());
+    ASSERT_EQ(lines.size(), 8u);
+    EXPECT_EQ(lines[0], R"({"type":"state","rds":{"country":"RU","tp":true}})");
+    EXPECT_NE(lines[1].find(R"("pi":"7251")"), std::string::npos);
+    EXPECT_EQ(lines[2], R"({"type":"state","rds":{"pi":"7252"}})");
+    EXPECT_EQ(lines[3], R"({"type":"state","rds":{"tp":false}})");
+    EXPECT_EQ(lines[4], R"({"type":"state","rds":{"tp":true}})");
+    EXPECT_NE(lines[5].find(R"("tp":false)"), std::string::npos);
+    EXPECT_NE(lines[6].find(R"("pi":"7252")"), std::string::npos);
+    EXPECT_EQ(lines[7], R"({"type":"state","rds":{"tp":true}})");
+}
+
 TEST_F(HalMetricTest, SyncFallbackClearsCachedSinrAndDeduplicatesRepeats) {
     std::string output;
     {

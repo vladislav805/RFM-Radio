@@ -99,7 +99,7 @@ frequency outside the region are rejected (`ERR_IVD_CFG`). Other numeric
 commands go through `atoi` — invalid text silently becomes zero.
 
 Events: partial `state` patches (frequency, stereo, rmssi, sinr, ps, rt, pi,
-country, pty, af, rt_plus — only changed fields, deduplicated in `ctl_server`),
+country, pty, tp, af, rt_plus — only changed fields, deduplicated in `ctl_server`),
 `seek_done` (single hardware seek completion, emitted even when landing on the
 same frequency), `search_progress` (`{"type":"search_progress","count":N}`
 emitted as unique stations are found during `searchhw`), `search_done` (sorted
@@ -113,8 +113,17 @@ An empty string clears that field. Dummy 0 and reserved 54–55 have no value.
 Private classes use distinct keys `PRIVATE.56`, `PRIVATE.57` and `PRIVATE.58`.
 
 All three backends use `make_station_metadata_reset_patch()` to clear published
-station metadata (PS, RT, PI, country, PTY, AF and RT+). Helium ordinary seek
+station metadata (PS, RT, PI, country, PTY, TP, AF and RT+). Helium ordinary seek
 completion also sends this reset when the HAL emits only `seek_complete_cb`.
+
+`rds.tp` defaults to false. It becomes true when a station reports the Traffic
+Programme bit. A station reset clears an active flag with `false`. S610 reads block B bit 10 for the
+confirmed PI. Helium reads byte 4 bit 0 of a 12-byte ECC callback matching
+the PS PI. Qualcomm V4L2 leaves the TP indicator off.
+
+S610 logs the first observed TP, TA and legacy M/S values for a confirmed PI
+and subsequent changes with the source block B. Both Qualcomm backends log the
+five original PS/RT header bytes for comparison. These diagnostics use stderr.
 
 ## Vendor Ordering Invariants (do not reorder without device evidence)
 

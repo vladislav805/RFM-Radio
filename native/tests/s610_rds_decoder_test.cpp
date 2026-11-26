@@ -3,6 +3,7 @@
 #include "rt_plus_test_types.h"
 
 #include <gtest/gtest.h>
+#include <string>
 
 namespace {
 
@@ -19,6 +20,43 @@ std::optional<radio_state_patch_t> feed_group(S610RdsDecoder &decoder, uint16_t 
 
 uint16_t word(const char *pair) {
     return (static_cast<uint8_t>(pair[0]) << 8) | static_cast<uint8_t>(pair[1]);
+}
+
+TEST(S610RdsDecoderTest, LogsObservedStationFlagsWithTheirSourceBlock) {
+    S610RdsDecoder decoder(kTestLog);
+    testing::internal::CaptureStderr();
+    feed_group(decoder, 0x2418, 0, 0);
+    feed_group(decoder, 0x2418, 0, 0);  // Confirm PI on 2A. Only TP applies.
+    feed_group(decoder, 0x0408, 0, 0);  // Music, no announcement.
+    feed_group(decoder, 0x0409, 0, 0);  // Only the PS segment changes.
+    feed_group(decoder, 0x0c10, 0, 0);  // 0B: speech during an announcement.
+    feed_group(decoder, 0xf800, 0, 0);  // 15B: all three bits clear.
+    feed_group(decoder, 0xec18, 0, 0);  // 14B: EON bits belong to another station.
+    const std::string output = testing::internal::GetCapturedStderr();
+    EXPECT_NE(output.find("group=2A B=2558 TP=1\n"), std::string::npos);
+    EXPECT_NE(output.find("group=0A B=0548 TP=1 TA=0 MS=1\n"), std::string::npos);
+    EXPECT_EQ(output.find("B=0549"), std::string::npos);
+    EXPECT_NE(output.find("group=0B B=0d50 TP=1 TA=1 MS=0\n"), std::string::npos);
+    EXPECT_NE(output.find("group=15B B=f940 TP=0 TA=0 MS=0\n"), std::string::npos);
+    EXPECT_NE(output.find("group=14B B=ed58 TP=1\n"), std::string::npos);
+}
+
+TEST(S610RdsDecoderTest, PublishesTrafficProgrammeOnConfirmedPiAndChanges) {
+    S610RdsDecoder decoder(kTestLog);
+    EXPECT_FALSE(feed_group(decoder, 0x2400, 0, 0));
+    auto patch = feed_group(decoder, 0x2400, 0, 0);
+    ASSERT_TRUE(patch);
+    EXPECT_EQ(patch->tp, 1);
+    EXPECT_FALSE(feed_group(decoder, 0x0400, 0, 0));
+    patch = feed_group(decoder, 0x0800, 0, 0);
+    ASSERT_TRUE(patch);
+    EXPECT_EQ(patch->tp, 0);
+
+    decoder.reset();
+    EXPECT_FALSE(feed_group(decoder, 0x0800, 0, 0));
+    patch = feed_group(decoder, 0x0800, 0, 0);
+    ASSERT_TRUE(patch);
+    EXPECT_EQ(patch->tp, 0);
 }
 
 TEST(S610RdsDecoderTest, ConfirmsPiPtyPsAndCountryBeforePublishing) {
