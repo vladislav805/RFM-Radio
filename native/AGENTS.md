@@ -116,10 +116,11 @@ All three backends use `make_station_metadata_reset_patch()` to clear published
 station metadata (PS, RT, PI, country, PTY, TP, AF and RT+). Helium ordinary seek
 completion also sends this reset when the HAL emits only `seek_complete_cb`.
 
-`rds.tp` defaults to false. It becomes true when a station reports the Traffic
-Programme bit. A station reset clears an active flag with `false`. S610 reads block B bit 10 for the
-confirmed PI. Helium reads byte 4 bit 0 of a 12-byte ECC callback matching
-the PS PI. Qualcomm V4L2 leaves the TP indicator off.
+`rds.tp` defaults to false. A station reset clears an active flag with
+`false`. S610 reads bit 10 of block B after PI confirmation. Helium publishes
+TP directly from bit 0 of byte 4 in each new 12-byte ECC packet, even when
+ECC arrives before PS. PS supplies the displayed PI independently. Qualcomm
+V4L2 leaves the TP indicator off.
 
 S610 logs the first observed TP, TA and legacy M/S values for a confirmed PI
 and subsequent changes with the source block B. Both Qualcomm backends log the

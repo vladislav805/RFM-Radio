@@ -1296,10 +1296,9 @@ void HalHeliumBackend::on_af_update(uint16_t *raw) {
 }
 
 /*
- * RT:
- * [0]=text length
- * [1..4]=metadata/header
- * [5..]=RadioText.
+ * RT callback: [0]=text length, [1]=PTY, [2..3]=PI, [4]=RadioText A/B, [5..]=text.
+ * A/B can change between messages on the same station while TP stays set.
+ * https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L716-L725
  *
  * The HAL-provided length is clamped to the RDS 64-character RT limit before copying.
  */
@@ -1338,14 +1337,12 @@ void HalHeliumBackend::on_rt_update(char *rt) {
 }
 
 /*
- * PS:
- * [0]=PS block count
- * [1]=PTY
- * [2..3]=PI
- * [4]=header,
- * [5..]=one or more 8-byte Program Service name blocks.
- *
- * Qualcomm HAL keeps PTY/PI in the same buffer, so we can update all three app fields here.
+ * PS callback: [0]=PS block count, [1]=PTY, [2..3]=PI, [4]=0, [5..]=8-byte PS names.
+ * Cherokee's prgm_code_flag, announcement_code_flag and switch_code_flag
+ * carry TP, TA and M/S. The HAL drops all three and writes zero at [4].
+ * https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L241-L250
+ * https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio-helium.h#L595-L604
+ * https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L680-L689
  */
 void HalHeliumBackend::on_ps_update(char *ps) {
     if (ps == nullptr) {
@@ -1381,8 +1378,11 @@ void HalHeliumBackend::on_oda_update() {
 }
 
 /*
- * RT+: [0]=payload length, [1]=PTY, [2..3]=PI, [4..7]=flags/toggle,
- *      [8..10]=tag 1 (content type, start, length), [11..13]=tag 2, [14]=padding.
+ * RT+ tag callback: [0]=length, [1]=PTY, [2..3]=PI, [4]=Traffic Programme (TP),
+ * [5]=ODA group, [8..10] and [11..13]=tag triplets (type, start, length).
+ * Qualcomm names HCI byte 3 prgm_code_flag. The HAL forwards it at offset 4.
+ * https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326
+ * https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L829-L837
  *
  * RT+ tag length is encoded as length-1.
  * Example:
@@ -1390,7 +1390,7 @@ void HalHeliumBackend::on_oda_update() {
  * RT+ raw=0f 07 77 56 01 0c 00 01 01 18 19 04 00 14 00
  * tag1 TITLE=(ct=1,start=24,len=25) -> 26 chars
  * tag2 ARTIST=(ct=4,start=0,len=20) -> 21 chars.
- * Byte [5] is the ODA group number (for example 0x0c = 12A); byte [14] can contain stale padding.
+ * This capture uses ODA group 12A (0x0c). Byte [14] can contain stale padding.
  */
 void HalHeliumBackend::on_rt_plus_update(char *payload) {
     if (payload == nullptr) {
@@ -1462,18 +1462,16 @@ void HalHeliumBackend::on_ert_update(char *payload) {
 }
 
 /*
- * ECC callback carries RDS group 1A:
- * [0]=12
- * [1]=PTY
- * [2..3]=PI
- * [4]=firmware traffic flags, bit 0 is TP
- * [5]=1A variant
- * [6..7]=flags/reserved
- * [8..9]=slow labelling
- * [10..11]=block D.
+ * Group 1A callback: [0]=12, [1]=PTY, [2..3]=PI, [4]=prgm_code_flag (TP).
+ * Qualcomm's fm_ext_cntry_code places radio paging codes at [5], the linkage
+ * actuator at [6], the variant at [7], paging at [8], ECC at [9] and PIN at [10..11].
+ * https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L288-L298
+ * https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L844-L858
  *
- * TP applies to every variant. parse_rds_ecc_payload() interprets the
- * slow-labelling low byte as ECC when the variant in [5] is zero (issue #102).
+ * On four stations, bit 0 of [4] on the Poco X3 Pro matched TP in raw RDS
+ * on the Galaxy A51. The log field ta_tp prints the whole byte. Publish TP
+ * for every variant, even when ECC arrives before PS. Only variant 0 carries
+ * the Extended Country Code at [9] (issue #102).
  */
 void HalHeliumBackend::on_ext_country_code(char *payload) {
     if (payload == nullptr) {

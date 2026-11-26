@@ -34,7 +34,7 @@ struct RdsRtPlusPayload {
     int tag_count = 0;
 };
 
-// Qualcomm PS/RT header: [0]=count/length, [1]=PTY, [2..3]=PI, [4]=vendor byte.
+// Qualcomm PS/RT header: [0]=count/length, [1]=PTY, [2..3]=PI, [4]=zero (PS) or RadioText A/B (RT).
 constexpr int kRdsTextHeaderSize = 5;
 
 // Low-nibble block count mask in Program Service header byte [0].
@@ -79,7 +79,9 @@ constexpr int kRdsIsoCountryCodeStride = 2;
 // Byte offset of the big-endian PI code inside a HAL group 1A (ECC) payload.
 constexpr int kRdsEccPiOffset = 2;
 
-// Byte offset of the group 1A variant selector inside a HAL ECC payload.
+// Offset the current country decoder checks. Qualcomm's Cherokee event layout
+// puts radio_paging_codes at callback offset 5 and variant_code at offset 7.
+// https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L288-L298
 constexpr int kRdsEccVariantOffset = 5;
 
 // Group 1A variant 0 carrying Extended Country Code slow labelling.
@@ -127,10 +129,10 @@ constexpr int kRdsRawVariantShift = 12;
 // Bit mask isolating the 3-bit slow-labelling variant in block C of group 1A.
 constexpr int kRdsRawVariantMask = 0x07;
 
-// Bit 0 in HAL RT+ flags byte [7] indicating item toggle state.
+// Mask the current Helium decoder uses for item toggle in callback byte [7].
 constexpr unsigned char kRdsHeliumRtPlusToggleBit = 0x01;
 
-// Bit 1 in HAL RT+ flags byte [7] indicating item running state.
+// Mask the current Helium decoder uses for item running in callback byte [7].
 constexpr unsigned char kRdsHeliumRtPlusRunningBit = 0x02;
 
 // Exclusive upper bound for 1-byte ASCII code points in UTF-8.
@@ -252,12 +254,8 @@ bool parse_rds_search_list_payload(
 
 bool decode_rds_country_iso(int ecc, int country_code, char country_iso[3]);
 
-// HAL ext_country_code_cb payload (RDS group 1A), 12 bytes:
-// [0]=len [1]=PTY [2..3]=PI [4]=TA/TP header byte [5]=1A variant
-// [6..7]=flags/reserved [8..9]=slow labelling ([9]=ECC when variant == 0).
-//
-// The 1A variant lives at [5]; [4] carries the firmware TA/TP header byte
-// and stays outside the variant gate.
+// Decode the country from the PI high nibble ([2]) and the Extended Country
+// Code ([9]), regardless of TP at [4].
 bool parse_rds_ecc_payload(
         const unsigned char *payload,
         int payload_len,

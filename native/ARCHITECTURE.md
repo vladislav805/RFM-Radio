@@ -646,15 +646,46 @@ Callbacks handle PS, RT, PI, PTY, AF, RT+, ECC, stereo, and RDS synchronization.
 App-facing state includes PS, RT, PI, PTY, TP, AF, stereo, country decoded
 from ECC plus the PI country nibble, and RT+ fields (sliced against raw RT).
 
-The ECC callback (`ext_country_code_cb`) receives the 12-byte RDS group 1A
-payload where `[4]` is the firmware TA/TP header byte and `[5]` is the 1A
-variant. The variant gate reads `[5]` only (via `parse_rds_ecc_payload()` in
-`rds_parser.cpp`): folding the TA/TP header byte into the variant made
-`variant` always non-zero on TP stations and silently dropped their country
-(issue #102). The slow-labelling low byte `[9]` carries ECC at variant 0.
-All variants carry TP in bit 0 of byte `[4]`. Helium publishes it when the
-packet PI matches the latest PS PI, whichever callback arrived first. A new
-PS PI clears the previous TP until a matching ECC packet is available.
+**Traffic flags in the Qualcomm callbacks.** In the incoming HCI Program
+Service event, payload bytes 3, 4 and 5 are separate fields for TP
+(`ta_prg_code_type`), TA (`ta_ann_code_flag`) and legacy M/S
+(`ms_switch_code_flag`). When building the PS callback, Helium copies the
+name, PTY and PI, writes zero to byte 4 and drops those three flags. The Poco
+X3 Pro binary also writes zero at that offset. In the RT callback the same
+offset holds the RadioText A/B toggle. Exposing TA or M/S from the PS event
+would require forwarding the corresponding HCI field through the HAL.
+[Cherokee PS fields](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L241-L250) · [Helium PS and RT event layouts](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio-helium.h#L595-L612) · [PS and RT callbacks](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L668-L725)
+
+**ECC callback.** Qualcomm's Cherokee test tool names HCI byte 3
+`prgm_code_flag` in both the ECC and RT+ tag events. The HAL copies it to
+callback byte 4. The example below is from 89.7 MHz on the Poco X3 Pro.
+[ECC event layout](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L288-L298) · [RT+ tag event layout](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326) · [ECC callback implementation](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L851-L858)
+
+| Callback offset | Bytes (hex) | Interpretation |
+| --- | --- | --- |
+| 0 | `0C` | Total length, 12 bytes |
+| 1 | `09` | Programme Type (PTY) |
+| 2–3 | `72 51` | Programme Identification (PI), big-endian |
+| 4 | `01` | Bit 0 carries TP. The log label `ta_tp` prints the whole byte. Only the TP bit has been verified. |
+| 5 | `00` | Radio paging codes |
+| 6 | `00` | Linkage actuator |
+| 7 | `00` | Group 1A variant selector |
+| 8–9 | `07 E0` | Paging and Extended Country Code, respectively |
+| 10–11 | `00 00` | Programme Item Number (block D), zero in all four station captures |
+
+Helium publishes TP immediately from a full ECC packet, independently of PS
+and the variant selector. PS continues to supply the displayed PI. In the
+captures at 87.5 and 88.4 MHz, ECC arrived first. The current country decoder
+tests byte 5 for zero. The Cherokee header places the variant at byte 7.
+Both bytes were zero in all four captures. An earlier decoder included byte 4
+in the check and suppressed country on TP stations (issue #102).
+
+All four captures carried variant 0 with ECC `E0`. At 89.7 MHz, the first
+PI nibble `7` and ECC `E0` identify Russia and form the global country code
+`7E0`. RadioDNS uses that code together with PI and frequency for FM service
+lookup. Historical group 1A could also carry a language code in variant 3
+and a Programme Item Number in block D. IEC removed both in 2018.
+[ETSI TS 103 270 §5.1.1 and Annex A](https://www.etsi.org/deliver/etsi_ts/103200_103299/103270/01.04.01_60/ts_103270v010401p.pdf) · [IEC 62106-2:2018, foreword](https://cdn.standards.iteh.ai/samples/100536/d004439245b641bb8ea531c79f935701/IEC-62106-2-2018.pdf)
 
 The `rds_avail_status_cb` boolean is a decoder sync/lock snapshot, not a gate
 for processed RDS data. A tune-status callback commonly reports `rds_sync=0`
@@ -931,13 +962,18 @@ For live RDS flag diagnostics, tune the same station on each receiver and captur
 PI confirmation, on the first observation and when values change. Bit 10 of
 block B carries TP. Groups 0A, 0B and 15B also log TA (bit 4) and legacy M/S
 (bit 3, 1 for music, 0 for speech). Other groups log TP alone. Qualcomm PS/RT
-lines include the five raw vendor header bytes in `header=[…]`. Helium ECC
-lines also include `ta_tp`.
+lines include the five raw vendor header bytes in `header=[…]`.
+
+For an announcement on the tuned programme, the relevant combination is
+`TP=1 TA=1`. With `TP=0 TA=1` the service signals traffic information on a
+linked network through EON. Group 14B likewise carries TA for a referenced
+programme. IEC 62106-2:2021 also defines a TA bit in group 15A (Long PS).
+[IEC 62106-2:2021 §§6.7–6.9 and 7.6.3](https://webstore.iec.ch/en/publication/66725)
 
 | Receiver | RadioText A/B | TP | TA | Legacy M/S |
 | --- | --- | --- | --- | --- |
 | Galaxy A51, Exynos S610 | Group 2 block B, bit 4, used during RT assembly | Both values observed | Decoded, only 0 observed | Both values observed |
-| Poco X3 Pro, Helium | RT callback byte `[4]` | ECC byte `[4]`, bit 0 matched four stations | Unconfirmed | Unconfirmed |
+| Poco X3 Pro, Helium | RT callback byte `[4]` | ECC byte `[4]`, bit 0 matched four stations | Dropped from PS callback | Dropped from PS callback |
 | Redmi 4A, V4L2 Qualcomm | RT buffer byte `[4]`, both values observed | Unavailable through tested interfaces | Unavailable through tested interfaces | Unavailable through tested interfaces |
 | Mi A1, V4L2 Qualcomm | RT buffer byte `[4]`, both values observed | Unavailable through tested interfaces | Unavailable through tested interfaces | Unavailable through tested interfaces |
 
@@ -953,14 +989,17 @@ Redmi reported 0 for the station phone number and 1 for its web address.
 The last SINR sample before both RT updates was 25. On the Mi A1 one update
 already carried the new A/B value alongside the end of the previous text.
 Treat the toggle as a message boundary hint when consuming processed RT.
-[IEC 62106-2 §6.3](https://www.fm-rds.org/rds-stuff/iec-62106-2-2021.pdf)
+[IEC 62106-2 §6.3](https://webstore.iec.ch/en/publication/66725)
 
 On the Poco X3 Pro, ECC callback byte `[4]` matched TP measured on the Galaxy
 A51 at the same PI. It was `0x01` on 89.7 and 105.3 MHz and `0x00` on 87.5
-and 88.4 MHz. The 93.3 MHz RT+ callback also carried `0x01` at `[4]`.
-The Poco's installed `fm_helium.so` explicitly writes zero to PS callback
-byte `[4]`. RT callback byte `[4]` took both values on 89.7 MHz. These
-captures establish no mapping for TA or legacy M/S in the Helium callbacks.
+and 88.4 MHz. All four RT+ tag callbacks at 93.3 MHz carried `0x01` at
+`[4]` for PI `7756`, which the Galaxy A51 received with TP=1 and TA=0.
+RT callback byte `[4]` took both values on 89.7 MHz while TP stayed set.
+
+The Cherokee event defines separate `item_toggle` and `item_running` fields.
+The HAL forwards them at callback offsets 6 and 7. The current Helium decoder
+reads both from byte 7. [RT+ tag fields](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326) · [HAL buffer copy](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L829-L837)
 
 On the Redmi 4A (`radio-iris`), PS byte `[4]` was zero on 88.4 MHz (TP=0
 on the A51) and on 89.7 and 93.3 MHz (TP=1). RT byte `[4]` took both

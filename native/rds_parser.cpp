@@ -506,17 +506,18 @@ bool parse_rds_rt_plus_payload(
         //   [0]    = payload length (must be >= 15)
         //   [1]    = PTY (5 bits)
         //   [2..3] = PI (16-bit big-endian)
-        //   [4]    = TA/TP header byte
+        //   [4]    = Traffic Programme (prgm_code_flag in Qualcomm's RT+ tag event)
         //   [5]    = ODA group number (e.g. 0x0C = group 12A)
-        //   [6..7] = flags (byte [7]: bit 0 = item toggle, bit 1 = item running)
+        //   [6..7] = item_toggle and item_running in the Qualcomm test tool
         //   [8..10] = tag 1 ([8]=content_type, [9]=start char index, [10]=length-1)
         //   [11..13]= tag 2 ([11]=content_type, [12]=start char index, [13]=length-1)
         //   [14]   = padding
+        // https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326
         if (payload_len < kHeliumRtPlusPayloadSize) {
             return false;
         }
 
-        // Byte [7] bit 0 signals item toggle (new song started), bit 1 signals item running.
+        // The current decoder reads both flags from byte [7].
         out->toggle = (payload[7] & kRdsHeliumRtPlusToggleBit) != 0;
         out->running = (payload[7] & kRdsHeliumRtPlusRunningBit) != 0;
 

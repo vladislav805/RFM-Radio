@@ -90,6 +90,10 @@ int32_t V4l2QcomBackend::read_buffer(uint8_t *buf, uint32_t buffer_size, int ind
 }
 
 // Extracts Program Service payload from V4L2 buffer.
+// On Mi A1 the firmware PS event carries TP, TA and M/S, but radio-iris drops
+// them and writes zero to PS buffer byte [4], even on stations that set TP.
+// https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/24ea5efc315593a2c4fadd39df307b78def02faa/include/uapi/media/radio-iris.h#L461-L470
+// https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/24ea5efc315593a2c4fadd39df307b78def02faa/drivers/media/radio/radio-iris.c#L2915-L2923
 bool V4l2QcomBackend::extract_program_service(fm_rds_storage *storage) {
     uint8_t buf[64] = {0};
     int32_t bytes = read_buffer(buf, sizeof(buf), kTavaruaBufPsRds);
@@ -118,6 +122,8 @@ bool V4l2QcomBackend::extract_program_service(fm_rds_storage *storage) {
 }
 
 // Extracts Radio Text payload from V4L2 buffer.
+// The Mi A1 driver copies the RadioText A/B flag into RT buffer byte [4].
+// https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/24ea5efc315593a2c4fadd39df307b78def02faa/drivers/media/radio/radio-iris.c#L2950-L2959
 bool V4l2QcomBackend::extract_radio_text(fm_rds_storage *storage) {
     uint8_t buf[128] = {0};
     int32_t bytes = read_buffer(buf, sizeof(buf), kTavaruaBufRtRds);

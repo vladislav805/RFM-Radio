@@ -737,9 +737,8 @@ TEST(RdsParserTest, RejectsUnknownRdsCountries) {
 
 namespace {
 
-// HAL ext_country_code_cb payload (RDS group 1A):
-// [0]=len [1]=PTY [2..3]=PI [4]=TA/TP header byte [5]=1A variant
-// [6..7]=flags/reserved [8..9]=slow labelling ([9]=ECC) [10..11]=block D.
+// Helium group 1A fixture for the current country decoder. Byte [4] holds TP,
+// [5] is the byte the parser checks, and [9] holds the ECC.
 void make_ecc_payload(unsigned char payload[12], unsigned char ta_tp, unsigned char variant, unsigned char ecc) {
     payload[0] = 12;
     payload[1] = 0x02;  // PTY
@@ -758,8 +757,7 @@ void make_ecc_payload(unsigned char payload[12], unsigned char ta_tp, unsigned c
 }  // namespace
 
 TEST(RdsParserTest, EccParsesWithTpHeaderByte) {
-    // Regression for issue #102: firmware puts the TA/TP header byte at [4];
-    // it must not shift the variant read from [5].
+    // Issue #102: the old 16-bit check included TP and rejected this packet as 0x0100.
     unsigned char payload[12];
     make_ecc_payload(payload, 0x01, 0x00, 0xe4);
 
@@ -819,7 +817,7 @@ TEST(RdsParserTest, EccRejectsUnknownCountry) {
 
 TEST(RdsParserTest, ParsesHalRtPlusPayload) {
     // HAL example capture from helium_backend.cpp:
-    // [0]=15, [1]=PTY 7, [2..3]=PI 0x7756, [4]=TA/TP 1, [5]=ODA 0x0c, [6]=0, [7]=1 (toggle=true, running=false)
+    // [0]=15, [1]=PTY 7, [2..3]=PI 0x7756, [4]=TP 1, [5]=ODA 0x0c, [6]=0, [7]=1
     // [8..10]=tag1 TITLE (ct=1, start=24, raw_len=25 -> decoded 26)
     // [11..13]=tag2 ARTIST (ct=4, start=0, raw_len=20 -> decoded 21)
     // [14]=padding 0

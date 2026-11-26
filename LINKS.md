@@ -12,5 +12,11 @@
 * [vendor_qcom_opensource_fm - qcom/fmradio/FmReceiver.java](https://gerrit.pixelexperience.org/plugins/gitiles/vendor_qcom_opensource_fm-commonsys/+/d8b9c56644875bd4180a345c2a67a2d28216c9f6/qcom/fmradio/FmReceiver.java)
 * [SivanLiu/VivoFramework - qcom/fmradio/FmReceiver.java](https://github.com/SivanLiu/VivoFramework/blob/master/Vivo_y93/src/main/java/qcom/fmradio/FmReceiver.java)
 
+### Qualcomm Cherokee RDS events
+
+* Program Service (TP, TA and M/S). [Firmware event layout](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L241-L250) · [Helium PS callback](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L680-L689)
+* Extended Country Code (TP, paging and variant). [Firmware event layout](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L288-L298) · [Helium ECC callback](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L851-L858)
+* RadioText Plus (TP, item toggle, item running and tags). [Firmware event layout](https://github.com/Sushrut1101/android_vendor_qcom_proprietary/blob/39c82425849dc674f9e65a45fa3df3065f527652/fm/fmtest/fmconfig_cherokee.h#L318-L326) · [Helium RT+ callback](https://github.com/LineageOS/android_hardware_qcom_fm/blob/3253b05eba14f36a90058da25627013e354d4f76/helium/radio_helium_hal.c#L829-L837)
+
 ## Info
 * [RDS](https://tract.media/rds/)
