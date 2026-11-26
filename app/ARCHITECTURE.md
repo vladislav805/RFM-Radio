@@ -207,7 +207,7 @@ and `libopusencoder.so` (libopus 1.6.1 and libopusenc 0.3).
 
 `NativeTunerController.java` (`final`) — the only real driver:
 
-- Binary management: asset `fmbin-<arch>` (`Utils.determineArch()`) →
+- Binary management: asset `fmbin-<arch>` (selected by `Process.is64Bit()` for the installed APK) →
   `/data/data/<appId>/files/`, `Os.chmod 0755`, installed version in
   `SharedPreferences` key `bin_version_native` and APK `lastUpdateTime` in
   `bin_apk_update_time`.
@@ -546,8 +546,10 @@ notification refresh (`notification_show_ps`), and pre-roll toggle.
 `externalNativeBuild` points at `src/main/cpp` (MP3 and Opus encoders). FM backend
 integration: task `buildFmbinNative` (Exec → `native/build.sh`) →
 `verifyNativeAssets` (asserts `fmbin-armv7a`/`fmbin-aarch64` in assets) →
-`preBuild`. Release: minify + proguard, signing from `ANDROID_RELEASE_*`
-env. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
+`preBuild`. The `universalDebug` variant packages both ABIs. Each release
+flavor (`armv7` or `arm64`) filters the JNI libraries and excludes the other
+ABI’s `fmbin` from assets. Both release APKs share the application ID and
+version, use R8, and support signing through `ANDROID_RELEASE_*`. Permissions: `INTERNET`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`,
 `READ/WRITE_EXTERNAL_STORAGE`, `READ_PHONE_STATE`.
 
 ## JVM Unit Tests

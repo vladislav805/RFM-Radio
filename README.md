@@ -74,9 +74,18 @@ git submodule update --init --recursive
 ./gradlew :app:assembleDebug
 ```
 
-Use `make build-debug` for a debug APK or `make build-release` for a release APK.
-Release signing uses the `ANDROID_RELEASE_*` environment variables described below;
-without signing credentials, the release APK is unsigned.
+`make build-debug` produces one universal ARM debug APK. `make build-release`
+produces two standalone APKs with the same application ID, version and version code:
+
+| Android ABI | Release APK |
+| --- | --- |
+| `arm64-v8a` (64-bit) | `app/build/outputs/apk/arm64/release/*-arm64-v8a.apk` |
+| `armeabi-v7a` (32-bit) | `app/build/outputs/apk/armv7/release/*-armeabi-v7a.apk` |
+
+Each release APK includes the MP3 and Opus encoders and FM executable for its ABI.
+Use `adb shell getprop ro.product.cpu.abilist` to see the ABIs supported by the
+device. `make deploy-release` chooses the APK for the connected device and uses
+`jq` to read its filename from Gradle’s output metadata.
 
 Gradle builds the native MP3 and Opus encoders and FM backend assets automatically. For native/FM backend-related work you also need Android NDK headers and device-specific tooling.
 
@@ -119,13 +128,13 @@ and run Android unit tests. APKs and unit test reports are available as workflow
 artifacts.
 
 Pushing a `vMAJOR.MINOR.PATCH` tag or manually running **Android Build** with a
-version builds a release APK and creates a draft GitHub release containing the
-APK. The requested version must match the APK version from
-`app/build.gradle`; the workflow does not change the app version.
+version builds both ARM release APKs. The workflow verifies the requested
+version and the architecture of both encoders and `fmbin` in each APK, then
+attaches both files to the draft GitHub release.
 
 Release signing uses the repository secrets `ANDROID_RELEASE_KEYSTORE_BASE64`,
 `ANDROID_RELEASE_STORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, and
-`ANDROID_RELEASE_KEY_PASSWORD`. Without signing credentials, the release APK is
+`ANDROID_RELEASE_KEY_PASSWORD`. Without signing credentials, both release APKs are
 unsigned. The keystore is removed after the build.
 
 Dependabot checks GitHub Actions updates monthly.

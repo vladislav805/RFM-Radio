@@ -78,7 +78,7 @@ jobs:
         if: steps.release.outputs.tag_name == ''
         run: bash ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:testDebugUnitTest
 
-      - name: Build release APK and run unit tests
+      - name: Build both release APKs and run unit tests
         if: steps.release.outputs.tag_name != ''
         env:
           ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
@@ -97,23 +97,17 @@ jobs:
         if: always()
         run: rm -f "${RUNNER_TEMP}/android-release.keystore"
 
-      - name: Verify release APK version
+      - name: Verify release APK versions and native binaries
         if: steps.release.outputs.tag_name != ''
         env:
           EXPECTED_VERSION: ${{ steps.release.outputs.version_name }}
-        run: |
-          if ! jq -e --arg expected "${EXPECTED_VERSION}" \
-            '.elements | length > 0 and all(.[]; .versionName == $expected)' \
-            app/build/outputs/apk/release/output-metadata.json >/dev/null; then
-            echo "APK version does not match requested release ${EXPECTED_VERSION}" >&2
-            exit 1
-          fi
+        run: bash .github/scripts/verify-release-apks.sh "${EXPECTED_VERSION}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
           name: app-${{ steps.release.outputs.tag_name != '' && 'release' || 'debug' }}-apk
-          path: app/build/outputs/apk/${{ steps.release.outputs.tag_name != '' && 'release' || 'debug' }}/*.apk
+          path: app/build/outputs/apk/*/${{ steps.release.outputs.tag_name != '' && 'release' || 'debug' }}/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -139,4 +133,6 @@ jobs:
           prerelease: false
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: app/build/outputs/apk/release/*.apk
+          files: |
+            app/build/outputs/apk/arm64/release/*-arm64-v8a.apk
+            app/build/outputs/apk/armv7/release/*-armeabi-v7a.apk

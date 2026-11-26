@@ -3,7 +3,6 @@ package com.vlad805.fmradio;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -23,7 +22,6 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -68,23 +66,9 @@ public class Utils {
 		return file.isFile() && file.canExecute();
 	}
 
-	/**
-	 *
-	 * https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxInstaller.java#L179
-	 */
+	/** Match the packaged ARM executable, including a 32-bit APK on a 64-bit device. */
 	public static String determineArch() {
-		for (final String androidArch : Build.SUPPORTED_ABIS) {
-			switch (androidArch) {
-				case "arm64-v8a": {
-					return "aarch64";
-				}
-
-				case "armeabi-v7a": {
-					return "armv7a";
-				}
-			}
-		}
-		throw new RuntimeException("Unable to determine arch from Build.SUPPORTED_ABIS = " + Arrays.toString(Build.SUPPORTED_ABIS));
+		return android.os.Process.is64Bit() ? "aarch64" : "armv7a";
 	}
 
 	/**

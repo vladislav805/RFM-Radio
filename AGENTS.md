@@ -42,7 +42,7 @@ Deep references — open only for complex rework, they are long:
 | `make test` | Both test suites |
 | `make build-native` | Cross-compile `fmbin` into `app/src/main/assets` |
 | `make build-debug` | Debug APK; Gradle `preBuild` re-runs `native/build.sh` |
-| `make build-release` | Release APK (unsigned without `ANDROID_RELEASE_*`) |
+| `make build-release` | ARMv7 and ARM64 release APKs (unsigned without `ANDROID_RELEASE_*`) |
 
 Native builds pin NDK `29.0.14033849` and CMake `3.22.1` and fail when they
 are unavailable. The recording codec submodules require

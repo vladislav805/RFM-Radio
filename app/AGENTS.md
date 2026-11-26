@@ -221,7 +221,9 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
 
 - `app/build.gradle`: minSdk 23, targetSdk 24, ABI filters armeabi-v7a and
   arm64-v8a, NDK 29.0.14033849. `preBuild` runs `native/build.sh` and then
-  verifies the `fmbin-*` assets exist.
+  verifies the `fmbin-*` assets exist. The universal debug APK contains both ABIs.
+  The `armv7Release` and `arm64Release` variants each package their own LAME,
+  Opus and `fmbin` binaries. The app selects `fmbin` by process bitness.
 - JVM tests (`make test-java`): `RadioStateTest`, `RadioClientTest`,
   `FavoriteControllerTest`, `NativeEventParserTest`, `SignalStrengthTest`,
   `RequestTest`, `FMNotificationManagerTest`, `TunerCommandFormatTest`,
