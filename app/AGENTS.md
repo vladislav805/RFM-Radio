@@ -12,7 +12,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | --- | --- |
 | (root) | `C.java` — `RecordFormat` and `Config` constants; `Storage` — typed `SharedPreferences` wrapper, `Storage.Key`, defaults |
 | `activity/` | `MainActivity` (entry, gates), `SettingsActivity`, `AboutActivity`, `RecordingsActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
-| `recordings/` | `RecordingsRepository`, `RecordingItem`, `DirectoryListing`, `RecordingsAdapter`, `RecordingAudioPlayer`, `OggOpusDecoder` (JNI), `RecordingTunerBinder`, `trim/` (`WavTrimmer`, `Mp3Trimmer`, `OpusTrimmer`, `RecordingTrimmer`) |
+| `recordings/` | `RecordingsRepository`, `RecordingItem`, `DirectoryListing`, `RecordingsAdapter`, `RecordingPlayerController`, `RecordingAudioPlayer`, `OggOpusDecoder` (JNI), `RecordingTunerBinder`, `trim/` (`WavTrimmer`, `Mp3Trimmer`, `OpusTrimmer`, `RecordingTrimmer`) |
 | `controller/` | `RadioServiceController` (local binder contract), `RadioClient` (`ServiceConnection` wrapper + command queue), `StateListener`, `EventListener`, `FavoriteController` (in-process singleton), `RadioState` (pure reducers + `SET_*` masks), `TunerStatus` |
 | `service/` | `FMService` — the orchestrator (`LocalBinder` + external `ACTION_*` entry points); `FMNotificationManager` — notification channels and playback/recording presentation |
 | `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
