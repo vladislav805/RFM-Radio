@@ -69,6 +69,11 @@ public class RecordRawService extends RecordService implements IFMRecorder {
 		writeFinal();
 	}
 
+	@Override
+	protected void embedMetadata(final RecordingTarget target, final byte[] rfmBytes) throws IOException {
+		RecordingMetadataIO.writeWavChunk(target.getTemporaryFile(), mRecordLength, rfmBytes);
+	}
+
 	/**
 	 * Write bytes to buffer
 	 * @param buffer Buffer

@@ -16,7 +16,7 @@ import java.io.IOException;
 
 public final class RecordingTarget {
     private final ContentResolver mResolver;
-    private final File mTemporaryFile;
+    private File mTemporaryFile;
     private final File mFinalFile;
     private final String mRelativePath;
     private final String mDisplayName;
@@ -91,6 +91,24 @@ public final class RecordingTarget {
             } catch (IOException ignored) {
             }
             mOutputStream = null;
+        }
+    }
+
+    /** Returns the current temporary local file before publication. */
+    File getTemporaryFile() {
+        return mTemporaryFile;
+    }
+
+    /** Replaces the temporary file (e.g. after rewriting container metadata) and deletes the old one. */
+    void replaceTemporaryFile(final File newTemporaryFile) {
+        closeQuietly();
+
+        final File oldFile = mTemporaryFile;
+        mTemporaryFile = newTemporaryFile;
+
+        if (oldFile != null && !oldFile.equals(newTemporaryFile) && oldFile.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            oldFile.delete();
         }
     }
 

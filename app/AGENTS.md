@@ -162,9 +162,13 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   (MediaStore on API ≥ 29, direct file below), typed `RecordingListener`
   callbacks (`onRecordingStarted`, throttled 750 ms `onRecordingProgress`,
   `onRecordingCompleted(RecordingResult)`, `onRecordingFailed(Throwable)`).
-- RDS snapshot history: `FMService` `onInternalStateChanged` → `updateRds(RdsSnapshot)` →
-  `PcmRecorderSession` → `RecordService.recordRds` (PCM-relative times).
-- WAV: 44-byte header patched on stop. MP3: manual ID3v2.3 tag.
+- Embedded `RFM1` metadata: `FMService` `onInternalStateChanged` → `updateRds(RdsSnapshot)` →
+  `PcmRecorderSession` (throttles signal-only RMSSI/SINR changes to 1 s) → `RecordService.recordRds`
+  + `WaveformAccumulator` (240 peak bins). Encoded via `RfmMetadataCodec` (10-byte `RFM1` header +
+  unconditional zlib + delta-encoded events) and embedded before `commit()` via `RecordingMetadataIO`:
+  WAV `rfmr` RIFF chunk, MP3 ID3v2.3 `PRIV` (`com.vlad805.fmradio.rfm1`), Ogg Opus `OpusTags`
+  (`RFM_META=<Base64>` via `OggOpusTagRewriter`).
+- WAV: 44-byte header patched on stop + `rfmr` chunk. MP3: ID3v2.3 tag prepended on finish.
 
 ## Favorites
 
@@ -224,7 +228,8 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   `TunerDriverDetectorTest`, `TunerDriverCapabilitiesTest`, `StorageTest`,
   `AudioSelectionTest`, `AudioLifecycleTest`, `QualcommRoutedAudioTest`,
   `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`,
-  `PcmRecorderSessionTest`, `RecordingStorageTest`.
+  `PcmRecorderSessionTest`, `RfmMetadataCodecTest`, `WaveformAccumulatorTest`,
+  `RecordingMetadataIOTest`, `RecordingStorageTest`.
 - Remaining leftovers: `service/streaming/` (empty) and `FavoriteStation`'s JSON constructor defaults frequency to 108100 (outside
   the EU band).
 

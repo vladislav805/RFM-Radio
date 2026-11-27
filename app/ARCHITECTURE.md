@@ -356,8 +356,8 @@ AudioService capture thread
   -> RecordingListener (marshaled to main looper in FMService)
      -> RadioState.applyRecording* + FMNotificationManager + EventListener
 RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
-  -> PcmRecorderSession.updateRds (PCM position)
-  -> RecordService.recordRds
+  -> PcmRecorderSession.updateRds (PCM position, 1s throttle on signal-only changes)
+  -> RecordService.recordRds -> RfmMetadataCodec (RFM1) -> RecordingMetadataIO
 ```
 
 - `PcmFormat.java` — `PCM16_STEREO_44100` and `PCM16_STEREO_48000` with
@@ -392,19 +392,27 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   max(initialDuration, acceptedPcmSamples/sampleRate/2). A PCM write error stops further writes.
   Finalization reports write, encoder drain, and stream close errors and discards the failed file.
 - `RecordRawService.java` — WAV: writes a 44-byte header at start, patches
-  chunk sizes (offsets 4 and 40) at stop via `FileChannel`.
+  chunk sizes at stop, and appends the `rfmr` RIFF chunk with `RFM1` metadata.
 - `RecordLameService.java` — MP3 through `LameMp3Encoder` (CBR 192/128,
-  quality 5, 2 channels) with a manual ID3v2.3 tag (TIT2 "XXX.X MHz", TDRC,
-  TENC "RFM Radio", ISO-8859-1, synchsafe sizes); `flush()` with a 7200
-  buffer on finalization.
+  quality 5, 2 channels); `flush()` with a 7200 buffer on finalization, then
+  prepends ID3v2.3 (`TIT2`, `TDRC`, `TENC`, and `PRIV` `com.vlad805.fmradio.rfm1`)
+  before `commit()`.
 - `LameMp3Encoder.java` — JNI wrapper for `libmp3encoder`
   (`nativeInit` / `nativeEncodeInterleaved` / `nativeFlush` /
   `nativeClose`).
 - `RecordOpusService.java` — `.opus` (`audio/ogg`), stereo VBR at a target of
   96 kbps. `OggOpusEncoder` feeds the capture sample rate to libopusenc and
-  writes complete Ogg pages to the recording stream. libopusenc resamples
-  legacy 44.1 kHz PCM, accepts routed 48 kHz PCM directly, and trims the last
-  packet to the actual input duration when the writer drains.
+  writes complete Ogg pages to the recording stream. On finalization,
+  `OggOpusTagRewriter` injects `RFM_META=<Base64(RFM1)>` into `OpusTags` and
+  updates subsequent page sequence numbers and Ogg CRC-32 without touching audio packets.
+- `RfmMetadata.java` / `RfmMetadataEvent.java` / `RfmMetadataCodec.java` / `WaveformAccumulator.java` —
+  compact binary `RFM1` format: 10-byte little-endian header (`"RFM1"`, `uint16 version=1`,
+  `uint32 uncompressedSize` capped at 4 MiB) + unconditional zlib payload containing
+  `uint16 waveformCount` + `uint8[waveformCount]` peaks (0..255, target 240 bins) +
+  `uint32 eventCount` + delta-encoded events (`uint32 timeMs`, `uint16 changedMask`,
+  only changed fields for frequency, PI, PTY, TP, stereo, RMSSI, SINR, country, PS, RT, RT+).
+- `RecordingMetadataIO.java` / `OggOpusTagRewriter.java` / `OggCrc32.java` —
+  container-level readers/writers for WAV `rfmr`, MP3 ID3v2 `PRIV`, and Ogg Opus `OpusTags`.
 - `RecordingStorage.java` — target factory: directory/filename templates
   from `recording_directory`/`recording_filename` with
   `RecordSchemaHelper.prepareString` (`$f` frequency×10, `$y $m $d $h $i
@@ -564,7 +572,9 @@ type round-trips, `ClassCastException` safety, and `preferences.xml` ↔
 `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`
 (stereo formats, mismatch rejection, routed V4L2 48 kHz),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
-ordering, backpressure), `RecordingStorageTest` (path containment).
+ordering, signal throttling, backpressure), `RfmMetadataCodecTest` (RFM1 delta encoding,
+zlib round-trip, slicing), `WaveformAccumulatorTest`, `RecordingMetadataIOTest`
+(WAV/MP3/Opus container round-trips + Ogg CRC32), `RecordingStorageTest` (path containment).
 No instrumented tests.
 
 ## Dead Code and Traps Inventory

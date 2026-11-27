@@ -1,6 +1,7 @@
 package com.vlad805.fmradio.service.recording;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -8,6 +9,8 @@ import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Abstract recorder
@@ -78,6 +81,8 @@ public abstract class RecordService implements IFMRecorder {
     /** Duration reported before the pre-roll snapshot reaches the encoder. */
     private int mInitialDurationMillis;
     private IOException mWriteError;
+    private WaveformAccumulator mWaveform;
+    private final List<RfmMetadataEvent> mMetadataEvents = new ArrayList<>();
 
     /**
      * Constructor
@@ -106,6 +111,8 @@ public abstract class RecordService implements IFMRecorder {
         mStarted = System.currentTimeMillis() - Math.max(0, initialDurationMillis);
         mInitialDurationMillis = Math.max(0, initialDurationMillis);
         mRecordedPcmSamples = 0;
+        mWaveform = new WaveformAccumulator(mSampleRate, 2);
+        mMetadataEvents.clear();
         createFile();
         mState = State.RECORDING;
         if (mListener != null) {
@@ -119,6 +126,10 @@ public abstract class RecordService implements IFMRecorder {
             try {
                 mRecordLength += writePcm(data, length);
                 mRecordedPcmSamples += length;
+
+                if (mWaveform != null) {
+                    mWaveform.addPcm(data, length);
+                }
             } catch (IOException e) {
                 mWriteError = e;
                 mState = State.IDLE;
@@ -137,7 +148,25 @@ public abstract class RecordService implements IFMRecorder {
 
     @Override
     public final synchronized void recordRds(final long positionMillis, final RdsSnapshot snapshot) {
-        // Wired to embedded RFM1 metadata in Step 1.2/1.3.
+        if (mState != State.RECORDING || snapshot == null) {
+            return;
+        }
+
+        final long pos = Math.max(0L, positionMillis);
+        if (!mMetadataEvents.isEmpty()) {
+            final RfmMetadataEvent last = mMetadataEvents.get(mMetadataEvents.size() - 1);
+
+            if (last.getSnapshot().equals(snapshot)) {
+                return;
+            }
+
+            if (last.getTimeMs() == pos) {
+                mMetadataEvents.set(mMetadataEvents.size() - 1, new RfmMetadataEvent(pos, snapshot));
+                return;
+            }
+        }
+
+        mMetadataEvents.add(new RfmMetadataEvent(pos, snapshot));
     }
 
     /**
@@ -203,6 +232,9 @@ public abstract class RecordService implements IFMRecorder {
             }
         } else {
             try {
+                target.closeQuietly();
+                embedRecordedMetadata(target);
+                mRecordLength = (int) Math.min(Integer.MAX_VALUE, target.getLength());
                 target.commit();
                 final RecordingResult result = buildResult(target);
                 if (mListener != null) {
@@ -221,8 +253,31 @@ public abstract class RecordService implements IFMRecorder {
             }
         }
         target.closeQuietly();
+        mWaveform = null;
+        mMetadataEvents.clear();
         mRecordingTarget = null;
         mState = State.DONE;
+    }
+
+    private void embedRecordedMetadata(final RecordingTarget target) {
+        try {
+            final byte[] peaks = mWaveform != null
+                    ? mWaveform.finish(RfmMetadata.DEFAULT_WAVEFORM_BINS)
+                    : new byte[0];
+            final RfmMetadata metadata = new RfmMetadata(peaks, mMetadataEvents);
+            final byte[] rfmBytes = RfmMetadataCodec.encode(metadata);
+
+            embedMetadata(target, rfmBytes);
+        } catch (final IOException | RuntimeException error) {
+            Log.e("RFM-Recording", "Cannot embed RFM1 metadata", error);
+        }
+    }
+
+    /**
+     * Embeds encoded {@code RFM1} metadata into the finalized temporary file before publication.
+     * Subclasses override this to write container-specific metadata.
+     */
+    protected void embedMetadata(final RecordingTarget target, final byte[] rfmBytes) throws IOException {
     }
 
     private RecordingResult buildResult(final RecordingTarget target) {
