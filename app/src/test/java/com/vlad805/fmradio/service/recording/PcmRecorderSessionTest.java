@@ -184,6 +184,33 @@ public class PcmRecorderSessionTest {
     }
 
     @Test
+    public void throttlesSignalOnlyUpdatesToOnePerSecondWhileEmittingRdsImmediately() throws Throwable {
+        final PcmRecorderSession session = new PcmRecorderSession(10, 2, 0);
+        final FakeRecorder recorder = new FakeRecorder();
+        final RdsSnapshot base = new RdsSnapshot(100000, "RADIO", "", "1234",
+                com.vlad805.fmradio.models.RtPlusInfo.EMPTY, "DE", 10, false, true, -80, 15);
+        final RdsSnapshot jitterAt300ms = new RdsSnapshot(100000, "RADIO", "", "1234",
+                com.vlad805.fmradio.models.RtPlusInfo.EMPTY, "DE", 10, false, true, -78, 16);
+        final RdsSnapshot rdsChangeAt500ms = new RdsSnapshot(100000, "RADIO", "New RT", "1234",
+                com.vlad805.fmradio.models.RtPlusInfo.EMPTY, "DE", 10, false, true, -78, 16);
+        final RdsSnapshot signalAt1600ms = new RdsSnapshot(100000, "RADIO", "New RT", "1234",
+                com.vlad805.fmradio.models.RtPlusInfo.EMPTY, "DE", 10, false, true, -70, 22);
+
+        session.updateRds(base);
+        session.start(recorder);
+        session.append(new short[6], 6); // 300 ms
+        session.updateRds(jitterAt300ms); // throttled (< 1000 ms since last)
+        session.append(new short[4], 4); // 500 ms
+        session.updateRds(rdsChangeAt500ms); // core RDS changed -> immediate
+        session.append(new short[22], 22); // 1600 ms (1100 ms since 500 ms)
+        session.updateRds(signalAt1600ms); // >= 1000 ms -> recorded
+        session.stop();
+
+        assertEquals(java.util.Arrays.asList(0L, 500L, 1600L), recorder.rdsTimes);
+        assertEquals(java.util.Arrays.asList(base, rdsChangeAt500ms, signalAt1600ms), recorder.rdsStates);
+    }
+
+    @Test
     public void computesHalfSecondDurationForStereo44100And48000Formats() throws Throwable {
         for (final PcmFormat format : new PcmFormat[]{
                 PcmFormat.PCM16_STEREO_44100,
