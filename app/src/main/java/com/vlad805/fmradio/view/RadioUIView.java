@@ -30,6 +30,7 @@ import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.models.RtPlusFields;
 import com.vlad805.fmradio.models.RtPlusInfo;
 import com.vlad805.fmradio.preferences.BandUtils;
+import com.vlad805.fmradio.service.recording.RdsSnapshot;
 
 import java.util.Map;
 
@@ -182,15 +183,53 @@ public final class RadioUIView {
 	}
 
 	public final void setRadioState(final RadioState state) {
-		mRdsTp.setVisibility(state.hasTrafficProgramme() ? View.VISIBLE : View.GONE);
+		bindMetadata(
+				state.getPs(),
+				state.getRt(),
+				state.getRtPlus(),
+				state.getPty(),
+				state.hasTrafficProgramme(),
+				state.getPi(),
+				state.getCountry()
+		);
+	}
+
+	public final void setSnapshot(final RdsSnapshot snapshot) {
+		if (snapshot.getFrequencyKhz() > 0) {
+			setFrequency(snapshot.getFrequencyKhz());
+		}
+
+		bindMetadata(
+				snapshot.getPs(),
+				snapshot.getRt(),
+				snapshot.getRtPlus(),
+				snapshot.getPty(),
+				snapshot.hasTrafficProgramme(),
+				snapshot.getPi(),
+				snapshot.getCountry()
+		);
+	}
+
+	private void bindMetadata(
+			final String rawPs,
+			final String rawRt,
+			final RtPlusInfo rawRtPlus,
+			final int pty,
+			final boolean tp,
+			final String rawPi,
+			final String rawCountry
+	) {
+		mRdsTp.setVisibility(tp ? View.VISIBLE : View.GONE);
 		final String placeholder = getContext().getString(R.string.rds_placeholder);
 
-		final String ps = state.getPs() != null ? state.getPs().trim() : "";
+		final String ps = rawPs != null ? rawPs.trim() : "";
 		final String nextPs = ps.isEmpty() ? placeholder : ps;
 		if (!nextPs.equals(mLastPsText)) {
-			final boolean isContinuation = !mLastPsText.isEmpty()
-					&& !mLastPsText.equals(placeholder)
-					&& nextPs.startsWith(mLastPsText);
+			final boolean isContinuation = (
+					!mLastPsText.isEmpty() &&
+					!mLastPsText.equals(placeholder) &&
+					nextPs.startsWith(mLastPsText)
+			);
 			mLastPsText = nextPs;
 			if (isContinuation) {
 				mRdsPs.setText(nextPs);
@@ -199,7 +238,7 @@ public final class RadioUIView {
 			}
 		}
 
-		final String rtText = state.getRt() != null ? state.getRt().trim() : "";
+		final String rtText = rawRt != null ? rawRt.trim() : "";
 		if (rtText.isEmpty()) {
 			mLastRtText = "";
 			final int mutedColor = MaterialColors.getColor(
@@ -233,7 +272,7 @@ public final class RadioUIView {
 			}
 		}
 
-		final RtPlusInfo rtPlus = state.getRtPlus() != null ? state.getRtPlus() : RtPlusInfo.EMPTY;
+		final RtPlusInfo rtPlus = rawRtPlus != null ? rawRtPlus : RtPlusInfo.EMPTY;
 		showRtPlusFields(rtPlus);
 
 		final boolean hasRtPlus = !rtPlus.isEmpty();
@@ -259,17 +298,17 @@ public final class RadioUIView {
 		}
 
 		final int region = mStorage.getRegion();
-		final String ptyName = UtilsLocalization.getProgramType(state.getPty(), region);
+		final String ptyName = UtilsLocalization.getProgramType(pty, region);
 		mLastPtyText = (ptyName == null || ptyName.trim().isEmpty()) ? placeholder : ptyName;
 
 		if (!mStatusShown) {
 			updatePtyDisplay(getContext().getString(R.string.rds_pty_prefix), mLastPtyText);
 		}
 
-		final String pi = state.getPi() != null ? state.getPi().trim() : "";
-		final String country = state.getCountry() == null
+		final String pi = rawPi != null ? rawPi.trim() : "";
+		final String country = rawCountry == null
 				? ""
-				: UtilsLocalization.formatRdsCountry(state.getCountry().trim());
+				: UtilsLocalization.formatRdsCountry(rawCountry.trim());
 		final String nextPi = pi.isEmpty() ? placeholder : (country.isEmpty() ? pi : country + " · " + pi);
 		if (!nextPi.equals(mLastPiText)) {
 			mLastPiText = nextPi;
