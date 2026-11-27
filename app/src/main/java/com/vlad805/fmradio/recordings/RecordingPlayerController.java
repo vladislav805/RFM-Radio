@@ -24,6 +24,7 @@ import com.vlad805.fmradio.view.WaveformView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Owns the persistent mini-player / expandable player drawer bottom sheet,
@@ -474,13 +475,14 @@ public final class RecordingPlayerController {
         }
 
         final List<RfmMetadataEvent> events = mCurrentMetadata.getEvents();
-        final List<Float> markers = new ArrayList<>();
+        final List<WaveformView.Marker> markers = new ArrayList<>();
         int lastFreq = -1;
 
         for (final RfmMetadataEvent event : events) {
             final int freq = event.getSnapshot().getFrequencyKhz();
             if (lastFreq > 0 && freq > 0 && freq != lastFreq && event.getTimeMs() > 0L) {
-                markers.add((float) event.getTimeMs() / (float) mCurrentDurationMs);
+                final float fraction = (float) event.getTimeMs() / (float) mCurrentDurationMs;
+                markers.add(new WaveformView.Marker(fraction, formatMarkerFrequency(freq)));
             }
 
             if (freq > 0) {
@@ -488,12 +490,16 @@ public final class RecordingPlayerController {
             }
         }
 
-        final float[] array = new float[markers.size()];
-        for (int i = 0; i < markers.size(); i++) {
-            array[i] = markers.get(i);
+        mWaveformView.setMarkers(markers);
+    }
+
+    @NonNull
+    private static String formatMarkerFrequency(final int frequencyKhz) {
+        if (frequencyKhz % 100 == 0) {
+            return String.format(Locale.US, "%.1f", frequencyKhz / 1000f);
         }
 
-        mWaveformView.setMarkers(array);
+        return String.format(Locale.US, "%.2f", frequencyKhz / 1000f);
     }
 
     private void updatePlaybackPositionUi(final long positionMs) {

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -14,13 +15,27 @@ import androidx.core.graphics.ColorUtils;
 
 import com.google.android.material.color.MaterialColors;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Material 3 vertical-bar waveform seekbar with optional RDS-change marker ticks
- * and interactive trim range selection handles.
+ * (with collision-avoiding frequency labels) and interactive trim range selection handles.
  */
 public class WaveformView extends View {
+    public static final class Marker {
+        public final float fraction;
+        @Nullable
+        public final String label;
+
+        public Marker(final float fraction, @Nullable final String label) {
+            this.fraction = fraction;
+            this.label = label;
+        }
+    }
+
     public interface OnSeekListener {
         void onSeekStart();
 
@@ -37,6 +52,29 @@ public class WaveformView extends View {
     private static final int DRAG_PLAYHEAD = 1;
     private static final int DRAG_TRIM_START = 2;
     private static final int DRAG_TRIM_END = 3;
+    private static final int MAX_LABEL_ROWS = 2;
+
+    private static final class PlacedLabel {
+        final float markerX;
+        final float left;
+        final float right;
+        final int row;
+        final String text;
+
+        PlacedLabel(
+                final float markerX,
+                final float left,
+                final float right,
+                final int row,
+                @NonNull final String text
+        ) {
+            this.markerX = markerX;
+            this.left = left;
+            this.right = right;
+            this.row = row;
+            this.text = text;
+        }
+    }
 
     private final Paint mPlayedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mUnplayedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -44,12 +82,14 @@ public class WaveformView extends View {
     private final Paint mDimmedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mPlayheadPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mMarkerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mMarkerLabelBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mMarkerLabelTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mSelectionFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mHandlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF mBarRect = new RectF();
 
     private byte[] mPeaks = new byte[0];
-    private float[] mMarkers = new float[0];
+    private final List<Marker> mMarkers = new ArrayList<>();
     private float mProgress = 0f;
 
     private boolean mTrimMode = false;
@@ -112,12 +152,30 @@ public class WaveformView extends View {
         mPlayheadPaint.setColor(primary);
 
         mMarkerPaint.setStyle(Paint.Style.STROKE);
-        mMarkerPaint.setStrokeWidth(Math.max(1f, density));
-        mMarkerPaint.setColor(MaterialColors.getColor(
+        mMarkerPaint.setStrokeWidth(Math.max(1.5f * density, 1.5f));
+        final int tertiary = MaterialColors.getColor(
                 this,
                 com.google.android.material.R.attr.colorTertiary,
-                0x99FF9800
-        ));
+                0xFFFF9800
+        );
+        mMarkerPaint.setColor(ColorUtils.setAlphaComponent(tertiary, 220));
+
+        final int tertiaryContainer = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorTertiaryContainer,
+                ColorUtils.setAlphaComponent(tertiary, 48)
+        );
+        final int onTertiaryContainer = MaterialColors.getColor(
+                this,
+                com.google.android.material.R.attr.colorOnTertiaryContainer,
+                tertiary
+        );
+        mMarkerLabelBgPaint.setStyle(Paint.Style.FILL);
+        mMarkerLabelBgPaint.setColor(tertiaryContainer);
+
+        mMarkerLabelTextPaint.setColor(onTertiaryContainer);
+        mMarkerLabelTextPaint.setTextSize(9.5f * getResources().getDisplayMetrics().scaledDensity);
+        mMarkerLabelTextPaint.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
 
         mSelectionFillPaint.setStyle(Paint.Style.FILL);
         mSelectionFillPaint.setColor(ColorUtils.setAlphaComponent(primary, 32));
@@ -131,8 +189,11 @@ public class WaveformView extends View {
         invalidate();
     }
 
-    public void setMarkers(@Nullable final float[] markerFractions) {
-        mMarkers = markerFractions != null ? Arrays.copyOf(markerFractions, markerFractions.length) : new float[0];
+    public void setMarkers(@Nullable final List<Marker> markers) {
+        mMarkers.clear();
+        if (markers != null) {
+            mMarkers.addAll(markers);
+        }
         invalidate();
     }
 
@@ -196,26 +257,39 @@ public class WaveformView extends View {
         }
 
         final float density = getResources().getDisplayMetrics().density;
-        final float centerY = padTop + height / 2f;
+        final float rowHeight = 14f * density;
+        final float rowGap = 2f * density;
+        final float stripBottomGap = 2f * density;
+        final List<PlacedLabel> placedLabels = layoutMarkerLabels(padLeft, width, density);
+        int usedRows = 0;
+
+        for (final PlacedLabel label : placedLabels) {
+            if (label.row + 1 > usedRows) {
+                usedRows = label.row + 1;
+            }
+        }
+
+        final float labelStripHeight = usedRows > 0
+                ? usedRows * rowHeight + (usedRows - 1) * rowGap + stripBottomGap
+                : 0f;
+        final float waveTop = padTop + labelStripHeight;
+        final float waveHeight = height - labelStripHeight;
+
+        if (waveHeight <= 0f) {
+            return;
+        }
+
+        final float centerY = waveTop + waveHeight / 2f;
         final float minBarHeight = Math.max(3f * density, 2f);
-        final float maxBarHeight = Math.max(minBarHeight, height - 10f * density);
+        final float maxBarHeight = Math.max(minBarHeight, waveHeight - 8f * density);
 
         final float trimStartX = padLeft + mTrimStart * width;
         final float trimEndX = padLeft + mTrimEnd * width;
 
         // Draw tinted selection band behind bars when trim mode is active.
         if (mTrimMode) {
-            mBarRect.set(trimStartX, padTop + 2f * density, trimEndX, padTop + height - 2f * density);
+            mBarRect.set(trimStartX, waveTop + 2f * density, trimEndX, waveTop + waveHeight - 2f * density);
             canvas.drawRoundRect(mBarRect, 6f * density, 6f * density, mSelectionFillPaint);
-        }
-
-        // Draw subtle RDS-change markers behind the bars.
-        for (final float marker : mMarkers) {
-            if (marker <= 0f || marker >= 1f) {
-                continue;
-            }
-            final float x = padLeft + marker * width;
-            canvas.drawLine(x, padTop + 2f * density, x, padTop + height - 2f * density, mMarkerPaint);
         }
 
         final float slotWidth = Math.max(3.5f * density, 3f);
@@ -248,13 +322,16 @@ public class WaveformView extends View {
             canvas.drawRoundRect(mBarRect, radius, radius, paint);
         }
 
+        // Draw station-change markers and multi-row frequency badges over the bars, below playhead and trim handles.
+        drawStationMarkers(canvas, padLeft, padTop, width, waveTop, waveHeight, rowHeight, rowGap, density, placedLabels);
+
         // Draw playhead line.
         final float playheadHalfW = Math.max(1f * density, 1f);
         mBarRect.set(
                 playheadX - playheadHalfW,
-                padTop + 2f * density,
+                waveTop + 2f * density,
                 playheadX + playheadHalfW,
-                padTop + height - 2f * density
+                waveTop + waveHeight - 2f * density
         );
         canvas.drawRoundRect(mBarRect, playheadHalfW, playheadHalfW, mPlayheadPaint);
 
@@ -264,20 +341,151 @@ public class WaveformView extends View {
             final float handleRadius = 2.5f * density;
             mBarRect.set(
                     trimStartX - handleHalfW,
-                    padTop,
+                    waveTop,
                     trimStartX + handleHalfW,
-                    padTop + height
+                    waveTop + waveHeight
             );
             canvas.drawRoundRect(mBarRect, handleRadius, handleRadius, mHandlePaint);
 
             mBarRect.set(
                     trimEndX - handleHalfW,
-                    padTop,
+                    waveTop,
                     trimEndX + handleHalfW,
-                    padTop + height
+                    waveTop + waveHeight
             );
             canvas.drawRoundRect(mBarRect, handleRadius, handleRadius, mHandlePaint);
         }
+    }
+
+    @NonNull
+    private List<PlacedLabel> layoutMarkerLabels(final int padLeft, final float width, final float density) {
+        if (mMarkers.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        final List<Integer> labeledIndices = new ArrayList<>();
+        for (int i = 0; i < mMarkers.size(); i++) {
+            final Marker marker = mMarkers.get(i);
+            if (
+                    marker.fraction > 0f &&
+                    marker.fraction < 1f &&
+                    marker.label != null &&
+                    !marker.label.isEmpty()
+            ) {
+                labeledIndices.add(i);
+            }
+        }
+
+        if (labeledIndices.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Prioritize labels by longest segment duration so brief tuning hops yield to settled stations.
+        Collections.sort(labeledIndices, (a, b) -> Float.compare(segmentSpan(b), segmentSpan(a)));
+
+        final float padH = 3.5f * density;
+        final float minGap = 4f * density;
+        final List<List<float[]>> rowRanges = new ArrayList<>(MAX_LABEL_ROWS);
+
+        for (int r = 0; r < MAX_LABEL_ROWS; r++) {
+            rowRanges.add(new ArrayList<>());
+        }
+
+        final List<PlacedLabel> placed = new ArrayList<>();
+
+        for (final int idx : labeledIndices) {
+            final Marker marker = mMarkers.get(idx);
+            final String label = marker.label;
+            if (label == null) {
+                continue;
+            }
+
+            final float textWidth = mMarkerLabelTextPaint.measureText(label);
+            final float pillWidth = textWidth + 2f * padH;
+            final float centerX = padLeft + marker.fraction * width;
+            final float left = Math.max(
+                    padLeft,
+                    Math.min(padLeft + width - pillWidth, centerX - pillWidth / 2f)
+            );
+            final float right = left + pillWidth;
+
+            for (int row = 0; row < MAX_LABEL_ROWS; row++) {
+                final List<float[]> ranges = rowRanges.get(row);
+                boolean overlaps = false;
+
+                for (final float[] existing : ranges) {
+                    if (left < existing[1] + minGap && right + minGap > existing[0]) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (!overlaps) {
+                    ranges.add(new float[]{left, right});
+                    placed.add(new PlacedLabel(centerX, left, right, row, label));
+                    break;
+                }
+            }
+        }
+
+        return placed;
+    }
+
+    private void drawStationMarkers(
+            @NonNull final Canvas canvas,
+            final int padLeft,
+            final int padTop,
+            final float width,
+            final float waveTop,
+            final float waveHeight,
+            final float rowHeight,
+            final float rowGap,
+            final float density,
+            @NonNull final List<PlacedLabel> placedLabels
+    ) {
+        if (mMarkers.isEmpty()) {
+            return;
+        }
+
+        // Draw vertical marker lines across the waveform for every station switch.
+        for (final Marker marker : mMarkers) {
+            if (marker.fraction <= 0f || marker.fraction >= 1f) {
+                continue;
+            }
+
+            final float x = padLeft + marker.fraction * width;
+            canvas.drawLine(x, waveTop + 2f * density, x, waveTop + waveHeight - 2f * density, mMarkerPaint);
+        }
+
+        if (placedLabels.isEmpty()) {
+            return;
+        }
+
+        // Connect each placed label down to the waveform top (drawn behind pills so stems never cross text).
+        for (final PlacedLabel item : placedLabels) {
+            final float pillBottom = padTop + item.row * (rowHeight + rowGap) + rowHeight;
+            canvas.drawLine(item.markerX, pillBottom, item.markerX, waveTop + 2f * density, mMarkerPaint);
+        }
+
+        final float padH = 3.5f * density;
+        final float pillRadius = 3f * density;
+        final Paint.FontMetrics fm = mMarkerLabelTextPaint.getFontMetrics();
+
+        for (final PlacedLabel item : placedLabels) {
+            final float pillTop = padTop + item.row * (rowHeight + rowGap);
+            final float pillBottom = pillTop + rowHeight;
+            final float textBaseline = (pillTop + pillBottom) / 2f - (fm.ascent + fm.descent) / 2f;
+
+            mBarRect.set(item.left, pillTop, item.right, pillBottom);
+            canvas.drawRoundRect(mBarRect, pillRadius, pillRadius, mMarkerLabelBgPaint);
+            canvas.drawText(item.text, item.left + padH, textBaseline, mMarkerLabelTextPaint);
+        }
+    }
+
+    private float segmentSpan(final int index) {
+        final float start = mMarkers.get(index).fraction;
+        final float end = index + 1 < mMarkers.size() ? mMarkers.get(index + 1).fraction : 1f;
+        return Math.max(0f, end - start);
     }
 
     private float sampleAmplitude(final int barIndex, final int barCount) {
