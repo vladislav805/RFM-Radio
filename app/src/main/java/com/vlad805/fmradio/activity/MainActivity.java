@@ -104,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static final int MENU_SETTINGS = 1;
     private static final int MENU_SPEAKER = 2;
+    private static final int MENU_RECORDINGS = 3;
 
     private static final int REQUEST_CODE_SETTINGS_CHANGED = 1050;
     private static final int REQUEST_CODE_RECORD_PERMISSIONS = 1051;
@@ -444,16 +445,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         final PopupMenu popup = new PopupMenu(this, anchor);
         final Menu menu = popup.getMenu();
 
-        menu.add(0, MENU_SETTINGS, 1, R.string.menu_settings);
+        menu.add(0, MENU_RECORDINGS, 1, R.string.recordings_title);
+        menu.add(0, MENU_SETTINGS, 2, R.string.menu_settings);
         final boolean isEnabled = mLastState != null && mLastState.getStatus() == TunerStatus.ENABLED;
-        menu.add(0, MENU_SPEAKER, 2, R.string.menu_speaker)
+        menu.add(0, MENU_SPEAKER, 3, R.string.menu_speaker)
                 .setCheckable(true)
                 .setChecked(mLastState != null && mLastState.isForceSpeaker())
                 .setEnabled(isEnabled);
 
         popup.setOnMenuItemClickListener(item -> {
             final int itemId = item.getItemId();
-            if (itemId == MENU_SETTINGS) {
+            if (itemId == MENU_RECORDINGS) {
+                startActivity(RecordingsActivity.createIntent(this, null));
+                return true;
+            } else if (itemId == MENU_SETTINGS) {
                 startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_CODE_SETTINGS_CHANGED);
                 return true;
             } else if (itemId == MENU_SPEAKER) {

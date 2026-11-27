@@ -11,7 +11,8 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | Package | Role |
 | --- | --- |
 | (root) | `C.java` — `RecordFormat` and `Config` constants; `Storage` — typed `SharedPreferences` wrapper, `Storage.Key`, defaults |
-| `activity/` | `MainActivity` (entry, gates), `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
+| `activity/` | `MainActivity` (entry, gates), `SettingsActivity`, `AboutActivity`, `RecordingsActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
+| `recordings/` | `RecordingsRepository`, `RecordingItem`, `DirectoryListing`, `RecordingsAdapter`, `RecordingAudioPlayer`, `OggOpusDecoder` (JNI), `RecordingTunerBinder` |
 | `controller/` | `RadioServiceController` (local binder contract), `RadioClient` (`ServiceConnection` wrapper + command queue), `StateListener`, `EventListener`, `FavoriteController` (in-process singleton), `RadioState` (pure reducers + `SET_*` masks), `TunerStatus` |
 | `service/` | `FMService` — the orchestrator (`LocalBinder` + external `ACTION_*` entry points); `FMNotificationManager` — notification channels and playback/recording presentation |
 | `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
@@ -20,7 +21,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
 | `service/recording/` | `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3/Opus recording, RDS snapshots, storage |
 | `fragments/` | `PreferencesFragment` — declarative `res/xml/preferences.xml` + backend capability gating |
-| `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
+| `view/` | `RadioUIView`, `FrequencyDialView`, `WaveformView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum (with backend capability flags), `BandUtils` |
 
 `service/streaming/` is an empty leftover. `app/src/main/cpp/` builds the JNI recording encoders `libmp3encoder.so` (LAME) and `libopusencoder.so` (libopus and libopusenc).

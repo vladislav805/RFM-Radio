@@ -84,4 +84,34 @@ public class RecordingsRepositoryTest {
         assertTrue(RecordingsRepository.isSupportedAudioExtension("opus"));
         assertFalse(RecordingsRepository.isSupportedAudioExtension("srt"));
     }
+
+    @Test
+    public void sortsFilesByRequestedOrderWhileKeepingDirectoriesNewestFirst() {
+        final List<RecordingItem> all = Arrays.asList(
+                item("2026-11-27", "beta.wav", 3000L),
+                item("2026-11-27", "alpha.mp3", 1000L),
+                item("2026-11-27", "gamma.opus", 2000L)
+        );
+
+        final DirectoryListing oldest = RecordingsRepository.buildListingFromEntries(
+                all, "2026-11-27", RecordingsRepository.SORT_OLDEST_FIRST
+        );
+        assertEquals("alpha.mp3", oldest.getRecordings().get(0).getDisplayName());
+        assertEquals("gamma.opus", oldest.getRecordings().get(1).getDisplayName());
+        assertEquals("beta.wav", oldest.getRecordings().get(2).getDisplayName());
+
+        final DirectoryListing nameAsc = RecordingsRepository.buildListingFromEntries(
+                all, "2026-11-27", RecordingsRepository.SORT_NAME_ASC
+        );
+        assertEquals("alpha.mp3", nameAsc.getRecordings().get(0).getDisplayName());
+        assertEquals("beta.wav", nameAsc.getRecordings().get(1).getDisplayName());
+        assertEquals("gamma.opus", nameAsc.getRecordings().get(2).getDisplayName());
+
+        final DirectoryListing nameDesc = RecordingsRepository.buildListingFromEntries(
+                all, "2026-11-27", RecordingsRepository.SORT_NAME_DESC
+        );
+        assertEquals("gamma.opus", nameDesc.getRecordings().get(0).getDisplayName());
+        assertEquals("beta.wav", nameDesc.getRecordings().get(1).getDisplayName());
+        assertEquals("alpha.mp3", nameDesc.getRecordings().get(2).getDisplayName());
+    }
 }

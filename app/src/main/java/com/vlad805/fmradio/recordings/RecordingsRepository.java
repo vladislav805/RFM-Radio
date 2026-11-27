@@ -36,6 +36,11 @@ import java.util.Set;
  * Browses, inspects, shares, and deletes recordings inside {@code Music/RFM-Recordings}.
  */
 public final class RecordingsRepository {
+    public static final int SORT_NEWEST_FIRST = 0;
+    public static final int SORT_OLDEST_FIRST = 1;
+    public static final int SORT_NAME_ASC = 2;
+    public static final int SORT_NAME_DESC = 3;
+
     private static final String ROOT_DIRECTORY = "RFM-Recordings";
     private static final String MEDIASTORE_ROOT_PREFIX = "Music/" + ROOT_DIRECTORY + "/";
 
@@ -46,11 +51,20 @@ public final class RecordingsRepository {
             @NonNull final Context context,
             @NonNull final String relativeDir
     ) {
+        return listDirectory(context, relativeDir, SORT_NEWEST_FIRST);
+    }
+
+    @NonNull
+    public static DirectoryListing listDirectory(
+            @NonNull final Context context,
+            @NonNull final String relativeDir,
+            final int sortOrder
+    ) {
         final String normalizedDir = normalizeRelativeDir(relativeDir);
 
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                ? listViaMediaStore(context.getContentResolver(), normalizedDir)
-                : listViaFileSystem(normalizedDir);
+                ? listViaMediaStore(context.getContentResolver(), normalizedDir, sortOrder)
+                : listViaFileSystem(normalizedDir, sortOrder);
     }
 
     @Nullable
@@ -121,6 +135,66 @@ public final class RecordingsRepository {
                 : null;
 
         return RecordingStorage.deletePublished(context, uriString, item.getFilePath());
+    }
+
+    public static int deleteDirectory(
+            @NonNull final Context context,
+            @NonNull final String relativeDir
+    ) throws IOException {
+        final String target = normalizeRelativeDir(relativeDir);
+
+        if (target.isEmpty()) {
+            throw new IOException("Refusing to delete root recordings directory");
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            final List<RecordingItem> all = queryAllMediaStoreItems(context.getContentResolver());
+            final String prefix = target + "/";
+            int deleted = 0;
+
+            for (final RecordingItem item : all) {
+                final String dir = normalizeRelativeDir(item.getRelativeDir());
+
+                if (dir.equals(target) || dir.startsWith(prefix)) {
+                    if (delete(context, item)) {
+                        deleted++;
+                    }
+                }
+            }
+
+            return deleted;
+        }
+
+        final File root = new File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                ROOT_DIRECTORY
+        );
+        final File dirFile = new File(root, target);
+
+        if (!dirFile.exists()) {
+            return 0;
+        }
+
+        return deleteRecursiveFile(dirFile);
+    }
+
+    private static int deleteRecursiveFile(@NonNull final File node) throws IOException {
+        int count = 0;
+
+        if (node.isDirectory()) {
+            final File[] children = node.listFiles();
+            if (children != null) {
+                for (final File child : children) {
+                    count += deleteRecursiveFile(child);
+                }
+            }
+        }
+
+        if (!node.delete()) {
+            throw new IOException("Cannot delete " + node.getName());
+        }
+
+        return node.isDirectory() ? count : count + 1;
     }
 
     @NonNull
@@ -234,6 +308,15 @@ public final class RecordingsRepository {
             @NonNull final List<RecordingItem> allItems,
             @NonNull final String targetRelativeDir
     ) {
+        return buildListingFromEntries(allItems, targetRelativeDir, SORT_NEWEST_FIRST);
+    }
+
+    @NonNull
+    static DirectoryListing buildListingFromEntries(
+            @NonNull final List<RecordingItem> allItems,
+            @NonNull final String targetRelativeDir,
+            final int sortOrder
+    ) {
         final String target = normalizeRelativeDir(targetRelativeDir);
         final String targetPrefix = target.isEmpty() ? "" : target + "/";
 
@@ -273,20 +356,55 @@ public final class RecordingsRepository {
         final List<String> sortedDirs = new ArrayList<>(subdirs);
         sortedDirs.sort(Comparator.reverseOrder());
 
-        files.sort((a, b) -> {
-            final int byTime = Long.compare(b.getLastModifiedMillis(), a.getLastModifiedMillis());
-            return byTime != 0 ? byTime : b.getDisplayName().compareToIgnoreCase(a.getDisplayName());
-        });
+        sortRecordings(files, sortOrder);
 
         return new DirectoryListing(target, sortedDirs, files);
+    }
+
+    static void sortRecordings(@NonNull final List<RecordingItem> files, final int sortOrder) {
+        switch (sortOrder) {
+            case SORT_OLDEST_FIRST: {
+                files.sort((a, b) -> {
+                    final int byTime = Long.compare(a.getLastModifiedMillis(), b.getLastModifiedMillis());
+                    return byTime != 0 ? byTime : a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
+                });
+                break;
+            }
+
+            case SORT_NAME_ASC: {
+                files.sort((a, b) -> a.getDisplayName().compareToIgnoreCase(b.getDisplayName()));
+                break;
+            }
+
+            case SORT_NAME_DESC: {
+                files.sort((a, b) -> b.getDisplayName().compareToIgnoreCase(a.getDisplayName()));
+                break;
+            }
+
+            case SORT_NEWEST_FIRST:
+            default: {
+                files.sort((a, b) -> {
+                    final int byTime = Long.compare(b.getLastModifiedMillis(), a.getLastModifiedMillis());
+                    return byTime != 0 ? byTime : b.getDisplayName().compareToIgnoreCase(a.getDisplayName());
+                });
+                break;
+            }
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
     @NonNull
     private static DirectoryListing listViaMediaStore(
             @NonNull final ContentResolver resolver,
-            @NonNull final String relativeDir
+            @NonNull final String relativeDir,
+            final int sortOrder
     ) {
+        return buildListingFromEntries(queryAllMediaStoreItems(resolver), relativeDir, sortOrder);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    @NonNull
+    private static List<RecordingItem> queryAllMediaStoreItems(@NonNull final ContentResolver resolver) {
         final Uri collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
         final String[] projection = new String[]{
                 MediaStore.Audio.Media._ID,
@@ -344,11 +462,14 @@ public final class RecordingsRepository {
             }
         }
 
-        return buildListingFromEntries(allItems, relativeDir);
+        return allItems;
     }
 
     @NonNull
-    private static DirectoryListing listViaFileSystem(@NonNull final String relativeDir) {
+    private static DirectoryListing listViaFileSystem(
+            @NonNull final String relativeDir,
+            final int sortOrder
+    ) {
         final File root = new File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
                 ROOT_DIRECTORY
@@ -398,10 +519,7 @@ public final class RecordingsRepository {
         }
 
         subdirs.sort(Comparator.reverseOrder());
-        files.sort((a, b) -> {
-            final int byTime = Long.compare(b.getLastModifiedMillis(), a.getLastModifiedMillis());
-            return byTime != 0 ? byTime : b.getDisplayName().compareToIgnoreCase(a.getDisplayName());
-        });
+        sortRecordings(files, sortOrder);
 
         return new DirectoryListing(relativeDir, subdirs, files);
     }

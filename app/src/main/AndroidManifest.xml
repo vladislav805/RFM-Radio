@@ -33,6 +33,9 @@
 		<activity
 				android:name=".activity.AboutActivity"/>
 		<activity
+				android:name=".activity.RecordingsActivity"
+				android:label="@string/recordings_title"/>
+		<activity
 				android:name=".activity.StartupBlockedActivity"
 				android:label="@string/main_activity_label"/>
 		<activity

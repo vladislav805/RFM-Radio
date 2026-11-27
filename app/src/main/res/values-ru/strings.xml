@@ -184,4 +184,26 @@
     <string name="pref_app_theme_system">Как в системе</string>
     <string name="pref_app_theme_light">Светлая</string>
     <string name="pref_app_theme_dark">Тёмная</string>
+    <string name="recordings_title">Записи</string>
+    <string name="recordings_empty">Записи не найдены</string>
+    <string name="recordings_root_label">RFM-Recordings</string>
+    <string name="recordings_rds_badge_desc">Содержит метаданные RDS</string>
+    <string name="recordings_collapse_player">Свернуть плеер</string>
+    <string name="recordings_more_actions">Ещё действия</string>
+    <string name="recordings_no_rds_metadata">В этом файле нет записанных метаданных RDS</string>
+    <string name="recordings_prev">Предыдущая запись</string>
+    <string name="recordings_next">Следующая запись</string>
+    <string name="recordings_action_share">Поделиться</string>
+    <string name="recordings_share_failed">Не удалось поделиться записью</string>
+    <string name="recordings_playback_error">Не удалось воспроизвести запись</string>
+    <string name="recordings_permission_denied">Для просмотра записей нужно разрешение на доступ к памяти</string>
+    <string name="recordings_sort">Сортировка</string>
+    <string name="recordings_sort_newest">Сначала новые</string>
+    <string name="recordings_sort_oldest">Сначала старые</string>
+    <string name="recordings_sort_name_asc">По имени (А–Я)</string>
+    <string name="recordings_sort_name_desc">По имени (Я–А)</string>
+    <string name="recordings_delete_dir_title">Удалить папку</string>
+    <string name="recordings_delete_dir_confirm">Удалить папку «%1$s» и все записи внутри неё?</string>
+    <string name="recordings_delete_dir_success">Папка удалена</string>
+    <string name="recordings_delete_dir_failed">Не удалось удалить папку</string>
 </resources>

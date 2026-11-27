@@ -55,6 +55,7 @@ public final class Storage {
 	static final String KEY_BINARY_VERSION_NATIVE = "bin_version_native";
 	static final String KEY_BINARY_APK_UPDATE_TIME = "bin_apk_update_time";
 	static final String KEY_FAVORITES_LIST_CURRENT = "favorites_list_current";
+	static final String KEY_RECORDINGS_SORT = "recordings_sort";
 
 	// Shared defaults needed by external callers.
 	public static final int DEFAULT_LAST_FREQUENCY = 87500;
@@ -271,6 +272,14 @@ public final class Storage {
 
 	public void setBinaryApkUpdateTime(final long updateTimeMs) {
 		putLong(KEY_BINARY_APK_UPDATE_TIME, updateTimeMs);
+	}
+
+	public int getRecordingsSort() {
+		return getInt(KEY_RECORDINGS_SORT, 0);
+	}
+
+	public void setRecordingsSort(final int sortOrder) {
+		putInt(KEY_RECORDINGS_SORT, sortOrder);
 	}
 
 	// --- Validation & low-level parsing helpers ---

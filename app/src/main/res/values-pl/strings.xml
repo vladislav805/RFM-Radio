@@ -184,4 +184,26 @@
     <string name="pref_app_theme_system">Systemowy</string>
     <string name="pref_app_theme_light">Jasny</string>
     <string name="pref_app_theme_dark">Ciemny</string>
+    <string name="recordings_title">Nagrania</string>
+    <string name="recordings_empty">Nie znaleziono nagrań</string>
+    <string name="recordings_root_label">RFM-Recordings</string>
+    <string name="recordings_rds_badge_desc">Zawiera metadane RDS</string>
+    <string name="recordings_collapse_player">Zwiń odtwarzacz</string>
+    <string name="recordings_more_actions">Więcej opcji</string>
+    <string name="recordings_no_rds_metadata">Ten plik nie zawiera zapisanych metadanych RDS</string>
+    <string name="recordings_prev">Poprzednie nagranie</string>
+    <string name="recordings_next">Następne nagranie</string>
+    <string name="recordings_action_share">Udostępnij</string>
+    <string name="recordings_share_failed">Nie udało się udostępnić nagrania</string>
+    <string name="recordings_playback_error">Nie udało się odtworzyć nagrania</string>
+    <string name="recordings_permission_denied">Wymagane uprawnienie do pamięci, aby przeglądać nagrania</string>
+    <string name="recordings_sort">Sortowanie</string>
+    <string name="recordings_sort_newest">Od najnowszych</string>
+    <string name="recordings_sort_oldest">Od najstarszych</string>
+    <string name="recordings_sort_name_asc">Według nazwy (A–Z)</string>
+    <string name="recordings_sort_name_desc">Według nazwy (Z–A)</string>
+    <string name="recordings_delete_dir_title">Usuń folder</string>
+    <string name="recordings_delete_dir_confirm">Usunąć folder „%1$s” i wszystkie nagrania w środku?</string>
+    <string name="recordings_delete_dir_success">Folder usunięty</string>
+    <string name="recordings_delete_dir_failed">Nie udało się usunąć folderu</string>
 </resources>

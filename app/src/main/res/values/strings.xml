@@ -195,4 +195,26 @@
     <string name="pref_app_theme_system">Follow system</string>
     <string name="pref_app_theme_light">Light</string>
     <string name="pref_app_theme_dark">Dark</string>
+    <string name="recordings_title">Recordings</string>
+    <string name="recordings_empty">No recordings found</string>
+    <string name="recordings_root_label">RFM-Recordings</string>
+    <string name="recordings_rds_badge_desc">Contains RDS metadata</string>
+    <string name="recordings_collapse_player">Collapse player</string>
+    <string name="recordings_more_actions">More actions</string>
+    <string name="recordings_no_rds_metadata">No RDS metadata recorded in this file</string>
+    <string name="recordings_prev">Previous recording</string>
+    <string name="recordings_next">Next recording</string>
+    <string name="recordings_action_share">Share</string>
+    <string name="recordings_share_failed">Could not share recording</string>
+    <string name="recordings_playback_error">Could not play recording</string>
+    <string name="recordings_permission_denied">Storage permission is required to browse recordings</string>
+    <string name="recordings_sort">Sort</string>
+    <string name="recordings_sort_newest">Newest first</string>
+    <string name="recordings_sort_oldest">Oldest first</string>
+    <string name="recordings_sort_name_asc">Name (A–Z)</string>
+    <string name="recordings_sort_name_desc">Name (Z–A)</string>
+    <string name="recordings_delete_dir_title">Delete folder</string>
+    <string name="recordings_delete_dir_confirm">Delete folder “%1$s” and all recordings inside it?</string>
+    <string name="recordings_delete_dir_success">Folder deleted</string>
+    <string name="recordings_delete_dir_failed">Could not delete folder</string>
 </resources>

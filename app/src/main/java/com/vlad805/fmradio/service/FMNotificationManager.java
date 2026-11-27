@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.activity.RecordingDeleteActivity;
+import com.vlad805.fmradio.activity.RecordingsActivity;
 import com.vlad805.fmradio.service.recording.RecordingResult;
 
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
@@ -277,8 +278,20 @@ public final class FMNotificationManager {
                     deleteIntent,
                     FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
             );
+            final String displayPath = result.getDisplayPath();
+            final String relativePath = displayPath.startsWith("Music/RFM-Recordings/")
+                    ? displayPath.substring("Music/RFM-Recordings/".length())
+                    : filename;
+            final PendingIntent pendingOpen = PendingIntent.getActivity(
+                    mContext,
+                    (location != null ? location.hashCode() : 0) ^ 0x5A5A,
+                    RecordingsActivity.createIntent(mContext, relativePath),
+                    FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
+            );
             final NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_RECORD_ID)
                     .setSmallIcon(R.drawable.ic_radio)
+                    .setContentIntent(pendingOpen)
+                    .setAutoCancel(true)
                     .setContentTitle(mContext.getString(R.string.app_name))
                     .setContentText(
                             mContext.getString(
