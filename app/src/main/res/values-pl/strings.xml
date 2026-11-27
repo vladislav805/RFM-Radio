@@ -206,4 +206,18 @@
     <string name="recordings_delete_dir_confirm">Usunąć folder „%1$s” i wszystkie nagrania w środku?</string>
     <string name="recordings_delete_dir_success">Folder usunięty</string>
     <string name="recordings_delete_dir_failed">Nie udało się usunąć folderu</string>
+    <string name="recording_action_trim">Przytnij</string>
+    <string name="recording_trim_preview">Podgląd</string>
+    <string name="recording_trim_pause">Pauza</string>
+    <string name="recording_trim_save">Zapisz</string>
+    <string name="recording_trim_save_copy">Zapisz jako kopię</string>
+    <string name="recording_trim_replace">Zastąp oryginał</string>
+    <string name="recording_trim_replace_confirm">Nadpisać „%1$s” przyciętym nagraniem? Tej operacji nie można cofnąć.</string>
+    <string name="recording_trim_in_progress">Przycinanie… %1$d%%</string>
+    <string name="recording_trim_success">Nagranie przycięte</string>
+    <string name="recording_trim_failed">Nie udało się przyciąć nagrania</string>
+    <string name="recording_trim_too_short">Nagranie jest za krótkie, aby je przyciąć</string>
+    <string name="recording_trim_discard_title">Anulować przycinanie?</string>
+    <string name="recording_trim_discard_confirm">Wybrane granice przycinania zostaną odrzucone.</string>
+    <string name="recording_trim_discard_action">Odrzuć</string>
 </resources>

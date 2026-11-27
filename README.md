@@ -13,7 +13,8 @@ Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 
 - Live FM playback using supported hardware backend.
 - RDS metadata: PS, RT, RT+, PTY.
-- Recording to `.wav`, `.mp3` (128 or 192 kbps stereo), and `.opus` (96 kbps stereo VBR).
+- Recording to `.wav`, `.mp3` (128 or 192 kbps stereo), and `.opus` (96 kbps stereo VBR) with embedded RDS, signal telemetry, and waveform metadata.
+- Built-in recordings browser and player with live RDS/signal replay, waveform scrubbing, sharing, deletion, and audio trimming.
 - Favorites (presets) with custom names.
 - Multiple favorite lists.
 - Favorite list manager screen with import/export.

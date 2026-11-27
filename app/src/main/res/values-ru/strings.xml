@@ -206,4 +206,18 @@
     <string name="recordings_delete_dir_confirm">Удалить папку «%1$s» и все записи внутри неё?</string>
     <string name="recordings_delete_dir_success">Папка удалена</string>
     <string name="recordings_delete_dir_failed">Не удалось удалить папку</string>
+    <string name="recording_action_trim">Обрезать</string>
+    <string name="recording_trim_preview">Прослушать</string>
+    <string name="recording_trim_pause">Пауза</string>
+    <string name="recording_trim_save">Сохранить</string>
+    <string name="recording_trim_save_copy">Сохранить как копию</string>
+    <string name="recording_trim_replace">Заменить оригинал</string>
+    <string name="recording_trim_replace_confirm">Перезаписать «%1$s» обрезанной версией? Это действие нельзя отменить.</string>
+    <string name="recording_trim_in_progress">Обрезка… %1$d%%</string>
+    <string name="recording_trim_success">Запись обрезана</string>
+    <string name="recording_trim_failed">Не удалось обрезать запись</string>
+    <string name="recording_trim_too_short">Запись слишком короткая для обрезки</string>
+    <string name="recording_trim_discard_title">Отменить обрезку?</string>
+    <string name="recording_trim_discard_confirm">Выбранные границы обрезки будут сброшены.</string>
+    <string name="recording_trim_discard_action">Сбросить</string>
 </resources>

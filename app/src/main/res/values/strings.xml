@@ -217,4 +217,18 @@
     <string name="recordings_delete_dir_confirm">Delete folder “%1$s” and all recordings inside it?</string>
     <string name="recordings_delete_dir_success">Folder deleted</string>
     <string name="recordings_delete_dir_failed">Could not delete folder</string>
+    <string name="recording_action_trim">Trim</string>
+    <string name="recording_trim_preview">Preview</string>
+    <string name="recording_trim_pause">Pause</string>
+    <string name="recording_trim_save">Save</string>
+    <string name="recording_trim_save_copy">Save as copy</string>
+    <string name="recording_trim_replace">Replace original</string>
+    <string name="recording_trim_replace_confirm">Overwrite “%1$s” with the trimmed audio? This cannot be undone.</string>
+    <string name="recording_trim_in_progress">Trimming… %1$d%%</string>
+    <string name="recording_trim_success">Recording trimmed</string>
+    <string name="recording_trim_failed">Could not trim recording</string>
+    <string name="recording_trim_too_short">Recording is too short to trim</string>
+    <string name="recording_trim_discard_title">Cancel trimming?</string>
+    <string name="recording_trim_discard_confirm">Selected trim boundaries will be discarded.</string>
+    <string name="recording_trim_discard_action">Discard</string>
 </resources>

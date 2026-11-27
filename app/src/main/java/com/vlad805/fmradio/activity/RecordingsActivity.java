@@ -20,6 +20,7 @@ import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityCompat;
@@ -43,6 +44,7 @@ import com.vlad805.fmradio.recordings.RecordingItem;
 import com.vlad805.fmradio.recordings.RecordingTunerBinder;
 import com.vlad805.fmradio.recordings.RecordingsAdapter;
 import com.vlad805.fmradio.recordings.RecordingsRepository;
+import com.vlad805.fmradio.recordings.trim.RecordingTrimmer;
 import com.vlad805.fmradio.service.recording.RfmMetadata;
 import com.vlad805.fmradio.service.recording.RfmMetadataEvent;
 import com.vlad805.fmradio.view.WaveformView;
@@ -63,6 +65,7 @@ public final class RecordingsActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_STORAGE = 201;
     private static final int MENU_SHARE = 1;
     private static final int MENU_DELETE = 2;
+    private static final int MENU_TRIM = 3;
     private static final int MENU_SORT_TOOLBAR = 10;
     private static final int MENU_SORT_NEWEST = 11;
     private static final int MENU_SORT_OLDEST = 12;
@@ -90,6 +93,7 @@ public final class RecordingsActivity extends AppCompatActivity {
 
     private View mPlayerScrim;
     private View mExpandedContent;
+    private View mBtnPlayerMore;
     private TextView mPlayerTitle;
     private TextView mPlayerPath;
     private View mTunerDisplay;
@@ -97,9 +101,15 @@ public final class RecordingsActivity extends AppCompatActivity {
     private WaveformView mWaveformView;
     private TextView mTimeCurrent;
     private TextView mTimeTotal;
+    private View mTransportControls;
     private MaterialButton mBtnPrev;
     private MaterialButton mBtnPlayPause;
     private MaterialButton mBtnNext;
+    private View mTrimControls;
+    private TextView mTrimStartText;
+    private TextView mTrimEndText;
+    private TextView mTrimDurationText;
+    private MaterialButton mBtnTrimPreview;
 
     private String mCurrentDir = "";
     private int mSortOrder = RecordingsRepository.SORT_NEWEST_FIRST;
@@ -111,12 +121,19 @@ public final class RecordingsActivity extends AppCompatActivity {
     private long mCurrentDurationMs = 0L;
     private boolean mUserScrubbing = false;
     private boolean mSheetDragging = false;
+    private boolean mTrimMode = false;
+    private long mTrimStartMs = 0L;
+    private long mTrimEndMs = 0L;
     @Nullable
     private String mPendingOpenRelativePath;
     @Nullable
     private RecordingItem mPendingDeleteItem;
     @Nullable
     private String mPendingDeleteDir;
+    @Nullable
+    private RecordingTrimmer.SaveMode mPendingTrimRetryMode;
+    @Nullable
+    private AlertDialog mTrimProgressDialog;
 
     private final ActivityResultLauncher<IntentSenderRequest> mDeleteConsentLauncher =
             registerForActivityResult(
@@ -127,10 +144,15 @@ public final class RecordingsActivity extends AppCompatActivity {
                                 onRecordingDeleted(mPendingDeleteItem);
                             } else if (mPendingDeleteDir != null) {
                                 deleteDirectoryNow(mPendingDeleteDir);
+                            } else if (mPendingTrimRetryMode != null) {
+                                final RecordingTrimmer.SaveMode retryMode = mPendingTrimRetryMode;
+                                mPendingTrimRetryMode = null;
+                                executeTrim(retryMode);
                             }
                         }
                         mPendingDeleteItem = null;
                         mPendingDeleteDir = null;
+                        mPendingTrimRetryMode = null;
                     }
             );
 
@@ -143,6 +165,21 @@ public final class RecordingsActivity extends AppCompatActivity {
 
             if (!mUserScrubbing && !mSheetDragging) {
                 final long posMs = mPlayer.getCurrentPositionMs();
+
+                if (mTrimMode) {
+                    if (posMs < mTrimStartMs) {
+                        mPlayer.seekTo(mTrimStartMs);
+                        updatePlaybackPositionUi(mTrimStartMs);
+                        return;
+                    }
+                    if (posMs >= mTrimEndMs) {
+                        mPlayer.pause();
+                        mPlayer.seekTo(mTrimStartMs);
+                        updatePlaybackPositionUi(mTrimStartMs);
+                        return;
+                    }
+                }
+
                 updatePlaybackPositionUi(posMs);
             }
 
@@ -209,6 +246,7 @@ public final class RecordingsActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        dismissTrimProgress();
         mMainHandler.removeCallbacks(mPlaybackTick);
         mPlayer.release();
         mTunerBinder.release();
@@ -287,9 +325,10 @@ public final class RecordingsActivity extends AppCompatActivity {
         mMiniPlayPause = findViewById(R.id.mini_player_play_pause);
 
         mPlayerScrim = findViewById(R.id.player_scrim);
-        mPlayerScrim.setOnClickListener(v -> mSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED));
+        mPlayerScrim.setOnClickListener(v -> requestCollapseDrawer());
 
         mExpandedContent = findViewById(R.id.expanded_player_content);
+        mBtnPlayerMore = findViewById(R.id.btn_player_more);
         mPlayerTitle = findViewById(R.id.player_title);
         mPlayerPath = findViewById(R.id.player_path);
         mTunerDisplay = findViewById(R.id.player_tuner_display);
@@ -297,17 +336,52 @@ public final class RecordingsActivity extends AppCompatActivity {
         mWaveformView = findViewById(R.id.player_waveform);
         mTimeCurrent = findViewById(R.id.player_time_current);
         mTimeTotal = findViewById(R.id.player_time_total);
+        mTransportControls = findViewById(R.id.player_transport_controls);
         mBtnPrev = findViewById(R.id.btn_player_prev);
         mBtnPlayPause = findViewById(R.id.btn_player_play_pause);
         mBtnNext = findViewById(R.id.btn_player_next);
 
+        mTrimControls = findViewById(R.id.trim_controls_container);
+        mTrimStartText = findViewById(R.id.trim_start_time);
+        mTrimEndText = findViewById(R.id.trim_end_time);
+        mTrimDurationText = findViewById(R.id.trim_duration_text);
+        mBtnTrimPreview = findViewById(R.id.btn_trim_preview);
+
+        findViewById(R.id.btn_trim_start_minus).setOnClickListener(v -> adjustTrimStart(-200L));
+        findViewById(R.id.btn_trim_start_plus).setOnClickListener(v -> adjustTrimStart(200L));
+        findViewById(R.id.btn_trim_end_minus).setOnClickListener(v -> adjustTrimEnd(-200L));
+        findViewById(R.id.btn_trim_end_plus).setOnClickListener(v -> adjustTrimEnd(200L));
+        findViewById(R.id.btn_trim_cancel).setOnClickListener(v -> requestExitTrimMode(null));
+        mBtnTrimPreview.setOnClickListener(v -> toggleTrimPreview());
+        findViewById(R.id.btn_trim_save).setOnClickListener(v -> showTrimSaveDialog());
+
+        mWaveformView.setOnTrimRangeChangeListener((startFraction, endFraction, fromUser) -> {
+            if (!fromUser || mCurrentDurationMs <= 0L) {
+                return;
+            }
+
+            mTrimStartMs = Math.round(startFraction * mCurrentDurationMs);
+            mTrimEndMs = Math.round(endFraction * mCurrentDurationMs);
+            updateTrimLabels();
+
+            if (mPlayer.isPlaying()) {
+                final long cur = mPlayer.getCurrentPositionMs();
+                if (cur < mTrimStartMs || cur >= mTrimEndMs) {
+                    mPlayer.seekTo(mTrimStartMs);
+                    updatePlaybackPositionUi(mTrimStartMs);
+                }
+            } else {
+                final long previewPos = Math.round(mWaveformView.getProgress() * mCurrentDurationMs);
+                updatePlaybackPositionUi(previewPos);
+                mPlayer.seekTo(previewPos);
+            }
+        });
+
         mTunerBinder = new RecordingTunerBinder(mExpandedContent);
 
         mMiniPlayerBar.setOnClickListener(v -> mSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED));
-        findViewById(R.id.btn_player_collapse).setOnClickListener(
-                v -> mSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED)
-        );
-        findViewById(R.id.btn_player_more).setOnClickListener(this::showPlayerOverflowMenu);
+        findViewById(R.id.btn_player_collapse).setOnClickListener(v -> requestCollapseDrawer());
+        mBtnPlayerMore.setOnClickListener(this::showPlayerOverflowMenu);
 
         final View.OnClickListener playPauseClick = v -> togglePlayPause();
         mMiniPlayPause.setOnClickListener(playPauseClick);
@@ -344,6 +418,18 @@ public final class RecordingsActivity extends AppCompatActivity {
                         newState == BottomSheetBehavior.STATE_DRAGGING ||
                         newState == BottomSheetBehavior.STATE_SETTLING
                 );
+
+                if (
+                        mTrimMode &&
+                        (newState == BottomSheetBehavior.STATE_COLLAPSED || newState == BottomSheetBehavior.STATE_HIDDEN)
+                ) {
+                    if (hasTrimChanges()) {
+                        mSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                        requestExitTrimMode(() -> mSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED));
+                        return;
+                    }
+                    exitTrimMode();
+                }
 
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
                     mPlayer.pause();
@@ -428,6 +514,11 @@ public final class RecordingsActivity extends AppCompatActivity {
     }
 
     private void navigateBack() {
+        if (mTrimMode) {
+            requestExitTrimMode(null);
+            return;
+        }
+
         if (mSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
             mSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
             return;
@@ -514,6 +605,10 @@ public final class RecordingsActivity extends AppCompatActivity {
     }
 
     private void openRecording(@NonNull final RecordingItem item, final int index, final boolean autoPlay) {
+        if (mTrimMode) {
+            exitTrimMode();
+        }
+
         if (autoPlay) {
             stopLiveFmIfActive();
         }
@@ -657,6 +752,10 @@ public final class RecordingsActivity extends AppCompatActivity {
         final int iconRes = isPlaying ? R.drawable.ic_rfm_pause : R.drawable.ic_rfm_play;
         mMiniPlayPause.setIconResource(iconRes);
         mBtnPlayPause.setIconResource(iconRes);
+
+        if (mBtnTrimPreview != null) {
+            mBtnTrimPreview.setText(isPlaying ? R.string.recording_trim_pause : R.string.recording_trim_preview);
+        }
     }
 
     private void stopLiveFmIfActive() {
@@ -836,7 +935,286 @@ public final class RecordingsActivity extends AppCompatActivity {
             return;
         }
 
-        showRecordingContextMenu(anchor, mCurrentItem);
+        final PopupMenu popup = new PopupMenu(this, anchor);
+        final Menu menu = popup.getMenu();
+        menu.add(0, MENU_SHARE, 1, R.string.recordings_action_share);
+        menu.add(0, MENU_TRIM, 2, R.string.recording_action_trim);
+        menu.add(0, MENU_DELETE, 3, R.string.record_delete_action);
+
+        popup.setOnMenuItemClickListener(menuItem -> {
+            final int id = menuItem.getItemId();
+
+            if (id == MENU_SHARE) {
+                shareRecording(mCurrentItem);
+                return true;
+            }
+
+            if (id == MENU_TRIM) {
+                enterTrimMode();
+                return true;
+            }
+
+            if (id == MENU_DELETE) {
+                confirmDeleteRecording(mCurrentItem);
+                return true;
+            }
+
+            return false;
+        });
+
+        popup.show();
+    }
+
+    private void enterTrimMode() {
+        if (mCurrentItem == null || mCurrentDurationMs < RecordingTrimmer.MIN_TRIM_DURATION_MS) {
+            Toast.makeText(this, R.string.recording_trim_too_short, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        mPlayer.pause();
+        mTrimMode = true;
+        mTrimStartMs = 0L;
+        mTrimEndMs = mCurrentDurationMs;
+
+        final float minSpan = (float) RecordingTrimmer.MIN_TRIM_DURATION_MS / (float) mCurrentDurationMs;
+        mWaveformView.setMinTrimSpanFraction(minSpan);
+        mWaveformView.setTrimRange(0f, 1f);
+        mWaveformView.setTrimMode(true);
+
+        mTransportControls.setVisibility(View.GONE);
+        mTrimControls.setVisibility(View.VISIBLE);
+        mBtnPlayerMore.setVisibility(View.INVISIBLE);
+        updateTrimLabels();
+    }
+
+    private void exitTrimMode() {
+        if (!mTrimMode) {
+            return;
+        }
+
+        mPlayer.pause();
+        mTrimMode = false;
+        mWaveformView.setTrimMode(false);
+        mTrimControls.setVisibility(View.GONE);
+        mTransportControls.setVisibility(View.VISIBLE);
+        mBtnPlayerMore.setVisibility(View.VISIBLE);
+    }
+
+    private boolean hasTrimChanges() {
+        return mTrimStartMs > 0L || mTrimEndMs < mCurrentDurationMs;
+    }
+
+    private void requestCollapseDrawer() {
+        if (mTrimMode) {
+            requestExitTrimMode(() -> mSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED));
+        } else {
+            mSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        }
+    }
+
+    private void requestExitTrimMode(@Nullable final Runnable afterExit) {
+        if (!mTrimMode) {
+            if (afterExit != null) {
+                afterExit.run();
+            }
+            return;
+        }
+
+        if (!hasTrimChanges()) {
+            exitTrimMode();
+            if (afterExit != null) {
+                afterExit.run();
+            }
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.recording_trim_discard_title)
+                .setMessage(R.string.recording_trim_discard_confirm)
+                .setPositiveButton(R.string.recording_trim_discard_action, (d, which) -> {
+                    exitTrimMode();
+                    if (afterExit != null) {
+                        afterExit.run();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void adjustTrimStart(final long deltaMs) {
+        final long maxStart = mTrimEndMs - RecordingTrimmer.MIN_TRIM_DURATION_MS;
+        mTrimStartMs = Math.max(0L, Math.min(maxStart, mTrimStartMs + deltaMs));
+        syncTrimSelectionUi(mTrimStartMs);
+    }
+
+    private void adjustTrimEnd(final long deltaMs) {
+        final long minEnd = mTrimStartMs + RecordingTrimmer.MIN_TRIM_DURATION_MS;
+        mTrimEndMs = Math.max(minEnd, Math.min(mCurrentDurationMs, mTrimEndMs + deltaMs));
+        syncTrimSelectionUi(mTrimEndMs);
+    }
+
+    private void syncTrimSelectionUi(final long focusPosMs) {
+        if (mCurrentDurationMs > 0L) {
+            mWaveformView.setTrimRange(
+                    (float) mTrimStartMs / (float) mCurrentDurationMs,
+                    (float) mTrimEndMs / (float) mCurrentDurationMs
+            );
+        }
+
+        updateTrimLabels();
+
+        if (mPlayer.isPlaying()) {
+            final long cur = mPlayer.getCurrentPositionMs();
+            if (cur < mTrimStartMs || cur >= mTrimEndMs) {
+                mPlayer.seekTo(mTrimStartMs);
+                updatePlaybackPositionUi(mTrimStartMs);
+            }
+        } else {
+            updatePlaybackPositionUi(focusPosMs);
+            mPlayer.seekTo(focusPosMs);
+        }
+    }
+
+    private void updateTrimLabels() {
+        mTrimStartText.setText(formatDurationTenthsMs(mTrimStartMs));
+        mTrimEndText.setText(formatDurationTenthsMs(mTrimEndMs));
+        mTrimDurationText.setText(formatDurationTenthsMs(Math.max(0L, mTrimEndMs - mTrimStartMs)));
+    }
+
+    private void toggleTrimPreview() {
+        if (mCurrentItem == null) {
+            return;
+        }
+
+        if (mPlayer.isPlaying()) {
+            mPlayer.pause();
+            return;
+        }
+
+        stopLiveFmIfActive();
+        final long cur = mPlayer.getCurrentPositionMs();
+        if (cur < mTrimStartMs || cur >= mTrimEndMs - 100L) {
+            mPlayer.seekTo(mTrimStartMs);
+            updatePlaybackPositionUi(mTrimStartMs);
+        }
+        mPlayer.play();
+    }
+
+    private void showTrimSaveDialog() {
+        if (mCurrentItem == null) {
+            return;
+        }
+
+        mPlayer.pause();
+        final CharSequence[] options = new CharSequence[]{
+                getString(R.string.recording_trim_save_copy),
+                getString(R.string.recording_trim_replace)
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.recording_action_trim)
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        executeTrim(RecordingTrimmer.SaveMode.SAVE_AS_COPY);
+                    } else {
+                        confirmReplaceOriginal();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmReplaceOriginal() {
+        if (mCurrentItem == null) {
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.recording_trim_replace)
+                .setMessage(getString(R.string.recording_trim_replace_confirm, mCurrentItem.getDisplayName()))
+                .setPositiveButton(R.string.recording_trim_save, (d, which) ->
+                        executeTrim(RecordingTrimmer.SaveMode.REPLACE_ORIGINAL))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void executeTrim(@NonNull final RecordingTrimmer.SaveMode mode) {
+        final RecordingItem source = mCurrentItem;
+        if (source == null) {
+            return;
+        }
+
+        final long startMs = mTrimStartMs;
+        final long endMs = mTrimEndMs;
+        mPlayer.release();
+
+        dismissTrimProgress();
+        mTrimProgressDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.recording_action_trim)
+                .setMessage(getString(R.string.recording_trim_in_progress, 0))
+                .setCancelable(false)
+                .show();
+
+        mIoExecutor.execute(() -> {
+            try {
+                final RecordingItem result = RecordingTrimmer.trim(
+                        this,
+                        source,
+                        startMs,
+                        endMs,
+                        mode,
+                        percent -> mMainHandler.post(() -> {
+                            if (mTrimProgressDialog != null && mTrimProgressDialog.isShowing()) {
+                                mTrimProgressDialog.setMessage(getString(R.string.recording_trim_in_progress, percent));
+                            }
+                        })
+                );
+
+                mMainHandler.post(() -> {
+                    dismissTrimProgress();
+                    exitTrimMode();
+                    Toast.makeText(this, R.string.recording_trim_success, Toast.LENGTH_SHORT).show();
+                    mPendingOpenRelativePath = result.getRelativePath();
+                    loadDirectory(mCurrentDir);
+                });
+            } catch (final SecurityException securityError) {
+                if (
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                        securityError instanceof RecoverableSecurityException
+                ) {
+                    final RecoverableSecurityException rse = (RecoverableSecurityException) securityError;
+                    mMainHandler.post(() -> {
+                        dismissTrimProgress();
+                        mPendingTrimRetryMode = mode;
+                        final IntentSenderRequest request = new IntentSenderRequest.Builder(
+                                rse.getUserAction().getActionIntent().getIntentSender()
+                        ).build();
+                        mDeleteConsentLauncher.launch(request);
+                    });
+                } else {
+                    mMainHandler.post(() -> {
+                        dismissTrimProgress();
+                        Toast.makeText(this, R.string.recording_trim_failed, Toast.LENGTH_LONG).show();
+                        mPlayer.prepare(source, false);
+                    });
+                }
+            } catch (final IOException | RuntimeException error) {
+                mMainHandler.post(() -> {
+                    dismissTrimProgress();
+                    Toast.makeText(this, R.string.recording_trim_failed, Toast.LENGTH_LONG).show();
+                    mPlayer.prepare(source, false);
+                });
+            }
+        });
+    }
+
+    private void dismissTrimProgress() {
+        if (mTrimProgressDialog != null) {
+            if (mTrimProgressDialog.isShowing()) {
+                mTrimProgressDialog.dismiss();
+            }
+            mTrimProgressDialog = null;
+        }
     }
 
     private void shareRecording(@NonNull final RecordingItem item) {
@@ -904,5 +1282,13 @@ public final class RecordingsActivity extends AppCompatActivity {
     private static String formatDurationMs(final long ms) {
         final int totalSeconds = (int) Math.max(0L, ms / 1000L);
         return Utils.getTimeStringBySeconds(totalSeconds);
+    }
+
+    @NonNull
+    private static String formatDurationTenthsMs(final long ms) {
+        final long safe = Math.max(0L, ms);
+        final int totalSeconds = (int) (safe / 1000L);
+        final int tenths = (int) ((safe % 1000L) / 100L);
+        return Utils.getTimeStringBySeconds(totalSeconds) + "." + tenths;
     }
 }

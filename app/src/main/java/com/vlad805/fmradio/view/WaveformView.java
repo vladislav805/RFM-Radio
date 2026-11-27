@@ -10,14 +10,15 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.ColorUtils;
 
 import com.google.android.material.color.MaterialColors;
 
 import java.util.Arrays;
 
 /**
- * Material 3 vertical-bar waveform seekbar with optional RDS-change marker ticks.
- * Designed with clean draw/touch separation so trim selection handles can be layered on top.
+ * Material 3 vertical-bar waveform seekbar with optional RDS-change marker ticks
+ * and interactive trim range selection handles.
  */
 public class WaveformView extends View {
     public interface OnSeekListener {
@@ -28,20 +29,39 @@ public class WaveformView extends View {
         void onSeekEnd(float fraction);
     }
 
-    private static final int DEFAULT_BAR_COUNT = 80;
+    public interface OnTrimRangeChangeListener {
+        void onTrimRangeChanged(float startFraction, float endFraction, boolean fromUser);
+    }
+
+    private static final int DRAG_NONE = 0;
+    private static final int DRAG_PLAYHEAD = 1;
+    private static final int DRAG_TRIM_START = 2;
+    private static final int DRAG_TRIM_END = 3;
 
     private final Paint mPlayedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mUnplayedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mSelectedUnplayedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mDimmedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mPlayheadPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mMarkerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mSelectionFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mHandlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF mBarRect = new RectF();
 
     private byte[] mPeaks = new byte[0];
     private float[] mMarkers = new float[0];
     private float mProgress = 0f;
-    private boolean mDragging = false;
+
+    private boolean mTrimMode = false;
+    private float mTrimStart = 0f;
+    private float mTrimEnd = 1f;
+    private float mMinTrimSpan = 0.02f;
+
+    private int mDragTarget = DRAG_NONE;
     @Nullable
     private OnSeekListener mSeekListener;
+    @Nullable
+    private OnTrimRangeChangeListener mTrimListener;
 
     public WaveformView(@NonNull final Context context) {
         super(context);
@@ -64,27 +84,32 @@ public class WaveformView extends View {
 
     private void init() {
         final float density = getResources().getDisplayMetrics().density;
-
-        mPlayedPaint.setStyle(Paint.Style.FILL);
-        mPlayedPaint.setColor(MaterialColors.getColor(
+        final int primary = MaterialColors.getColor(
                 this,
                 androidx.appcompat.R.attr.colorPrimary,
                 0xFF2196F3
-        ));
-
-        mUnplayedPaint.setStyle(Paint.Style.FILL);
-        mUnplayedPaint.setColor(MaterialColors.getColor(
+        );
+        final int outline = MaterialColors.getColor(
                 this,
                 com.google.android.material.R.attr.colorOutlineVariant,
                 0x66888888
-        ));
+        );
+
+        mPlayedPaint.setStyle(Paint.Style.FILL);
+        mPlayedPaint.setColor(primary);
+
+        mUnplayedPaint.setStyle(Paint.Style.FILL);
+        mUnplayedPaint.setColor(outline);
+
+        // Selected bars ahead of playhead stay visibly tinted in trim mode regardless of playhead position.
+        mSelectedUnplayedPaint.setStyle(Paint.Style.FILL);
+        mSelectedUnplayedPaint.setColor(ColorUtils.setAlphaComponent(primary, 130));
+
+        mDimmedPaint.setStyle(Paint.Style.FILL);
+        mDimmedPaint.setColor(ColorUtils.setAlphaComponent(outline, 56));
 
         mPlayheadPaint.setStyle(Paint.Style.FILL);
-        mPlayheadPaint.setColor(MaterialColors.getColor(
-                this,
-                androidx.appcompat.R.attr.colorPrimary,
-                0xFF2196F3
-        ));
+        mPlayheadPaint.setColor(primary);
 
         mMarkerPaint.setStyle(Paint.Style.STROKE);
         mMarkerPaint.setStrokeWidth(Math.max(1f, density));
@@ -93,6 +118,12 @@ public class WaveformView extends View {
                 com.google.android.material.R.attr.colorTertiary,
                 0x99FF9800
         ));
+
+        mSelectionFillPaint.setStyle(Paint.Style.FILL);
+        mSelectionFillPaint.setColor(ColorUtils.setAlphaComponent(primary, 32));
+
+        mHandlePaint.setStyle(Paint.Style.FILL);
+        mHandlePaint.setColor(primary);
     }
 
     public void setPeaks(@Nullable final byte[] peaks) {
@@ -124,6 +155,30 @@ public class WaveformView extends View {
         mSeekListener = listener;
     }
 
+    public void setTrimMode(final boolean enabled) {
+        mTrimMode = enabled;
+        mDragTarget = DRAG_NONE;
+        invalidate();
+    }
+
+    public boolean isTrimMode() {
+        return mTrimMode;
+    }
+
+    public void setMinTrimSpanFraction(final float minSpan) {
+        mMinTrimSpan = Math.max(0.005f, Math.min(0.95f, minSpan));
+    }
+
+    public void setTrimRange(final float startFraction, final float endFraction) {
+        mTrimStart = clamp01(startFraction);
+        mTrimEnd = Math.max(mTrimStart, clamp01(endFraction));
+        invalidate();
+    }
+
+    public void setOnTrimRangeChangeListener(@Nullable final OnTrimRangeChangeListener listener) {
+        mTrimListener = listener;
+    }
+
     @Override
     protected void onDraw(@NonNull final Canvas canvas) {
         super.onDraw(canvas);
@@ -143,7 +198,16 @@ public class WaveformView extends View {
         final float density = getResources().getDisplayMetrics().density;
         final float centerY = padTop + height / 2f;
         final float minBarHeight = Math.max(3f * density, 2f);
-        final float maxBarHeight = Math.max(minBarHeight, height - 8f * density);
+        final float maxBarHeight = Math.max(minBarHeight, height - 10f * density);
+
+        final float trimStartX = padLeft + mTrimStart * width;
+        final float trimEndX = padLeft + mTrimEnd * width;
+
+        // Draw tinted selection band behind bars when trim mode is active.
+        if (mTrimMode) {
+            mBarRect.set(trimStartX, padTop + 2f * density, trimEndX, padTop + height - 2f * density);
+            canvas.drawRoundRect(mBarRect, 6f * density, 6f * density, mSelectionFillPaint);
+        }
 
         // Draw subtle RDS-change markers behind the bars.
         for (final float marker : mMarkers) {
@@ -154,7 +218,6 @@ public class WaveformView extends View {
             canvas.drawLine(x, padTop + 2f * density, x, padTop + height - 2f * density, mMarkerPaint);
         }
 
-        // Compute visible bar count based on available width (~4dp per bar slot).
         final float slotWidth = Math.max(3.5f * density, 3f);
         final int barCount = Math.max(16, Math.min(120, (int) (width / slotWidth)));
         final float step = width / barCount;
@@ -170,11 +233,22 @@ public class WaveformView extends View {
             final float top = centerY - barHeight / 2f;
 
             mBarRect.set(left, top, left + barWidth, top + barHeight);
-            final Paint paint = cx <= playheadX ? mPlayedPaint : mUnplayedPaint;
+            final Paint paint;
+
+            if (mTrimMode) {
+                if (cx < trimStartX || cx > trimEndX) {
+                    paint = mDimmedPaint;
+                } else {
+                    paint = cx <= playheadX ? mPlayedPaint : mSelectedUnplayedPaint;
+                }
+            } else {
+                paint = cx <= playheadX ? mPlayedPaint : mUnplayedPaint;
+            }
+
             canvas.drawRoundRect(mBarRect, radius, radius, paint);
         }
 
-        // Draw playhead indicator line.
+        // Draw playhead line.
         final float playheadHalfW = Math.max(1f * density, 1f);
         mBarRect.set(
                 playheadX - playheadHalfW,
@@ -183,6 +257,27 @@ public class WaveformView extends View {
                 padTop + height - 2f * density
         );
         canvas.drawRoundRect(mBarRect, playheadHalfW, playheadHalfW, mPlayheadPaint);
+
+        // Draw draggable start/end handles in trim mode.
+        if (mTrimMode) {
+            final float handleHalfW = 2.5f * density;
+            final float handleRadius = 2.5f * density;
+            mBarRect.set(
+                    trimStartX - handleHalfW,
+                    padTop,
+                    trimStartX + handleHalfW,
+                    padTop + height
+            );
+            canvas.drawRoundRect(mBarRect, handleRadius, handleRadius, mHandlePaint);
+
+            mBarRect.set(
+                    trimEndX - handleHalfW,
+                    padTop,
+                    trimEndX + handleHalfW,
+                    padTop + height
+            );
+            canvas.drawRoundRect(mBarRect, handleRadius, handleRadius, mHandlePaint);
+        }
     }
 
     private float sampleAmplitude(final int barIndex, final int barCount) {
@@ -210,49 +305,81 @@ public class WaveformView extends View {
             return false;
         }
 
-        final float fraction = xToFraction(event.getX());
+        final float x = event.getX();
+        final float fraction = xToFraction(x);
 
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN: {
-                mDragging = true;
                 getParent().requestDisallowInterceptTouchEvent(true);
-                mProgress = fraction;
+
+                if (mTrimMode) {
+                    mDragTarget = pickTrimDragTarget(x);
+                    if (mDragTarget == DRAG_TRIM_START || mDragTarget == DRAG_TRIM_END) {
+                        applyTrimDrag(fraction);
+                        return true;
+                    }
+                } else {
+                    mDragTarget = DRAG_PLAYHEAD;
+                }
+
+                final float clamped = mTrimMode
+                        ? Math.max(mTrimStart, Math.min(mTrimEnd, fraction))
+                        : fraction;
+                mProgress = clamped;
                 invalidate();
 
                 if (mSeekListener != null) {
                     mSeekListener.onSeekStart();
-                    mSeekListener.onSeekChanged(fraction);
+                    mSeekListener.onSeekChanged(clamped);
                 }
                 return true;
             }
 
             case MotionEvent.ACTION_MOVE: {
-                if (!mDragging) {
+                if (mDragTarget == DRAG_NONE) {
                     return false;
                 }
 
-                mProgress = fraction;
+                if (mDragTarget == DRAG_TRIM_START || mDragTarget == DRAG_TRIM_END) {
+                    applyTrimDrag(fraction);
+                    return true;
+                }
+
+                final float clamped = mTrimMode
+                        ? Math.max(mTrimStart, Math.min(mTrimEnd, fraction))
+                        : fraction;
+                mProgress = clamped;
                 invalidate();
 
                 if (mSeekListener != null) {
-                    mSeekListener.onSeekChanged(fraction);
+                    mSeekListener.onSeekChanged(clamped);
                 }
                 return true;
             }
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
-                if (!mDragging) {
+                if (mDragTarget == DRAG_NONE) {
                     return false;
                 }
 
-                mDragging = false;
+                final int finishedTarget = mDragTarget;
+                mDragTarget = DRAG_NONE;
                 getParent().requestDisallowInterceptTouchEvent(false);
-                mProgress = fraction;
+
+                if (finishedTarget == DRAG_TRIM_START || finishedTarget == DRAG_TRIM_END) {
+                    applyTrimDrag(fraction);
+                    return true;
+                }
+
+                final float clamped = mTrimMode
+                        ? Math.max(mTrimStart, Math.min(mTrimEnd, fraction))
+                        : fraction;
+                mProgress = clamped;
                 invalidate();
 
                 if (mSeekListener != null) {
-                    mSeekListener.onSeekEnd(fraction);
+                    mSeekListener.onSeekEnd(clamped);
                 }
                 return true;
             }
@@ -260,6 +387,48 @@ public class WaveformView extends View {
             default: {
                 return super.onTouchEvent(event);
             }
+        }
+    }
+
+    private int pickTrimDragTarget(final float touchX) {
+        final float density = getResources().getDisplayMetrics().density;
+        final float hitRadius = 28f * density;
+        final int padLeft = getPaddingLeft();
+        final float usable = getWidth() - padLeft - getPaddingRight();
+
+        if (usable <= 0f) {
+            return DRAG_PLAYHEAD;
+        }
+
+        final float startX = padLeft + mTrimStart * usable;
+        final float endX = padLeft + mTrimEnd * usable;
+        final float distStart = Math.abs(touchX - startX);
+        final float distEnd = Math.abs(touchX - endX);
+
+        if (distStart <= hitRadius && distStart <= distEnd) {
+            return DRAG_TRIM_START;
+        }
+
+        if (distEnd <= hitRadius) {
+            return DRAG_TRIM_END;
+        }
+
+        return DRAG_PLAYHEAD;
+    }
+
+    private void applyTrimDrag(final float fraction) {
+        if (mDragTarget == DRAG_TRIM_START) {
+            mTrimStart = clamp01(Math.min(fraction, mTrimEnd - mMinTrimSpan));
+            mProgress = mTrimStart;
+        } else if (mDragTarget == DRAG_TRIM_END) {
+            mTrimEnd = clamp01(Math.max(fraction, mTrimStart + mMinTrimSpan));
+            mProgress = mTrimEnd;
+        }
+
+        invalidate();
+
+        if (mTrimListener != null) {
+            mTrimListener.onTrimRangeChanged(mTrimStart, mTrimEnd, true);
         }
     }
 

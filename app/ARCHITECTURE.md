@@ -474,13 +474,19 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
   `onStart()`/`onStop()` to observe `EventListener.onInvalidAntennaError()` →
   toast.
 - `RecordingsActivity` — Material 3 folder browser (`Music/RFM-Recordings`)
-  with a persistent bottom sheet acting as mini-player bar (collapsed) and full
-  player drawer (expanded). Reuses `include_tuner_display.xml` +
-  `include_rt_plus_overlay.xml` via `RecordingTunerBinder` to replay embedded
-  `RFM1` RDS/signal/stereo events live alongside `WaveformView`, Prev/Play-Pause/Next
-  controls, and `⋮` Share/Delete menu. Stops active FM tuner via `RadioClient`
-  when playback starts. Uses `RecordingAudioPlayer` (`MediaPlayer` for WAV/MP3/API 29+
-  Opus, and `OggOpusDecoder` JNI + `AudioTrack` for API 23–28 Opus).
+  with file sort selector (`recordings_sort`), long-press context menus (folder
+  delete, file share/delete), and a persistent wrap-content bottom sheet with
+  scrim acting as mini-player bar (collapsed) and player drawer (expanded).
+  Reuses `include_tuner_display.xml` + `include_rt_plus_overlay.xml` via
+  `RecordingTunerBinder` to replay embedded `RFM1` RDS/signal/stereo events live
+  alongside `WaveformView` (scrubbing + interactive trim range handles),
+  Prev/Play-Pause/Next controls, and `⋮` Share/Trim/Delete menu. Trimming uses
+  `RecordingTrimmer` (`WavTrimmer` lossless PCM, `Mp3Trimmer` lossless MPEG
+  frames, `OpusTrimmer` via `OggOpusDecoder` + `OggOpusEncoder`) with automatic
+  `RFM1` metadata/waveform slicing and Save-as-Copy or Replace-Original modes.
+  Stops active FM tuner via `RadioClient` when playback starts. Uses
+  `RecordingAudioPlayer` (`MediaPlayer` for WAV/MP3/API 29+ Opus, and
+  `OggOpusDecoder` JNI + `AudioTrack` for API 23–28 Opus).
 - `RecordingDeleteActivity` — dialog activity (noHistory, excludeFromRecents)
   with self-contained `EXTRA_*` keys; deletes
   audio via `RecordingStorage.deletePublished`, cancels the
