@@ -357,7 +357,7 @@ AudioService capture thread
      -> RadioState.applyRecording* + FMNotificationManager + EventListener
 RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   -> PcmRecorderSession.updateRds (PCM position)
-  -> RecordService.recordRds -> RdsSubtitleWriter
+  -> RecordService.recordRds
 ```
 
 - `PcmFormat.java` — `PCM16_STEREO_44100` and `PCM16_STEREO_48000` with
@@ -372,8 +372,7 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   (`onRecordingStarted`, `onRecordingProgress`, `onRecordingCompleted`,
   `onRecordingFailed`).
 - `RecordingResult.java` — immutable value object carrying size, duration,
-  display path/name, audio URI/path, `subtitlesRequested`, subtitle URI/path,
-  and `hasSubtitleFailure()`.
+  display path/name, and audio URI/path.
 - `PcmRecorderSession.java` (~300 lines) — PCM ring buffer sized
   `sampleRate × channels × preRollSeconds` (pre-roll =
   `C.Config.RECORDING_PRE_ROLL_SECONDS` = 5 s, opt-in via
@@ -385,10 +384,9 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   drains the queue before `stopRecord()`. `clearHistory()` only when idle.
 - `RecordService.java` (abstract) — state machine
   IDLE/RECORDING/FINISHING/DONE. `startRecord` creates the file via
-  `RecordingStorage.create()`, reads `recording_save_srt` once per recording,
-  and invokes `RecordingListener.onRecordingStarted(...)`. `record()` passes PCM to the selected writer and throttles
+  `RecordingStorage.create()` and invokes `RecordingListener.onRecordingStarted(...)`. `record()` passes PCM to the selected writer and throttles
   `onRecordingProgress(...)` (≥ 750 ms); `stopRecord()` flushes the encoder,
-  closes streams, `RecordingTarget.commit()`/`abort()`, publishes subtitles,
+  closes streams, `RecordingTarget.commit()`/`abort()`,
   and notifies `onRecordingCompleted(RecordingResult)` or
   `onRecordingFailed(IOException)`. Duration =
   max(initialDuration, acceptedPcmSamples/sampleRate/2). A PCM write error stops further writes.
@@ -413,22 +411,13 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   $s`, `$r` random); temp files in `cacheDir/recordings`; API ≥ 29 →
   MediaStore (`Music/RFM-Recordings/…`, IS_PENDING, copy after recording),
   below → direct file. Sanitizing rejects `..`, `/`, `\`.
-  `requiresStoragePermission()`: < Q always; == Q only with SRT enabled;
-  > Q never. `deletePublished()` via ContentResolver or file (canonical
+  `requiresStoragePermission()`: `< Q` only. `deletePublished()` via ContentResolver or file (canonical
   path check).
-- `RecordingTarget.java` — temp → published lifecycle; subtitle target is
-  a sibling `.srt` (on Q through `MediaStore.Files` since SRT is not
-  "media"); `commitToFile()` (rename with copy fallback),
+- `RecordingTarget.java` — temp → published lifecycle;
+  `commitToFile()` (rename with copy fallback),
   `commitToMediaStore()`.
 - `RdsSnapshot.java` holds frequency, PS, RT, PI and the complete immutable
   `RtPlusInfo`. Snapshot equality includes every populated RT+ field.
-  `toSubtitleText(rtPlusLabels)` groups the artist, title and album on one line.
-  The remaining populated fields follow in content type order, each with its
-  localized label from `RtPlusFields.localizedLabels()` selected at recording start.
-  Broadcast text is whitespace-normalized and HTML-escaped for SRT playback.
-- `RdsSubtitleWriter.java` — SRT cues: each snapshot change closes the
-  previous cue (`HH:MM:SS,mmm --> …`); `finish(durationMillis)` closes the
-  last. Times are PCM-relative, including pre-roll history.
 
 ## Favorites
 
@@ -477,8 +466,8 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
   `onStart()`/`onStop()` to observe `EventListener.onInvalidAntennaError()` →
   toast.
 - `RecordingDeleteActivity` — dialog activity (noHistory, excludeFromRecents)
-  with self-contained `EXTRA_*` keys (including `EXTRA_SUBTITLE_*`); deletes
-  audio + subtitles via `RecordingStorage.deletePublished`, cancels the
+  with self-contained `EXTRA_*` keys; deletes
+  audio via `RecordingStorage.deletePublished`, cancels the
   notification.
 - Views: `RadioUIView` (Material 3 card with frequency, PS/RT/PTY/PI,
   RT+ toggle and scrollable overlay of populated fields with localized labels, statuses), `FrequencyDialView` (custom Canvas
@@ -523,7 +512,6 @@ inside `Storage.java`.
 | `recording_directory` | `$y-$m-$d` | directory template |
 | `recording_filename` | `FM-$h$i$s-$f` | filename template |
 | `recording_mode` | `"0"` (0) | 0=WAV, 1=MP3 192, 2=MP3 128, 3=Opus 96 |
-| `recording_save_srt` | false | SRT subtitles for recordings |
 | `recording_save_past` | false | 5 s pre-roll (confirm + mic permission) |
 | `recording_show_notify` | true | recording progress notification |
 | `app_auto_startup` | false | start audio on app launch |
@@ -563,7 +551,7 @@ switch/rename/remove), `NativeEventParserTest` (typed `FMEventCallback`
 dispatch, validation, partial RT+, duplicate lifecycle suppression),
 `SignalStrengthTest` (RMSSI thresholds → bars), `RequestTest` (dispatch),
 `FMNotificationManagerTest` (playback title/body precedence, compact actions,
-`RecordingResult` tags/subtitle warnings, channel ids),
+`RecordingResult` tags, channel ids),
 `TunerCommandFormatTest` (atomic enable command, region/spacing mapping),
 `TunerDriverDetectorTest` (allowlist + handshake backend resolution),
 `TunerDriverCapabilitiesTest` (backend capability flags + `BandUtils`
@@ -576,8 +564,7 @@ type round-trips, `ClassCastException` safety, and `preferences.xml` ↔
 `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`
 (stereo formats, mismatch rejection, routed V4L2 48 kHz),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
-ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
-zero-duration), `RecordingStorageTest` (subtitle naming, path containment).
+ordering, backpressure), `RecordingStorageTest` (path containment).
 No instrumented tests.
 
 ## Dead Code and Traps Inventory

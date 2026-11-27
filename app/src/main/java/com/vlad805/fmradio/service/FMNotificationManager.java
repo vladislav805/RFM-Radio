@@ -260,8 +260,6 @@ public final class FMNotificationManager {
         final String filename = result.getDisplayName();
         final String uri = result.getRecordingUri();
         final String filePath = result.getRecordingFilePath();
-        final String subtitleUri = result.getSubtitleUri();
-        final String subtitlePath = result.getSubtitleFilePath();
 
         if (showSavedNotification) {
             final String location = result.getLocation();
@@ -271,9 +269,7 @@ public final class FMNotificationManager {
                     uri,
                     filePath,
                     filename,
-                    notificationTag,
-                    subtitleUri,
-                    subtitlePath
+                    notificationTag
             );
             final PendingIntent pendingDelete = PendingIntent.getActivity(
                     mContext,
@@ -303,16 +299,12 @@ public final class FMNotificationManager {
             mNotificationManager.notify(notificationTag, RecordingDeleteActivity.NOTIFICATION_ID, builder.build());
         }
 
-        String message = mContext.getString(
+        final String message = mContext.getString(
                 R.string.toast_record_ended,
                 filename,
                 size / 1024f / 1024f,
                 getTimeStringBySeconds(duration)
         );
-
-        if (result.hasSubtitleFailure()) {
-            message += "\n" + mContext.getString(R.string.record_subtitles_failed);
-        }
 
         Toast.makeText(mContext, message, Toast.LENGTH_LONG).show();
     }

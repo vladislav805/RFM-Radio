@@ -35,7 +35,6 @@ public final class Storage {
 		public static final String RECORDING_DIRECTORY = "recording_directory";
 		public static final String RECORDING_FILENAME = "recording_filename";
 		public static final String RECORDING_FORMAT = "recording_mode";
-		public static final String RECORDING_SAVE_SRT = "recording_save_srt";
 		/** Enables retaining recent PCM before the Record command. */
 		public static final String RECORDING_SAVE_PAST = "recording_save_past";
 		public static final String RECORDING_SHOW_NOTIFY = "recording_show_notify";
@@ -78,7 +77,6 @@ public final class Storage {
 		static final String RECORDING_DIRECTORY = "$y-$m-$d";
 		static final String RECORDING_FILENAME = "FM-$h$i$s-$f";
 		static final int RECORDING_FORMAT = C.RecordFormat.WAV;
-		static final boolean RECORDING_SAVE_SRT = false;
 		/** Pre-roll capture is opt-in because it keeps audio capture active. */
 		static final boolean RECORDING_SAVE_PAST = false;
 		static final boolean RECORDING_SHOW_NOTIFY = true;
@@ -192,10 +190,6 @@ public final class Storage {
 
 	public int getRecordingFormat() {
 		return getPrefInt(Key.RECORDING_FORMAT, Default.RECORDING_FORMAT);
-	}
-
-	public boolean isRecordingSaveSrt() {
-		return getPrefBoolean(Key.RECORDING_SAVE_SRT, Default.RECORDING_SAVE_SRT);
 	}
 
 	public boolean isRecordingPreRollEnabled() {

@@ -13,7 +13,7 @@ Real FM hardware radio app for Android Qualcomm Snapdragon based devices.
 
 - Live FM playback using supported hardware backend.
 - RDS metadata: PS, RT, RT+, PTY.
-- Recording to `.wav`, `.mp3` (128 or 192 kbps stereo), and `.opus` (96 kbps stereo VBR), with a matching `.srt` file containing frequency, PI, PS and RT.
+- Recording to `.wav`, `.mp3` (128 or 192 kbps stereo), and `.opus` (96 kbps stereo VBR).
 - Favorites (presets) with custom names.
 - Multiple favorite lists.
 - Favorite list manager screen with import/export.
@@ -97,29 +97,7 @@ checked-out sources without downloading dependencies. Ogg Opus recording uses
 the libopus 1.6.1 and libopusenc 0.3 submodules. Both are linked into a single
 JNI library for each ABI, including support for 44.1 kHz capture on Android 7.
 
-Run Java unit tests with `make test-java` and native host tests with
-`make test-native`.
-
-## RDS recording subtitles
-
-The **Save RDS as subtitles** option in recording settings is disabled by
-default. When enabled, each audio recording is accompanied by a UTF-8 SRT file
-with the same basename in the same folder. Changes apply to new recordings;
-disabling the option leaves existing SRT files untouched. Each cue shows the
-frequency and four-digit hexadecimal PI, followed by PS and RT.
-Populated RT+ fields follow RT. The artist, title and album share one line.
-Each additional field has its own line with the same label.
-An unknown PI is written as `0000`; unavailable PS/RT are shown as `—`. ECC is not recorded.
-
-Subtitle times follow captured PCM, including the available pre-roll history.
-They indicate when RDS updates were received, which can differ from the timing
-of the broadcast audio. Deleting a recording through its notification also
-removes its SRT file. If saving subtitles fails, the audio is preserved and the
-app shows a warning. Automatic SRT loading for audio depends on the player.
-
-Android 10 requires storage permission when SRT saving is enabled. Android 9
-and older require it for audio as well. Android 11+ publishes both files through
-MediaStore.
+Run Java unit tests with `make test-java` and native host tests with `make test-native`.
 
 ## GitHub Actions
 

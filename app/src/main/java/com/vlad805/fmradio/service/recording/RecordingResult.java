@@ -4,7 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * Immutable summary of a completed FM recording and optional RDS subtitle sidecar.
+ * Immutable summary of a completed FM recording.
  */
 public final class RecordingResult {
     private final int mSizeBytes;
@@ -17,11 +17,6 @@ public final class RecordingResult {
     private final String mRecordingUri;
     @Nullable
     private final String mRecordingFilePath;
-    private final boolean mSubtitlesRequested;
-    @Nullable
-    private final String mSubtitleUri;
-    @Nullable
-    private final String mSubtitleFilePath;
 
     public RecordingResult(
             final int sizeBytes,
@@ -29,10 +24,7 @@ public final class RecordingResult {
             @NonNull final String displayPath,
             @NonNull final String displayName,
             @Nullable final String recordingUri,
-            @Nullable final String recordingFilePath,
-            final boolean subtitlesRequested,
-            @Nullable final String subtitleUri,
-            @Nullable final String subtitleFilePath
+            @Nullable final String recordingFilePath
     ) {
         mSizeBytes = sizeBytes;
         mDurationSeconds = durationSeconds;
@@ -40,9 +32,6 @@ public final class RecordingResult {
         mDisplayName = displayName;
         mRecordingUri = recordingUri;
         mRecordingFilePath = recordingFilePath;
-        mSubtitlesRequested = subtitlesRequested;
-        mSubtitleUri = subtitleUri;
-        mSubtitleFilePath = subtitleFilePath;
     }
 
     public int getSizeBytes() {
@@ -76,23 +65,5 @@ public final class RecordingResult {
     @Nullable
     public String getLocation() {
         return mRecordingUri != null ? mRecordingUri : mRecordingFilePath;
-    }
-
-    public boolean isSubtitlesRequested() {
-        return mSubtitlesRequested;
-    }
-
-    @Nullable
-    public String getSubtitleUri() {
-        return mSubtitleUri;
-    }
-
-    @Nullable
-    public String getSubtitleFilePath() {
-        return mSubtitleFilePath;
-    }
-
-    public boolean hasSubtitleFailure() {
-        return mSubtitlesRequested && mSubtitleUri == null && mSubtitleFilePath == null;
     }
 }

@@ -85,7 +85,6 @@ public class StorageTest {
         assertEquals(Storage.Default.RECORDING_DIRECTORY, storage.getRecordingDirectory());
         assertEquals(Storage.Default.RECORDING_FILENAME, storage.getRecordingFilename());
         assertEquals(Storage.Default.RECORDING_FORMAT, storage.getRecordingFormat());
-        assertEquals(Storage.Default.RECORDING_SAVE_SRT, storage.isRecordingSaveSrt());
         assertEquals(Storage.Default.RECORDING_SAVE_PAST, storage.isRecordingPreRollEnabled());
         assertEquals(Storage.Default.RECORDING_SHOW_NOTIFY, storage.isRecordingShowNotify());
 
@@ -131,7 +130,6 @@ public class StorageTest {
         storageDefaults.put(Storage.Key.RECORDING_DIRECTORY, storage.getRecordingDirectory());
         storageDefaults.put(Storage.Key.RECORDING_FILENAME, storage.getRecordingFilename());
         storageDefaults.put(Storage.Key.RECORDING_FORMAT, String.valueOf(storage.getRecordingFormat()));
-        storageDefaults.put(Storage.Key.RECORDING_SAVE_SRT, String.valueOf(storage.isRecordingSaveSrt()));
         storageDefaults.put(Storage.Key.RECORDING_SAVE_PAST, String.valueOf(storage.isRecordingPreRollEnabled()));
         storageDefaults.put(Storage.Key.RECORDING_SHOW_NOTIFY, String.valueOf(storage.isRecordingShowNotify()));
         storageDefaults.put(Storage.Key.APP_AUTO_STARTUP, String.valueOf(storage.isAutoStartupEnabled()));
@@ -172,7 +170,6 @@ public class StorageTest {
                 .putString(Storage.Key.RECORDING_DIRECTORY, "custom/$y")
                 .putString(Storage.Key.RECORDING_FILENAME, "rec-$f")
                 .putString(Storage.Key.RECORDING_FORMAT, String.valueOf(C.RecordFormat.MP3_128))
-                .putBoolean(Storage.Key.RECORDING_SAVE_SRT, true)
                 .putBoolean(Storage.Key.RECORDING_SAVE_PAST, true)
                 .putBoolean(Storage.Key.RECORDING_SHOW_NOTIFY, false)
                 .putBoolean(Storage.Key.APP_AUTO_STARTUP, true)
@@ -194,7 +191,6 @@ public class StorageTest {
         assertEquals("custom/$y", storage.getRecordingDirectory());
         assertEquals("rec-$f", storage.getRecordingFilename());
         assertEquals(C.RecordFormat.MP3_128, storage.getRecordingFormat());
-        assertTrue(storage.isRecordingSaveSrt());
         assertTrue(storage.isRecordingPreRollEnabled());
         assertFalse(storage.isRecordingShowNotify());
 

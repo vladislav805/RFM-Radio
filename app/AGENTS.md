@@ -18,7 +18,7 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | `service/fm/` | Contract: `FMEventCallback` (typed), `RadioStatePatch`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser`, `Request` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
-| `service/recording/` | `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3/Opus recording, SRT subtitles, storage |
+| `service/recording/` | `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3/Opus recording, RDS snapshots, storage |
 | `fragments/` | `PreferencesFragment` — declarative `res/xml/preferences.xml` + backend capability gating |
 | `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum (with backend capability flags), `BandUtils` |
@@ -162,14 +162,8 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   (MediaStore on API ≥ 29, direct file below), typed `RecordingListener`
   callbacks (`onRecordingStarted`, throttled 750 ms `onRecordingProgress`,
   `onRecordingCompleted(RecordingResult)`, `onRecordingFailed(Throwable)`).
-- SRT subtitles (pref `recording_save_srt`, off by default): `FMService`
-  `onInternalStateChanged` → `updateRds(RdsSnapshot)` → `PcmRecorderSession` →
-  `RecordService.recordRds` → `RdsSubtitleWriter` (one cue per snapshot
-  change, PCM-relative times). `RdsSnapshot` holds frequency, PS, RT, PI and
-  the complete immutable `RtPlusInfo`. Changes to any RT+ field start a new
-  cue. The compact track line is followed by localized rows for the other
-  populated fields. Deletion via
-  notification (`RecordingDeleteActivity`) also removes the SRT file.
+- RDS snapshot history: `FMService` `onInternalStateChanged` → `updateRds(RdsSnapshot)` →
+  `PcmRecorderSession` → `RecordService.recordRds` (PCM-relative times).
 - WAV: 44-byte header patched on stop. MP3: manual ID3v2.3 tag.
 
 ## Favorites
@@ -205,7 +199,7 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   3=200 kHz), `tuner_stereo`, `tuner_soft_mute`, `tuner_notch_filter`,
   `tuner_antenna`, `tuner_power_mode`, `rds_auto_af`,
   `recording_directory`/`recording_filename` (templates `$f $y $m $d $h $i $s
-  $r`), `recording_mode`, `recording_save_srt`, `recording_save_past`,
+  $r`), `recording_mode`, `recording_save_past`,
   `recording_show_notify`, `app_auto_startup`, `app_favorites_columns`, `app_theme`,
   `notification_show_ps`, `notification_seek_by_favorites`. Feature availability is driven by
   `TunerDriver` capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
@@ -230,7 +224,7 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   `TunerDriverDetectorTest`, `TunerDriverCapabilitiesTest`, `StorageTest`,
   `AudioSelectionTest`, `AudioLifecycleTest`, `QualcommRoutedAudioTest`,
   `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`,
-  `PcmRecorderSessionTest`, `RdsSubtitleWriterTest`, `RecordingStorageTest`.
+  `PcmRecorderSessionTest`, `RecordingStorageTest`.
 - Remaining leftovers: `service/streaming/` (empty) and `FavoriteStation`'s JSON constructor defaults frequency to 108100 (outside
   the EU band).
 
@@ -250,5 +244,5 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   Java-side timing to compensate.
 
 Deep reference: `ARCHITECTURE.md` (same directory) — full package map,
-per-class details, notification ids, SRT data flow, settings table,
+per-class details, notification ids, recording data flow, settings table,
 dead-code inventory.

@@ -2,10 +2,8 @@ package com.vlad805.fmradio.service.recording;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 
@@ -63,55 +61,12 @@ public final class RecordingTarget {
     public void commit() throws IOException {
         closeQuietly();
 
-        // Android 10 does not yet classify SRT as media. Our legacy-target app can
-        // publish it beside the audio through shared-storage file I/O on that OS.
-        if (
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                !(Build.VERSION.SDK_INT == Build.VERSION_CODES.Q && isSubtitle())
-        ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             commitToMediaStore();
             return;
         }
 
         commitToFile();
-    }
-
-    private boolean isSubtitle() {
-        return "application/x-subrip".equals(mMimeType);
-    }
-
-    /** Derives the sidecar from the published audio name, including MediaStore renames. */
-    RecordingTarget createSubtitleTarget(final File temporaryFile) throws IOException {
-        String audioName = mDisplayName;
-        String relativePath = mRelativePath;
-
-        if (mPublishedUri != null) {
-            final String[] columns =  new String[]{MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH};
-
-            try (Cursor cursor = mResolver.query(mPublishedUri, columns, null, null, null)) {
-                if (cursor == null || !cursor.moveToFirst()) {
-                    throw new IOException("Cannot resolve published recording name");
-                }
-
-                audioName = cursor.getString(0);
-                relativePath = cursor.getString(1);
-            }
-        }
-
-        final String name = RecordingStorage.subtitleName(audioName);
-        final File finalFile = mFinalFile != null
-                ? new File(mFinalFile.getParentFile(), name)
-                : new File(new File(Environment.getExternalStorageDirectory(), relativePath), name);
-
-        return new RecordingTarget(
-                mResolver,
-                temporaryFile,
-                finalFile,
-                relativePath,
-                name,
-                "application/x-subrip",
-                mDisplayPath.substring(0, mDisplayPath.lastIndexOf('/') + 1) + name
-        );
     }
 
     /**
@@ -211,28 +166,11 @@ public final class RecordingTarget {
         values.put(MediaStore.MediaColumns.RELATIVE_PATH, mRelativePath);
         values.put(MediaStore.MediaColumns.IS_PENDING, 1);
 
-        final Uri collection = isSubtitle()
-                ? MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                : MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+        final Uri collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
         final Uri uri = mResolver.insert(collection, values);
 
         if (uri == null) {
             throw new IOException("Cannot create MediaStore item");
-        }
-
-        try {
-            if (isSubtitle()) {
-                final String[] columns = new String[]{MediaStore.MediaColumns.DISPLAY_NAME};
-
-                try (Cursor cursor = mResolver.query(uri, columns, null, null, null)) {
-                    if (cursor == null || !cursor.moveToFirst() || !mDisplayName.equals(cursor.getString(0))) {
-                        throw new IOException("Subtitle filename would not match the audio recording");
-                    }
-                }
-            }
-        } catch (IOException | RuntimeException error) {
-            mResolver.delete(uri, null, null);
-            throw error;
         }
 
         try (
