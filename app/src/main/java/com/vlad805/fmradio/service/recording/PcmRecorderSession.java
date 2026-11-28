@@ -37,6 +37,7 @@ public final class PcmRecorderSession {
 
     private long capturedSamples;
     private long recordingStartSample;
+    private long lastSignalSample = Long.MIN_VALUE;
     private RdsSnapshot currentRds = RdsSnapshot.EMPTY;
     private final Deque<RdsChange> rdsHistory = new ArrayDeque<>();
 
@@ -55,7 +56,14 @@ public final class PcmRecorderSession {
         if (snapshot.equals(currentRds)) {
             return;
         }
+        if (snapshot.sameRdsCore(currentRds)) {
+            final long oneSecondSamples = (long) sampleRate * channelCount;
+            if (lastSignalSample != Long.MIN_VALUE && (capturedSamples - lastSignalSample) < oneSecondSamples) {
+                return;
+            }
+        }
         currentRds = snapshot;
+        lastSignalSample = capturedSamples;
         // Multiple events between PCM reads describe the same audio position.
         if (!rdsHistory.isEmpty() && rdsHistory.peekLast().sample == capturedSamples) {
             rdsHistory.removeLast();
@@ -214,6 +222,7 @@ public final class PcmRecorderSession {
         ringSize = 0;
         ringWritePosition = 0;
         capturedSamples = 0;
+        lastSignalSample = Long.MIN_VALUE;
         currentRds = RdsSnapshot.EMPTY;
         rdsHistory.clear();
     }

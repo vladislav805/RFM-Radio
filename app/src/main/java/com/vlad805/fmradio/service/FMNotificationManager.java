@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.activity.MainActivity;
 import com.vlad805.fmradio.activity.RecordingDeleteActivity;
+import com.vlad805.fmradio.activity.RecordingsActivity;
 import com.vlad805.fmradio.service.recording.RecordingResult;
 
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
@@ -260,8 +261,6 @@ public final class FMNotificationManager {
         final String filename = result.getDisplayName();
         final String uri = result.getRecordingUri();
         final String filePath = result.getRecordingFilePath();
-        final String subtitleUri = result.getSubtitleUri();
-        final String subtitlePath = result.getSubtitleFilePath();
 
         if (showSavedNotification) {
             final String location = result.getLocation();
@@ -271,9 +270,7 @@ public final class FMNotificationManager {
                     uri,
                     filePath,
                     filename,
-                    notificationTag,
-                    subtitleUri,
-                    subtitlePath
+                    notificationTag
             );
             final PendingIntent pendingDelete = PendingIntent.getActivity(
                     mContext,
@@ -281,8 +278,20 @@ public final class FMNotificationManager {
                     deleteIntent,
                     FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
             );
+            final String displayPath = result.getDisplayPath();
+            final String relativePath = displayPath.startsWith("Music/RFM-Recordings/")
+                    ? displayPath.substring("Music/RFM-Recordings/".length())
+                    : filename;
+            final PendingIntent pendingOpen = PendingIntent.getActivity(
+                    mContext,
+                    (location != null ? location.hashCode() : 0) ^ 0x5A5A,
+                    RecordingsActivity.createIntent(mContext, relativePath),
+                    FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE
+            );
             final NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_RECORD_ID)
                     .setSmallIcon(R.drawable.ic_radio)
+                    .setContentIntent(pendingOpen)
+                    .setAutoCancel(true)
                     .setContentTitle(mContext.getString(R.string.app_name))
                     .setContentText(
                             mContext.getString(
@@ -303,16 +312,12 @@ public final class FMNotificationManager {
             mNotificationManager.notify(notificationTag, RecordingDeleteActivity.NOTIFICATION_ID, builder.build());
         }
 
-        String message = mContext.getString(
+        final String message = mContext.getString(
                 R.string.toast_record_ended,
                 filename,
                 size / 1024f / 1024f,
                 getTimeStringBySeconds(duration)
         );
-
-        if (result.hasSubtitleFailure()) {
-            message += "\n" + mContext.getString(R.string.record_subtitles_failed);
-        }
 
         Toast.makeText(mContext, message, Toast.LENGTH_LONG).show();
     }

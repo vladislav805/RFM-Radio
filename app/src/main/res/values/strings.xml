@@ -152,9 +152,6 @@
 	<string name="root_required_title">Root access required</string>
 	<string name="root_required_message">The application cannot work without root.\nsu was not found on the device.</string>
 	<string name="root_access_denied_message">Root access was not granted. Allow root access for RFM Radio in your root management app and try again.</string>
-    <string name="record_subtitles_failed">Audio saved, but RDS subtitles could not be saved.</string>
-    <string name="pref_recording_save_srt">Save RDS as subtitles</string>
-    <string name="pref_recording_save_srt_summary">Save frequency, PS, RT and PI in a .srt file alongside the audio recording. Applies to new recordings.</string>
     <string name="mhz_unit" translatable="false">MHz</string>
     <string name="rds_placeholder" translatable="false">—</string>
     <string name="rds_rt_empty">No RadioText broadcast</string>
@@ -198,4 +195,55 @@
     <string name="pref_app_theme_system">Follow system</string>
     <string name="pref_app_theme_light">Light</string>
     <string name="pref_app_theme_dark">Dark</string>
+    <string name="recordings_title">Recordings</string>
+    <string name="recordings_empty">No recordings found</string>
+    <string name="recordings_root_label">RFM-Recordings</string>
+    <string name="recordings_rds_badge_desc">Contains RDS metadata</string>
+    <string name="recordings_collapse_player">Collapse player</string>
+    <string name="recordings_more_actions">More actions</string>
+    <string name="recordings_no_rds_metadata">No RDS metadata recorded in this file</string>
+    <string name="recordings_prev">Previous recording</string>
+    <string name="recordings_next">Next recording</string>
+    <string name="recordings_action_share">Share</string>
+    <string name="recordings_share_failed">Could not share recording</string>
+    <string name="recordings_playback_error">Could not play recording</string>
+    <string name="recordings_permission_denied">Storage permission is required to browse recordings</string>
+    <string name="recordings_sort">Sort</string>
+    <string name="recordings_sort_newest">Newest first</string>
+    <string name="recordings_sort_oldest">Oldest first</string>
+    <string name="recordings_sort_name_asc">Name (A–Z)</string>
+    <string name="recordings_sort_name_desc">Name (Z–A)</string>
+    <string name="recordings_delete_dir_title">Delete folder</string>
+    <string name="recordings_delete_dir_confirm">Delete folder “%1$s” and all recordings inside it?</string>
+    <string name="recordings_delete_dir_success">Folder deleted</string>
+    <string name="recordings_delete_dir_failed">Could not delete folder</string>
+    <string name="recording_action_trim">Trim</string>
+    <string name="recording_trim_preview">Preview</string>
+    <string name="recording_trim_pause">Pause</string>
+    <string name="recording_trim_save">Save</string>
+    <string name="recording_trim_save_copy">Save as copy</string>
+    <string name="recording_trim_replace">Replace original</string>
+    <string name="recording_trim_replace_confirm">Overwrite “%1$s” with the trimmed audio? This cannot be undone.</string>
+    <string name="recording_trim_in_progress">Trimming… %1$d%%</string>
+    <string name="recording_trim_success">Recording trimmed</string>
+    <string name="recording_trim_failed">Could not trim recording</string>
+    <string name="recording_trim_too_short">Recording is too short to trim</string>
+    <string name="recording_trim_discard_title">Cancel trimming?</string>
+    <string name="recording_trim_discard_confirm">Selected trim boundaries will be discarded.</string>
+    <string name="recording_trim_discard_action">Discard</string>
+    <string name="recordings_action_rename">Rename</string>
+    <string name="recordings_rename_title">Rename recording</string>
+    <string name="recordings_rename_hint">File name</string>
+    <string name="recordings_rename_invalid">Invalid file name</string>
+    <string name="recordings_rename_success">Recording renamed</string>
+    <string name="recordings_rename_failed">Could not rename recording</string>
+    <string name="recording_action_export_video">Export video</string>
+    <string name="recording_export_phase_encoding">Audio: %1$d%% · Video: %2$d%%</string>
+    <string name="recording_export_phase_saving">Saving video…</string>
+    <string name="recording_export_video_success">Saved to Movies/RFM-Recordings/%1$s</string>
+    <string name="recording_export_video_failed">Could not export video</string>
+    <plurals name="recordings_folder_count">
+        <item quantity="one">%1$d recording</item>
+        <item quantity="other">%1$d recordings</item>
+    </plurals>
 </resources>

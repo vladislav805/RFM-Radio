@@ -5,13 +5,12 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.vlad805.fmradio.Storage;
-import com.vlad805.fmradio.models.RtPlusFields;
 import com.vlad805.fmradio.service.fm.RecordError;
 
 import java.io.*;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Abstract recorder
@@ -54,10 +53,6 @@ public abstract class RecordService implements IFMRecorder {
      * Recordable file
      */
     private RecordingTarget mRecordingTarget = null;
-    private boolean mSubtitlesRequested;
-    private File mSubtitleFile;
-    private RdsSubtitleWriter mSubtitles;
-    private RecordingTarget mPublishedSubtitles;
 
     /**
      * Size of file in bytes
@@ -86,6 +81,8 @@ public abstract class RecordService implements IFMRecorder {
     /** Duration reported before the pre-roll snapshot reaches the encoder. */
     private int mInitialDurationMillis;
     private IOException mWriteError;
+    private WaveformAccumulator mWaveform;
+    private final List<RfmMetadataEvent> mMetadataEvents = new ArrayList<>();
 
     /**
      * Constructor
@@ -114,8 +111,8 @@ public abstract class RecordService implements IFMRecorder {
         mStarted = System.currentTimeMillis() - Math.max(0, initialDurationMillis);
         mInitialDurationMillis = Math.max(0, initialDurationMillis);
         mRecordedPcmSamples = 0;
-        // Keep the setting stable for the entire recording, even if preferences change.
-        mSubtitlesRequested = Storage.get(mContext).isRecordingSaveSrt();
+        mWaveform = new WaveformAccumulator(mSampleRate, 2);
+        mMetadataEvents.clear();
         createFile();
         mState = State.RECORDING;
         if (mListener != null) {
@@ -129,6 +126,10 @@ public abstract class RecordService implements IFMRecorder {
             try {
                 mRecordLength += writePcm(data, length);
                 mRecordedPcmSamples += length;
+
+                if (mWaveform != null) {
+                    mWaveform.addPcm(data, length);
+                }
             } catch (IOException e) {
                 mWriteError = e;
                 mState = State.IDLE;
@@ -147,30 +148,25 @@ public abstract class RecordService implements IFMRecorder {
 
     @Override
     public final synchronized void recordRds(final long positionMillis, final RdsSnapshot snapshot) {
-        if (mState != State.RECORDING || mSubtitles == null) {
+        if (mState != State.RECORDING || snapshot == null) {
             return;
         }
-        try {
-            mSubtitles.update(positionMillis, snapshot);
-        } catch (IOException error) {
-            Log.e("RFM-Recording", "Cannot write RDS subtitles", error);
-            discardSubtitles();
-        }
-    }
 
-    private void discardSubtitles() {
-        if (mSubtitles != null) {
-            try {
-                mSubtitles.finish(0);
-            } catch (IOException ignored) {
+        final long pos = Math.max(0L, positionMillis);
+        if (!mMetadataEvents.isEmpty()) {
+            final RfmMetadataEvent last = mMetadataEvents.get(mMetadataEvents.size() - 1);
+
+            if (last.getSnapshot().equals(snapshot)) {
+                return;
             }
-            mSubtitles = null;
+
+            if (last.getTimeMs() == pos) {
+                mMetadataEvents.set(mMetadataEvents.size() - 1, new RfmMetadataEvent(pos, snapshot));
+                return;
+            }
         }
-        if (mSubtitleFile != null) {
-            //noinspection ResultOfMethodCallIgnored
-            mSubtitleFile.delete();
-            mSubtitleFile = null;
-        }
+
+        mMetadataEvents.add(new RfmMetadataEvent(pos, snapshot));
     }
 
     /**
@@ -183,7 +179,7 @@ public abstract class RecordService implements IFMRecorder {
 
     /**
      * Finalizes the recording after an unexpected capture failure (e.g. lost FM input route).
-     * Saves any already-captured audio and subtitles as a playable partial file instead of
+     * Saves any already-captured audio as a playable partial file instead of
      * discarding them, while still reporting the interruption so the UI does not treat it as
      * an uninterrupted success.
      */
@@ -208,15 +204,6 @@ public abstract class RecordService implements IFMRecorder {
             onFinishRecording();
         } catch (IOException e) {
             mWriteError = e;
-        }
-        if (mSubtitles != null) {
-            try {
-                mSubtitles.finish(mRecordedPcmSamples * 1000L / (mSampleRate * 2L));
-                mSubtitles = null;
-            } catch (IOException error) {
-                Log.e("RFM-Recording", "Cannot finish RDS subtitles", error);
-                discardSubtitles();
-            }
         }
 
         try {
@@ -245,8 +232,10 @@ public abstract class RecordService implements IFMRecorder {
             }
         } else {
             try {
+                target.closeQuietly();
+                embedRecordedMetadata(target);
+                mRecordLength = (int) Math.min(Integer.MAX_VALUE, target.getLength());
                 target.commit();
-                publishSubtitles(target);
                 final RecordingResult result = buildResult(target);
                 if (mListener != null) {
                     if (interruptionError != null) {
@@ -264,31 +253,31 @@ public abstract class RecordService implements IFMRecorder {
             }
         }
         target.closeQuietly();
-        discardSubtitles();
+        mWaveform = null;
+        mMetadataEvents.clear();
         mRecordingTarget = null;
         mState = State.DONE;
     }
 
-    /** A sidecar failure must never discard an otherwise valid audio recording. */
-    private void publishSubtitles(final RecordingTarget audio) {
-        if (mSubtitleFile == null) {
-            return;
-        }
-        RecordingTarget subtitles = null;
+    private void embedRecordedMetadata(final RecordingTarget target) {
         try {
-            subtitles = audio.createSubtitleTarget(mSubtitleFile);
-            subtitles.commit();
-            mPublishedSubtitles = subtitles;
-        } catch (IOException | RuntimeException error) {
-            Log.e("RFM-Recording", "Cannot publish RDS subtitles", error);
-            if (subtitles != null) {
-                subtitles.abort();
-            }
-        } finally {
-            if (subtitles != null) {
-                subtitles.closeQuietly();
-            }
+            final byte[] peaks = mWaveform != null
+                    ? mWaveform.finish(RfmMetadata.DEFAULT_WAVEFORM_BINS)
+                    : new byte[0];
+            final RfmMetadata metadata = new RfmMetadata(peaks, mMetadataEvents);
+            final byte[] rfmBytes = RfmMetadataCodec.encode(metadata);
+
+            embedMetadata(target, rfmBytes);
+        } catch (final IOException | RuntimeException error) {
+            Log.e("RFM-Recording", "Cannot embed RFM1 metadata", error);
         }
+    }
+
+    /**
+     * Embeds encoded {@code RFM1} metadata into the finalized temporary file before publication.
+     * Subclasses override this to write container-specific metadata.
+     */
+    protected void embedMetadata(final RecordingTarget target, final byte[] rfmBytes) throws IOException {
     }
 
     private RecordingResult buildResult(final RecordingTarget target) {
@@ -299,26 +288,13 @@ public abstract class RecordService implements IFMRecorder {
                 ? target.getPublishedFilePath()
                 : null;
 
-        String subtitleUri = null;
-        String subtitleFilePath = null;
-        if (mPublishedSubtitles != null) {
-            if (mPublishedSubtitles.getPublishedUri() != null) {
-                subtitleUri = mPublishedSubtitles.getPublishedUri().toString();
-            } else {
-                subtitleFilePath = mPublishedSubtitles.getPublishedFilePath();
-            }
-        }
-
         return new RecordingResult(
                 mRecordLength,
                 getDurationSeconds(),
                 target.getDisplayPath(),
                 target.getDisplayName(),
                 recordingUri,
-                recordingFilePath,
-                mSubtitlesRequested,
-                subtitleUri,
-                subtitleFilePath
+                recordingFilePath
         );
     }
 
@@ -354,40 +330,19 @@ public abstract class RecordService implements IFMRecorder {
             mRecordingTarget = target;
 
             onFileCreated();
-            if (!mSubtitlesRequested) {
-                return;
-            }
-            try {
-                mSubtitleFile = File.createTempFile("rfm-rds-", ".srt", new File(mContext.getCacheDir(), "recordings"));
-                mSubtitles = new RdsSubtitleWriter(
-                        new BufferedWriter(
-                                new OutputStreamWriter(
-                                        new FileOutputStream(mSubtitleFile),
-                                        StandardCharsets.UTF_8
-                                )
-                        ),
-                        RtPlusFields.localizedLabels(mContext.getResources())
-                );
-            } catch (IOException | SecurityException error) {
-                Log.e("RFM-Recording", "Cannot create RDS subtitles", error);
-                discardSubtitles();
-            }
         } catch (RecordError e) {
-            discardSubtitles();
             if (target != null) {
                 target.abort();
             }
             mRecordingTarget = null;
             throw e;
         } catch (IllegalStateException e) {
-            discardSubtitles();
             if (target != null) {
                 target.abort();
             }
             mRecordingTarget = null;
             throw new RecordError(e.getMessage());
         } catch (IOException e) {
-            discardSubtitles();
             if (target != null) {
                 target.abort();
             }

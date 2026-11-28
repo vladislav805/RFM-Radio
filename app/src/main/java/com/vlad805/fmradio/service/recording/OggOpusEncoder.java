@@ -3,8 +3,8 @@ package com.vlad805.fmradio.service.recording;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/** One Ogg Opus stream, owned by the PCM recording writer. */
-final class OggOpusEncoder {
+/** One Ogg Opus stream, owned by the PCM recording writer or Opus trimmer. */
+public final class OggOpusEncoder {
     static {
         System.loadLibrary("opusencoder");
     }
@@ -12,12 +12,12 @@ final class OggOpusEncoder {
     private final OutputStream output;
     private long handle;
 
-    OggOpusEncoder(int sampleRate, OutputStream output) throws IOException {
+    public OggOpusEncoder(int sampleRate, OutputStream output) throws IOException {
         this.output = output;
         handle = nativeCreate(sampleRate, 96000);
     }
 
-    int write(short[] samples, int length) throws IOException {
+    public int write(short[] samples, int length) throws IOException {
         if (handle == 0) {
             throw new IOException("Opus encoder is closed");
         }
@@ -25,7 +25,7 @@ final class OggOpusEncoder {
         return writePages();
     }
 
-    int finish() throws IOException {
+    public int finish() throws IOException {
         if (handle == 0) {
             return 0;
         }

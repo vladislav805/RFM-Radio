@@ -19,14 +19,9 @@ public final class RecordingStorage {
 
     private RecordingStorage() {}
 
-    /** Android 10 needs direct file access only when saving the SRT companion. */
+    /** Android 9 and older need direct file access to write recordings into Music. */
     public static boolean requiresStoragePermission(final Context context) {
-        return (
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || (
-                        Build.VERSION.SDK_INT == Build.VERSION_CODES.Q &&
-                        Storage.get(context).isRecordingSaveSrt()
-                )
-        );
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q;
     }
 
     public static RecordingTarget create(
@@ -124,11 +119,6 @@ public final class RecordingStorage {
         } catch (final SecurityException e) {
             throw new IOException("Recording cannot be deleted", e);
         }
-    }
-
-    static String subtitleName(final String audioName) {
-        final int dot = audioName.lastIndexOf('.');
-        return (dot > 0 ? audioName.substring(0, dot) : audioName) + ".srt";
     }
 
     static boolean isFileInsideDirectory(final File directory, final File file) throws IOException {

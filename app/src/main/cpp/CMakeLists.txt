@@ -81,6 +81,7 @@ add_subdirectory(${OPUS_DIR} opus EXCLUDE_FROM_ALL)
 set_target_properties(opus PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(opusencoder SHARED
     opus_encoder_jni.c
+    opus_decoder_jni.c
     ${OPUSENC_DIR}/src/ogg_packer.c
     ${OPUSENC_DIR}/src/opus_header.c
     ${OPUSENC_DIR}/src/opusenc.c

@@ -3,6 +3,7 @@ package com.vlad805.fmradio.service.recording;
 import android.content.Context;
 import androidx.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 
 public final class RecordOpusService extends RecordService {
@@ -35,5 +36,22 @@ public final class RecordOpusService extends RecordService {
     @Override
     protected void onFinishRecording() throws IOException {
         mRecordLength += encoder.finish();
+    }
+
+    @Override
+    protected void embedMetadata(final RecordingTarget target, final byte[] rfmBytes) throws IOException {
+        final File rawOpus = target.getTemporaryFile();
+        final File withTags = File.createTempFile("rfm-opus-meta-", ".opus", rawOpus.getParentFile());
+
+        try {
+            RecordingMetadataIO.embedInOggOpus(rawOpus, withTags, rfmBytes);
+            target.replaceTemporaryFile(withTags);
+        } catch (final IOException | RuntimeException error) {
+            if (withTags.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                withTags.delete();
+            }
+            throw error;
+        }
     }
 }

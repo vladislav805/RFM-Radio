@@ -33,6 +33,9 @@
 		<activity
 				android:name=".activity.AboutActivity"/>
 		<activity
+				android:name=".activity.RecordingsActivity"
+				android:label="@string/recordings_title"/>
+		<activity
 				android:name=".activity.StartupBlockedActivity"
 				android:label="@string/main_activity_label"/>
 		<activity
@@ -42,12 +45,29 @@
 				android:noHistory="true"
 				android:theme="@style/DialogActivityTheme"/>
 
+		<provider
+				android:name="androidx.core.content.FileProvider"
+				android:authorities="${applicationId}.fileprovider"
+				android:exported="false"
+				android:grantUriPermissions="true">
+			<meta-data
+					android:name="android.support.FILE_PROVIDER_PATHS"
+					android:resource="@xml/file_paths" />
+		</provider>
+
 		<service
 				android:name=".service.FMService"
 				android:enabled="true"
 				android:exported="false"
 				android:foregroundServiceType="mediaPlayback"
 				android:label="RFM Main Service"
+				/>
+
+		<service
+				android:name=".recordings.RecordingPlaybackService"
+				android:enabled="true"
+				android:exported="false"
+				android:foregroundServiceType="mediaPlayback"
 				/>
 
 		<receiver android:name=".receivers.CallReceiver" android:enabled="true">

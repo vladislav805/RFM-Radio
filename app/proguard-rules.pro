@@ -22,3 +22,4 @@
 
 -keep class com.vlad805.fmradio.service.recording.LameMp3Encoder { *; }
 -keep class com.vlad805.fmradio.service.recording.OggOpusEncoder { *; }
+-keep class com.vlad805.fmradio.recordings.OggOpusDecoder { *; }

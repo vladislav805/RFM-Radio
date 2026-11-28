@@ -128,13 +128,6 @@
 
         <SwitchPreferenceCompat
             app:defaultValue="false"
-            app:icon="@drawable/ic_subtitles"
-            app:key="recording_save_srt"
-            app:summary="@string/pref_recording_save_srt_summary"
-            app:title="@string/pref_recording_save_srt" />
-
-        <SwitchPreferenceCompat
-            app:defaultValue="false"
             app:icon="@drawable/ic_pre_roll"
             app:key="recording_save_past"
             app:summary="@string/pref_recording_save_past_summary"

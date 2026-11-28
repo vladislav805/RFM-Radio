@@ -356,8 +356,8 @@ AudioService capture thread
   -> RecordingListener (marshaled to main looper in FMService)
      -> RadioState.applyRecording* + FMNotificationManager + EventListener
 RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
-  -> PcmRecorderSession.updateRds (PCM position)
-  -> RecordService.recordRds -> RdsSubtitleWriter
+  -> PcmRecorderSession.updateRds (PCM position, 1s throttle on signal-only changes)
+  -> RecordService.recordRds -> RfmMetadataCodec (RFM1) -> RecordingMetadataIO
 ```
 
 - `PcmFormat.java` — `PCM16_STEREO_44100` and `PCM16_STEREO_48000` with
@@ -372,8 +372,7 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   (`onRecordingStarted`, `onRecordingProgress`, `onRecordingCompleted`,
   `onRecordingFailed`).
 - `RecordingResult.java` — immutable value object carrying size, duration,
-  display path/name, audio URI/path, `subtitlesRequested`, subtitle URI/path,
-  and `hasSubtitleFailure()`.
+  display path/name, and audio URI/path.
 - `PcmRecorderSession.java` (~300 lines) — PCM ring buffer sized
   `sampleRate × channels × preRollSeconds` (pre-roll =
   `C.Config.RECORDING_PRE_ROLL_SECONDS` = 5 s, opt-in via
@@ -385,50 +384,48 @@ RDS: FMService.onInternalStateChanged -> updateRds(RdsSnapshot)
   drains the queue before `stopRecord()`. `clearHistory()` only when idle.
 - `RecordService.java` (abstract) — state machine
   IDLE/RECORDING/FINISHING/DONE. `startRecord` creates the file via
-  `RecordingStorage.create()`, reads `recording_save_srt` once per recording,
-  and invokes `RecordingListener.onRecordingStarted(...)`. `record()` passes PCM to the selected writer and throttles
+  `RecordingStorage.create()` and invokes `RecordingListener.onRecordingStarted(...)`. `record()` passes PCM to the selected writer and throttles
   `onRecordingProgress(...)` (≥ 750 ms); `stopRecord()` flushes the encoder,
-  closes streams, `RecordingTarget.commit()`/`abort()`, publishes subtitles,
+  closes streams, `RecordingTarget.commit()`/`abort()`,
   and notifies `onRecordingCompleted(RecordingResult)` or
   `onRecordingFailed(IOException)`. Duration =
   max(initialDuration, acceptedPcmSamples/sampleRate/2). A PCM write error stops further writes.
   Finalization reports write, encoder drain, and stream close errors and discards the failed file.
 - `RecordRawService.java` — WAV: writes a 44-byte header at start, patches
-  chunk sizes (offsets 4 and 40) at stop via `FileChannel`.
+  chunk sizes at stop, and appends the `rfmr` RIFF chunk with `RFM1` metadata.
 - `RecordLameService.java` — MP3 through `LameMp3Encoder` (CBR 192/128,
-  quality 5, 2 channels) with a manual ID3v2.3 tag (TIT2 "XXX.X MHz", TDRC,
-  TENC "RFM Radio", ISO-8859-1, synchsafe sizes); `flush()` with a 7200
-  buffer on finalization.
+  quality 5, 2 channels); `flush()` with a 7200 buffer on finalization, then
+  prepends ID3v2.3 (`TIT2`, `TDRC`, `TENC`, and `PRIV` `com.vlad805.fmradio.rfm1`)
+  before `commit()`.
 - `LameMp3Encoder.java` — JNI wrapper for `libmp3encoder`
   (`nativeInit` / `nativeEncodeInterleaved` / `nativeFlush` /
   `nativeClose`).
 - `RecordOpusService.java` — `.opus` (`audio/ogg`), stereo VBR at a target of
   96 kbps. `OggOpusEncoder` feeds the capture sample rate to libopusenc and
-  writes complete Ogg pages to the recording stream. libopusenc resamples
-  legacy 44.1 kHz PCM, accepts routed 48 kHz PCM directly, and trims the last
-  packet to the actual input duration when the writer drains.
+  writes complete Ogg pages to the recording stream. On finalization,
+  `OggOpusTagRewriter` injects `RFM_META=<Base64(RFM1)>` into `OpusTags` and
+  updates subsequent page sequence numbers and Ogg CRC-32 without touching audio packets.
+- `RfmMetadata.java` / `RfmMetadataEvent.java` / `RfmMetadataCodec.java` / `WaveformAccumulator.java` —
+  compact binary `RFM1` format: 10-byte little-endian header (`"RFM1"`, `uint16 version=1`,
+  `uint32 uncompressedSize` capped at 4 MiB) + unconditional zlib payload containing
+  `uint16 waveformCount` + `uint8[waveformCount]` peaks (0..255, target 240 bins) +
+  `uint32 eventCount` + delta-encoded events (`uint32 timeMs`, `uint16 changedMask`,
+  only changed fields for frequency, PI, PTY, TP, stereo, RMSSI, SINR, country, PS, RT, RT+).
+- `RecordingMetadataIO.java` / `OggOpusTagRewriter.java` / `OggCrc32.java` —
+  container-level readers/writers for WAV `rfmr`, MP3 ID3v2 `PRIV`, and Ogg Opus `OpusTags`.
 - `RecordingStorage.java` — target factory: directory/filename templates
   from `recording_directory`/`recording_filename` with
   `RecordSchemaHelper.prepareString` (`$f` frequency×10, `$y $m $d $h $i
   $s`, `$r` random); temp files in `cacheDir/recordings`; API ≥ 29 →
   MediaStore (`Music/RFM-Recordings/…`, IS_PENDING, copy after recording),
   below → direct file. Sanitizing rejects `..`, `/`, `\`.
-  `requiresStoragePermission()`: < Q always; == Q only with SRT enabled;
-  > Q never. `deletePublished()` via ContentResolver or file (canonical
+  `requiresStoragePermission()`: `< Q` only. `deletePublished()` via ContentResolver or file (canonical
   path check).
-- `RecordingTarget.java` — temp → published lifecycle; subtitle target is
-  a sibling `.srt` (on Q through `MediaStore.Files` since SRT is not
-  "media"); `commitToFile()` (rename with copy fallback),
+- `RecordingTarget.java` — temp → published lifecycle;
+  `commitToFile()` (rename with copy fallback),
   `commitToMediaStore()`.
 - `RdsSnapshot.java` holds frequency, PS, RT, PI and the complete immutable
   `RtPlusInfo`. Snapshot equality includes every populated RT+ field.
-  `toSubtitleText(rtPlusLabels)` groups the artist, title and album on one line.
-  The remaining populated fields follow in content type order, each with its
-  localized label from `RtPlusFields.localizedLabels()` selected at recording start.
-  Broadcast text is whitespace-normalized and HTML-escaped for SRT playback.
-- `RdsSubtitleWriter.java` — SRT cues: each snapshot change closes the
-  previous cue (`HH:MM:SS,mmm --> …`); `finish(durationMillis)` closes the
-  last. Times are PCM-relative, including pre-roll history.
 
 ## Favorites
 
@@ -476,9 +473,34 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
 - `SettingsActivity` — hosts `PreferencesFragment`; binds `RadioClient` in
   `onStart()`/`onStop()` to observe `EventListener.onInvalidAntennaError()` →
   toast.
+- `RecordingsActivity` — Material 3 folder browser (`Music/RFM-Recordings`)
+  with pluralized folder recording counts, file sort selector (`recordings_sort`),
+  long-press context menus (folder delete, file share/rename/delete), MediaStore
+  `RecoverableSecurityException` handling, and trim job execution. Delegates the
+  persistent wrap-content bottom sheet (`include_recording_player_sheet.xml`)
+  with scrim — mini-player bar (collapsed) and player/trim drawer (expanded) —
+  to `RecordingPlayerController`. `RecordingPlayerController` reuses
+  `include_tuner_display.xml` + `include_rt_plus_overlay.xml` via
+  `RecordingTunerBinder` to replay embedded `RFM1` RDS/signal/stereo events live
+  alongside `WaveformView` (scrubbing, multi-row frequency-labeled station-switch
+  markers, and interactive trim range handles), Prev/Play-Pause/Next controls,
+  `±0.2s` trim steppers, preview, and `⋮` Share/Rename/Trim/Export Video/Delete
+  menu. `RecordingVideoExporter` + `EglSurfaceRenderer` export recordings with
+  `RFM1` metadata as `960×720` H.264+AAC MP4 videos (`Movies/RFM-Recordings`)
+  rendering `export_video_frame.xml` offscreen with animations disabled.
+  Background playback is backed by `RecordingPlaybackService` (`mediaPlayback`
+  foreground service with `MediaStyle` Prev/Play-Pause/Next/Stop notification).
+  Trimming uses `RecordingTrimmer` (`WavTrimmer` lossless PCM, `Mp3Trimmer`
+  lossless MPEG frames, `OpusTrimmer` via `OggOpusDecoder` + `OggOpusEncoder`)
+  with automatic `RFM1` metadata/waveform slicing and Save-as-Copy or
+  Replace-Original modes. Live FM (`FMService.enable()`) and local playback
+  (`RecordingAudioPlayer`) are mutually exclusive and pause on
+  `ACTION_AUDIO_BECOMING_NOISY`. Uses `RecordingAudioPlayer` (`MediaPlayer` for
+  WAV/MP3/API 29+ Opus, and `OggOpusDecoder` JNI + `AudioTrack` for API 23–28
+  Opus).
 - `RecordingDeleteActivity` — dialog activity (noHistory, excludeFromRecents)
-  with self-contained `EXTRA_*` keys (including `EXTRA_SUBTITLE_*`); deletes
-  audio + subtitles via `RecordingStorage.deletePublished`, cancels the
+  with self-contained `EXTRA_*` keys; deletes
+  audio via `RecordingStorage.deletePublished`, cancels the
   notification.
 - Views: `RadioUIView` (Material 3 card with frequency, PS/RT/PTY/PI,
   RT+ toggle and scrollable overlay of populated fields with localized labels, statuses), `FrequencyDialView` (custom Canvas
@@ -523,7 +545,6 @@ inside `Storage.java`.
 | `recording_directory` | `$y-$m-$d` | directory template |
 | `recording_filename` | `FM-$h$i$s-$f` | filename template |
 | `recording_mode` | `"0"` (0) | 0=WAV, 1=MP3 192, 2=MP3 128, 3=Opus 96 |
-| `recording_save_srt` | false | SRT subtitles for recordings |
 | `recording_save_past` | false | 5 s pre-roll (confirm + mic permission) |
 | `recording_show_notify` | true | recording progress notification |
 | `app_auto_startup` | false | start audio on app launch |
@@ -563,7 +584,7 @@ switch/rename/remove), `NativeEventParserTest` (typed `FMEventCallback`
 dispatch, validation, partial RT+, duplicate lifecycle suppression),
 `SignalStrengthTest` (RMSSI thresholds → bars), `RequestTest` (dispatch),
 `FMNotificationManagerTest` (playback title/body precedence, compact actions,
-`RecordingResult` tags/subtitle warnings, channel ids),
+`RecordingResult` tags, channel ids),
 `TunerCommandFormatTest` (atomic enable command, region/spacing mapping),
 `TunerDriverDetectorTest` (allowlist + handshake backend resolution),
 `TunerDriverCapabilitiesTest` (backend capability flags + `BandUtils`
@@ -576,8 +597,9 @@ type round-trips, `ClassCastException` safety, and `preferences.xml` ↔
 `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`
 (stereo formats, mismatch rejection, routed V4L2 48 kHz),
 `PcmRecorderSessionTest` (pre-roll wrap, partial history, live-only, RDS
-ordering, backpressure), `RdsSubtitleWriterTest` (cue format, dedup,
-zero-duration), `RecordingStorageTest` (subtitle naming, path containment).
+ordering, signal throttling, backpressure), `RfmMetadataCodecTest` (RFM1 delta encoding,
+zlib round-trip, slicing), `WaveformAccumulatorTest`, `RecordingMetadataIOTest`
+(WAV/MP3/Opus container round-trips + Ogg CRC32), `RecordingStorageTest` (path containment).
 No instrumented tests.
 
 ## Dead Code and Traps Inventory

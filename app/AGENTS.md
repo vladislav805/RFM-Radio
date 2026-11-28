@@ -11,16 +11,17 @@ Debug application id: `com.vlad805.fmradio.dev`.
 | Package | Role |
 | --- | --- |
 | (root) | `C.java` — `RecordFormat` and `Config` constants; `Storage` — typed `SharedPreferences` wrapper, `Storage.Key`, defaults |
-| `activity/` | `MainActivity` (entry, gates), `SettingsActivity`, `AboutActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
+| `activity/` | `MainActivity` (entry, gates), `SettingsActivity`, `AboutActivity`, `RecordingsActivity`, `RecordingDeleteActivity`, `StartupBlockedActivity` |
+| `recordings/` | `RecordingsRepository`, `RecordingItem`, `DirectoryListing`, `RecordingsAdapter`, `RecordingPlayerController`, `RecordingPlaybackService`, `RecordingAudioPlayer`, `OggOpusDecoder` (JNI), `RecordingTunerBinder`, `trim/` (`WavTrimmer`, `Mp3Trimmer`, `OpusTrimmer`, `RecordingTrimmer`), `export/` (`RecordingVideoExporter`, `EglSurfaceRenderer`) |
 | `controller/` | `RadioServiceController` (local binder contract), `RadioClient` (`ServiceConnection` wrapper + command queue), `StateListener`, `EventListener`, `FavoriteController` (in-process singleton), `RadioState` (pure reducers + `SET_*` masks), `TunerStatus` |
 | `service/` | `FMService` — the orchestrator (`LocalBinder` + external `ACTION_*` entry points); `FMNotificationManager` — notification channels and playback/recording presentation |
 | `service/audio/` | `AudioOutput`, `AudioSelection`, `AudioLifecycle`, `RoutedAudioPolicy`, `QualcommRoutedAudio`, `SamsungS610Audio`, `AudioService` (abstract), `RoutingAudioService` (API ≥ 26), `LightAudioService` |
 | `service/fm/` | Contract: `FMEventCallback` (typed), `RadioStatePatch`, `RecordError` |
 | `service/fm/communication/` | `NativeProcessSession`, `NativeEventParser`, `Request` |
 | `service/fm/implementation/` | `NativeTunerController`, `TunerCommandFormat` |
-| `service/recording/` | `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3/Opus recording, SRT subtitles, storage |
+| `service/recording/` | `PcmFormat`, `RecordingListener`, `RecordingResult`, WAV/MP3/Opus recording, RDS snapshots, storage |
 | `fragments/` | `PreferencesFragment` — declarative `res/xml/preferences.xml` + backend capability gating |
-| `view/` | `RadioUIView`, `FrequencyDialView`, `FavoritesView`, `SignalStrength`, adapters |
+| `view/` | `RadioUIView`, `FrequencyDialView`, `WaveformView`, `FavoritesView`, `SignalStrength`, adapters |
 | `models/`, `helper/`, `enums/`, `preferences/` | JSON models, utilities, `TunerDriver` enum (with backend capability flags), `BandUtils` |
 
 `service/streaming/` is an empty leftover. `app/src/main/cpp/` builds the JNI recording encoders `libmp3encoder.so` (LAME) and `libopusencoder.so` (libopus and libopusenc).
@@ -162,15 +163,13 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   (MediaStore on API ≥ 29, direct file below), typed `RecordingListener`
   callbacks (`onRecordingStarted`, throttled 750 ms `onRecordingProgress`,
   `onRecordingCompleted(RecordingResult)`, `onRecordingFailed(Throwable)`).
-- SRT subtitles (pref `recording_save_srt`, off by default): `FMService`
-  `onInternalStateChanged` → `updateRds(RdsSnapshot)` → `PcmRecorderSession` →
-  `RecordService.recordRds` → `RdsSubtitleWriter` (one cue per snapshot
-  change, PCM-relative times). `RdsSnapshot` holds frequency, PS, RT, PI and
-  the complete immutable `RtPlusInfo`. Changes to any RT+ field start a new
-  cue. The compact track line is followed by localized rows for the other
-  populated fields. Deletion via
-  notification (`RecordingDeleteActivity`) also removes the SRT file.
-- WAV: 44-byte header patched on stop. MP3: manual ID3v2.3 tag.
+- Embedded `RFM1` metadata: `FMService` `onInternalStateChanged` → `updateRds(RdsSnapshot)` →
+  `PcmRecorderSession` (throttles signal-only RMSSI/SINR changes to 1 s) → `RecordService.recordRds`
+  + `WaveformAccumulator` (240 peak bins). Encoded via `RfmMetadataCodec` (10-byte `RFM1` header +
+  unconditional zlib + delta-encoded events) and embedded before `commit()` via `RecordingMetadataIO`:
+  WAV `rfmr` RIFF chunk, MP3 ID3v2.3 `PRIV` (`com.vlad805.fmradio.rfm1`), Ogg Opus `OpusTags`
+  (`RFM_META=<Base64>` via `OggOpusTagRewriter`).
+- WAV: 44-byte header patched on stop + `rfmr` chunk. MP3: ID3v2.3 tag prepended on finish.
 
 ## Favorites
 
@@ -205,7 +204,7 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   3=200 kHz), `tuner_stereo`, `tuner_soft_mute`, `tuner_notch_filter`,
   `tuner_antenna`, `tuner_power_mode`, `rds_auto_af`,
   `recording_directory`/`recording_filename` (templates `$f $y $m $d $h $i $s
-  $r`), `recording_mode`, `recording_save_srt`, `recording_save_past`,
+  $r`), `recording_mode`, `recording_save_past`,
   `recording_show_notify`, `app_auto_startup`, `app_favorites_columns`, `app_theme`,
   `notification_show_ps`, `notification_seek_by_favorites`. Feature availability is driven by
   `TunerDriver` capability flags (`hasKnownCapabilities`, `supportsSoftMute`,
@@ -230,7 +229,8 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   `TunerDriverDetectorTest`, `TunerDriverCapabilitiesTest`, `StorageTest`,
   `AudioSelectionTest`, `AudioLifecycleTest`, `QualcommRoutedAudioTest`,
   `RoutingAudioServiceTest`, `SamsungS610AudioTest`, `PcmFormatTest`,
-  `PcmRecorderSessionTest`, `RdsSubtitleWriterTest`, `RecordingStorageTest`.
+  `PcmRecorderSessionTest`, `RfmMetadataCodecTest`, `WaveformAccumulatorTest`,
+  `RecordingMetadataIOTest`, `RecordingStorageTest`.
 - Remaining leftovers: `service/streaming/` (empty) and `FavoriteStation`'s JSON constructor defaults frequency to 108100 (outside
   the EU band).
 
@@ -250,5 +250,5 @@ For Qualcomm V4L2, `jump` also updates the displayed frequency through the
   Java-side timing to compensate.
 
 Deep reference: `ARCHITECTURE.md` (same directory) — full package map,
-per-class details, notification ids, SRT data flow, settings table,
+per-class details, notification ids, recording data flow, settings table,
 dead-code inventory.

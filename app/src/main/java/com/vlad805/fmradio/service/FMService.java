@@ -25,6 +25,7 @@ import com.vlad805.fmradio.controller.RadioServiceController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.StateListener;
 import com.vlad805.fmradio.controller.TunerStatus;
+import com.vlad805.fmradio.recordings.RecordingAudioPlayer;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
@@ -323,6 +324,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
             return;
         }
 
+        RecordingAudioPlayer.pauseActivePlayback();
         mSessionActive = true;
         startService(new Intent(this, FMService.class).setAction(ACTION_START));
         mTunerDriver.prepareBinary();
@@ -730,11 +732,19 @@ public class FMService extends Service implements RadioServiceController, FMEven
             }
         }
 
-        if (
-                (mode & (RadioState.SET_FREQUENCY | RadioState.SET_PS | RadioState.SET_RT
-                        | RadioState.SET_PI | RadioState.SET_RT_PLUS)) != 0
-                && mAudioService instanceof IAudioRecordable
-        ) {
+        if ((mode & (
+                RadioState.SET_FREQUENCY |
+                RadioState.SET_PS |
+                RadioState.SET_RT |
+                RadioState.SET_PI |
+                RadioState.SET_RT_PLUS |
+                RadioState.SET_COUNTRY |
+                RadioState.SET_PTY |
+                RadioState.SET_TP |
+                RadioState.SET_STEREO |
+                RadioState.SET_RMSSI |
+                RadioState.SET_SINR
+        )) != 0 && mAudioService instanceof IAudioRecordable) {
             ((IAudioRecordable) mAudioService).updateRds(createRdsSnapshot(mState));
         }
 
@@ -743,8 +753,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
                     (mode & RadioState.SET_RECORDING) != 0 && mLastNotifiedRecording != mState.isRecording();
             if (
                     recordingToggled ||
-                    (mode & (RadioState.SET_STATUS | RadioState.SET_FREQUENCY
-                            | RadioState.SET_PS | RadioState.SET_RT)) != 0
+                    (mode & (RadioState.SET_STATUS | RadioState.SET_FREQUENCY | RadioState.SET_PS | RadioState.SET_RT)) != 0
             ) {
                 updateNotification();
             }
@@ -848,7 +857,13 @@ public class FMService extends Service implements RadioServiceController, FMEven
                 state.getPs(),
                 state.getRt(),
                 state.getPi(),
-                state.getRtPlus()
+                state.getRtPlus(),
+                state.getCountry(),
+                state.getPty(),
+                state.hasTrafficProgramme(),
+                state.isStereo(),
+                state.getRmssi(),
+                state.getSinr()
         );
     }
 
