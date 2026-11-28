@@ -2,6 +2,7 @@ package com.vlad805.fmradio.recordings;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Browses, inspects, shares, and deletes recordings inside {@code Music/RFM-Recordings}.
@@ -45,6 +47,7 @@ public final class RecordingsRepository {
 
     private static final String ROOT_DIRECTORY = "RFM-Recordings";
     private static final String MEDIASTORE_ROOT_PREFIX = "Music/" + ROOT_DIRECTORY + "/";
+    private static final Pattern INVALID_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1F/\\\\:*?\"<>|]");
 
     private RecordingsRepository() {}
 
@@ -197,6 +200,115 @@ public final class RecordingsRepository {
         }
 
         return node.isDirectory() ? count : count + 1;
+    }
+
+    @NonNull
+    public static RecordingItem rename(
+            @NonNull final Context context,
+            @NonNull final RecordingItem item,
+            @NonNull final String requestedBaseName
+    ) throws IOException {
+        final String cleanBase = sanitizeRenameBaseName(requestedBaseName, item.getExtension());
+        if (cleanBase == null) {
+            throw new IllegalArgumentException("Invalid file name");
+        }
+
+        final String newDisplayName = item.getExtension().isEmpty()
+                ? cleanBase
+                : cleanBase + "." + item.getExtension();
+
+        if (newDisplayName.equals(item.getDisplayName())) {
+            return item;
+        }
+
+        final String newRelPath = item.getRelativeDir().isEmpty()
+                ? newDisplayName
+                : item.getRelativeDir() + "/" + newDisplayName;
+
+        if (item.getContentUri() != null) {
+            final ContentValues values = new ContentValues();
+            values.put(MediaStore.Audio.Media.DISPLAY_NAME, newDisplayName);
+            final int updated = context.getContentResolver().update(item.getContentUri(), values, null, null);
+
+            if (updated <= 0) {
+                throw new IOException("MediaStore refused rename");
+            }
+
+            return new RecordingItem(
+                    newDisplayName,
+                    item.getRelativeDir(),
+                    newRelPath,
+                    item.getContentUri(),
+                    item.getFilePath(),
+                    item.getExtension(),
+                    item.getMimeType(),
+                    item.getSizeBytes(),
+                    item.getLastModifiedMillis(),
+                    item.getDurationMillis(),
+                    item.hasRfmMetadata()
+            );
+        }
+
+        if (item.getFilePath() != null) {
+            final File src = new File(item.getFilePath());
+            final File parent = src.getParentFile();
+            if (parent == null) {
+                throw new IOException("Missing parent directory");
+            }
+
+            final File dst = new File(parent, newDisplayName);
+            if (dst.exists()) {
+                throw new IOException("Target file already exists");
+            }
+
+            if (!src.renameTo(dst)) {
+                throw new IOException("Could not rename file");
+            }
+
+            return new RecordingItem(
+                    newDisplayName,
+                    item.getRelativeDir(),
+                    newRelPath,
+                    null,
+                    dst.getAbsolutePath(),
+                    item.getExtension(),
+                    item.getMimeType(),
+                    item.getSizeBytes(),
+                    item.getLastModifiedMillis(),
+                    item.getDurationMillis(),
+                    item.hasRfmMetadata()
+            );
+        }
+
+        throw new IOException("Recording has neither contentUri nor filePath");
+    }
+
+    @Nullable
+    public static String sanitizeRenameBaseName(
+            @Nullable final String rawName,
+            @NonNull final String extension
+    ) {
+        if (rawName == null) {
+            return null;
+        }
+
+        String trimmed = rawName.trim();
+        if (!extension.isEmpty()) {
+            final String suffix = "." + extension;
+            if (trimmed.toLowerCase(Locale.US).endsWith(suffix.toLowerCase(Locale.US))) {
+                trimmed = trimmed.substring(0, trimmed.length() - suffix.length()).trim();
+            }
+        }
+
+        if (trimmed.isEmpty() || ".".equals(trimmed) || "..".equals(trimmed)) {
+            return null;
+        }
+
+        if (INVALID_FILENAME_CHARS.matcher(trimmed).find()) {
+            return null;
+        }
+
+        return trimmed;
     }
 
     @NonNull

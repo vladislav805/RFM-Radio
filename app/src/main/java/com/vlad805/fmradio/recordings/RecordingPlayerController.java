@@ -34,6 +34,7 @@ public final class RecordingPlayerController {
     private static final int MENU_SHARE = 1;
     private static final int MENU_DELETE = 2;
     private static final int MENU_TRIM = 3;
+    private static final int MENU_RENAME = 4;
     private static final long TICK_INTERVAL_MS = 150L;
     private static final long TRIM_STEP_MS = 200L;
 
@@ -45,6 +46,8 @@ public final class RecordingPlayerController {
         void onActiveItemChanged(@Nullable String relativePath);
 
         void onShareRequested(@NonNull RecordingItem item);
+
+        void onRenameRequested(@NonNull RecordingItem item);
 
         void onDeleteRequested(@NonNull RecordingItem item);
 
@@ -254,6 +257,20 @@ public final class RecordingPlayerController {
         if (mCurrentItem != null && mCurrentItem.getRelativePath().equals(relativePath)) {
             closePlayer();
         }
+    }
+
+    public void onItemRenamed(
+            @NonNull final String oldRelativePath,
+            @NonNull final RecordingItem renamed
+    ) {
+        if (mCurrentItem == null || !mCurrentItem.getRelativePath().equals(oldRelativePath)) {
+            return;
+        }
+
+        mCurrentItem = renamed;
+        mMiniTitle.setText(renamed.getDisplayName());
+        mPlayerTitle.setText(renamed.getDisplayName());
+        mHost.onActiveItemChanged(renamed.getRelativePath());
     }
 
     public void closeIfInDirectory(@NonNull final String fullRelDir) {
@@ -543,14 +560,20 @@ public final class RecordingPlayerController {
         final PopupMenu popup = new PopupMenu(mContext, anchor);
         final Menu menu = popup.getMenu();
         menu.add(0, MENU_SHARE, 1, R.string.recordings_action_share);
-        menu.add(0, MENU_TRIM, 2, R.string.recording_action_trim);
-        menu.add(0, MENU_DELETE, 3, R.string.record_delete_action);
+        menu.add(0, MENU_RENAME, 2, R.string.recordings_action_rename);
+        menu.add(0, MENU_TRIM, 3, R.string.recording_action_trim);
+        menu.add(0, MENU_DELETE, 4, R.string.record_delete_action);
 
         popup.setOnMenuItemClickListener(menuItem -> {
             final int id = menuItem.getItemId();
 
             if (id == MENU_SHARE) {
                 mHost.onShareRequested(target);
+                return true;
+            }
+
+            if (id == MENU_RENAME) {
+                mHost.onRenameRequested(target);
                 return true;
             }
 

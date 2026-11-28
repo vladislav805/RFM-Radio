@@ -220,6 +220,12 @@
     <string name="recording_trim_discard_title">Отменить обрезку?</string>
     <string name="recording_trim_discard_confirm">Выбранные границы обрезки будут сброшены.</string>
     <string name="recording_trim_discard_action">Сбросить</string>
+    <string name="recordings_action_rename">Переименовать</string>
+    <string name="recordings_rename_title">Переименовать запись</string>
+    <string name="recordings_rename_hint">Имя файла</string>
+    <string name="recordings_rename_invalid">Некорректное имя файла</string>
+    <string name="recordings_rename_success">Запись переименована</string>
+    <string name="recordings_rename_failed">Не удалось переименовать запись</string>
     <plurals name="recordings_folder_count">
         <item quantity="one">%1$d запись</item>
         <item quantity="few">%1$d записи</item>

@@ -9,8 +9,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import android.view.Menu;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -58,11 +61,22 @@ public final class RecordingsActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_STORAGE = 201;
     private static final int MENU_SHARE = 1;
     private static final int MENU_DELETE = 2;
+    private static final int MENU_RENAME = 3;
     private static final int MENU_SORT_TOOLBAR = 10;
     private static final int MENU_SORT_NEWEST = 11;
     private static final int MENU_SORT_OLDEST = 12;
     private static final int MENU_SORT_NAME_ASC = 13;
     private static final int MENU_SORT_NAME_DESC = 14;
+
+    private static final class PendingRenameRequest {
+        final RecordingItem item;
+        final String newBaseName;
+
+        PendingRenameRequest(@NonNull final RecordingItem item, @NonNull final String newBaseName) {
+            this.item = item;
+            this.newBaseName = newBaseName;
+        }
+    }
 
     private static final class PendingTrimRequest {
         final RecordingItem item;
@@ -108,6 +122,8 @@ public final class RecordingsActivity extends AppCompatActivity {
     @Nullable
     private PendingTrimRequest mPendingTrimRetry;
     @Nullable
+    private PendingRenameRequest mPendingRenameRetry;
+    @Nullable
     private AlertDialog mTrimProgressDialog;
 
     private final ActivityResultLauncher<IntentSenderRequest> mDeleteConsentLauncher =
@@ -123,12 +139,17 @@ public final class RecordingsActivity extends AppCompatActivity {
                                 final PendingTrimRequest retry = mPendingTrimRetry;
                                 mPendingTrimRetry = null;
                                 executeTrim(retry.item, retry.startMs, retry.endMs, retry.mode);
+                            } else if (mPendingRenameRetry != null) {
+                                final PendingRenameRequest retry = mPendingRenameRetry;
+                                mPendingRenameRetry = null;
+                                executeRename(retry.item, retry.newBaseName);
                             }
                         }
 
                         mPendingDeleteItem = null;
                         mPendingDeleteDir = null;
                         mPendingTrimRetry = null;
+                        mPendingRenameRetry = null;
                     }
             );
 
@@ -282,6 +303,11 @@ public final class RecordingsActivity extends AppCompatActivity {
                     @Override
                     public void onShareRequested(@NonNull final RecordingItem item) {
                         shareRecording(item);
+                    }
+
+                    @Override
+                    public void onRenameRequested(@NonNull final RecordingItem item) {
+                        showRenameDialog(item);
                     }
 
                     @Override
@@ -545,13 +571,19 @@ public final class RecordingsActivity extends AppCompatActivity {
         final PopupMenu popup = new PopupMenu(this, anchor);
         final Menu menu = popup.getMenu();
         menu.add(0, MENU_SHARE, 1, R.string.recordings_action_share);
-        menu.add(0, MENU_DELETE, 2, R.string.record_delete_action);
+        menu.add(0, MENU_RENAME, 2, R.string.recordings_action_rename);
+        menu.add(0, MENU_DELETE, 3, R.string.record_delete_action);
 
         popup.setOnMenuItemClickListener(menuItem -> {
             final int id = menuItem.getItemId();
 
             if (id == MENU_SHARE) {
                 shareRecording(target);
+                return true;
+            }
+
+            if (id == MENU_RENAME) {
+                showRenameDialog(target);
                 return true;
             }
 
@@ -564,6 +596,83 @@ public final class RecordingsActivity extends AppCompatActivity {
         });
 
         popup.show();
+    }
+
+    private void showRenameDialog(@NonNull final RecordingItem target) {
+        final String displayName = target.getDisplayName();
+        final int dot = displayName.lastIndexOf('.');
+        final String currentBase = dot > 0 ? displayName.substring(0, dot) : displayName;
+
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setHint(R.string.recordings_rename_hint);
+        input.setText(currentBase);
+        input.setSelection(currentBase.length());
+        input.setSingleLine(true);
+
+        final int padH = Math.round(24f * getResources().getDisplayMetrics().density);
+        final int padTop = Math.round(12f * getResources().getDisplayMetrics().density);
+        final FrameLayout container = new FrameLayout(this);
+        container.setPadding(padH, padTop, padH, 0);
+        container.addView(input);
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.recordings_rename_title)
+                .setView(container)
+                .setPositiveButton(R.string.recordings_action_rename, (d, which) -> {
+                    final String entered = input.getText() != null ? input.getText().toString() : "";
+                    final String clean = RecordingsRepository.sanitizeRenameBaseName(entered, target.getExtension());
+
+                    if (clean == null) {
+                        Toast.makeText(this, R.string.recordings_rename_invalid, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    executeRename(target, clean);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void executeRename(@NonNull final RecordingItem target, @NonNull final String newBaseName) {
+        final String oldPath = target.getRelativePath();
+
+        mIoExecutor.execute(() -> {
+            try {
+                final RecordingItem renamed = RecordingsRepository.rename(this, target, newBaseName);
+                mMainHandler.post(() -> {
+                    mPlayerController.onItemRenamed(oldPath, renamed);
+                    Toast.makeText(this, R.string.recordings_rename_success, Toast.LENGTH_SHORT).show();
+                    loadDirectory(mCurrentDir);
+                });
+            } catch (final SecurityException securityError) {
+                if (
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                        securityError instanceof RecoverableSecurityException
+                ) {
+                    final RecoverableSecurityException rse = (RecoverableSecurityException) securityError;
+                    mMainHandler.post(() -> {
+                        mPendingRenameRetry = new PendingRenameRequest(target, newBaseName);
+                        final IntentSenderRequest request = new IntentSenderRequest.Builder(
+                                rse.getUserAction().getActionIntent().getIntentSender()
+                        ).build();
+                        mDeleteConsentLauncher.launch(request);
+                    });
+                } else {
+                    mMainHandler.post(() -> Toast.makeText(
+                            this,
+                            R.string.recordings_rename_failed,
+                            Toast.LENGTH_LONG
+                    ).show());
+                }
+            } catch (final IOException | IllegalArgumentException error) {
+                mMainHandler.post(() -> Toast.makeText(
+                        this,
+                        R.string.recordings_rename_failed,
+                        Toast.LENGTH_LONG
+                ).show());
+            }
+        });
     }
 
     private void confirmDeleteDirectory(@NonNull final String dirName) {

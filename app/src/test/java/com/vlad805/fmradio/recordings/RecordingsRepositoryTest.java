@@ -117,4 +117,16 @@ public class RecordingsRepositoryTest {
         assertEquals("beta.wav", nameDesc.getRecordings().get(1).getDisplayName());
         assertEquals("alpha.mp3", nameDesc.getRecordings().get(2).getDisplayName());
     }
+
+    @Test
+    public void sanitizesRenameBaseNamesAndRejectsInvalidCharacters() {
+        assertEquals("my-track", RecordingsRepository.sanitizeRenameBaseName("  my-track  ", "opus"));
+        assertEquals("my-track", RecordingsRepository.sanitizeRenameBaseName("my-track.OPUS", "opus"));
+        assertEquals("my-track.v2", RecordingsRepository.sanitizeRenameBaseName("my-track.v2", "mp3"));
+        assertEquals(null, RecordingsRepository.sanitizeRenameBaseName("", "wav"));
+        assertEquals(null, RecordingsRepository.sanitizeRenameBaseName("   ", "wav"));
+        assertEquals(null, RecordingsRepository.sanitizeRenameBaseName("..", "wav"));
+        assertEquals(null, RecordingsRepository.sanitizeRenameBaseName("a/b", "wav"));
+        assertEquals(null, RecordingsRepository.sanitizeRenameBaseName("bad:name", "wav"));
+    }
 }

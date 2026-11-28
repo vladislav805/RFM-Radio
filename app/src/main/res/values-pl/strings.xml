@@ -220,6 +220,12 @@
     <string name="recording_trim_discard_title">Anulować przycinanie?</string>
     <string name="recording_trim_discard_confirm">Wybrane granice przycinania zostaną odrzucone.</string>
     <string name="recording_trim_discard_action">Odrzuć</string>
+    <string name="recordings_action_rename">Zmień nazwę</string>
+    <string name="recordings_rename_title">Zmień nazwę nagrania</string>
+    <string name="recordings_rename_hint">Nazwa pliku</string>
+    <string name="recordings_rename_invalid">Nieprawidłowa nazwa pliku</string>
+    <string name="recordings_rename_success">Nazwa nagrania zmieniona</string>
+    <string name="recordings_rename_failed">Nie udało się zmienić nazwy nagrania</string>
     <plurals name="recordings_folder_count">
         <item quantity="one">%1$d nagranie</item>
         <item quantity="few">%1$d nagrania</item>
