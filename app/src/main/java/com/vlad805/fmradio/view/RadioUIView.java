@@ -171,6 +171,15 @@ public final class RadioUIView {
 		}
 	}
 
+	private boolean mAnimationsEnabled = true;
+
+	public void setAnimationsEnabled(final boolean enabled) {
+		mAnimationsEnabled = enabled;
+		if (!enabled) {
+			cancelRtAppendAnimator();
+		}
+	}
+
 	/**
 	 * Called when frequency has changed externally
 	 * @param kHz Frequency in kHz
@@ -280,7 +289,7 @@ public final class RadioUIView {
 			final int nextVisibility = hasRtPlus ? View.VISIBLE : View.GONE;
 
 			if (mBtnToggleRtPlus.getVisibility() != nextVisibility) {
-				if (mRtCard != null && mRtCard.isLaidOut()) {
+				if (mAnimationsEnabled && mRtCard != null && mRtCard.isLaidOut()) {
 					final TransitionSet transition = new TransitionSet()
 							.addTransition(new ChangeBounds())
 							.addTransition(new Fade())
@@ -362,7 +371,7 @@ public final class RadioUIView {
 
 	private void animateAppendedRt(final String fullText, final int oldLen, final int textColor) {
 		cancelRtAppendAnimator();
-		if (!mRdsRt.isLaidOut() || oldLen >= fullText.length()) {
+		if (!mAnimationsEnabled || !mRdsRt.isLaidOut() || oldLen >= fullText.length()) {
 			mRdsRt.setText(fullText);
 			return;
 		}
@@ -400,7 +409,8 @@ public final class RadioUIView {
 
 	private void setTextSmooth(final TextView view, final String text) {
 		view.setText(text);
-		if (!view.isLaidOut()) {
+		if (!mAnimationsEnabled || !view.isLaidOut()) {
+			view.setAlpha(1f);
 			return;
 		}
 		view.animate().cancel();

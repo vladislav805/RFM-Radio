@@ -42,13 +42,16 @@ import com.vlad805.fmradio.recordings.RecordingItem;
 import com.vlad805.fmradio.recordings.RecordingPlayerController;
 import com.vlad805.fmradio.recordings.RecordingsAdapter;
 import com.vlad805.fmradio.recordings.RecordingsRepository;
+import com.vlad805.fmradio.recordings.export.RecordingVideoExporter;
 import com.vlad805.fmradio.recordings.trim.RecordingTrimmer;
 import com.vlad805.fmradio.service.recording.RfmMetadata;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -321,6 +324,15 @@ public final class RecordingsActivity extends AppCompatActivity {
                     @Override
                     public void onRenameRequested(@NonNull final RecordingItem item) {
                         showRenameDialog(item);
+                    }
+
+                    @Override
+                    public void onExportVideoRequested(
+                            @NonNull final RecordingItem item,
+                            @NonNull final RfmMetadata metadata,
+                            final long durationMs
+                    ) {
+                        executeVideoExport(item, metadata, durationMs);
                     }
 
                     @Override
@@ -811,6 +823,71 @@ public final class RecordingsActivity extends AppCompatActivity {
         });
     }
 
+    private void executeVideoExport(
+            @NonNull final RecordingItem item,
+            @NonNull final RfmMetadata metadata,
+            final long durationMs
+    ) {
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+
+        dismissTrimProgress();
+        mTrimProgressDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.recording_action_export_video)
+                .setMessage(getString(R.string.recording_export_phase_encoding, 0, 0))
+                .setCancelable(false)
+                .setNegativeButton(android.R.string.cancel, (d, which) -> cancelled.set(true))
+                .show();
+
+        mIoExecutor.execute(() -> {
+            try {
+                final RecordingVideoExporter.ExportResult result = RecordingVideoExporter.export(
+                        this,
+                        item,
+                        metadata,
+                        durationMs,
+                        (audioPercent, videoPercent, saving) -> mMainHandler.post(() -> {
+                            if (mTrimProgressDialog == null || !mTrimProgressDialog.isShowing()) {
+                                return;
+                            }
+
+                            final String msg = saving
+                                    ? getString(R.string.recording_export_phase_saving)
+                                    : getString(R.string.recording_export_phase_encoding, audioPercent, videoPercent);
+                            mTrimProgressDialog.setMessage(msg);
+                        }),
+                        cancelled
+                );
+
+                mMainHandler.post(() -> {
+                    dismissTrimProgress();
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.recording_action_export_video)
+                            .setMessage(getString(R.string.recording_export_video_success, result.displayName))
+                            .setPositiveButton(R.string.recordings_action_share, (d, which) -> {
+                                try {
+                                    startActivity(RecordingVideoExporter.createShareIntent(
+                                            this,
+                                            result,
+                                            getString(R.string.recordings_action_share)
+                                    ));
+                                } catch (final RuntimeException error) {
+                                    Toast.makeText(this, R.string.recordings_share_failed, Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .setNegativeButton(android.R.string.ok, null)
+                            .show();
+                });
+            } catch (final CancellationException ignored) {
+                mMainHandler.post(this::dismissTrimProgress);
+            } catch (final IOException | RuntimeException error) {
+                mMainHandler.post(() -> {
+                    dismissTrimProgress();
+                    Toast.makeText(this, R.string.recording_export_video_failed, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
     private void dismissTrimProgress() {
         if (mTrimProgressDialog != null) {
             if (mTrimProgressDialog.isShowing()) {
@@ -844,7 +921,9 @@ public final class RecordingsActivity extends AppCompatActivity {
     }
 
     private void deleteRecording(@NonNull final RecordingItem target) {
-        mPlayerController.pause();
+        if (target.getRelativePath().equals(mActiveRelativePath)) {
+            mPlayerController.pause();
+        }
 
         try {
             if (RecordingsRepository.delete(this, target)) {

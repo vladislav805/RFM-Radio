@@ -35,6 +35,7 @@ public final class RecordingPlayerController {
     private static final int MENU_DELETE = 2;
     private static final int MENU_TRIM = 3;
     private static final int MENU_RENAME = 4;
+    private static final int MENU_EXPORT_VIDEO = 5;
     private static final long TICK_INTERVAL_MS = 150L;
     private static final long TRIM_STEP_MS = 200L;
 
@@ -48,6 +49,12 @@ public final class RecordingPlayerController {
         void onShareRequested(@NonNull RecordingItem item);
 
         void onRenameRequested(@NonNull RecordingItem item);
+
+        void onExportVideoRequested(
+                @NonNull RecordingItem item,
+                @NonNull RfmMetadata metadata,
+                long durationMs
+        );
 
         void onDeleteRequested(@NonNull RecordingItem item);
 
@@ -652,12 +659,17 @@ public final class RecordingPlayerController {
         }
 
         final RecordingItem target = mCurrentItem;
+        final RfmMetadata metadata = mCurrentMetadata;
+        final long durationMs = mCurrentDurationMs;
         final PopupMenu popup = new PopupMenu(mContext, anchor);
         final Menu menu = popup.getMenu();
         menu.add(0, MENU_SHARE, 1, R.string.recordings_action_share);
         menu.add(0, MENU_RENAME, 2, R.string.recordings_action_rename);
         menu.add(0, MENU_TRIM, 3, R.string.recording_action_trim);
-        menu.add(0, MENU_DELETE, 4, R.string.record_delete_action);
+        if (metadata != null) {
+            menu.add(0, MENU_EXPORT_VIDEO, 4, R.string.recording_action_export_video);
+        }
+        menu.add(0, MENU_DELETE, 5, R.string.record_delete_action);
 
         popup.setOnMenuItemClickListener(menuItem -> {
             final int id = menuItem.getItemId();
@@ -674,6 +686,12 @@ public final class RecordingPlayerController {
 
             if (id == MENU_TRIM) {
                 enterTrimMode();
+                return true;
+            }
+
+            if (id == MENU_EXPORT_VIDEO && metadata != null) {
+                mPlayer.pause();
+                mHost.onExportVideoRequested(target, metadata, durationMs);
                 return true;
             }
 

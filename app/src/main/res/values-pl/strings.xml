@@ -226,6 +226,11 @@
     <string name="recordings_rename_invalid">Nieprawidłowa nazwa pliku</string>
     <string name="recordings_rename_success">Nazwa nagrania zmieniona</string>
     <string name="recordings_rename_failed">Nie udało się zmienić nazwy nagrania</string>
+    <string name="recording_action_export_video">Eksportuj wideo</string>
+    <string name="recording_export_phase_encoding">Dźwięk: %1$d%% · Wideo: %2$d%%</string>
+    <string name="recording_export_phase_saving">Zapisywanie wideo…</string>
+    <string name="recording_export_video_success">Zapisano w Movies/RFM-Recordings/%1$s</string>
+    <string name="recording_export_video_failed">Nie udało się wyeksportować wideo</string>
     <plurals name="recordings_folder_count">
         <item quantity="one">%1$d nagranie</item>
         <item quantity="few">%1$d nagrania</item>

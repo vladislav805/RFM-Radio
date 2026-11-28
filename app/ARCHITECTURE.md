@@ -484,7 +484,10 @@ Storage: JSON files in `getExternalFilesDir()/favorites/<name>.json`
   `RecordingTunerBinder` to replay embedded `RFM1` RDS/signal/stereo events live
   alongside `WaveformView` (scrubbing, multi-row frequency-labeled station-switch
   markers, and interactive trim range handles), Prev/Play-Pause/Next controls,
-  `±0.2s` trim steppers, preview, and `⋮` Share/Rename/Trim/Delete menu.
+  `±0.2s` trim steppers, preview, and `⋮` Share/Rename/Trim/Export Video/Delete
+  menu. `RecordingVideoExporter` + `EglSurfaceRenderer` export recordings with
+  `RFM1` metadata as `960×720` H.264+AAC MP4 videos (`Movies/RFM-Recordings`)
+  rendering `export_video_frame.xml` offscreen with animations disabled.
   Background playback is backed by `RecordingPlaybackService` (`mediaPlayback`
   foreground service with `MediaStyle` Prev/Play-Pause/Next/Stop notification).
   Trimming uses `RecordingTrimmer` (`WavTrimmer` lossless PCM, `Mp3Trimmer`

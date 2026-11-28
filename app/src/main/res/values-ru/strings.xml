@@ -226,6 +226,11 @@
     <string name="recordings_rename_invalid">Некорректное имя файла</string>
     <string name="recordings_rename_success">Запись переименована</string>
     <string name="recordings_rename_failed">Не удалось переименовать запись</string>
+    <string name="recording_action_export_video">Экспорт видео</string>
+    <string name="recording_export_phase_encoding">Аудио: %1$d%% · Видео: %2$d%%</string>
+    <string name="recording_export_phase_saving">Сохранение видео…</string>
+    <string name="recording_export_video_success">Сохранено в Movies/RFM-Recordings/%1$s</string>
+    <string name="recording_export_video_failed">Не удалось экспортировать видео</string>
     <plurals name="recordings_folder_count">
         <item quantity="one">%1$d запись</item>
         <item quantity="few">%1$d записи</item>

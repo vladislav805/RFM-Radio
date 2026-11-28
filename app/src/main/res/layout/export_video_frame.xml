@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/colorBackground"
+    android:paddingTop="12dp"
+    android:paddingBottom="16dp">
+
+    <include
+        android:id="@+id/export_tuner_display"
+        layout="@layout/include_tuner_display"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.vlad805.fmradio.view.WaveformView
+        android:id="@+id/export_waveform"
+        android:layout_width="0dp"
+        android:layout_height="88dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/export_tuner_display" />
+
+    <TextView
+        android:id="@+id/export_time_current"
+        android:layout_width="72dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="6dp"
+        android:fontFamily="monospace"
+        android:gravity="start"
+        android:text="00:00"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/export_waveform"
+        tools:ignore="HardcodedText" />
+
+    <TextView
+        android:id="@+id/export_caption"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="11sp"
+        app:layout_constraintBaseline_toBaselineOf="@id/export_time_current"
+        app:layout_constraintEnd_toStartOf="@id/export_time_total"
+        app:layout_constraintStart_toEndOf="@id/export_time_current"
+        tools:text="FM-153131-1053.opus" />
+
+    <TextView
+        android:id="@+id/export_time_total"
+        android:layout_width="72dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="16dp"
+        android:fontFamily="monospace"
+        android:gravity="end"
+        android:text="00:00"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/export_waveform"
+        tools:ignore="HardcodedText" />
+
+    <!-- Hidden RT+ overlay container required by RadioUIView -->
+    <include
+        layout="@layout/include_rt_plus_overlay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/export_tuner_display" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

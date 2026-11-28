@@ -237,6 +237,11 @@
     <string name="recordings_rename_invalid">Invalid file name</string>
     <string name="recordings_rename_success">Recording renamed</string>
     <string name="recordings_rename_failed">Could not rename recording</string>
+    <string name="recording_action_export_video">Export video</string>
+    <string name="recording_export_phase_encoding">Audio: %1$d%% · Video: %2$d%%</string>
+    <string name="recording_export_phase_saving">Saving video…</string>
+    <string name="recording_export_video_success">Saved to Movies/RFM-Recordings/%1$s</string>
+    <string name="recording_export_video_failed">Could not export video</string>
     <plurals name="recordings_folder_count">
         <item quantity="one">%1$d recording</item>
         <item quantity="other">%1$d recordings</item>

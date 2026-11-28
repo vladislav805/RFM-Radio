@@ -38,6 +38,10 @@ public final class RecordingTunerBinder {
         clear();
     }
 
+    public void setAnimationsEnabled(final boolean enabled) {
+        mRadioUIView.setAnimationsEnabled(enabled);
+    }
+
     public void bind(@Nullable final RfmMetadataEvent event) {
         if (event == mLastBoundEvent) {
             return;
