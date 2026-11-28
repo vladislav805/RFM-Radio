@@ -1,6 +1,9 @@
 package com.vlad805.fmradio.recordings;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioFormat;
@@ -14,9 +17,11 @@ import android.os.ParcelFileDescriptor;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -52,6 +57,17 @@ public final class RecordingAudioPlayer {
         void release();
     }
 
+    private static final CopyOnWriteArraySet<RecordingAudioPlayer> sActivePlayers = new CopyOnWriteArraySet<>();
+
+    /**
+     * Pauses any active recording playback in this process (e.g. when live FM starts from a widget).
+     */
+    public static void pauseActivePlayback() {
+        for (final RecordingAudioPlayer player : sActivePlayers) {
+            player.mMainHandler.post(player::pause);
+        }
+    }
+
     private final Context mContext;
     private final AudioManager mAudioManager;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
@@ -62,6 +78,7 @@ public final class RecordingAudioPlayer {
     @Nullable
     private AudioFocusRequest mFocusRequest;
     private boolean mHasAudioFocus;
+    private boolean mNoisyReceiverRegistered;
 
     private final AudioManager.OnAudioFocusChangeListener mFocusChangeListener = focusChange -> {
         if (focusChange == AudioManager.AUDIOFOCUS_LOSS || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
@@ -69,9 +86,19 @@ public final class RecordingAudioPlayer {
         }
     };
 
+    private final BroadcastReceiver mNoisyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            if (intent != null && AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
+                pause();
+            }
+        }
+    };
+
     public RecordingAudioPlayer(@NonNull final Context context) {
         mContext = context.getApplicationContext();
         mAudioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+        sActivePlayers.add(this);
     }
 
     public void setListener(@Nullable final Listener listener) {
@@ -104,6 +131,7 @@ public final class RecordingAudioPlayer {
         }
 
         requestAudioFocus();
+        registerNoisyReceiver();
         mBackend.play();
         notifyPlaybackState(true);
     }
@@ -114,6 +142,7 @@ public final class RecordingAudioPlayer {
         }
 
         mBackend.pause();
+        unregisterNoisyReceiver();
         abandonAudioFocus();
         notifyPlaybackState(false);
     }
@@ -137,8 +166,37 @@ public final class RecordingAudioPlayer {
     }
 
     public void release() {
+        sActivePlayers.remove(this);
+        unregisterNoisyReceiver();
         releaseBackend();
         abandonAudioFocus();
+    }
+
+    private void registerNoisyReceiver() {
+        if (mNoisyReceiverRegistered) {
+            return;
+        }
+
+        ContextCompat.registerReceiver(
+                mContext,
+                mNoisyReceiver,
+                new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+        );
+        mNoisyReceiverRegistered = true;
+    }
+
+    private void unregisterNoisyReceiver() {
+        if (!mNoisyReceiverRegistered) {
+            return;
+        }
+
+        try {
+            mContext.unregisterReceiver(mNoisyReceiver);
+        } catch (final IllegalArgumentException ignored) {
+        }
+
+        mNoisyReceiverRegistered = false;
     }
 
     private void releaseBackend() {
@@ -207,6 +265,7 @@ public final class RecordingAudioPlayer {
 
     private void notifyCompleted() {
         mMainHandler.post(() -> {
+            unregisterNoisyReceiver();
             abandonAudioFocus();
             if (mListener != null) {
                 mListener.onPlaybackStateChanged(false);
@@ -217,6 +276,7 @@ public final class RecordingAudioPlayer {
 
     private void notifyError(@NonNull final String message) {
         mMainHandler.post(() -> {
+            unregisterNoisyReceiver();
             abandonAudioFocus();
             if (mListener != null) {
                 mListener.onError(message);
@@ -258,6 +318,7 @@ public final class RecordingAudioPlayer {
 
                 if (autoPlay) {
                     requestAudioFocus();
+                    registerNoisyReceiver();
                     mp.start();
                     notifyPlaybackState(true);
                 }
@@ -383,6 +444,7 @@ public final class RecordingAudioPlayer {
 
             if (autoPlay) {
                 requestAudioFocus();
+                registerNoisyReceiver();
                 play();
                 notifyPlaybackState(true);
             }

@@ -25,6 +25,7 @@ import com.vlad805.fmradio.controller.RadioServiceController;
 import com.vlad805.fmradio.controller.RadioState;
 import com.vlad805.fmradio.controller.StateListener;
 import com.vlad805.fmradio.controller.TunerStatus;
+import com.vlad805.fmradio.recordings.RecordingAudioPlayer;
 import com.vlad805.fmradio.enums.Direction;
 import com.vlad805.fmradio.enums.PowerMode;
 import com.vlad805.fmradio.enums.TunerDriver;
@@ -323,6 +324,7 @@ public class FMService extends Service implements RadioServiceController, FMEven
             return;
         }
 
+        RecordingAudioPlayer.pauseActivePlayback();
         mSessionActive = true;
         startService(new Intent(this, FMService.class).setAction(ACTION_START));
         mTunerDriver.prepareBinary();
