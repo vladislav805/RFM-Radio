@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class RecordingsActivity extends AppCompatActivity {
     public static final String EXTRA_INITIAL_RELATIVE_PATH = "initial_relative_path";
+    public static final String EXTRA_EXPAND_PLAYER = "expand_player";
 
     private static final int REQUEST_CODE_STORAGE = 201;
     private static final int MENU_SHARE = 1;
@@ -115,6 +116,7 @@ public final class RecordingsActivity extends AppCompatActivity {
     private String mActiveRelativePath;
     @Nullable
     private String mPendingOpenRelativePath;
+    private boolean mPendingExpandPlayer = false;
     @Nullable
     private RecordingItem mPendingDeleteItem;
     @Nullable
@@ -177,6 +179,7 @@ public final class RecordingsActivity extends AppCompatActivity {
         initPlayerController();
         initBackHandling();
 
+        mPendingExpandPlayer = getIntent().getBooleanExtra(EXTRA_EXPAND_PLAYER, false);
         final String initialPath = getIntent().getStringExtra(EXTRA_INITIAL_RELATIVE_PATH);
         if (initialPath != null && !initialPath.isEmpty()) {
             mPendingOpenRelativePath = initialPath;
@@ -192,6 +195,16 @@ public final class RecordingsActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
                     REQUEST_CODE_STORAGE
             );
+        }
+    }
+
+    @Override
+    protected void onNewIntent(@NonNull final Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+
+        if (intent.getBooleanExtra(EXTRA_EXPAND_PLAYER, false)) {
+            mPlayerController.expand();
         }
     }
 
@@ -388,6 +401,10 @@ public final class RecordingsActivity extends AppCompatActivity {
                     for (int i = 0; i < recs.size(); i++) {
                         if (target.equals(recs.get(i).getRelativePath())) {
                             openRecording(recs.get(i), i, false);
+                            if (mPendingExpandPlayer) {
+                                mPendingExpandPlayer = false;
+                                mPlayerController.expand();
+                            }
                             break;
                         }
                     }

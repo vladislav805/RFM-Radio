@@ -63,6 +63,13 @@
 				android:label="RFM Main Service"
 				/>
 
+		<service
+				android:name=".recordings.RecordingPlaybackService"
+				android:enabled="true"
+				android:exported="false"
+				android:foregroundServiceType="mediaPlayback"
+				/>
+
 		<receiver android:name=".receivers.CallReceiver" android:enabled="true">
 			<intent-filter>
 				<action android:name="android.intent.action.PHONE_STATE" />

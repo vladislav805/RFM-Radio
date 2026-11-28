@@ -101,6 +101,9 @@ public final class RecordingPlayerController {
     private boolean mTrimMode = false;
     private long mTrimStartMs = 0L;
     private long mTrimEndMs = 0L;
+    private boolean mHasPrev = false;
+    private boolean mHasNext = false;
+    private boolean mNotificationActive = false;
 
     private final Runnable mPlaybackTick = new Runnable() {
         @Override
@@ -175,6 +178,7 @@ public final class RecordingPlayerController {
 
         bindViewListeners(rootView);
         bindPlayerCallbacks();
+        bindNotificationControls();
     }
 
     public void open(@NonNull final RecordingItem item, final boolean autoPlay) {
@@ -212,6 +216,10 @@ public final class RecordingPlayerController {
         }
 
         mPlayer.prepare(item, autoPlay);
+
+        if (mNotificationActive) {
+            syncPlaybackNotification(autoPlay);
+        }
     }
 
     public void applyMetadata(
@@ -240,8 +248,14 @@ public final class RecordingPlayerController {
     }
 
     public void setAdjacentEnabled(final boolean hasPrev, final boolean hasNext) {
+        mHasPrev = hasPrev;
+        mHasNext = hasNext;
         mBtnPrev.setEnabled(hasPrev);
         mBtnNext.setEnabled(hasNext);
+
+        if (mNotificationActive) {
+            syncPlaybackNotification(mPlayer.isPlaying());
+        }
     }
 
     public void pause() {
@@ -271,6 +285,10 @@ public final class RecordingPlayerController {
         mMiniTitle.setText(renamed.getDisplayName());
         mPlayerTitle.setText(renamed.getDisplayName());
         mHost.onActiveItemChanged(renamed.getRelativePath());
+
+        if (mNotificationActive) {
+            syncPlaybackNotification(mPlayer.isPlaying());
+        }
     }
 
     public void closeIfInDirectory(@NonNull final String fullRelDir) {
@@ -294,6 +312,12 @@ public final class RecordingPlayerController {
         }
     }
 
+    public void expand() {
+        if (mCurrentItem != null) {
+            mSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        }
+    }
+
     public boolean handleBackPressed() {
         if (mTrimMode) {
             requestExitTrimMode(null);
@@ -309,6 +333,9 @@ public final class RecordingPlayerController {
     }
 
     public void release() {
+        mNotificationActive = false;
+        RecordingPlaybackService.setControlsListener(null);
+        RecordingPlaybackService.stop(mContext);
         mMainHandler.removeCallbacks(mPlaybackTick);
         mPlayer.release();
         mTunerBinder.release();
@@ -319,12 +346,68 @@ public final class RecordingPlayerController {
             exitTrimMode();
         }
 
+        mNotificationActive = false;
+        RecordingPlaybackService.stop(mContext);
         mMainHandler.removeCallbacks(mPlaybackTick);
         mPlayer.release();
         mCurrentItem = null;
         mCurrentMetadata = null;
         mSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
         mHost.onActiveItemChanged(null);
+    }
+
+    private void bindNotificationControls() {
+        RecordingPlaybackService.setControlsListener(new RecordingPlaybackService.ControlsListener() {
+            @Override
+            public void onTogglePlayPause() {
+                togglePlayPause();
+            }
+
+            @Override
+            public void onPrev() {
+                mHost.onNavigateAdjacent(-1);
+            }
+
+            @Override
+            public void onNext() {
+                mHost.onNavigateAdjacent(1);
+            }
+
+            @Override
+            public void onStop() {
+                mNotificationActive = false;
+                mPlayer.pause();
+            }
+        });
+    }
+
+    private void syncPlaybackNotification(final boolean isPlaying) {
+        if (mCurrentItem == null) {
+            mNotificationActive = false;
+            RecordingPlaybackService.stop(mContext);
+            return;
+        }
+
+        if (isPlaying) {
+            mNotificationActive = true;
+        }
+
+        if (!mNotificationActive) {
+            return;
+        }
+
+        final String subtitle = mCurrentItem.getRelativeDir().isEmpty()
+                ? mContext.getString(R.string.recordings_root_label)
+                : mCurrentItem.getRelativeDir();
+        RecordingPlaybackService.update(
+                mContext,
+                mCurrentItem.getDisplayName(),
+                subtitle,
+                mCurrentItem.getRelativePath(),
+                isPlaying,
+                mHasPrev,
+                mHasNext
+        );
     }
 
     private void bindViewListeners(@NonNull final View rootView) {
@@ -413,6 +496,8 @@ public final class RecordingPlayerController {
                 }
 
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                    mNotificationActive = false;
+                    RecordingPlaybackService.stop(mContext);
                     mPlayer.pause();
                     mMainHandler.removeCallbacks(mPlaybackTick);
                     mCurrentItem = null;
@@ -462,6 +547,7 @@ public final class RecordingPlayerController {
             @Override
             public void onPlaybackStateChanged(final boolean isPlaying) {
                 updatePlayPauseIcons(isPlaying);
+                syncPlaybackNotification(isPlaying);
                 mMainHandler.removeCallbacks(mPlaybackTick);
 
                 if (isPlaying) {
@@ -474,12 +560,21 @@ public final class RecordingPlayerController {
                 mMainHandler.removeCallbacks(mPlaybackTick);
                 updatePlayPauseIcons(false);
                 updatePlaybackPositionUi(mCurrentDurationMs);
+
+                if (!mTrimMode && mHasNext) {
+                    mHost.onNavigateAdjacent(1);
+                } else {
+                    mNotificationActive = false;
+                    RecordingPlaybackService.stop(mContext);
+                }
             }
 
             @Override
             public void onError(@NonNull final String message) {
                 mMainHandler.removeCallbacks(mPlaybackTick);
                 updatePlayPauseIcons(false);
+                mNotificationActive = false;
+                RecordingPlaybackService.stop(mContext);
                 Toast.makeText(mContext, R.string.recordings_playback_error, Toast.LENGTH_SHORT).show();
             }
         });
