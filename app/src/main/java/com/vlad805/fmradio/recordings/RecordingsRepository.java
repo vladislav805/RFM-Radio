@@ -27,9 +27,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -321,6 +323,7 @@ public final class RecordingsRepository {
         final String targetPrefix = target.isEmpty() ? "" : target + "/";
 
         final Set<String> subdirs = new LinkedHashSet<>();
+        final Map<String, Integer> subdirCounts = new HashMap<>();
         final List<RecordingItem> files = new ArrayList<>();
 
         for (final RecordingItem item : allItems) {
@@ -341,6 +344,7 @@ public final class RecordingsRepository {
 
                 if (!topChild.isEmpty()) {
                     subdirs.add(topChild);
+                    subdirCounts.put(topChild, subdirCounts.getOrDefault(topChild, 0) + 1);
                 }
             } else if (itemDir.startsWith(targetPrefix)) {
                 final String remainder = itemDir.substring(targetPrefix.length());
@@ -349,6 +353,7 @@ public final class RecordingsRepository {
 
                 if (!nextChild.isEmpty()) {
                     subdirs.add(nextChild);
+                    subdirCounts.put(nextChild, subdirCounts.getOrDefault(nextChild, 0) + 1);
                 }
             }
         }
@@ -358,7 +363,7 @@ public final class RecordingsRepository {
 
         sortRecordings(files, sortOrder);
 
-        return new DirectoryListing(target, sortedDirs, files);
+        return new DirectoryListing(target, sortedDirs, subdirCounts, files);
     }
 
     static void sortRecordings(@NonNull final List<RecordingItem> files, final int sortOrder) {
@@ -482,11 +487,14 @@ public final class RecordingsRepository {
         }
 
         final List<String> subdirs = new ArrayList<>();
+        final Map<String, Integer> subdirCounts = new HashMap<>();
         final List<RecordingItem> files = new ArrayList<>();
 
         for (final File child : children) {
             if (child.isDirectory()) {
-                subdirs.add(child.getName());
+                final String dirName = child.getName();
+                subdirs.add(dirName);
+                subdirCounts.put(dirName, countAudioFilesRecursive(child));
                 continue;
             }
 
@@ -521,6 +529,25 @@ public final class RecordingsRepository {
         subdirs.sort(Comparator.reverseOrder());
         sortRecordings(files, sortOrder);
 
-        return new DirectoryListing(relativeDir, subdirs, files);
+        return new DirectoryListing(relativeDir, subdirs, subdirCounts, files);
+    }
+
+    private static int countAudioFilesRecursive(@NonNull final File dir) {
+        final File[] children = dir.listFiles();
+        if (children == null) {
+            return 0;
+        }
+
+        int count = 0;
+
+        for (final File child : children) {
+            if (child.isDirectory()) {
+                count += countAudioFilesRecursive(child);
+            } else if (child.isFile() && isSupportedAudioExtension(extractExtension(child.getName()))) {
+                count++;
+            }
+        }
+
+        return count;
     }
 }

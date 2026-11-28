@@ -231,4 +231,8 @@
     <string name="recording_trim_discard_title">Cancel trimming?</string>
     <string name="recording_trim_discard_confirm">Selected trim boundaries will be discarded.</string>
     <string name="recording_trim_discard_action">Discard</string>
+    <plurals name="recordings_folder_count">
+        <item quantity="one">%1$d recording</item>
+        <item quantity="other">%1$d recordings</item>
+    </plurals>
 </resources>

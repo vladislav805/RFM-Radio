@@ -16,8 +16,10 @@ import com.vlad805.fmradio.R;
 import com.vlad805.fmradio.Utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * RecyclerView adapter displaying subdirectories followed by audio recordings.
@@ -38,6 +40,7 @@ public final class RecordingsAdapter extends RecyclerView.Adapter<RecyclerView.V
 
     private final OnItemClickListener mListener;
     private final List<String> mDirectories = new ArrayList<>();
+    private final Map<String, Integer> mDirectoryCounts = new HashMap<>();
     private final List<RecordingItem> mRecordings = new ArrayList<>();
     @Nullable
     private String mActiveRelativePath;
@@ -48,7 +51,12 @@ public final class RecordingsAdapter extends RecyclerView.Adapter<RecyclerView.V
 
     public void setListing(@NonNull final DirectoryListing listing) {
         mDirectories.clear();
-        mDirectories.addAll(listing.getSubdirectories());
+        mDirectoryCounts.clear();
+        for (final String dir : listing.getSubdirectories()) {
+            mDirectories.add(dir);
+            mDirectoryCounts.put(dir, listing.getSubdirectoryCount(dir));
+        }
+
         mRecordings.clear();
         mRecordings.addAll(listing.getRecordings());
         notifyDataSetChanged();
@@ -99,7 +107,8 @@ public final class RecordingsAdapter extends RecyclerView.Adapter<RecyclerView.V
     public void onBindViewHolder(@NonNull final RecyclerView.ViewHolder holder, final int position) {
         if (holder instanceof DirectoryViewHolder) {
             final String dirName = mDirectories.get(position);
-            ((DirectoryViewHolder) holder).bind(dirName, mListener);
+            final Integer count = mDirectoryCounts.get(dirName);
+            ((DirectoryViewHolder) holder).bind(dirName, count != null ? count : 0, mListener);
             return;
         }
 
@@ -111,14 +120,25 @@ public final class RecordingsAdapter extends RecyclerView.Adapter<RecyclerView.V
 
     private static final class DirectoryViewHolder extends RecyclerView.ViewHolder {
         private final TextView mName;
+        private final TextView mCount;
 
         DirectoryViewHolder(@NonNull final View itemView) {
             super(itemView);
             mName = itemView.findViewById(R.id.dir_name);
+            mCount = itemView.findViewById(R.id.dir_count);
         }
 
-        void bind(@NonNull final String dirName, @NonNull final OnItemClickListener listener) {
+        void bind(
+                @NonNull final String dirName,
+                final int recordingCount,
+                @NonNull final OnItemClickListener listener
+        ) {
             mName.setText(dirName);
+            mCount.setText(itemView.getResources().getQuantityString(
+                    R.plurals.recordings_folder_count,
+                    recordingCount,
+                    recordingCount
+            ));
             itemView.setOnClickListener(v -> listener.onDirectoryClick(dirName));
             itemView.setOnLongClickListener(v -> {
                 listener.onDirectoryLongClick(v, dirName);

@@ -220,4 +220,10 @@
     <string name="recording_trim_discard_title">Отменить обрезку?</string>
     <string name="recording_trim_discard_confirm">Выбранные границы обрезки будут сброшены.</string>
     <string name="recording_trim_discard_action">Сбросить</string>
+    <plurals name="recordings_folder_count">
+        <item quantity="one">%1$d запись</item>
+        <item quantity="few">%1$d записи</item>
+        <item quantity="many">%1$d записей</item>
+        <item quantity="other">%1$d записи</item>
+    </plurals>
 </resources>

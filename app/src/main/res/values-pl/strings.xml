@@ -220,4 +220,10 @@
     <string name="recording_trim_discard_title">Anulować przycinanie?</string>
     <string name="recording_trim_discard_confirm">Wybrane granice przycinania zostaną odrzucone.</string>
     <string name="recording_trim_discard_action">Odrzuć</string>
+    <plurals name="recordings_folder_count">
+        <item quantity="one">%1$d nagranie</item>
+        <item quantity="few">%1$d nagrania</item>
+        <item quantity="many">%1$d nagrań</item>
+        <item quantity="other">%1$d nagrania</item>
+    </plurals>
 </resources>

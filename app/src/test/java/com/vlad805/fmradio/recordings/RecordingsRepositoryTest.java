@@ -49,6 +49,8 @@ public class RecordingsRepositoryTest {
         final DirectoryListing root = RecordingsRepository.buildListingFromEntries(all, "");
         assertEquals("", root.getCurrentRelativeDir());
         assertEquals(Arrays.asList("2026-11-27", "2026-11-25"), root.getSubdirectories());
+        assertEquals(3, root.getSubdirectoryCount("2026-11-27"));
+        assertEquals(1, root.getSubdirectoryCount("2026-11-25"));
         assertEquals(2, root.getRecordings().size());
         assertEquals("root-new.opus", root.getRecordings().get(0).getDisplayName());
         assertEquals("root-old.wav", root.getRecordings().get(1).getDisplayName());
@@ -56,6 +58,7 @@ public class RecordingsRepositoryTest {
         final DirectoryListing day = RecordingsRepository.buildListingFromEntries(all, "2026-11-27");
         assertEquals("2026-11-27", day.getCurrentRelativeDir());
         assertEquals(Collections.singletonList("dx"), day.getSubdirectories());
+        assertEquals(1, day.getSubdirectoryCount("dx"));
         assertEquals(2, day.getRecordings().size());
         assertEquals("c.opus", day.getRecordings().get(0).getDisplayName());
         assertEquals("b.wav", day.getRecordings().get(1).getDisplayName());
